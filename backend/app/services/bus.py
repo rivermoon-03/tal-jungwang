@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -88,6 +88,9 @@ async def get_arrivals(
 
     # ── 2. 시간표 기반 노선: DB 조회 ───────────────────────────────────────
     realtime_route_ids: set[int] = {r.id for r in realtime_routes}
+    timetable_route_ids: set[int] = {
+        r.id for r in stop.routes if not r.is_realtime
+    }
 
     stmt = (
         select(BusTimetableEntry, BusRoute)
@@ -121,7 +124,55 @@ async def get_arrivals(
             "arrival_type": "timetable",
             "depart_at": entry.departure_time.strftime("%H:%M"),
             "arrive_in_seconds": diff,
+            "is_tomorrow": False,
         })
+
+    # ── 2-1. 오늘 시간표 소진된 시간표 기반 노선 → 내일 첫차 조회 ────────────
+    exhausted_route_ids = timetable_route_ids - seen_timetable_routes - realtime_route_ids
+    if exhausted_route_ids:
+        tomorrow = d + timedelta(days=1)
+        tomorrow_day = _day_type(tomorrow)
+
+        stmt_tmr = (
+            select(BusTimetableEntry, BusRoute)
+            .join(BusRoute, BusTimetableEntry.route_id == BusRoute.id)
+            .where(
+                BusTimetableEntry.stop_id == station_id,
+                BusTimetableEntry.day_type == tomorrow_day,
+                BusRoute.id.in_(exhausted_route_ids),
+            )
+            .order_by(BusTimetableEntry.route_id, BusTimetableEntry.departure_time)
+        )
+        result_tmr = await db.execute(stmt_tmr)
+        rows_tmr = result_tmr.all()
+
+        # 초 단위 자정까지 남은 시간
+        seconds_to_midnight = (
+            86400
+            - now_time.hour * 3600
+            - now_time.minute * 60
+            - now_time.second
+        )
+
+        seen_tomorrow_routes: set[int] = set()
+        for entry, route in rows_tmr:
+            if route.id in seen_tomorrow_routes:
+                continue
+            seen_tomorrow_routes.add(route.id)
+
+            dep = entry.departure_time
+            dep_seconds = dep.hour * 3600 + dep.minute * 60 + dep.second
+            arrive_in_seconds = seconds_to_midnight + dep_seconds
+
+            arrivals.append({
+                "route_id": route.id,
+                "route_no": route.route_number,
+                "destination": route.direction_name,
+                "arrival_type": "timetable",
+                "depart_at": entry.departure_time.strftime("%H:%M"),
+                "arrive_in_seconds": arrive_in_seconds,
+                "is_tomorrow": True,
+            })
 
     # ── 3. 정렬: arrive_in_seconds 기준 오름차순 (None은 뒤로) ─────────────
     arrivals.sort(key=lambda x: (x["arrive_in_seconds"] is None, x["arrive_in_seconds"] or 0))

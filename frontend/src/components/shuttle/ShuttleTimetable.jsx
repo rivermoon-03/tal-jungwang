@@ -46,7 +46,6 @@ export default function ShuttleTimetable({ times }) {
   // 첫 번째 아직 지나지 않은 항목 인덱스
   const nextIndex = displayList.findIndex((item) => {
     if (item.type === 'fixed') return item.minutes > nowMinutes
-    // frequent: 종료 시각이 아직 지나지 않으면 "다음"으로 취급
     return item.endMin > nowMinutes
   })
 
@@ -55,7 +54,7 @@ export default function ShuttleTimetable({ times }) {
   }, [nextIndex])
 
   return (
-    <ul className="flex-1 overflow-y-auto bg-white pb-28 md:pb-0">
+    <ul className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 pb-28 md:pb-0">
       {displayList.map((item, i) => {
         const isNext = i === nextIndex
 
@@ -67,18 +66,18 @@ export default function ShuttleTimetable({ times }) {
             <li
               key={item.key}
               ref={isNext ? nextRef : null}
-              className={`flex items-center justify-between px-5 py-3 border-b border-slate-100
+              className={`flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800
                 ${isPast ? 'opacity-35 pointer-events-none' : ''}
-                ${isActive || isNext ? 'bg-blue-50' : ''}`}
+                ${isActive || isNext ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
             >
               <div>
-                <span className={`time-num text-lg font-semibold ${isActive || isNext ? 'text-navy' : 'text-slate-800'}`}>
+                <span className={`time-num text-lg font-semibold ${isActive || isNext ? 'text-navy dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
                   {item.startTime} – {item.endTime}
                 </span>
-                <span className="ml-2 text-base text-slate-500">수시운행</span>
+                <span className="ml-2 text-base text-slate-500 dark:text-slate-400">수시운행</span>
               </div>
               {(isActive || isNext) && (
-                <span className="text-sm font-bold text-navy border border-navy px-2 py-1 rounded">
+                <span className="text-sm font-bold text-navy dark:text-blue-400 border border-navy dark:border-blue-400 px-2 py-1 rounded">
                   {isActive ? '운행 중' : '다음'}
                 </span>
               )}
@@ -97,14 +96,14 @@ export default function ShuttleTimetable({ times }) {
           <li
             key={item.key}
             ref={isNext ? nextRef : null}
-            className={`flex items-center justify-between px-5 py-3 border-b border-slate-100
+            className={`flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800
               ${isPast ? 'opacity-35 pointer-events-none' : ''}
-              ${isNext ? 'bg-blue-50' : ''}`}
+              ${isNext ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
           >
             {isReturn ? (
               <div>
-                <p className={`text-sm text-slate-400`}>회차편</p>
-                <p className={`text-sm font-medium mt-0.5 leading-snug ${isNext ? 'text-navy' : 'text-slate-600'}`}>
+                <p className="text-sm text-slate-400">회차편</p>
+                <p className={`text-sm font-medium mt-0.5 leading-snug ${isNext ? 'text-navy dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'}`}>
                   {schoolTime
                     ? `${schoolTime}에 출발 후 도착하는 버스가 회차하면 탑승하세요`
                     : '수시운행(17:00~18:00) 버스가 회차하면 탑승하세요'}
@@ -112,7 +111,7 @@ export default function ShuttleTimetable({ times }) {
               </div>
             ) : (
               <div>
-                <span className={`time-num text-lg font-semibold ${isNext ? 'text-navy' : 'text-slate-800'}`}>
+                <span className={`time-num text-lg font-semibold ${isNext ? 'text-navy dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
                   {item.time}
                 </span>
                 {item.note && (
@@ -121,7 +120,7 @@ export default function ShuttleTimetable({ times }) {
               </div>
             )}
             {isNext && (
-              <span className="text-sm font-bold text-navy border border-navy px-2 py-1 rounded">
+              <span className="text-sm font-bold text-navy dark:text-blue-400 border border-navy dark:border-blue-400 px-2 py-1 rounded">
                 다음
               </span>
             )}

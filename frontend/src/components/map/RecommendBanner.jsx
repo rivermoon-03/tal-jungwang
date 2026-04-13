@@ -35,25 +35,25 @@ export default function RecommendBanner() {
 
       {modalOpen && comparison && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setModalOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-80 p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-80 p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-slate-900">교통수단 비교</h3>
-              <button onClick={() => setModalOpen(false)} aria-label="닫기" className="text-slate-400 hover:text-slate-600 p-1">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">교통수단 비교</h3>
+              <button onClick={() => setModalOpen(false)} aria-label="닫기" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
                 <X size={20} />
               </button>
             </div>
             <table className="w-full text-base border-collapse">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 text-sm text-slate-500 font-medium">수단</th>
-                  <th className="text-right py-2 text-sm text-slate-500 font-medium">예상 시간</th>
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left py-2 text-sm text-slate-500 dark:text-slate-400 font-medium">수단</th>
+                  <th className="text-right py-2 text-sm text-slate-500 dark:text-slate-400 font-medium">예상 시간</th>
                 </tr>
               </thead>
               <tbody>
                 {comparison.walking && (
-                  <tr className="border-b border-slate-100">
-                    <td className="py-3 text-slate-700">🚶 도보</td>
-                    <td className="py-3 text-right font-bold text-slate-900 time-num">
+                  <tr className="border-b border-slate-100 dark:border-slate-700">
+                    <td className="py-3 text-slate-700 dark:text-slate-300">🚶 도보</td>
+                    <td className="py-3 text-right font-bold text-slate-900 dark:text-slate-100 time-num">
                       {comparison.walking.total_seconds != null
                         ? `${Math.round(comparison.walking.total_seconds / 60)}분`
                         : '—'}
@@ -66,11 +66,11 @@ export default function RecommendBanner() {
                   const totalMin = Math.round(comparison.bus.total_seconds / 60)
                   return (
                     <>
-                      <tr className="border-b border-slate-50">
-                        <td className="py-3 text-slate-700">🚌 버스 ({comparison.bus.route_no ?? ''})</td>
-                        <td className="py-3 text-right font-bold text-slate-900 time-num">{totalMin}분</td>
+                      <tr className="border-b border-slate-50 dark:border-slate-700">
+                        <td className="py-3 text-slate-700 dark:text-slate-300">🚌 버스 ({comparison.bus.route_no ?? ''})</td>
+                        <td className="py-3 text-right font-bold text-slate-900 dark:text-slate-100 time-num">{totalMin}분</td>
                       </tr>
-                      <tr className="border-b border-slate-100">
+                      <tr className="border-b border-slate-100 dark:border-slate-700">
                         <td colSpan={2} className="pb-3 text-sm text-slate-400 time-num">
                           대기 {waitMin}분 + 이동 {rideMin}분
                         </td>

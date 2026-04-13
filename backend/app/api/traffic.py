@@ -1,16 +1,21 @@
 import asyncio
+import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_token
+from app.core.cache import get_redis
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.traffic import RoadTraffic, TrafficResponse
 from app.services.external.tmap import fetch_driving_traffic
 from app.services.traffic import collect_traffic, get_history
+
+_TRAFFIC_LIVE_CACHE_KEY = "traffic:live"
+_TRAFFIC_LIVE_TTL = 60  # 60초
 
 router = APIRouter(prefix="/api/v1/traffic", tags=["traffic"])
 
@@ -57,7 +62,18 @@ async def get_traffic():
 
     한국공학대 ↔ 정왕역 경로를 TMAP으로 탐색하고,
     경유하는 주요 도로별 소요시간·속도를 반환합니다.
+    Redis에 60초 캐싱 (TMAP API 한도 보호).
     """
+    # ── 캐시 조회 ────────────────────────────────────────────────
+    try:
+        redis = await get_redis()
+        cached = await redis.get(_TRAFFIC_LIVE_CACHE_KEY)
+        if cached:
+            return ApiResponse.ok(json.loads(cached))
+    except Exception:
+        pass
+
+    # ── TMAP API 호출 ─────────────────────────────────────────
     tasks = [
         fetch_driving_traffic(
             start_x=r["start"]["lng"], start_y=r["start"]["lat"],
@@ -103,9 +119,20 @@ async def get_traffic():
     roads.sort(key=lambda r: (r.road_name, r.direction))
 
     now = datetime.now(timezone.utc).astimezone()
-    return ApiResponse[TrafficResponse].ok(
-        TrafficResponse(roads=roads, updated_at=now.isoformat())
-    )
+    response_data = TrafficResponse(roads=roads, updated_at=now.isoformat())
+
+    # ── 캐시 저장 ────────────────────────────────────────────────
+    try:
+        redis = await get_redis()
+        await redis.set(
+            _TRAFFIC_LIVE_CACHE_KEY,
+            json.dumps(response_data.model_dump(), ensure_ascii=False, default=str),
+            ex=_TRAFFIC_LIVE_TTL,
+        )
+    except Exception:
+        pass
+
+    return ApiResponse[TrafficResponse].ok(response_data)
 
 
 @router.post("/collect")

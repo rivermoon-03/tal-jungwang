@@ -30,7 +30,9 @@ export default function BusTimetableDetail({ routeId, routeNo, onBack }) {
         <BusFront size={20} strokeWidth={2} />
         <h2 className="text-lg font-bold">{routeNo}번 시간표</h2>
         {data && (
-          <span className="ml-auto text-sm opacity-75 capitalize">{data.schedule_type}</span>
+          <span className="ml-auto text-sm opacity-75">
+            {{ weekday: '평일', saturday: '토요일', sunday: '일요일' }[data.schedule_type] ?? data.schedule_type}
+          </span>
         )}
       </div>
 
@@ -43,7 +45,13 @@ export default function BusTimetableDetail({ routeId, routeNo, onBack }) {
           <p className="text-base text-slate-400">시간표 정보가 없습니다.</p>
         </div>
       ) : (
-        <ul className="flex-1 overflow-y-auto bg-white pb-16 md:pb-0">
+        <ul className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 pb-16 md:pb-0">
+          {nextIndex === -1 && (
+            <li className="px-5 py-4 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">오늘 운행이 끝났습니다</p>
+              <p className="text-xs text-slate-400 mt-0.5">내일 첫차: {times[0]}</p>
+            </li>
+          )}
           {times.map((t, i) => {
             const isPast = timeToMinutes(t) <= nowMin
             const isNext = i === nextIndex
@@ -53,16 +61,16 @@ export default function BusTimetableDetail({ routeId, routeNo, onBack }) {
               <li
                 key={i}
                 ref={isNext ? nextRef : null}
-                className={`flex items-center px-5 py-3 border-b border-slate-100
+                className={`flex items-center px-5 py-3 border-b border-slate-100 dark:border-slate-800
                   ${isPast ? 'opacity-35 pointer-events-none' : ''}
-                  ${isNext ? 'bg-blue-50' : ''}`}
+                  ${isNext ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
               >
                 <span className={`time-num text-lg font-semibold min-w-[56px]
-                  ${isNext ? 'text-navy' : 'text-slate-800'}`}>
+                  ${isNext ? 'text-navy dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
                   {t}
                 </span>
                 {isNext && (
-                  <span className="ml-auto text-base font-bold text-navy">{diffMin}분 후</span>
+                  <span className="ml-auto text-base font-bold text-navy dark:text-blue-400">{diffMin}분 후</span>
                 )}
               </li>
             )

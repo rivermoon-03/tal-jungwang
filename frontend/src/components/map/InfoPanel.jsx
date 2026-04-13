@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals } from '../../hooks/useBus'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
@@ -6,9 +6,17 @@ import { useShuttleSchedule } from '../../hooks/useShuttle'
 import InfoPanelMobile from './InfoPanelMobile'
 import InfoPanelPC from './InfoPanelPC'
 import { SEOUL_STATION_ID } from './InfoPanelTabs'
+import useAppStore from '../../stores/useAppStore'
+import { apiFetch } from '../../hooks/useApi'
 
 const JEONGWANG_STATION_ID = '224000639'
 const DEFAULT_WALK_SEC = 720
+
+const WALK_DESTINATIONS = {
+  shuttle: { lat: 37.339343, lng: 126.73279 },
+  bus:     { lat: 37.3400,   lng: 126.7335  },
+  station: { lat: 37.351618, lng: 126.742747 },
+}
 
 // ShuttleTab과 동일한 매핑 — DB의 원본 route_name을 표시용 이름으로 변환
 const DIRECTION_LABEL = {
@@ -81,27 +89,27 @@ function AboutModal({ onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl px-7 py-6 flex flex-col gap-4 max-w-sm w-full"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl px-7 py-6 flex flex-col gap-4 max-w-sm w-full"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center gap-1">
-          <p className="text-base font-bold text-slate-800 tracking-wide text-center">
+          <p className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-wide text-center">
             Made with ❤️ by CE-SW
           </p>
           <p className="text-[11px] text-slate-400">한국공대 ㅎㅇㅌ</p>
         </div>
-        <p className="text-[13px] text-slate-500 leading-relaxed">
+        <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
           지하철, 3400/6502, 셔틀버스 정보는 각각의 공식 시간표에서 가져왔습니다.
           예상치 못한 일이 생기면 달라질 수 있습니다.
           <br />
           <span className="text-slate-400">(수인분당 제대로 오는 꼬라지를 본 적이 없어요.)</span>
         </p>
-        <p className="text-[12px] text-slate-400 leading-relaxed border-t border-slate-100 pt-3">
+        <p className="text-[12px] text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-700 pt-3">
           아직 테스트 버전입니다. 실시간 버스 기능은 믿지 말아주세요.
         </p>
         <button
           onClick={onClose}
-          className="self-center px-5 py-1.5 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-slate-200 transition-colors"
+          className="self-center px-5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
         >
           닫기
         </button>
@@ -125,6 +133,40 @@ export default function InfoPanel() {
   const [infoOpen, setInfoOpen] = useState(false)
   const [isFirstVisit, setIsFirstVisit] = useState(() => !hasVisitedCookie())
   const isMobile = useIsMobile()
+  const setTabBadges = useAppStore((s) => s.setTabBadges)
+  const userLocation = useAppStore((s) => s.userLocation)
+
+  const [walkTimes, setWalkTimes] = useState({
+    shuttle: DEFAULT_WALK_SEC,
+    bus:     DEFAULT_WALK_SEC,
+    station: DEFAULT_WALK_SEC,
+  })
+  const walkFetchedRef = useRef(false)
+
+  useEffect(() => {
+    if (!userLocation || walkFetchedRef.current) return
+    walkFetchedRef.current = true
+
+    const origin = { lat: userLocation.lat, lng: userLocation.lng }
+    const fetchWalk = (destination) =>
+      apiFetch('/route/walking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin, destination }),
+      }).catch(() => null)
+
+    Promise.all([
+      fetchWalk(WALK_DESTINATIONS.shuttle),
+      fetchWalk(WALK_DESTINATIONS.bus),
+      fetchWalk(WALK_DESTINATIONS.station),
+    ]).then(([shuttleRes, busRes, stationRes]) => {
+      setWalkTimes({
+        shuttle: shuttleRes?.duration_seconds ?? DEFAULT_WALK_SEC,
+        bus:     busRes?.duration_seconds     ?? DEFAULT_WALK_SEC,
+        station: stationRes?.duration_seconds ?? DEFAULT_WALK_SEC,
+      })
+    })
+  }, [userLocation])
 
   const { data: timetableData }    = useSubwayTimetable()
   const subwayData = timetableData ? {
@@ -152,8 +194,22 @@ export default function InfoPanel() {
   const { data: timetable3400 }    = useBusTimetableByRoute('3400')
   const { data: timetable6502 }    = useBusTimetableByRoute('6502')
 
-  const walkSec = DEFAULT_WALK_SEC
   const shuttleDirections = computeShuttleDirections(shuttleSchedule)
+
+  // ── 탭 배지 계산 ──────────────────────────────────────────
+  useEffect(() => {
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+
+    const shuttleBadge = shuttleDirections.some(
+      (d) => d.diffSec != null && d.diffSec <= 300
+    )
+
+    const busBadge = (adjustedBusJeongwangData?.arrivals ?? []).some(
+      (a) => a.arrival_type === 'realtime' && a.arrive_in_seconds <= 180
+    )
+
+    setTabBadges({ shuttle: shuttleBadge, bus: busBadge, subway: false })
+  }, [shuttleDirections, adjustedBusJeongwangData, timetableData, setTabBadges])
   const seoulNextDepartures = [
     { route: '3400', time: getNextFromTimetable(timetable3400) },
     { route: '6502', time: getNextFromTimetable(timetable6502) },
@@ -164,7 +220,8 @@ export default function InfoPanel() {
     subwayData, busJeongwangData: adjustedBusJeongwangData, busSeoulData,
     shuttleDirections,
     seoulNextDepartures,
-    walkSec,
+    walkTimes,
+    timetableData,
     onInfoClick: () => {
       if (isFirstVisit) {
         setVisitedCookie()

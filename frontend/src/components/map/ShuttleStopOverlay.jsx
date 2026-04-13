@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useShuttleNext } from '../../hooks/useShuttle'
+import useAppStore from '../../stores/useAppStore'
 
 const SHUTTLE_STOP = { lat: 37.339343, lng: 126.73279 }
 const MARKER_W = 22
@@ -18,11 +19,16 @@ const LABEL_STYLE = [
   'pointer-events:none',
 ].join(';')
 
+// 라벨 다크모드 스타일
+const LABEL_DARK = 'rgba(30,41,59,0.95)'   // slate-800
+const LABEL_LIGHT = 'rgba(255,255,255,0.95)'
+
 export default function ShuttleStopOverlay({ map }) {
   const markerRef = useRef(null)
   const labelDivRef = useRef(null)
   const labelOverlayRef = useRef(null)
-  const { data: nextShuttle } = useShuttleNext()
+  const { data: nextShuttle } = useShuttleNext('하교')
+  const darkMode = useAppStore((s) => s.darkMode)
 
   // 마커 + 레이블 오버레이 생성 (map 준비 후 1회)
   useEffect(() => {
@@ -65,17 +71,18 @@ export default function ShuttleStopOverlay({ map }) {
     const div = labelDivRef.current
     if (!div) return
     const sec = nextShuttle?.arrive_in_seconds
+    const bg = darkMode ? LABEL_DARK : LABEL_LIGHT
     if (sec != null && sec > 0) {
       div.textContent = `${Math.floor(sec / 60)}분`
-      div.style.color = '#1a237e'
-      div.style.background = 'rgba(255,255,255,0.95)'
+      div.style.color = darkMode ? '#bfdbfe' : '#1a237e'
+      div.style.background = bg
     } else {
       div.textContent = '💤'
       div.style.color = '#94a3b8'
-      div.style.background = 'rgba(255,255,255,0.85)'
+      div.style.background = darkMode ? 'rgba(30,41,59,0.85)' : 'rgba(255,255,255,0.85)'
     }
     div.style.display = 'block'
-  }, [nextShuttle])
+  }, [nextShuttle, darkMode])
 
   return null
 }

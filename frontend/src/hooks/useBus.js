@@ -6,7 +6,7 @@ export function useBusStations() {
 
 export function useBusArrivals(stationId) {
   const { data, loading, error, fetchedAt, refetch } = useApi(`/bus/arrivals/${stationId}`, {
-    interval: 15_000,
+    interval: 30_000,
     enabled: stationId != null,
   })
   return { data, loading, error, fetchedAt, refetch }
