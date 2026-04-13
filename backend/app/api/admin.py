@@ -4,7 +4,7 @@ import jwt
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from passlib.hash import bcrypt as passlib_bcrypt
+import bcrypt as _bcrypt
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,7 +58,7 @@ def _verify_token(cred: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
 async def login(request: Request, body: LoginRequest):
     if body.username != settings.ADMIN_USERNAME:
         return ApiResponse.fail("AUTH_FAILED", "아이디 또는 비밀번호가 올바르지 않습니다.")
-    if not passlib_bcrypt.verify(body.password, settings.ADMIN_PASSWORD_HASH):
+    if not _bcrypt.checkpw(body.password.encode(), settings.ADMIN_PASSWORD_HASH.encode()):
         return ApiResponse.fail("AUTH_FAILED", "아이디 또는 비밀번호가 올바르지 않습니다.")
 
     token, expires_in = _create_token(body.username)
