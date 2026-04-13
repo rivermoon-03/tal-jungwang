@@ -35,12 +35,11 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // 정적 에셋 — 캐시 우선, 없으면 네트워크 후 캐시 저장
-  e.respondWith(
-    caches.match(e.request).then((cached) => {
-      if (cached) return cached
-
-      return fetch(e.request)
+  // HTML 네비게이션 — 네트워크 우선, 실패 시 캐시 폴백
+  // (Vite 배포마다 해시가 바뀌므로 항상 최신 index.html을 받아야 함)
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
         .then((res) => {
           if (res.status === 200) {
             const clone = res.clone()
@@ -48,12 +47,24 @@ self.addEventListener('fetch', (e) => {
           }
           return res
         })
-        .catch(() => {
-          // 페이지 네비게이션 실패 시 캐시된 index.html로 SPA 폴백
-          if (e.request.mode === 'navigate') {
-            return caches.match('/index.html')
-          }
-        })
+        .catch(() => caches.match('/index.html'))
+    )
+    return
+  }
+
+  // 정적 에셋 — 캐시 우선, 없으면 네트워크 후 캐시 저장
+  // (해시된 파일명은 불변이므로 캐시 우선 안전)
+  e.respondWith(
+    caches.match(e.request).then((cached) => {
+      if (cached) return cached
+
+      return fetch(e.request).then((res) => {
+        if (res.status === 200) {
+          const clone = res.clone()
+          caches.open(CACHE).then((c) => c.put(e.request, clone))
+        }
+        return res
+      })
     })
   )
 })

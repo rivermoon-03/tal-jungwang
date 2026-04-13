@@ -55,7 +55,11 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick,
   const minSec = getMinSec(sdUp, sdDown, l4Up, l4Down,
     busJeongwangData?.arrivals?.map((a) => a.arrive_in_seconds))
   const dotClass = getDotClass(minSec, walkSec)
-  const fmt = (sec) => sec != null ? `${toMin(sec)}분` : '—'
+  const fmt = (sec) => {
+    if (sec == null) return '—'
+    const m = toMin(sec)
+    return m === 0 ? '곧 출발' : `${m}분`
+  }
 
   // ── 축약 (한 줄) ──────────────────────────────────────────
   if (collapsed) {
@@ -134,7 +138,7 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
             <span key={route} className="flex items-center gap-1">
               {i > 0 && <span className={active ? 'text-white/40' : 'text-slate-300'}>/</span>}
               <span className={active ? 'text-white/70' : 'text-slate-500'}>{route}</span>
-              <span className={active ? 'text-white' : 'text-slate-900'}>{m != null ? `${m}분` : '—'}</span>
+              <span className={active ? 'text-white' : 'text-slate-900'}>{m != null ? (m === 0 ? '곧 출발' : `${m}분`) : '—'}</span>
             </span>
           )
         })}
@@ -165,7 +169,7 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
               <div key={route} className="flex items-center gap-1.5">
                 <span className="w-[44px] flex-shrink-0 whitespace-nowrap font-bold">{route}</span>
                 <span className={`tabular-nums font-bold whitespace-nowrap ${val}`}>
-                  {diffMin != null ? `${diffMin}분 후` : '없음'}
+                  {diffMin != null ? (diffMin === 0 ? '곧 출발' : `${diffMin}분 후`) : '없음'}
                 </span>
               </div>
             )
@@ -188,7 +192,11 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
   // 상행(하교, ↑) / 하행(등교, ↓) 각각의 다음 시간
   const haegyo = shuttleDirections.find((d) => matchesMode(d.direction, '하교'))
   const deungyo = shuttleDirections.find((d) => matchesMode(d.direction, '등교'))
-  const fmtSec = (sec) => sec != null ? `${toMin(sec)}분` : '—'
+  const fmtSec = (sec) => {
+    if (sec == null) return '—'
+    const m = toMin(sec)
+    return m === 0 ? '곧 출발' : `${m}분`
+  }
 
   // ── 축약 (현재 모드 방향 + 시간) ────────────────────────────────────
   if (collapsed) {
@@ -230,7 +238,7 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
         <p className="text-[10px] mb-0.5">{mode}</p>
         <p className={`tabular-nums font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900'}`}>
           {target
-            ? (target.diffSec != null ? `${toMin(target.diffSec)}분` : '수시운행')
+            ? (target.diffSec != null ? (toMin(target.diffSec) === 0 ? '곧 출발' : `${toMin(target.diffSec)}분`) : '수시운행')
             : '없음'}
         </p>
       </div>
