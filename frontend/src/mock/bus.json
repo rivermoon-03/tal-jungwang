@@ -1,0 +1,35 @@
+{
+  "stations": [
+    {
+      "id": "mock-001",
+      "name": "한국공학대학교 정문",
+      "arrivals": [
+        { "routeNo": "330",    "dest": "수원역",   "type": "realtime",  "arriveInSec": 180, "positionText": "2번째 전" },
+        { "routeNo": "3100",   "dest": "강남역",   "type": "realtime",  "arriveInSec": 480, "positionText": "5번째 전" },
+        { "routeNo": "시흥33", "dest": "정왕역",   "type": "realtime",  "arriveInSec": 60,  "positionText": "1번째 전" },
+        { "routeNo": "20-1",   "dest": "시화",     "type": "timetable", "departAt": "18:10" },
+        { "routeNo": "시흥1",  "dest": "정왕역",   "type": "realtime",  "arriveInSec": 720, "positionText": "7번째 전" }
+      ]
+    },
+    {
+      "id": "mock-002",
+      "name": "한국공학대학교 후문",
+      "arrivals": [
+        { "routeNo": "시흥33", "dest": "정왕역",   "type": "realtime",  "arriveInSec": 300, "positionText": "3번째 전" },
+        { "routeNo": "20-1",   "dest": "시화",     "type": "timetable", "departAt": "18:10" },
+        { "routeNo": "시흥1",  "dest": "정왕역",   "type": "realtime",  "arriveInSec": 840, "positionText": "8번째 전" }
+      ]
+    },
+    {
+      "id": "mock-003",
+      "name": "정왕역",
+      "arrivals": [
+        { "routeNo": "330",    "dest": "수원역",   "type": "realtime",  "arriveInSec": 120, "positionText": "1번째 전" },
+        { "routeNo": "3100",   "dest": "강남역",   "type": "realtime",  "arriveInSec": 360, "positionText": "4번째 전" },
+        { "routeNo": "시흥33", "dest": "시화공단", "type": "realtime",  "arriveInSec": 540, "positionText": "5번째 전" },
+        { "routeNo": "20-1",   "dest": "시화",     "type": "timetable", "departAt": "18:30" },
+        { "routeNo": "시흥1",  "dest": "시화공단", "type": "realtime",  "arriveInSec": 600, "positionText": "6번째 전" }
+      ]
+    }
+  ]
+}

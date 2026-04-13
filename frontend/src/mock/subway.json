@@ -1,0 +1,27 @@
+{
+  "station": "정왕",
+  "line": "수인분당선",
+  "stations": ["오이도", "정왕", "신길온천", "안산", "초지"],
+  "jeongwangIndex": 1,
+  "up": [
+    { "departAt": "05:32", "destination": "왕십리" },
+    { "departAt": "06:02", "destination": "청량리" },
+    { "departAt": "15:02", "destination": "왕십리" },
+    { "departAt": "15:17", "destination": "청량리" },
+    { "departAt": "15:32", "destination": "왕십리" },
+    { "departAt": "15:47", "destination": "청량리" },
+    { "departAt": "16:02", "destination": "왕십리" },
+    { "departAt": "16:17", "destination": "청량리" },
+    { "departAt": "23:42", "destination": "왕십리" }
+  ],
+  "down": [
+    { "departAt": "05:47", "destination": "오이도" },
+    { "departAt": "06:17", "destination": "인천" },
+    { "departAt": "15:08", "destination": "오이도" },
+    { "departAt": "15:23", "destination": "인천" },
+    { "departAt": "15:38", "destination": "오이도" },
+    { "departAt": "15:53", "destination": "인천" },
+    { "departAt": "16:08", "destination": "오이도" },
+    { "departAt": "23:51", "destination": "오이도" }
+  ]
+}
