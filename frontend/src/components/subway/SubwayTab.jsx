@@ -4,6 +4,7 @@ import { useSubwayTimetable } from '../../hooks/useSubway'
 import SubwayLineCard from './SubwayLineCard'
 import SubwayCountdown from './SubwayCountdown'
 import SubwayTimetable from './SubwayTimetable'
+import { getLastTrainStatus, getSpecialTrainIndices } from '../../utils/trainTime'
 
 function timeToMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -36,15 +37,15 @@ function useLastTrainWarnings(timetable) {
 
   return CARD_DEFS.flatMap((def) => {
     const trains = timetable[def.key] ?? []
-    const upcoming = trains.filter((t) => {
-      const [hh, mm] = t.depart_at.split(':').map(Number)
-      return hh * 60 + mm > nowMin
-    })
-    if (upcoming.length !== 1) return []
-    const [hh, mm] = upcoming[0].depart_at.split(':').map(Number)
-    const diffMin = hh * 60 + mm - nowMin
+    const status = getLastTrainStatus(trains, nowMin)
+    if (!status?.isLast) return []
+    const [hh, mm] = status.nextTrain.depart_at.split(':').map(Number)
+    // 자정 넘어가는 경우 effective 분 계산
+    let rawMin = hh * 60 + mm
+    if (rawMin < 3 * 60 && nowMin > 22 * 60) rawMin += 1440
+    const diffMin = rawMin - nowMin
     if (diffMin > 30) return []
-    return [{ lineName: def.lineName, upDown: def.upDown, destination: upcoming[0].destination, diffMin }]
+    return [{ lineName: def.lineName, upDown: def.upDown, destination: status.nextTrain.destination, diffMin }]
   })
 }
 
@@ -84,6 +85,7 @@ export default function SubwayTab() {
     ? trains.findIndex((t) => timeToMinutes(t.depart_at) > nowMin)
     : -1
   const nextTrain = nextIndex >= 0 ? trains[nextIndex] : null
+  const { lastIdx, firstIdx } = selected ? getSpecialTrainIndices(trains) : {}
 
   // ── 상세 뷰 ──────────────────────────────────────────────
   if (selected) {
@@ -112,6 +114,8 @@ export default function SubwayTab() {
           <SubwayTimetable
             entries={trains}
             nextIndex={nextIndex}
+            lastIdx={lastIdx ?? null}
+            firstIdx={firstIdx ?? null}
             lineColor={selected.color}
             lineDarkColor={selected.darkColor}
             lineLightColor={selected.lightColor}

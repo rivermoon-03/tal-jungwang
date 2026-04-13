@@ -1,5 +1,6 @@
 import { useCountdown } from '../../hooks/useCountdown'
 import useAppStore from '../../stores/useAppStore'
+import { getSpecialTrainIndices } from '../../utils/trainTime'
 
 function timeToMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -37,11 +38,16 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
   const now = new Date()
   const nowMin = now.getHours() * 60 + now.getMinutes()
 
-  const upcoming = trains.filter((t) => timeToMinutes(t.depart_at) > nowMin)
+  const nextTrainIdx = trains.findIndex((t) => timeToMinutes(t.depart_at) > nowMin)
+  const upcoming = nextTrainIdx >= 0 ? trains.slice(nextTrainIdx) : []
   const nextTrain = upcoming[0] ?? null
   const afterNext = upcoming[1] ?? null
   const missWaitMin = afterNext ? Math.round(timeToMinutes(afterNext.depart_at) - nowMin) : null
   const preview = upcoming.slice(1, 4)
+
+  const { lastIdx, firstIdx } = getSpecialTrainIndices(trains)
+  const isLast  = nextTrainIdx >= 0 && nextTrainIdx === lastIdx
+  const isFirst = nextTrainIdx >= 0 && nextTrainIdx === firstIdx
 
   return (
     <div
@@ -61,9 +67,14 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
       >
         <div className="flex items-center gap-2 mb-1">
           <p className="text-xs text-slate-400">다음 열차</p>
-          {nextTrain && upcoming.length === 1 && (
-            <span className="text-xs font-semibold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
+          {nextTrain && isLast && (
+            <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
               막차
+            </span>
+          )}
+          {nextTrain && isFirst && (
+            <span className="text-[10px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-full leading-none">
+              첫차
             </span>
           )}
         </div>

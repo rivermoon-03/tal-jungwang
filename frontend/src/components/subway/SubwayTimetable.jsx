@@ -6,7 +6,7 @@ function timeToMinutes(t) {
   return hh * 60 + mm
 }
 
-export default function SubwayTimetable({ entries, nextIndex, lineColor, lineDarkColor, lineLightColor }) {
+export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx, lineColor, lineDarkColor, lineLightColor }) {
   const now = new Date()
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const nextRef = useRef(null)
@@ -21,6 +21,8 @@ export default function SubwayTimetable({ entries, nextIndex, lineColor, lineDar
       {entries.map((train, i) => {
         const isPast = timeToMinutes(train.depart_at) <= nowMin
         const isNext = i === nextIndex
+        const isLast  = i === lastIdx
+        const isFirst = i === firstIdx
         const diffMin = Math.round(timeToMinutes(train.depart_at) - nowMin)
 
         return (
@@ -40,11 +42,23 @@ export default function SubwayTimetable({ entries, nextIndex, lineColor, lineDar
               </span>
             </span>
             <span className="flex-1 text-base text-slate-500 dark:text-slate-400 ml-3">{train.destination}행</span>
-            {isNext && (
-              <span className="text-base font-bold" style={{ color: darkMode ? (lineDarkColor ?? lineColor) : lineColor }}>
-                {diffMin}분 후
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {isLast && (
+                <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
+                  막차
+                </span>
+              )}
+              {isFirst && (
+                <span className="text-[10px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-full leading-none">
+                  첫차
+                </span>
+              )}
+              {isNext && (
+                <span className="text-base font-bold" style={{ color: darkMode ? (lineDarkColor ?? lineColor) : lineColor }}>
+                  {diffMin}분 후
+                </span>
+              )}
+            </div>
           </li>
         )
       })}
