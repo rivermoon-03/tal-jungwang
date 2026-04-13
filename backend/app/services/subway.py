@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import get_cached_json, set_cached_json
 from app.models.subway import SubwayTimetableEntry
 
-_TIMETABLE_TTL = 86400  # 24시간 — 시간표는 하루 단위로 갱신
+_TIMETABLE_TTL = 43200  # 12시간 — 시간표는 하루 단위로 갱신
 
 
 def _day_type(d: date) -> str:

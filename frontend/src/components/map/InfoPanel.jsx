@@ -10,6 +10,16 @@ import { SEOUL_STATION_ID } from './InfoPanelTabs'
 const JEONGWANG_STATION_ID = '224000639'
 const DEFAULT_WALK_SEC = 720
 
+// ShuttleTab과 동일한 매핑 — DB의 원본 route_name을 표시용 이름으로 변환
+const DIRECTION_LABEL = {
+  '정왕역행 (하교)':  '정왕역행 (하교)',
+  '학교행 (등교)':    '학교행 (등교)',
+  '정왕역방면':       '정왕역행 (하교)',
+  '정왕역→학교':     '학교행 (등교)',
+  '하교 (정왕역행)':  '정왕역행 (하교)',
+  '등교 (학교행)':    '학교행 (등교)',
+}
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
   useEffect(() => {
@@ -27,14 +37,15 @@ function computeShuttleDirections(schedule) {
   const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
 
   return schedule.directions.map(({ direction, times }) => {
+    const mappedDirection = DIRECTION_LABEL[direction] ?? direction
     const next = times.find((t) => {
       const [hh, mm] = t.depart_at.split(':').map(Number)
       return hh * 60 + mm > nowMin
     })
-    if (!next) return { direction, diffSec: null, nextTime: null }
+    if (!next) return { direction: mappedDirection, diffSec: null, nextTime: null }
     const [hh, mm] = next.depart_at.split(':').map(Number)
     const diffSec = hh * 3600 + mm * 60 - nowSec
-    return { direction, diffSec: diffSec > 0 ? diffSec : null, nextTime: next.depart_at }
+    return { direction: mappedDirection, diffSec: diffSec > 0 ? diffSec : null, nextTime: next.depart_at }
   })
 }
 
