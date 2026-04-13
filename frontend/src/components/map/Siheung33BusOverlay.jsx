@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react'
-import { useBusArrivals } from '../../hooks/useBus'
+import { useBusArrivals, useBusStations } from '../../hooks/useBus'
 
 const BUS_STOP = { lat: 37.341633, lng: 126.731252 }
-const JEONGWANG_STATION_ID = '224000639'
+const STATION_NAME = '한국공학대학교'
 const MARKER_W = 22
 const MARKER_H = 28
+
+function isRoute33(route_no) {
+  return route_no === '33' || route_no === '시흥33'
+}
 
 // 라벨 + 테스트 중 뱃지를 담는 컨테이너 스타일
 const CONTAINER_STYLE = [
@@ -43,7 +47,11 @@ export default function Siheung33BusOverlay({ map }) {
   const containerDivRef = useRef(null)
   const labelDivRef = useRef(null)
   const labelOverlayRef = useRef(null)
-  const { data: busData } = useBusArrivals(JEONGWANG_STATION_ID)
+
+  // 정류장 목록에서 한국공학대학교의 DB station_id를 동적으로 가져옴
+  const { data: stations } = useBusStations()
+  const stationId = stations?.find((s) => s.name === STATION_NAME)?.station_id ?? null
+  const { data: busData } = useBusArrivals(stationId)
 
   // 마커 + 라벨 오버레이 생성 (map 준비 후 1회)
   useEffect(() => {
@@ -65,12 +73,12 @@ export default function Siheung33BusOverlay({ map }) {
 
     const labelDiv = document.createElement('div')
     labelDiv.style.cssText = LABEL_STYLE
-    labelDiv.style.display = 'none'
+    labelDiv.textContent = '33번 - —'
     labelDivRef.current = labelDiv
 
     const badgeDiv = document.createElement('div')
     badgeDiv.style.cssText = BADGE_STYLE
-    badgeDiv.textContent = '테스트 중'
+    badgeDiv.textContent = '±2분 | 테스트 중'
 
     containerDiv.appendChild(badgeDiv)
     containerDiv.appendChild(labelDiv)
@@ -99,16 +107,25 @@ export default function Siheung33BusOverlay({ map }) {
     const div = labelDivRef.current
     if (!div) return
 
-    const arrival = busData?.arrivals?.find(
-      (a) => a.route_no === '33' && a.arrival_type === 'realtime',
+    // 실시간 우선, 없으면 시간표 기반으로 fallback
+    const realtime = busData?.arrivals?.find(
+      (a) => isRoute33(a.route_no) && a.arrival_type === 'realtime' && (a.arrive_in_seconds ?? 0) > 0,
     )
-    const sec = arrival?.arrive_in_seconds
-    if (sec != null && sec > 0) {
-      div.textContent = `33번 - ${Math.round(sec / 60)}분`
-      div.style.display = 'block'
+    const timetable = busData?.arrivals?.find(
+      (a) => isRoute33(a.route_no) && a.arrival_type === 'timetable',
+    )
+
+    if (realtime) {
+      div.textContent = `33번 - ${Math.round(realtime.arrive_in_seconds / 60)}분`
+    } else if (timetable?.depart_at) {
+      const [hh, mm] = timetable.depart_at.split(':').map(Number)
+      const now = new Date()
+      const diffSec = (hh * 3600 + mm * 60) - (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds())
+      div.textContent = diffSec > 0 ? `33번 - ${Math.round(diffSec / 60)}분` : '33번 - —'
     } else {
-      div.style.display = 'none'
+      div.textContent = '33번 - —'
     }
+    div.style.display = 'block'
   }, [busData])
 
   return null

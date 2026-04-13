@@ -26,8 +26,9 @@ export default function BusArrivalCard({ arrival, onTimetableClick }) {
   const isRealtime = arrival.arrival_type === 'realtime'
 
   if (isRealtime) {
-    const minutes = Math.floor((arrival.arrive_in_seconds ?? 0) / 60)
-    const seconds = (arrival.arrive_in_seconds ?? 0) % 60
+    const totalSec = Math.round(arrival.arrive_in_seconds ?? 0)
+    const minutes = Math.floor(totalSec / 60)
+    const seconds = totalSec % 60
 
     return (
       <div className="rounded-xl border border-slate-200 shadow-sm bg-white pressable">
@@ -39,12 +40,14 @@ export default function BusArrivalCard({ arrival, onTimetableClick }) {
             {arrival.route_no}
           </span>
           <span className="flex-1 text-sm text-slate-500 truncate">{arrival.destination}</span>
-          <span className="time-num text-xl font-bold text-slate-900">{minutes}분</span>
+          <span className="time-num text-xl font-bold text-slate-900">
+            {minutes === 0 ? '곧 출발' : `${minutes}분`}
+          </span>
           <span
             className="text-xs px-2 py-1 rounded-lg font-semibold bg-blue-100 text-blue-600 whitespace-nowrap cursor-default select-none relative group"
             title="실험 중인 기능입니다. 정확성이 떨어지니 주의하세요"
           >
-            테스트 중
+            ±2분 | 테스트 중
             <span className="pointer-events-none absolute right-0 top-full mt-1.5 w-48 rounded-lg bg-slate-800 text-white text-xs font-normal px-3 py-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-snug">
               실험 중인 기능입니다. 정확성이 떨어지니 주의하세요
             </span>

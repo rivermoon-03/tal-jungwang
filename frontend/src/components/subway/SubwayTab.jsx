@@ -10,40 +10,27 @@ function timeToMinutes(t) {
   return hh * 60 + mm
 }
 
-const CARDS = [
-  {
-    key: 'line4_up',
-    lineName: '4호선',
-    dirLabel: '상행 · 당고개 방면',
-    color: '#1B5FAD',
-    lightColor: '#E8F0FB',
-  },
-  {
-    key: 'line4_down',
-    lineName: '4호선',
-    dirLabel: '하행 · 오이도 방면',
-    color: '#1B5FAD',
-    lightColor: '#E8F0FB',
-  },
-  {
-    key: 'up',
-    lineName: '수인분당선',
-    dirLabel: '상행 · 왕십리 방면',
-    color: '#F5A623',
-    lightColor: '#FEF6E6',
-  },
-  {
-    key: 'down',
-    lineName: '수인분당선',
-    dirLabel: '하행 · 인천 방면',
-    color: '#F5A623',
-    lightColor: '#FEF6E6',
-  },
+function getNextDestination(trains) {
+  if (!trains?.length) return null
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  return trains.find((t) => timeToMinutes(t.depart_at) > nowMin)?.destination ?? null
+}
+
+const CARD_DEFS = [
+  { key: 'line4_up',   lineName: '4호선',    upDown: '상행', fallback: '당고개', color: '#1B5FAD', lightColor: '#E8F0FB' },
+  { key: 'line4_down', lineName: '4호선',    upDown: '하행', fallback: '오이도', color: '#1B5FAD', lightColor: '#E8F0FB' },
+  { key: 'up',         lineName: '수인분당선', upDown: '상행', fallback: '왕십리', color: '#F5A623', lightColor: '#FEF6E6' },
+  { key: 'down',       lineName: '수인분당선', upDown: '하행', fallback: '인천',   color: '#F5A623', lightColor: '#FEF6E6' },
 ]
 
 export default function SubwayTab() {
   const [selectedKey, setSelectedKey] = useState(null)
   const { data: timetable, loading } = useSubwayTimetable()
+
+  const CARDS = CARD_DEFS.map((def) => {
+    const dest = getNextDestination(timetable?.[def.key]) ?? def.fallback
+    return { ...def, dirLabel: `${def.upDown} · ${dest} 방면` }
+  })
 
   const selected = selectedKey ? CARDS.find((c) => c.key === selectedKey) : null
   const trains = selected ? (timetable?.[selected.key] ?? []) : []

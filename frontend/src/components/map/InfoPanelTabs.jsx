@@ -47,13 +47,13 @@ function SubwaySection({ subwayData }) {
       <div className="bg-orange-50 border-l-[3px] border-amber-400 rounded-md px-3 py-2.5">
         <p className="text-base font-extrabold text-amber-600 mb-1.5">수인분당선</p>
         <div className="flex justify-between text-base text-slate-500">
-          <span>왕십리 방면</span>
+          <span>{up?.destination ? `${up.destination} 방면` : '왕십리 방면'}</span>
           <span className="font-bold text-slate-900 tabular-nums">
             {up ? `${minsUntilDepart(up.depart_at) ?? '—'}분` : '종료'}
           </span>
         </div>
         <div className="flex justify-between text-base text-slate-500">
-          <span>인천(오이도) 방면</span>
+          <span>{down?.destination ? `${down.destination} 방면` : '인천(오이도) 방면'}</span>
           <span className="font-bold text-slate-900 tabular-nums">
             {down ? `${minsUntilDepart(down.depart_at) ?? '—'}분` : '종료'}
           </span>
@@ -63,13 +63,13 @@ function SubwaySection({ subwayData }) {
       <div className="bg-blue-50 border-l-[3px] border-blue-600 rounded-md px-3 py-2.5">
         <p className="text-base font-extrabold text-blue-700 mb-1.5">4호선</p>
         <div className="flex justify-between text-base text-slate-500">
-          <span>당고개 방면</span>
+          <span>{line4_up?.destination ? `${line4_up.destination} 방면` : '당고개 방면'}</span>
           <span className="font-bold text-slate-900 tabular-nums">
             {line4_up ? `${minsUntilDepart(line4_up.depart_at) ?? '—'}분` : '종료'}
           </span>
         </div>
         <div className="flex justify-between text-base text-slate-500">
-          <span>오이도 방면</span>
+          <span>{line4_down?.destination ? `${line4_down.destination} 방면` : '오이도 방면'}</span>
           <span className="font-bold text-slate-900 tabular-nums">
             {line4_down ? `${minsUntilDepart(line4_down.depart_at) ?? '—'}분` : '종료'}
           </span>
@@ -95,8 +95,9 @@ function BusRow({ arrival, walkSec }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm font-bold text-white bg-navy px-2 py-0.5 rounded min-w-[40px] text-center">{arrival.route_no}</span>
-      <span className="flex-1 text-base font-bold text-slate-900 tabular-nums">{min}분 후</span>
+      <span className="flex-1 text-base font-bold text-slate-900 tabular-nums">{min === 0 ? '곧 출발' : `${min}분 후`}</span>
       <span className="text-sm px-2 py-0.5 rounded font-semibold" style={{ background: status.bg, color: status.color }}>{status.label}</span>
+      <span className="text-xs text-blue-500 font-semibold whitespace-nowrap">±2분 | 테스트 중</span>
     </div>
   )
 }
