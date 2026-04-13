@@ -15,7 +15,7 @@ export default function SubwayTimetable({ entries, nextIndex, lineColor, lineLig
   }, [nextIndex])
 
   return (
-    <ul className="flex-1 overflow-y-auto bg-white pb-16 md:pb-0">
+    <ul className="flex-1 overflow-y-auto bg-white pb-28 md:pb-0">
       {entries.map((train, i) => {
         const isPast = timeToMinutes(train.depart_at) <= nowMin
         const isNext = i === nextIndex

@@ -9,6 +9,8 @@ const useAppStore = create((set) => ({
   setUserLocation: (loc) => set({ userLocation: loc }),
   sheetOpen: false,
   setSheetOpen: (open) => set({ sheetOpen: open }),
+  driveRouteCoords: null,       // [[lng, lat], ...] | null — 지도에 그릴 경로
+  setDriveRouteCoords: (coords) => set({ driveRouteCoords: coords }),
 }))
 
 export default useAppStore

@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Locate, School } from 'lucide-react'
+import { Locate, School, Car } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
 import ShuttleStopOverlay from './ShuttleStopOverlay'
 import SubwayStopOverlay from './SubwayStopOverlay'
 import JeongwangShuttleOverlay from './JeongwangShuttleOverlay'
 import Siheung33BusOverlay from './Siheung33BusOverlay'
+import TaxiCard from './TaxiCard'
+import DriveRoutePolyline from './DriveRoutePolyline'
+import RestaurantOverlay from './RestaurantOverlay'
 
 // 한국공학대학교 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
@@ -15,10 +18,11 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
-  // map 인스턴스가 준비됐을 때 자식 오버레이 컴포넌트를 렌더링하기 위한 상태
   const [mapInstance, setMapInstance] = useState(null)
+  const [taxiOpen, setTaxiOpen] = useState(false)
   const kakaoKey = import.meta.env.VITE_KAKAO_JS_APP_KEY
   const userLocation = useAppStore((s) => s.userLocation)
+  const setDriveRouteCoords = useAppStore((s) => s.setDriveRouteCoords)
 
   function panTo(lat, lng) {
     if (!mapRef.current) return
@@ -135,7 +139,29 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
             >
               <School size={18} strokeWidth={2} />
             </button>
+            <button
+              aria-label="택시 소요 시간"
+              onClick={() => setTaxiOpen((v) => !v)}
+              className={`w-10 h-10 rounded-full backdrop-blur-md shadow-lg flex items-center justify-center pressable border-2 transition-colors ${
+                taxiOpen
+                  ? 'bg-yellow-400 border-yellow-400 text-white'
+                  : 'bg-white/90 border-yellow-400 text-yellow-500'
+              }`}
+            >
+              <Car size={18} strokeWidth={2} />
+            </button>
           </div>
+        )}
+
+        {/* 택시 카드 */}
+        {mapInstance && (
+          <TaxiCard
+            open={taxiOpen}
+            onClose={() => {
+              setTaxiOpen(false)
+              setDriveRouteCoords(null)
+            }}
+          />
         )}
       </div>
       {/* map 인스턴스가 준비된 후 오버레이 컴포넌트 마운트 */}
@@ -146,6 +172,8 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           <SubwayStopOverlay map={mapInstance} />
           <JeongwangShuttleOverlay map={mapInstance} />
           <Siheung33BusOverlay map={mapInstance} />
+          <DriveRoutePolyline map={mapInstance} />
+          <RestaurantOverlay map={mapInstance} />
         </>
       )}
     </>
