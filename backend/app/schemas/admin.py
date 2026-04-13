@@ -1,7 +1,7 @@
 import re
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -71,8 +71,25 @@ class ScheduleResponse(BaseModel):
 
 DayType = Literal["weekday", "saturday", "sunday"]
 
+_TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+
+
+class TimeEntry(BaseModel):
+    depart_at: str
+    note: str | None = None
+
+    @field_validator("depart_at")
+    @classmethod
+    def validate_time(cls, v: str) -> str:
+        if not _TIME_RE.match(v):
+            raise ValueError("시간 형식은 HH:MM 이어야 합니다.")
+        h, m = int(v[:2]), int(v[3:])
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            raise ValueError("유효하지 않은 시간 값입니다.")
+        return v
+
 
 class TimetableUpload(BaseModel):
     direction: str
     day_type: DayType = "weekday"
-    times: list[dict]  # [{"depart_at": "HH:MM", "note": null}, ...]
+    times: list[TimeEntry] = Field(..., max_length=200)

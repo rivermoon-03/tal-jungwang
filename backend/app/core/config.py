@@ -53,6 +53,10 @@ class Settings(BaseSettings):
                 logger.warning(
                     "[config] %s 가 설정되지 않았습니다 — 해당 외부 API 호출이 실패합니다.", key
                 )
+        if not self.REDIS_PASSWORD:
+            logger.warning(
+                "[config] REDIS_PASSWORD 가 설정되지 않았습니다 — Redis가 인증 없이 연결됩니다."
+            )
         if self.JWT_SECRET_KEY in ("secret", "CHANGE_ME_openssl_rand_hex_32", ""):
             logger.warning(
                 "[config] JWT_SECRET_KEY 가 기본값입니다 — 프로덕션 배포 전 반드시 교체하세요."

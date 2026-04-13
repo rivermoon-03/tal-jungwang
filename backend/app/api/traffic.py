@@ -1,10 +1,12 @@
 import asyncio
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import verify_token
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.traffic import RoadTraffic, TrafficResponse
 from app.services.external.tmap import fetch_driving_traffic
@@ -107,8 +109,8 @@ async def get_traffic():
 
 
 @router.post("/collect")
-async def trigger_collect():
-    """수동으로 교통정보 수집을 트리거한다."""
+async def trigger_collect(_user: str = Depends(verify_token)):
+    """수동으로 교통정보 수집을 트리거한다. (인증 필요)"""
     count = await collect_traffic()
     return ApiResponse.ok({
         "collected": count,
@@ -117,17 +119,22 @@ async def trigger_collect():
 
 
 @router.get("/history")
+@limiter.limit("30/minute")
 async def traffic_history(
+    request: Request,
     road_name: str | None = Query(None),
     direction: str | None = Query(None),
     since: str | None = Query(None, description="ISO datetime"),
     until: str | None = Query(None, description="ISO datetime"),
-    limit: int = Query(500, le=2000),
+    limit: int = Query(100, le=200),
     db: AsyncSession = Depends(get_db),
 ):
     """저장된 교통정보 히스토리를 조회한다."""
-    since_dt = datetime.fromisoformat(since) if since else None
-    until_dt = datetime.fromisoformat(until) if until else None
+    try:
+        since_dt = datetime.fromisoformat(since) if since else None
+        until_dt = datetime.fromisoformat(until) if until else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="datetime 형식은 ISO 8601 이어야 합니다.")
 
     rows = await get_history(
         db,

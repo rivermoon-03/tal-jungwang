@@ -18,24 +18,42 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url)
 
-  // API 요청: 네트워크 우선, 실패 시 캐시 fallback
+  // 타 출처(카카오맵 SDK, Pretendard CDN 등)는 SW에서 건드리지 않음
+  if (url.origin !== self.location.origin) return
+
+  // GET 이외 메서드(POST 등 API 호출)는 그대로 통과
+  if (e.request.method !== 'GET') return
+
+  // /api/* — 네트워크 우선, 실패 시 503
   if (url.pathname.startsWith('/api/')) {
     e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
+      fetch(e.request).catch(() => new Response(JSON.stringify({ success: false }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      }))
     )
     return
   }
 
-  // 정적 에셋: 캐시 우선
+  // 정적 에셋 — 캐시 우선, 없으면 네트워크 후 캐시 저장
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached
-      return fetch(e.request).then((res) => {
-        if (!res || res.status !== 200 || res.type === 'opaque') return res
-        const clone = res.clone()
-        caches.open(CACHE).then((c) => c.put(e.request, clone))
-        return res
-      })
+
+      return fetch(e.request)
+        .then((res) => {
+          if (res.status === 200) {
+            const clone = res.clone()
+            caches.open(CACHE).then((c) => c.put(e.request, clone))
+          }
+          return res
+        })
+        .catch(() => {
+          // 페이지 네비게이션 실패 시 캐시된 index.html로 SPA 폴백
+          if (e.request.mode === 'navigate') {
+            return caches.match('/index.html')
+          }
+        })
     })
   )
 })
