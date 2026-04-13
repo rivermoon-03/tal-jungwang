@@ -33,11 +33,17 @@ export default function ShuttleCountdown({ nextShuttle, direction }) {
   }
 
   if (isReturn) {
+    const schoolTime = nextShuttle?.note?.match(/학교 (\d{2}:\d{2}) 출발/)?.[1] ?? null
     return (
       <div className="flex items-center justify-between bg-white border-b border-slate-200 px-5 py-4">
         <div>
           <p className="text-sm text-slate-500 mb-1">다음 셔틀까지</p>
-          <p className="text-4xl font-bold leading-none text-navy">회차편 탑승</p>
+          <p className="text-2xl font-bold leading-snug text-navy">회차편 탑승</p>
+          <p className="text-sm text-slate-500 mt-1.5 leading-snug">
+            {schoolTime
+              ? `${schoolTime}에 출발 후 도착하는 버스가 회차하면 탑승하세요`
+              : '수시운행(17:00~18:00) 버스가 회차하면 탑승하세요'}
+          </p>
           {direction && <p className="text-sm text-slate-400 mt-1">{direction}</p>}
         </div>
       </div>

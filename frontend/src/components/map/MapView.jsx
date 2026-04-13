@@ -5,6 +5,7 @@ import UserLocationMarker from './UserLocationMarker'
 import ShuttleStopOverlay from './ShuttleStopOverlay'
 import SubwayStopOverlay from './SubwayStopOverlay'
 import JeongwangShuttleOverlay from './JeongwangShuttleOverlay'
+import Siheung33BusOverlay from './Siheung33BusOverlay'
 
 // 한국공학대학교 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
@@ -144,6 +145,7 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           <ShuttleStopOverlay map={mapInstance} />
           <SubwayStopOverlay map={mapInstance} />
           <JeongwangShuttleOverlay map={mapInstance} />
+          <Siheung33BusOverlay map={mapInstance} />
         </>
       )}
     </>

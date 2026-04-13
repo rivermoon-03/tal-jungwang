@@ -84,9 +84,12 @@ function AboutModal({ onClose }) {
         className="bg-white rounded-2xl shadow-2xl px-7 py-6 flex flex-col gap-4 max-w-sm w-full"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-base font-bold text-slate-800 tracking-wide text-center">
-          Made with ❤️ by CE-SW
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-base font-bold text-slate-800 tracking-wide text-center">
+            Made with ❤️ by CE-SW
+          </p>
+          <p className="text-[11px] text-slate-400">한국공대 ㅎㅇㅌ</p>
+        </div>
         <p className="text-[13px] text-slate-500 leading-relaxed">
           지하철, 3400/6502, 셔틀버스 정보는 각각의 공식 시간표에서 가져왔습니다.
           예상치 못한 일이 생기면 달라질 수 있습니다.

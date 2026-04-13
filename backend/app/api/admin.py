@@ -301,6 +301,102 @@ async def refresh_subway_timetable(
     return ApiResponse.ok({"refreshed": total, "updated_at": now.isoformat()})
 
 
+# ── 등교 셔틀 시간표 시드 ────────────────────────────────────
+
+_OUTBOUND_ROUTE_NAME = "등교 (학교행)"
+_OUTBOUND_ROUTE_DESC = "정왕역 출발 → 한국공학대학교/경기과학기술대학교 (등교)"
+_OUTBOUND_TIMETABLE: list[tuple[time, str | None]] = [
+    (time(8, 40),  "수시운행"), (time(8, 50),  "수시운행"), (time(9, 0),   "수시운행"),
+    (time(9, 10),  "수시운행"), (time(9, 20),  "수시운행"), (time(9, 30),  "수시운행"),
+    (time(9, 40),  "수시운행"), (time(9, 50),  "수시운행"), (time(10, 0),  "수시운행"),
+    (time(10, 10), None), (time(10, 15), None), (time(10, 20), None),
+    (time(10, 30), None), (time(10, 50), None),
+    (time(11, 0),  None), (time(11, 10), None), (time(11, 20), None),
+    (time(11, 30), None), (time(11, 50), None),
+    (time(12, 0),  None), (time(12, 10), None), (time(12, 20), None),
+    (time(12, 30), None), (time(12, 50), None),
+    (time(13, 0),  None), (time(13, 10), None), (time(13, 20), None),
+    (time(13, 30), None), (time(13, 50), None),
+    (time(14, 0),  None), (time(14, 10), None), (time(14, 20), None), (time(14, 40), None),
+    (time(15, 0),  None), (time(15, 10), None), (time(15, 20), None), (time(15, 40), None),
+    (time(16, 0),  None), (time(16, 20), None), (time(16, 30), None),
+    (time(16, 40), None), (time(16, 50), None),
+    (time(17, 10), "회차편 · 학교 수시운행 출발"),
+    (time(18, 10), "회차편 · 학교 18:00 출발"),
+    (time(18, 20), "회차편 · 학교 18:10 출발"),
+    (time(18, 30), "회차편 · 학교 18:20 출발"),
+    (time(18, 40), "회차편 · 학교 18:30 출발"),
+    (time(18, 50), "회차편 · 학교 18:40 출발"),
+    (time(19,  0), "회차편 · 학교 18:50 출발"),
+    (time(19, 15), "회차편 · 학교 19:05 출발"),
+    (time(19, 25), "회차편 · 학교 19:15 출발"),
+    (time(19, 40), "회차편 · 학교 19:30 출발"),
+    (time(19, 55), "회차편 · 학교 19:45 출발"),
+    (time(20, 15), "회차편 · 학교 20:05 출발"),
+    (time(20, 35), "회차편 · 학교 20:25 출발"),
+    (time(20, 55), "회차편 · 학교 20:45 출발"),
+    (time(21, 10), "회차편 · 학교 21:00 출발"),
+    (time(21, 30), "회차편 · 학교 21:20 출발"),
+    (time(21, 58), "회차편 · 학교 21:48 출발"),
+    (time(22, 17), "막차"),
+]
+
+
+@router.post("/shuttle/seed-outbound")
+async def seed_outbound_shuttle(
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    """등교(학교행) 셔틀 평일 시간표를 모든 활성 SchedulePeriod에 삽입한다. 멱등."""
+    today = date.today()
+
+    period_rows = await db.execute(
+        select(SchedulePeriod)
+        .where(SchedulePeriod.start_date <= today, SchedulePeriod.end_date >= today)
+        .order_by(SchedulePeriod.priority.desc())
+    )
+    periods = period_rows.scalars().all()
+    if not periods:
+        return ApiResponse.fail("NO_PERIOD", "활성 SchedulePeriod가 없습니다.")
+
+    # ShuttleRoute upsert
+    route_row = await db.execute(
+        select(ShuttleRoute).where(ShuttleRoute.route_name == _OUTBOUND_ROUTE_NAME)
+    )
+    route = route_row.scalar_one_or_none()
+    if route is None:
+        route = ShuttleRoute(route_name=_OUTBOUND_ROUTE_NAME, description=_OUTBOUND_ROUTE_DESC)
+        db.add(route)
+        await db.flush()
+
+    # 기존 평일 항목 삭제 (멱등성)
+    await db.execute(
+        delete(ShuttleTimetableEntry).where(
+            ShuttleTimetableEntry.shuttle_route_id == route.id,
+            ShuttleTimetableEntry.day_type == "weekday",
+        )
+    )
+
+    # 모든 활성 기간에 삽입
+    for period in periods:
+        for dep_time, note in _OUTBOUND_TIMETABLE:
+            db.add(ShuttleTimetableEntry(
+                schedule_period_id=period.id,
+                shuttle_route_id=route.id,
+                day_type="weekday",
+                departure_time=dep_time,
+                note=note,
+            ))
+
+    await db.commit()
+
+    return ApiResponse.ok({
+        "route": _OUTBOUND_ROUTE_NAME,
+        "periods": len(periods),
+        "entries": len(periods) * len(_OUTBOUND_TIMETABLE),
+    })
+
+
 # ── GBIS ID 등록 ─────────────────────────────────────────────
 
 GBIS_ROUTE_IDS = {
