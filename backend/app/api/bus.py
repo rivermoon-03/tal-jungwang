@@ -1,0 +1,113 @@
+import json
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.cache import get_redis
+from app.core.database import get_db
+from app.models.bus import BusRoute
+from app.schemas.common import ApiResponse
+from app.schemas.bus import BusArrivalsResponse, BusStationResponse, BusTimetableResponse
+from app.services.bus import get_arrivals, get_stations, get_timetable, get_timetable_by_route_number
+from app.services.external.gbis import fetch_bus_locations
+
+router = APIRouter(prefix="/api/v1/bus", tags=["bus"])
+
+_LOCATIONS_CACHE_TTL = 30  # 초 — 버스 폴링 간격과 동일
+
+
+@router.get("/stations")
+async def bus_stations(
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_stations(db)
+    return ApiResponse[list[BusStationResponse]].ok(result)
+
+
+@router.get("/arrivals/{station_id}")
+async def bus_arrivals(
+    station_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    # KST(UTC+9) 기준으로 현재 시각을 결정 — DB 시간표가 KST 기준으로 저장됨
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    result = await get_arrivals(db, station_id, now.date(), now.time())
+    if not result:
+        return ApiResponse.fail("BUS_STATION_NOT_FOUND", "해당 정류장 ID가 존재하지 않습니다.")
+    return ApiResponse[BusArrivalsResponse].ok(result)
+
+
+@router.get("/timetable-by-route/{route_number}")
+async def bus_timetable_by_route_number(
+    route_number: str,
+    date_str: str | None = Query(None, alias="date"),
+    db: AsyncSession = Depends(get_db),
+):
+    d = date.fromisoformat(date_str) if date_str else date.today()
+    result = await get_timetable_by_route_number(db, route_number, d)
+    if not result:
+        return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
+    return ApiResponse[BusTimetableResponse].ok(result)
+
+
+@router.get("/timetable/{route_id}")
+async def bus_timetable(
+    route_id: int,
+    date_str: str | None = Query(None, alias="date"),
+    db: AsyncSession = Depends(get_db),
+):
+    d = date.fromisoformat(date_str) if date_str else date.today()
+    result = await get_timetable(db, route_id, d)
+    if not result:
+        return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", "해당 노선 ID가 존재하지 않습니다.")
+    return ApiResponse[BusTimetableResponse].ok(result)
+
+
+@router.get("/locations/{route_id}")
+async def bus_locations(
+    route_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """실시간 버스 위치 조회 (Redis 캐시 30초, 미스 시 GBIS API 호출)."""
+    stmt = select(BusRoute).where(BusRoute.id == route_id)
+    result = await db.execute(stmt)
+    route = result.scalar_one_or_none()
+    if not route:
+        return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", "해당 노선 ID가 존재하지 않습니다.")
+    if not route.gbis_route_id:
+        return ApiResponse.fail("NOT_REALTIME", "실시간 위치를 지원하지 않는 노선입니다.")
+
+    cache_key = f"bus:locations:{route.gbis_route_id}"
+
+    # ── 캐시 조회 ────────────────────────────────────────────
+    try:
+        redis = await get_redis()
+        cached = await redis.get(cache_key)
+        if cached:
+            return ApiResponse.ok({
+                "route_id": route.id,
+                "route_no": route.route_number,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "buses": json.loads(cached),
+            })
+    except Exception:
+        pass
+
+    # ── 캐시 미스: GBIS API 호출 ─────────────────────────────
+    buses = await fetch_bus_locations(route.gbis_route_id)
+
+    try:
+        redis = await get_redis()
+        await redis.setex(cache_key, _LOCATIONS_CACHE_TTL, json.dumps(buses, ensure_ascii=False))
+    except Exception:
+        pass
+
+    return ApiResponse.ok({
+        "route_id": route.id,
+        "route_no": route.route_number,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "buses": buses,
+    })

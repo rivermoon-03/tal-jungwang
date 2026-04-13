@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "정왕 교통 허브",
+      "Group": "Local",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "transit_hub",
+      "Username": "user",
+      "SSLMode": "prefer"
+    }
+  }
+}

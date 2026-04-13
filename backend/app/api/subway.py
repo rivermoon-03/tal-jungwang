@@ -1,0 +1,33 @@
+from datetime import date, datetime, timezone
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.schemas.common import ApiResponse
+from app.schemas.subway import SubwayNextResponse, SubwayTimetableResponse
+from app.services.subway import get_next, get_timetable
+
+router = APIRouter(prefix="/api/v1/subway", tags=["subway"])
+
+
+@router.get("/timetable")
+async def subway_timetable(
+    date_str: str | None = Query(None, alias="date"),
+    direction: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    d = date.fromisoformat(date_str) if date_str else date.today()
+    result = await get_timetable(db, d, direction)
+    return ApiResponse[SubwayTimetableResponse].ok(result)
+
+
+@router.get("/next")
+async def subway_next(
+    db: AsyncSession = Depends(get_db),
+):
+    now = datetime.now(timezone.utc).astimezone()
+    d = now.date()
+    t = now.time()
+    result = await get_next(db, d, t)
+    return ApiResponse[SubwayNextResponse].ok(result)
