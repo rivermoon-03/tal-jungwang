@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useBusArrivals } from '../../hooks/useBus'
 
-const BUS_STOP = { lat: 37.341633, lng: 126.731051 }
+const BUS_STOP = { lat: 37.341633, lng: 126.731252 }
 const JEONGWANG_STATION_ID = '224000639'
 const MARKER_W = 22
 const MARKER_H = 28
@@ -72,8 +72,8 @@ export default function Siheung33BusOverlay({ map }) {
     badgeDiv.style.cssText = BADGE_STYLE
     badgeDiv.textContent = '테스트 중'
 
-    containerDiv.appendChild(labelDiv)
     containerDiv.appendChild(badgeDiv)
+    containerDiv.appendChild(labelDiv)
 
     labelOverlayRef.current = new window.kakao.maps.CustomOverlay({
       position: pos,
@@ -104,7 +104,7 @@ export default function Siheung33BusOverlay({ map }) {
     )
     const sec = arrival?.arrive_in_seconds
     if (sec != null && sec > 0) {
-      div.textContent = `시흥33 ${Math.round(sec / 60)}분`
+      div.textContent = `33번 - ${Math.round(sec / 60)}분`
       div.style.display = 'block'
     } else {
       div.style.display = 'none'
