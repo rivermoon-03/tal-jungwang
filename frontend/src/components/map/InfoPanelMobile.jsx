@@ -118,22 +118,26 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick,
 function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed }) {
   const val = active ? 'text-white' : 'text-slate-900'
 
-  // ── 축약 (시간만, 노선명 생략) ────────────────────────────
+  // ── 축약 (노선명 + 시간) ─────────────────────────────────
   if (collapsed) {
-    const times = seoulNextDepartures.map(({ time }) => {
-      const m = timeToDiffMin(time)
-      return m != null ? `${m}분` : '—'
-    })
     return (
       <button
         aria-label="서울"
         onClick={onClick}
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg text-[12px] font-bold transition-colors pressable ${
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl shadow-lg text-[11px] font-bold transition-colors pressable ${
           active ? 'bg-navy text-white' : 'bg-white text-slate-900'
         }`}
       >
-        <span className={active ? 'text-white' : 'text-slate-900'}>서울</span>
-        <span className={active ? 'text-white/90' : 'text-slate-600'}>{times.join(' / ')}</span>
+        {seoulNextDepartures.map(({ route, time }, i) => {
+          const m = timeToDiffMin(time)
+          return (
+            <span key={route} className="flex items-center gap-1">
+              {i > 0 && <span className={active ? 'text-white/40' : 'text-slate-300'}>/</span>}
+              <span className={active ? 'text-white/70' : 'text-slate-500'}>{route}</span>
+              <span className={active ? 'text-white' : 'text-slate-900'}>{m != null ? `${m}분` : '—'}</span>
+            </span>
+          )
+        })}
       </button>
     )
   }
@@ -174,13 +178,42 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
 
 // ── 셔틀 pill ─────────────────────────────────────────────────────────────
 
-function ShuttlePill({ shuttleDirections, walkSec, active, onClick }) {
+function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed }) {
   const mode = getShuttleMode()
   const filtered = shuttleDirections.filter((d) => matchesMode(d.direction, mode))
   const target = filtered[0] ?? null
   const minSec = target?.diffSec ?? null
   const dotClass = getDotClass(minSec, walkSec)
 
+  // 상행(하교, ↑) / 하행(등교, ↓) 각각의 다음 시간
+  const haegyo = shuttleDirections.find((d) => matchesMode(d.direction, '하교'))
+  const deungyo = shuttleDirections.find((d) => matchesMode(d.direction, '등교'))
+  const fmtSec = (sec) => sec != null ? `${toMin(sec)}분` : '—'
+
+  // ── 축약 (화살표 표시) ────────────────────────────────────
+  if (collapsed) {
+    return (
+      <button
+        aria-label="셔틀"
+        onClick={onClick}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl shadow-lg text-[11px] font-bold transition-colors pressable ${
+          active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+        }`}
+      >
+        <span className={active ? 'text-white' : 'text-slate-900'}>셔틀</span>
+        <span className={active ? 'text-white/70' : 'text-slate-500'}>↑</span>
+        <span className={active ? 'text-white' : 'text-slate-900'}>
+          {haegyo ? (haegyo.diffSec != null ? fmtSec(haegyo.diffSec) : '수시') : '—'}
+        </span>
+        <span className={active ? 'text-white/70' : 'text-slate-500'}>↓</span>
+        <span className={active ? 'text-white' : 'text-slate-900'}>
+          {deungyo ? (deungyo.diffSec != null ? fmtSec(deungyo.diffSec) : '수시') : '—'}
+        </span>
+      </button>
+    )
+  }
+
+  // ── 전체 카드 ─────────────────────────────────────────────
   return (
     <button
       aria-label="셔틀"

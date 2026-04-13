@@ -299,3 +299,53 @@ async def refresh_subway_timetable(
         await redis.delete(f"subway:entries:{day}")
 
     return ApiResponse.ok({"refreshed": total, "updated_at": now.isoformat()})
+
+
+# ── GBIS ID 등록 ─────────────────────────────────────────────
+
+GBIS_ROUTE_IDS = {
+    "시흥33": "224000062",
+    "20-1": "224000023",
+    "시흥1": "213000006",
+}
+
+GBIS_STATION_IDS = {
+    "한국공학대학교": "224000639",
+    "이마트 (6502·시흥1번 정류장)": "224000513",
+}
+
+
+@router.post("/bus/register-gbis-ids")
+async def register_gbis_ids(
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    """버스 노선·정류장에 GBIS ID를 등록하고 is_realtime을 활성화한다."""
+    from sqlalchemy import update
+    from app.models.bus import BusRoute, BusStop
+
+    updated_routes = []
+    updated_stops = []
+
+    for route_number, gbis_route_id in GBIS_ROUTE_IDS.items():
+        await db.execute(
+            update(BusRoute)
+            .where(BusRoute.route_number == route_number)
+            .values(gbis_route_id=gbis_route_id, is_realtime=True)
+        )
+        updated_routes.append(route_number)
+
+    for name, gbis_station_id in GBIS_STATION_IDS.items():
+        await db.execute(
+            update(BusStop)
+            .where(BusStop.name == name)
+            .values(gbis_station_id=gbis_station_id)
+        )
+        updated_stops.append(name)
+
+    await db.commit()
+
+    return ApiResponse.ok({
+        "updated_routes": updated_routes,
+        "updated_stops": updated_stops,
+    })
