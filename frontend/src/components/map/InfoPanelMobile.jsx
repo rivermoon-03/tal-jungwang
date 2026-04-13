@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Info } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import InfoPanelTabs from './InfoPanelTabs'
 import { toMin } from '../../utils/boardingStatus'
@@ -246,6 +246,8 @@ export default function InfoPanelMobile({
   shuttleDirections,
   seoulNextDepartures,
   walkSec,
+  onInfoClick,
+  isFirstVisit,
 }) {
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -298,17 +300,28 @@ export default function InfoPanelMobile({
           />
         </div>
 
-        {/* 접기/펴기 토글 버튼 */}
-        <div className="flex justify-start pl-1">
+        {/* 접기/펴기 토글 + 정보 버튼 */}
+        <div className="flex items-center gap-2 pl-1">
           <button
             aria-label={collapsed ? '카드 펼치기' : '카드 접기'}
             onClick={() => setCollapsed((c) => !c)}
-            className="w-7 h-7 rounded-full bg-white/85 backdrop-blur-sm shadow-md flex items-center justify-center text-slate-500 pressable"
+            className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-slate-200 flex items-center justify-center text-slate-500 pressable"
           >
             <ChevronDown
-              size={14}
+              size={15}
               className={`transition-transform duration-200 ${!collapsed ? 'rotate-180' : ''}`}
             />
+          </button>
+          <button
+            aria-label="정보"
+            onClick={onInfoClick}
+            className={`w-8 h-8 rounded-full backdrop-blur-sm shadow-md border flex items-center justify-center pressable ${
+              isFirstVisit
+                ? 'info-btn-glow border-transparent text-white'
+                : 'bg-white/90 border-slate-200 text-slate-500'
+            }`}
+          >
+            <Info size={15} />
           </button>
         </div>
       </div>

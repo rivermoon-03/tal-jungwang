@@ -81,6 +81,19 @@
   animation: slideInRight 0.2s ease-out both;
 }
 
+/* ── 정보 버튼 첫 방문 글로우 ────────────────── */
+@keyframes infoGlow {
+  0%   { background: #60a5fa; box-shadow: 0 0 8px 3px #3b82f660; }
+  50%  { background: #a78bfa; box-shadow: 0 0 12px 5px #8b5cf660; }
+  100% { background: #60a5fa; box-shadow: 0 0 8px 3px #3b82f660; }
+}
+
+.info-btn-glow {
+  animation: infoGlow 1.8s ease-in-out infinite;
+  color: white !important;
+  border-color: transparent !important;
+}
+
 /* ── 탭 / 카드 press 피드백 ─────────────────── */
 .pressable {
   transition: transform 0.1s ease, opacity 0.1s ease;
