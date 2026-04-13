@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { Locate, School } from 'lucide-react'
+import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
 import ShuttleStopOverlay from './ShuttleStopOverlay'
 import SubwayStopOverlay from './SubwayStopOverlay'
@@ -15,6 +17,12 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
   // map 인스턴스가 준비됐을 때 자식 오버레이 컴포넌트를 렌더링하기 위한 상태
   const [mapInstance, setMapInstance] = useState(null)
   const kakaoKey = import.meta.env.VITE_KAKAO_JS_APP_KEY
+  const userLocation = useAppStore((s) => s.userLocation)
+
+  function panTo(lat, lng) {
+    if (!mapRef.current) return
+    mapRef.current.panTo(new window.kakao.maps.LatLng(lat, lng))
+  }
 
   // SDK 로드 effect
   useEffect(() => {
@@ -106,6 +114,28 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
     <>
       <div ref={containerRef} className="flex-1 bg-slate-200 relative" style={{ minHeight: 300 }}>
         {mapInstance && InfoPanelSlot}
+
+        {/* 우상단 지도 이동 버튼 */}
+        {mapInstance && (
+          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 pointer-events-auto">
+            {userLocation && (
+              <button
+                aria-label="내 위치로 이동"
+                onClick={() => panTo(userLocation.lat, userLocation.lng)}
+                className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-lg flex items-center justify-center text-navy pressable"
+              >
+                <Locate size={18} strokeWidth={2} />
+              </button>
+            )}
+            <button
+              aria-label="학교로 이동"
+              onClick={() => panTo(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng)}
+              className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-lg flex items-center justify-center text-navy pressable"
+            >
+              <School size={18} strokeWidth={2} />
+            </button>
+          </div>
+        )}
       </div>
       {/* map 인스턴스가 준비된 후 오버레이 컴포넌트 마운트 */}
       {mapInstance && (

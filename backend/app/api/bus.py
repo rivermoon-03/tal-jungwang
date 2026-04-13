@@ -2,12 +2,13 @@ import json
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_redis
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.models.bus import BusRoute
 from app.schemas.common import ApiResponse
 from app.schemas.bus import BusArrivalsResponse, BusStationResponse, BusTimetableResponse
@@ -41,12 +42,17 @@ async def bus_arrivals(
 
 
 @router.get("/timetable-by-route/{route_number}")
+@limiter.limit("60/minute")
 async def bus_timetable_by_route_number(
+    request: Request,
     route_number: str,
     date_str: str | None = Query(None, alias="date"),
     db: AsyncSession = Depends(get_db),
 ):
-    d = date.fromisoformat(date_str) if date_str else date.today()
+    try:
+        d = date.fromisoformat(date_str) if date_str else date.today()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
     result = await get_timetable_by_route_number(db, route_number, d)
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
@@ -54,12 +60,17 @@ async def bus_timetable_by_route_number(
 
 
 @router.get("/timetable/{route_id}")
+@limiter.limit("60/minute")
 async def bus_timetable(
+    request: Request,
     route_id: int,
     date_str: str | None = Query(None, alias="date"),
     db: AsyncSession = Depends(get_db),
 ):
-    d = date.fromisoformat(date_str) if date_str else date.today()
+    try:
+        d = date.fromisoformat(date_str) if date_str else date.today()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
     result = await get_timetable(db, route_id, d)
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", "해당 노선 ID가 존재하지 않습니다.")

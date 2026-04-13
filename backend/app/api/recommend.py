@@ -2,12 +2,13 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_redis
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.models.bus import BusStop
 from app.schemas.common import ApiResponse
 from app.schemas.recommend import RecommendResponse
@@ -61,9 +62,11 @@ async def _get_bus_ride_seconds(stop_lat: float, stop_lng: float) -> int:
 
 
 @router.get("/transport")
+@limiter.limit("30/minute")
 async def recommend_transport(
-    origin_lat: float = Query(...),
-    origin_lng: float = Query(...),
+    request: Request,
+    origin_lat: float = Query(..., ge=-90.0, le=90.0),
+    origin_lng: float = Query(..., ge=-180.0, le=180.0),
     db: AsyncSession = Depends(get_db),
 ):
     now = datetime.now(KST)

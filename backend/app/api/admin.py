@@ -2,12 +2,13 @@ from datetime import date, datetime, time, timezone
 
 import jwt
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import APIRouter, Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials
 import bcrypt as _bcrypt
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import bearer, verify_token
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.limiter import limiter
@@ -24,7 +25,6 @@ from app.schemas.admin import (
 from app.schemas.common import ApiResponse
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
-bearer = HTTPBearer()
 
 # ── JWT helpers ──────────────────────────────────────────────
 
@@ -39,26 +39,18 @@ def _create_token(sub: str) -> tuple[str, int]:
     return token, exp_minutes * 60
 
 
-def _verify_token(cred: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
-    try:
-        payload = jwt.decode(
-            cred.credentials,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-        return payload["sub"]
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-
 # ── Login ────────────────────────────────────────────────────
 
 @router.post("/login")
 @limiter.limit("5/minute")
 async def login(request: Request, body: LoginRequest):
-    if body.username != settings.ADMIN_USERNAME:
-        return ApiResponse.fail("AUTH_FAILED", "아이디 또는 비밀번호가 올바르지 않습니다.")
-    if not _bcrypt.checkpw(body.password.encode(), settings.ADMIN_PASSWORD_HASH.encode()):
+    # 타이밍 공격 방지: username 불일치이더라도 bcrypt 연산을 항상 실행
+    stored_hash = settings.ADMIN_PASSWORD_HASH.encode()
+    _dummy = b"$2b$12$invalidhashfortimingprotectionXXXXXXXXXXXXXXXXXXXXXXXX"
+    username_ok = body.username == settings.ADMIN_USERNAME
+    hash_to_check = stored_hash if username_ok else _dummy
+    pw_ok = _bcrypt.checkpw(body.password.encode(), hash_to_check)
+    if not (username_ok and pw_ok):
         return ApiResponse.fail("AUTH_FAILED", "아이디 또는 비밀번호가 올바르지 않습니다.")
 
     token, expires_in = _create_token(body.username)
@@ -72,7 +64,7 @@ async def login(request: Request, body: LoginRequest):
 @router.get("/schedules")
 async def list_schedules(
     db: AsyncSession = Depends(get_db),
-    _user: str = Depends(_verify_token),
+    _user: str = Depends(verify_token),
 ):
     stmt = select(SchedulePeriod).order_by(SchedulePeriod.start_date.desc())
     result = await db.execute(stmt)
@@ -96,7 +88,7 @@ async def list_schedules(
 async def create_schedule(
     body: ScheduleCreate,
     db: AsyncSession = Depends(get_db),
-    _user: str = Depends(_verify_token),
+    _user: str = Depends(verify_token),
 ):
     period = SchedulePeriod(
         period_type=body.type,
@@ -129,7 +121,7 @@ async def update_schedule(
     schedule_id: int,
     body: ScheduleUpdate,
     db: AsyncSession = Depends(get_db),
-    _user: str = Depends(_verify_token),
+    _user: str = Depends(verify_token),
 ):
     stmt = select(SchedulePeriod).where(SchedulePeriod.id == schedule_id)
     result = await db.execute(stmt)
@@ -170,7 +162,7 @@ async def update_schedule(
 async def delete_schedule(
     schedule_id: int,
     db: AsyncSession = Depends(get_db),
-    _user: str = Depends(_verify_token),
+    _user: str = Depends(verify_token),
 ):
     stmt = select(SchedulePeriod).where(SchedulePeriod.id == schedule_id)
     result = await db.execute(stmt)
@@ -191,7 +183,7 @@ async def upload_timetable(
     route_id: int,
     body: TimetableUpload,
     db: AsyncSession = Depends(get_db),
-    _user: str = Depends(_verify_token),
+    _user: str = Depends(verify_token),
 ):
     # Verify schedule and route exist
     period = (await db.execute(
@@ -217,19 +209,13 @@ async def upload_timetable(
 
     count = 0
     for t in body.times:
-        parts = t["depart_at"].split(":")
-        if len(parts) < 2:
-            raise HTTPException(status_code=400, detail=f"잘못된 시간 형식: {t['depart_at']}")
-        try:
-            dep_time = time(int(parts[0]), int(parts[1]))
-        except (ValueError, IndexError):
-            raise HTTPException(status_code=400, detail=f"잘못된 시간 값: {t['depart_at']}")
+        dep_time = time(int(t.depart_at[:2]), int(t.depart_at[3:5]))
         entry = ShuttleTimetableEntry(
             schedule_period_id=schedule_id,
             shuttle_route_id=route_id,
             day_type=body.day_type,
             departure_time=dep_time,
-            note=t.get("note"),
+            note=t.note,
         )
         db.add(entry)
         count += 1
@@ -260,7 +246,7 @@ SUBWAY_COMBOS = [
 @router.post("/subway/refresh")
 async def refresh_subway_timetable(
     db: AsyncSession = Depends(get_db),
-    _user: str = Depends(_verify_token),
+    _user: str = Depends(verify_token),
 ):
     """TAGO API에서 정왕역 시간표(수인분당선+4호선)를 새로 가져와 DB를 갱신한다."""
     now = datetime.now(timezone.utc)

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
+import { ChevronDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import InfoPanelTabs from './InfoPanelTabs'
 import { toMin } from '../../utils/boardingStatus'
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
 
-/** depart_at("HH:MM") → 현재로부터 남은 초. 이미 지났으면 null */
 function departAtToSec(departAt) {
   if (!departAt) return null
   const [hh, mm] = departAt.split(':').map(Number)
@@ -27,7 +27,6 @@ function getMinSec(...secValues) {
   return candidates.length ? Math.min(...candidates) : null
 }
 
-/** 03:00~12:59 → '등교', 13:00~02:59 → '하교' */
 function getShuttleMode() {
   const h = new Date().getHours()
   return (h >= 3 && h < 13) ? '등교' : '하교'
@@ -37,20 +36,48 @@ function matchesMode(direction, mode) {
   return direction.includes(mode)
 }
 
-// ── 서브 pill 컴포넌트 ────────────────────────────────────────────────────
+function timeToDiffMin(timeStr) {
+  if (!timeStr) return null
+  const now = new Date()
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const [hh, mm] = timeStr.split(':').map(Number)
+  const diff = hh * 60 + mm - nowMin
+  return diff > 0 ? diff : null
+}
 
-/** 정왕역 pill — 원형 배지로 노선 표시, 너비 절반 */
-function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick }) {
+// ── 정왕역 pill ───────────────────────────────────────────────────────────
+
+function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick, collapsed }) {
   const sdUp   = departAtToSec(subwayData?.up?.depart_at)
   const sdDown = departAtToSec(subwayData?.down?.depart_at)
   const l4Up   = departAtToSec(subwayData?.line4_up?.depart_at)
   const l4Down = departAtToSec(subwayData?.line4_down?.depart_at)
-
   const minSec = getMinSec(sdUp, sdDown, l4Up, l4Down,
     busJeongwangData?.arrivals?.map((a) => a.arrive_in_seconds))
   const dotClass = getDotClass(minSec, walkSec)
-
   const fmt = (sec) => sec != null ? `${toMin(sec)}분` : '—'
+
+  // ── 축약 (한 줄) ──────────────────────────────────────────
+  if (collapsed) {
+    return (
+      <button
+        aria-label="정왕역"
+        onClick={onClick}
+        className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg text-[12px] font-bold transition-colors pressable ${
+          active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+        }`}
+      >
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? 'bg-white/70' : dotClass}`} />
+        <span className={active ? 'text-white' : 'text-slate-900'}>정왕역</span>
+        <span className={`${active ? 'text-amber-300' : 'text-amber-500'} font-black`}>수</span>
+        <span className={active ? 'text-white/90' : 'text-slate-700'}>↑{fmt(sdUp)} ↓{fmt(sdDown)}</span>
+        <span className={`${active ? 'text-blue-300' : 'text-blue-600'} font-black`}>4</span>
+        <span className={active ? 'text-white/90' : 'text-slate-700'}>↑{fmt(l4Up)} ↓{fmt(l4Down)}</span>
+      </button>
+    )
+  }
+
+  // ── 전체 카드 ─────────────────────────────────────────────
   const val = active ? 'text-white' : 'text-slate-900'
   const arrow = active ? 'text-white/70' : 'text-slate-900'
 
@@ -58,7 +85,7 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick 
     <button
       aria-label="정왕역"
       onClick={onClick}
-      className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg transition-colors ${
+      className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg transition-colors pressable ${
         active ? 'bg-navy text-white' : 'bg-white text-slate-900'
       }`}
     >
@@ -67,7 +94,6 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick 
         <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900'}`}>정왕역</span>
       </div>
       <div className="flex flex-col gap-0.5 pl-[16px]">
-        {/* 수인분당선 */}
         <div className="flex items-center gap-1 text-[12px]">
           <span className="w-4 h-4 rounded-full bg-amber-400 flex items-center justify-center text-white text-[8px] font-black flex-shrink-0">수</span>
           <span className={`font-bold ${arrow}`}>↑</span>
@@ -75,7 +101,6 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick 
           <span className={`font-bold ${arrow}`}>↓</span>
           <span className={`tabular-nums font-bold ${val}`}>{fmt(sdDown)}</span>
         </div>
-        {/* 4호선 */}
         <div className="flex items-center gap-1 text-[12px]">
           <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-white text-[8px] font-black flex-shrink-0">4</span>
           <span className={`font-bold ${arrow}`}>↑</span>
@@ -88,24 +113,37 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick 
   )
 }
 
-function timeToDiffMin(timeStr) {
-  if (!timeStr) return null
-  const now = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const [hh, mm] = timeStr.split(':').map(Number)
-  const diff = hh * 60 + mm - nowMin
-  return diff > 0 ? diff : null
-}
+// ── 서울 pill ─────────────────────────────────────────────────────────────
 
-/** 서울 pill — 3400·6502 다음 출발까지 N분 후 */
-function SeoulPill({ seoulNextDepartures, walkSec, active, onClick }) {
+function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed }) {
   const val = active ? 'text-white' : 'text-slate-900'
 
+  // ── 축약 (시간만, 노선명 생략) ────────────────────────────
+  if (collapsed) {
+    const times = seoulNextDepartures.map(({ time }) => {
+      const m = timeToDiffMin(time)
+      return m != null ? `${m}분` : '—'
+    })
+    return (
+      <button
+        aria-label="서울"
+        onClick={onClick}
+        className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg text-[12px] font-bold transition-colors pressable ${
+          active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+        }`}
+      >
+        <span className={active ? 'text-white' : 'text-slate-900'}>서울</span>
+        <span className={active ? 'text-white/90' : 'text-slate-600'}>{times.join(' / ')}</span>
+      </button>
+    )
+  }
+
+  // ── 전체 카드 ─────────────────────────────────────────────
   return (
     <button
       aria-label="서울"
       onClick={onClick}
-      className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg flex-1 transition-colors ${
+      className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg flex-1 transition-colors pressable ${
         active ? 'bg-navy text-white' : 'bg-white text-slate-900'
       }`}
     >
@@ -134,12 +172,12 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick }) {
   )
 }
 
-/** 셔틀 pill — 시간대 기반으로 등교/하교 하나만 표시 */
+// ── 셔틀 pill ─────────────────────────────────────────────────────────────
+
 function ShuttlePill({ shuttleDirections, walkSec, active, onClick }) {
-  const mode = getShuttleMode()   // '등교' | '하교'
+  const mode = getShuttleMode()
   const filtered = shuttleDirections.filter((d) => matchesMode(d.direction, mode))
   const target = filtered[0] ?? null
-
   const minSec = target?.diffSec ?? null
   const dotClass = getDotClass(minSec, walkSec)
 
@@ -147,7 +185,7 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick }) {
     <button
       aria-label="셔틀"
       onClick={onClick}
-      className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg flex-1 transition-colors ${
+      className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg flex-1 transition-colors pressable ${
         active ? 'bg-navy text-white' : 'bg-white text-slate-900'
       }`}
     >
@@ -177,6 +215,7 @@ export default function InfoPanelMobile({
   walkSec,
 }) {
   const [open, setOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const setSheetOpen = useAppStore((s) => s.setSheetOpen)
 
   useEffect(() => {
@@ -195,30 +234,50 @@ export default function InfoPanelMobile({
 
   return (
     <>
-      {/* ── 지도 위 2줄 pill 레이아웃 ── */}
+      {/* ── 지도 위 카드 레이아웃 ── */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-2 pointer-events-auto" style={{ maxWidth: 420 }}>
-        {/* Row 1: 정왕역 (절반 너비) */}
+
+        {/* 정왕역 */}
         <JeongwangPill
           subwayData={subwayData}
           busJeongwangData={busJeongwangData}
           walkSec={walkSec}
           active={tab === 'jeongwang' && open}
           onClick={() => openTab('jeongwang')}
+          collapsed={collapsed}
         />
-        {/* Row 2: 서울 + 셔틀 나란히 */}
+
+        {/* 서울 + 셔틀 (collapsed 시 셔틀 숨김) */}
         <div className="flex gap-2">
           <SeoulPill
             seoulNextDepartures={seoulNextDepartures ?? []}
             walkSec={walkSec}
             active={tab === 'seoul' && open}
             onClick={() => openTab('seoul')}
+            collapsed={collapsed}
           />
-          <ShuttlePill
-            shuttleDirections={shuttleDirections}
-            walkSec={walkSec}
-            active={tab === 'shuttle' && open}
-            onClick={() => openTab('shuttle')}
-          />
+          {!collapsed && (
+            <ShuttlePill
+              shuttleDirections={shuttleDirections}
+              walkSec={walkSec}
+              active={tab === 'shuttle' && open}
+              onClick={() => openTab('shuttle')}
+            />
+          )}
+        </div>
+
+        {/* 접기/펴기 토글 버튼 */}
+        <div className="flex justify-start pl-1">
+          <button
+            aria-label={collapsed ? '카드 펼치기' : '카드 접기'}
+            onClick={() => setCollapsed((c) => !c)}
+            className="w-7 h-7 rounded-full bg-white/85 backdrop-blur-sm shadow-md flex items-center justify-center text-slate-500 pressable"
+          >
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-200 ${!collapsed ? 'rotate-180' : ''}`}
+            />
+          </button>
         </div>
       </div>
 
