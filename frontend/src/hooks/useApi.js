@@ -14,12 +14,14 @@ export function useApi(path, { interval = null, enabled = true } = {}) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [fetchedAt, setFetchedAt] = useState(null)
 
   const fetchData = useCallback(async () => {
     if (!enabled) return
     try {
       const result = await apiFetch(path)
       setData(result)
+      setFetchedAt(Date.now())
       setError(null)
     } catch (err) {
       setError(err)
@@ -36,5 +38,5 @@ export function useApi(path, { interval = null, enabled = true } = {}) {
     }
   }, [fetchData, interval, enabled])
 
-  return { data, loading, error, refetch: fetchData }
+  return { data, loading, error, fetchedAt, refetch: fetchData }
 }

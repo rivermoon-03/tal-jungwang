@@ -5,10 +5,11 @@ export function useBusStations() {
 }
 
 export function useBusArrivals(stationId) {
-  return useApi(`/bus/arrivals/${stationId}`, {
+  const { data, loading, error, fetchedAt, refetch } = useApi(`/bus/arrivals/${stationId}`, {
     interval: 15_000,
     enabled: stationId != null,
   })
+  return { data, loading, error, fetchedAt, refetch }
 }
 
 export function useBusTimetable(routeId) {

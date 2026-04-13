@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { BusFront, RefreshCw } from 'lucide-react'
 import { useBusStations, useBusArrivals } from '../../hooks/useBus'
 import StationList from './StationList'
@@ -17,7 +17,20 @@ export default function BusTab() {
     }
   }, [selectedId, stations])
 
-  const { data: arrivals, loading: arrivalsLoading, refetch } = useBusArrivals(selectedId)
+  const { data: arrivals, loading: arrivalsLoading, fetchedAt, refetch } = useBusArrivals(selectedId)
+
+  const adjustedArrivals = useMemo(() => {
+    if (!arrivals?.arrivals || !fetchedAt) return arrivals
+    const elapsedSec = (Date.now() - fetchedAt) / 1000
+    return {
+      ...arrivals,
+      arrivals: arrivals.arrivals.map((a) =>
+        a.arrival_type === 'realtime'
+          ? { ...a, arrive_in_seconds: Math.max(0, a.arrive_in_seconds - elapsedSec) }
+          : a
+      ),
+    }
+  }, [arrivals, fetchedAt])
 
   const timeStr = arrivals?.updated_at
     ? new Date(arrivals.updated_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -63,7 +76,7 @@ export default function BusTab() {
             </div>
           ) : (
             <ArrivalList
-              arrivals={arrivals?.arrivals ?? []}
+              arrivals={adjustedArrivals?.arrivals ?? []}
               onTimetableClick={(routeId, routeNo) => setTimetableRoute({ routeId, routeNo })}
             />
           )}

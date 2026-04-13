@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals } from '../../hooks/useBus'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
@@ -74,8 +74,53 @@ function getNextTrain(trains) {
   )
 }
 
+function AboutModal({ onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm px-5"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl px-7 py-6 flex flex-col gap-4 max-w-sm w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-base font-bold text-slate-800 tracking-wide text-center">
+          Made with ❤️ by CE-SW
+        </p>
+        <p className="text-[13px] text-slate-500 leading-relaxed">
+          지하철, 3400/6502, 셔틀버스 정보는 각각의 공식 시간표에서 가져왔습니다.
+          예상치 못한 일이 생기면 달라질 수 있습니다.
+          <br />
+          <span className="text-slate-400">(수인분당 제대로 오는 꼬라지를 본 적이 없어요.)</span>
+        </p>
+        <p className="text-[12px] text-slate-400 leading-relaxed border-t border-slate-100 pt-3">
+          아직 테스트 버전입니다. 실시간 버스 기능은 믿지 말아주세요.
+        </p>
+        <button
+          onClick={onClose}
+          className="self-center px-5 py-1.5 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-slate-200 transition-colors"
+        >
+          닫기
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function hasVisitedCookie() {
+  return document.cookie.split(';').some((c) => c.trim().startsWith('tal_visited='))
+}
+
+function setVisitedCookie() {
+  const expires = new Date()
+  expires.setFullYear(expires.getFullYear() + 1)
+  document.cookie = `tal_visited=1; expires=${expires.toUTCString()}; path=/`
+}
+
 export default function InfoPanel() {
   const [tab, setTab] = useState('jeongwang')
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [isFirstVisit, setIsFirstVisit] = useState(() => !hasVisitedCookie())
   const isMobile = useIsMobile()
 
   const { data: timetableData }    = useSubwayTimetable()
@@ -85,8 +130,21 @@ export default function InfoPanel() {
     line4_up:  getNextTrain(timetableData.line4_up),
     line4_down: getNextTrain(timetableData.line4_down),
   } : null
-  const { data: busJeongwangData } = useBusArrivals(JEONGWANG_STATION_ID)
+  const { data: busJeongwangData, fetchedAt: busJeongwangFetchedAt } = useBusArrivals(JEONGWANG_STATION_ID)
   const { data: busSeoulData }     = useBusArrivals(SEOUL_STATION_ID)
+
+  const adjustedBusJeongwangData = useMemo(() => {
+    if (!busJeongwangData?.arrivals || !busJeongwangFetchedAt) return busJeongwangData
+    const elapsedSec = (Date.now() - busJeongwangFetchedAt) / 1000
+    return {
+      ...busJeongwangData,
+      arrivals: busJeongwangData.arrivals.map((a) =>
+        a.arrival_type === 'realtime'
+          ? { ...a, arrive_in_seconds: Math.max(0, a.arrive_in_seconds - elapsedSec) }
+          : a
+      ),
+    }
+  }, [busJeongwangData, busJeongwangFetchedAt])
   const { data: shuttleSchedule }  = useShuttleSchedule()
   const { data: timetable3400 }    = useBusTimetableByRoute('3400')
   const { data: timetable6502 }    = useBusTimetableByRoute('6502')
@@ -100,11 +158,24 @@ export default function InfoPanel() {
 
   const props = {
     tab, setTab,
-    subwayData, busJeongwangData, busSeoulData,
+    subwayData, busJeongwangData: adjustedBusJeongwangData, busSeoulData,
     shuttleDirections,
     seoulNextDepartures,
     walkSec,
+    onInfoClick: () => {
+      if (isFirstVisit) {
+        setVisitedCookie()
+        setIsFirstVisit(false)
+      }
+      setInfoOpen(true)
+    },
+    isFirstVisit,
   }
 
-  return isMobile ? <InfoPanelMobile {...props} /> : <InfoPanelPC {...props} />
+  return (
+    <>
+      {isMobile ? <InfoPanelMobile {...props} /> : <InfoPanelPC {...props} />}
+      {infoOpen && <AboutModal onClose={() => setInfoOpen(false)} />}
+    </>
+  )
 }
