@@ -190,8 +190,13 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
   const deungyo = shuttleDirections.find((d) => matchesMode(d.direction, '등교'))
   const fmtSec = (sec) => sec != null ? `${toMin(sec)}분` : '—'
 
-  // ── 축약 (화살표 표시) ────────────────────────────────────
+  // ── 축약 (현재 모드 방향 + 시간) ────────────────────────────────────
   if (collapsed) {
+    const modeTarget = mode === '하교' ? haegyo : deungyo
+    const modeLabel = mode === '하교' ? '하교' : '등교'
+    const modeTime = modeTarget
+      ? (modeTarget.diffSec != null ? fmtSec(modeTarget.diffSec) : '수시')
+      : '—'
     return (
       <button
         aria-label="셔틀"
@@ -200,15 +205,10 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
           active ? 'bg-navy text-white' : 'bg-white text-slate-900'
         }`}
       >
-        <span className={active ? 'text-white' : 'text-slate-900'}>셔틀</span>
-        <span className={active ? 'text-white/70' : 'text-slate-500'}>↑</span>
-        <span className={active ? 'text-white' : 'text-slate-900'}>
-          {haegyo ? (haegyo.diffSec != null ? fmtSec(haegyo.diffSec) : '수시') : '—'}
-        </span>
-        <span className={active ? 'text-white/70' : 'text-slate-500'}>↓</span>
-        <span className={active ? 'text-white' : 'text-slate-900'}>
-          {deungyo ? (deungyo.diffSec != null ? fmtSec(deungyo.diffSec) : '수시') : '—'}
-        </span>
+        <span className={active ? 'text-white/70' : 'text-slate-500'}>셔틀</span>
+        <span className={active ? 'text-white/40' : 'text-slate-300'}>/</span>
+        <span className={active ? 'text-white/70' : 'text-slate-500'}>{modeLabel}</span>
+        <span className={active ? 'text-white' : 'text-slate-900'}>{modeTime}</span>
       </button>
     )
   }
@@ -280,7 +280,7 @@ export default function InfoPanelMobile({
           collapsed={collapsed}
         />
 
-        {/* 서울 + 셔틀 (collapsed 시 셔틀 숨김) */}
+        {/* 서울 + 셔틀 */}
         <div className="flex gap-2">
           <SeoulPill
             seoulNextDepartures={seoulNextDepartures ?? []}
@@ -289,14 +289,13 @@ export default function InfoPanelMobile({
             onClick={() => openTab('seoul')}
             collapsed={collapsed}
           />
-          {!collapsed && (
-            <ShuttlePill
-              shuttleDirections={shuttleDirections}
-              walkSec={walkSec}
-              active={tab === 'shuttle' && open}
-              onClick={() => openTab('shuttle')}
-            />
-          )}
+          <ShuttlePill
+            shuttleDirections={shuttleDirections}
+            walkSec={walkSec}
+            active={tab === 'shuttle' && open}
+            onClick={() => openTab('shuttle')}
+            collapsed={collapsed}
+          />
         </div>
 
         {/* 접기/펴기 토글 버튼 */}
