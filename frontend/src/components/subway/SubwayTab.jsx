@@ -103,7 +103,7 @@ export default function SubwayTab() {
           <p className="text-base text-slate-400">불러오는 중...</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 md:pb-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-28 md:pb-4">
           {CARDS.map((card) => (
             <SubwayLineCard
               key={card.key}

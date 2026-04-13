@@ -1,7 +1,6 @@
 import { Map, Bus, BusFront, TrainFront } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
-
 const TABS = [
   { id: 'main',    label: '지도',   Icon: Map       },
   { id: 'shuttle', label: '셔틀',   Icon: Bus        },
@@ -16,10 +15,18 @@ export default function MobileTabBar() {
 
   return (
     <nav
-      className={`fixed bottom-0 left-0 right-0 z-50 flex border-t border-slate-200 bg-white transition-transform duration-300 ease-out ${
-        sheetOpen ? 'translate-y-full' : 'translate-y-0'
-      }`}
-      style={{ height: 76 }}
+      className={`fixed left-1/2 -translate-x-1/2 z-50
+        flex items-center gap-1
+        bg-white/90 backdrop-blur-xl
+        rounded-full px-2 py-2
+        shadow-2xl shadow-black/20
+        border border-slate-100/80
+        transition-all duration-300 ease-out
+        ${sheetOpen
+          ? 'opacity-0 scale-90 pointer-events-none'
+          : 'opacity-100 scale-100'
+        }`}
+      style={{ bottom: 'max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))' }}
     >
       {TABS.map(({ id, label, Icon }) => {
         const active = activeTab === id
@@ -27,16 +34,15 @@ export default function MobileTabBar() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
+            aria-label={label}
             aria-current={active ? 'page' : undefined}
-            className={`flex flex-1 flex-col items-center justify-center gap-1.5 text-sm font-semibold
-              border-t-2 transition-colors min-h-[56px] pressable
+            className={`flex items-center justify-center w-14 h-14 rounded-full transition-all pressable
               ${active
-                ? 'border-navy text-navy'
-                : 'border-transparent text-slate-400'
+                ? 'bg-navy text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-600'
               }`}
           >
-            <Icon size={26} strokeWidth={active ? 2.2 : 1.8} />
-            {label}
+            <Icon size={24} strokeWidth={active ? 2.2 : 1.8} />
           </button>
         )
       })}

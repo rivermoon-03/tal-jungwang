@@ -10,7 +10,7 @@ export default function ArrivalList({ arrivals, onTimetableClick }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto pb-20 md:pb-4">
+    <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
       <div className="p-4 space-y-3">
         {arrivals.map((arrival, i) => (
           <BusArrivalCard

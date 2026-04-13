@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.cache import get_redis
+from app.core.cache import get_cached_json, get_redis, set_cached_json
 from app.models.bus import BusRoute, BusStop, BusTimetableEntry
 
 _KST = ZoneInfo("Asia/Seoul")
@@ -24,11 +24,16 @@ def _day_type(d: date) -> str:
 
 
 async def get_stations(db: AsyncSession) -> list[dict]:
+    cache_key = "bus:stations"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return cached
+
     stmt = select(BusStop).options(selectinload(BusStop.routes)).order_by(BusStop.id)
     result = await db.execute(stmt)
     stops = result.scalars().all()
 
-    return [
+    data = [
         {
             "station_id": s.id,
             "name": s.name,
@@ -45,6 +50,8 @@ async def get_stations(db: AsyncSession) -> list[dict]:
         }
         for s in stops
     ]
+    await set_cached_json(cache_key, data, ttl=3600)
+    return data
 
 
 async def get_arrivals(
@@ -142,13 +149,17 @@ async def get_timetable_by_route_number(
 async def get_timetable(
     db: AsyncSession, route_id: int, d: date
 ) -> dict | None:
+    day = _day_type(d)
+    cache_key = f"bus:timetable:{route_id}:{day}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return cached
+
     stmt = select(BusRoute).where(BusRoute.id == route_id)
     result = await db.execute(stmt)
     route = result.scalar_one_or_none()
     if not route:
         return None
-
-    day = _day_type(d)
 
     stmt = (
         select(BusTimetableEntry)
@@ -161,9 +172,11 @@ async def get_timetable(
     result = await db.execute(stmt)
     entries = result.scalars().all()
 
-    return {
+    data = {
         "route_id": route.id,
         "route_name": route.route_name or route.route_number,
         "schedule_type": day,
         "times": [e.departure_time.strftime("%H:%M") for e in entries],
     }
+    await set_cached_json(cache_key, data, ttl=86400)
+    return data

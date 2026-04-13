@@ -107,6 +107,7 @@ html,
 body,
 #root {
   height: 100%;
+  overflow: hidden; /* 외부 스크롤 차단 — 각 탭이 내부적으로 스크롤 처리 */
 }
 
 html {
