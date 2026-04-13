@@ -103,13 +103,11 @@ export default function ShuttleTimetable({ times }) {
           >
             {isReturn ? (
               <div>
-                <p className={`text-base font-semibold ${isNext ? 'text-navy' : 'text-slate-700'}`}>
-                  회차편
-                </p>
-                <p className="text-sm text-slate-400 mt-0.5">
+                <p className={`text-sm text-slate-400`}>회차편</p>
+                <p className={`text-sm font-medium mt-0.5 leading-snug ${isNext ? 'text-navy' : 'text-slate-600'}`}>
                   {schoolTime
-                    ? `학교 ${schoolTime}에 출발하는 버스 탑승`
-                    : '학교 수시운행(17:00~18:00) 버스 탑승'}
+                    ? `${schoolTime}에 출발 후 도착하는 버스가 회차하면 탑승하세요`
+                    : '수시운행(17:00~18:00) 버스가 회차하면 탑승하세요'}
                 </p>
               </div>
             ) : (
