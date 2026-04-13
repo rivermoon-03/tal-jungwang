@@ -52,7 +52,14 @@ export default function SubwayLineCard({ lineName, dirLabel, color, lightColor, 
 
       {/* 다음 열차 */}
       <div className="px-4 py-3" style={{ backgroundColor: lightColor }}>
-        <p className="text-xs text-slate-400 mb-1">다음 열차</p>
+        <div className="flex items-center gap-2 mb-1">
+          <p className="text-xs text-slate-400">다음 열차</p>
+          {nextTrain && upcoming.length === 1 && (
+            <span className="text-xs font-semibold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
+              막차
+            </span>
+          )}
+        </div>
         <div className="flex items-center justify-between gap-3">
           <NextTrainBadge train={nextTrain} color={color} />
           {missWaitMin != null && (

@@ -67,10 +67,14 @@ export default function ShuttleStopOverlay({ map }) {
     const sec = nextShuttle?.arrive_in_seconds
     if (sec != null && sec > 0) {
       div.textContent = `${Math.floor(sec / 60)}분`
-      div.style.display = 'block'
+      div.style.color = '#1a237e'
+      div.style.background = 'rgba(255,255,255,0.95)'
     } else {
-      div.style.display = 'none'
+      div.textContent = '💤'
+      div.style.color = '#94a3b8'
+      div.style.background = 'rgba(255,255,255,0.85)'
     }
+    div.style.display = 'block'
   }, [nextShuttle])
 
   return null

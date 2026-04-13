@@ -86,7 +86,10 @@ export default function JeongwangShuttleOverlay({ map }) {
       }
       div.style.display = 'block'
     } else {
-      div.style.display = 'none'
+      div.textContent = '💤'
+      div.style.color = '#94a3b8'
+      div.style.background = 'rgba(255,255,255,0.85)'
+      div.style.display = 'block'
     }
   }, [nextShuttle])
 

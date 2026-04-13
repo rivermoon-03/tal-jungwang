@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, Info } from 'lucide-react'
+import { ChevronLeft, Info } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import InfoPanelTabs from './InfoPanelTabs'
 import { toMin } from '../../utils/boardingStatus'
@@ -61,7 +61,6 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick,
     return m === 0 ? '곧 출발' : `${m}분`
   }
 
-  // ── 축약 (한 줄) ──────────────────────────────────────────
   if (collapsed) {
     return (
       <button
@@ -81,7 +80,6 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick,
     )
   }
 
-  // ── 전체 카드 ─────────────────────────────────────────────
   const val = active ? 'text-white' : 'text-slate-900'
   const arrow = active ? 'text-white/70' : 'text-slate-900'
 
@@ -122,7 +120,6 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick,
 function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed }) {
   const val = active ? 'text-white' : 'text-slate-900'
 
-  // ── 축약 (노선명 + 시간) ─────────────────────────────────
   if (collapsed) {
     return (
       <button
@@ -132,13 +129,13 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
           active ? 'bg-navy text-white' : 'bg-white text-slate-900'
         }`}
       >
-        {seoulNextDepartures.map(({ route, time }, i) => {
+        {(seoulNextDepartures ?? []).map(({ route, time }, i) => {
           const m = timeToDiffMin(time)
           return (
             <span key={route} className="flex items-center gap-1">
               {i > 0 && <span className={active ? 'text-white/40' : 'text-slate-300'}>/</span>}
               <span className={active ? 'text-white/70' : 'text-slate-500'}>{route}</span>
-              <span className={active ? 'text-white' : 'text-slate-900'}>{m != null ? (m === 0 ? '곧 출발' : `${m}분`) : '—'}</span>
+              <span className={active ? 'text-white' : 'text-slate-900'}>{m != null ? (m === 0 ? '곧 출발' : `${m}분`) : '없음'}</span>
             </span>
           )
         })}
@@ -146,7 +143,6 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
     )
   }
 
-  // ── 전체 카드 ─────────────────────────────────────────────
   return (
     <button
       aria-label="서울"
@@ -160,10 +156,10 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
         <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900'}`}>서울</span>
       </div>
       <div className={`flex flex-col gap-0.5 pl-[16px] text-[12px] font-semibold ${active ? 'text-white/85' : 'text-slate-600'}`}>
-        {seoulNextDepartures.length === 0 ? (
+        {(seoulNextDepartures ?? []).length === 0 ? (
           <span>정보 없음</span>
         ) : (
-          seoulNextDepartures.map(({ route, time }) => {
+          (seoulNextDepartures ?? []).map(({ route, time }) => {
             const diffMin = timeToDiffMin(time)
             return (
               <div key={route} className="flex items-center gap-1.5">
@@ -184,27 +180,23 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
 
 function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed }) {
   const mode = getShuttleMode()
-  const filtered = shuttleDirections.filter((d) => matchesMode(d.direction, mode))
+  const filtered = (shuttleDirections ?? []).filter((d) => matchesMode(d.direction, mode))
   const target = filtered[0] ?? null
   const minSec = target?.diffSec ?? null
   const dotClass = getDotClass(minSec, walkSec)
 
-  // 상행(하교, ↑) / 하행(등교, ↓) 각각의 다음 시간
-  const haegyo = shuttleDirections.find((d) => matchesMode(d.direction, '하교'))
-  const deungyo = shuttleDirections.find((d) => matchesMode(d.direction, '등교'))
+  const haegyo = (shuttleDirections ?? []).find((d) => matchesMode(d.direction, '하교'))
+  const deungyo = (shuttleDirections ?? []).find((d) => matchesMode(d.direction, '등교'))
   const fmtSec = (sec) => {
-    if (sec == null) return '—'
+    if (sec == null) return '없음'
     const m = toMin(sec)
     return m === 0 ? '곧 출발' : `${m}분`
   }
 
-  // ── 축약 (현재 모드 방향 + 시간) ────────────────────────────────────
   if (collapsed) {
     const modeTarget = mode === '하교' ? haegyo : deungyo
     const modeLabel = mode === '하교' ? '하교' : '등교'
-    const modeTime = modeTarget
-      ? (modeTarget.diffSec != null ? fmtSec(modeTarget.diffSec) : '수시')
-      : '—'
+    const modeTime = modeTarget && modeTarget.diffSec != null ? fmtSec(modeTarget.diffSec) : '없음'
     return (
       <button
         aria-label="셔틀"
@@ -221,7 +213,6 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
     )
   }
 
-  // ── 전체 카드 ─────────────────────────────────────────────
   return (
     <button
       aria-label="셔틀"
@@ -237,8 +228,8 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
       <div className={`pl-[16px] text-[12px] font-semibold ${active ? 'text-white/85' : 'text-slate-600'}`}>
         <p className="text-[10px] mb-0.5">{mode}</p>
         <p className={`tabular-nums font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900'}`}>
-          {target
-            ? (target.diffSec != null ? (toMin(target.diffSec) === 0 ? '곧 출발' : `${toMin(target.diffSec)}분`) : '수시운행')
+          {target && target.diffSec != null
+            ? (toMin(target.diffSec) === 0 ? '곧 출발' : `${toMin(target.diffSec)}분`)
             : '없음'}
         </p>
       </div>
@@ -258,7 +249,7 @@ export default function InfoPanelMobile({
   isFirstVisit,
 }) {
   const [open, setOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
+  const [panelVisible, setPanelVisible] = useState(true)
   const setSheetOpen = useAppStore((s) => s.setSheetOpen)
 
   useEffect(() => {
@@ -277,9 +268,41 @@ export default function InfoPanelMobile({
 
   return (
     <>
-      {/* ── 지도 위 카드 레이아웃 ── */}
-      <div className="absolute top-3 left-3 z-10 flex flex-col gap-2 pointer-events-auto" style={{ maxWidth: 420 }}>
+      {/* ── 항상 고정된 제어 버튼 (토글 + 정보) ── */}
+      <div className="absolute top-3 left-3 z-20 flex flex-col gap-2 pointer-events-auto">
+        <button
+          aria-label={panelVisible ? '카드 숨기기' : '카드 표시'}
+          onClick={() => setPanelVisible((v) => !v)}
+          className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 flex items-center justify-center text-slate-500 pressable"
+        >
+          <ChevronLeft
+            size={18}
+            className={`transition-transform duration-300 ${!panelVisible ? 'rotate-180' : ''}`}
+          />
+        </button>
+        <button
+          aria-label="정보"
+          onClick={onInfoClick}
+          className={`w-10 h-10 rounded-full backdrop-blur-md shadow-lg border flex items-center justify-center pressable ${
+            isFirstVisit
+              ? 'info-btn-glow border-transparent text-white'
+              : 'bg-white/90 border-slate-200 text-slate-500'
+          }`}
+        >
+          <Info size={18} />
+        </button>
+      </div>
 
+      {/* ── 카드 컨테이너 — 왼쪽으로 슬라이드 인/아웃 ── */}
+      <div
+        className={`absolute top-3 left-[60px] z-10 flex flex-col gap-2 transition-transform duration-300 ease-in-out ${
+          panelVisible ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
+        style={{
+          maxWidth: 420,
+          transform: panelVisible ? 'translateX(0)' : 'translateX(calc(-100% - 60px))',
+        }}
+      >
         {/* 정왕역 */}
         <JeongwangPill
           subwayData={subwayData}
@@ -287,7 +310,7 @@ export default function InfoPanelMobile({
           walkSec={walkSec}
           active={tab === 'jeongwang' && open}
           onClick={() => openTab('jeongwang')}
-          collapsed={collapsed}
+          collapsed
         />
 
         {/* 서울 + 셔틀 */}
@@ -297,40 +320,15 @@ export default function InfoPanelMobile({
             walkSec={walkSec}
             active={tab === 'seoul' && open}
             onClick={() => openTab('seoul')}
-            collapsed={collapsed}
+            collapsed
           />
           <ShuttlePill
             shuttleDirections={shuttleDirections}
             walkSec={walkSec}
             active={tab === 'shuttle' && open}
             onClick={() => openTab('shuttle')}
-            collapsed={collapsed}
+            collapsed
           />
-        </div>
-
-        {/* 접기/펴기 토글 + 정보 버튼 */}
-        <div className="flex items-center gap-2 pl-1">
-          <button
-            aria-label={collapsed ? '카드 펼치기' : '카드 접기'}
-            onClick={() => setCollapsed((c) => !c)}
-            className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-slate-200 flex items-center justify-center text-slate-500 pressable"
-          >
-            <ChevronDown
-              size={15}
-              className={`transition-transform duration-200 ${!collapsed ? 'rotate-180' : ''}`}
-            />
-          </button>
-          <button
-            aria-label="정보"
-            onClick={onInfoClick}
-            className={`w-8 h-8 rounded-full backdrop-blur-sm shadow-md border flex items-center justify-center pressable ${
-              isFirstVisit
-                ? 'info-btn-glow border-transparent text-white'
-                : 'bg-white/90 border-slate-200 text-slate-500'
-            }`}
-          >
-            <Info size={15} />
-          </button>
         </div>
       </div>
 

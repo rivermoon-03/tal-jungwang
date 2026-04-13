@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import httpx
@@ -21,6 +22,18 @@ _TAXI_CACHE_TTL = 300  # 5분
 
 _WALKING_CACHE_TTL = 600   # 10분 (도보 경로는 교통 상황 무관)
 _DRIVING_CACHE_TTL = 300   # 5분 (자동차는 교통 상황 반영)
+
+# 택시 카드 — 학교 정문 → 주요 목적지
+_TAXI_ORIGIN_LAT = 37.3400
+_TAXI_ORIGIN_LNG = 126.7335
+_TAXI_DEST_TTL = 1200  # 20분
+
+_TAXI_DESTINATIONS = [
+    {"id": "jeongwang_station",          "name": "정왕역",       "lat": 37.351618, "lng": 126.742747},
+    {"id": "siheung_cityhall_station",   "name": "시흥시청역",   "lat": 37.37970,  "lng": 126.80260},
+    {"id": "sadang_station",             "name": "사당역",        "lat": 37.47624,  "lng": 126.98175},
+    {"id": "baegot_raon",                "name": "배곧(라온초)", "lat": 37.35390,  "lng": 126.71580},
+]
 
 
 def _coord_cache_key(prefix: str, origin_lat: float, origin_lng: float,
@@ -92,6 +105,52 @@ async def walking_route(req: RouteRequest):
         pass
 
     return ApiResponse[WalkingRouteResponse].ok(result)
+
+
+@router.get("/taxi-destinations")
+async def taxi_destinations():
+    """학교 정문 → 주요 목적지 자동차 소요 시간 목록 (카카오모빌리티, 20분 캐시)."""
+
+    async def fetch_one(dest: dict) -> dict:
+        cache_key = f"route:taxi_dest:{dest['id']}"
+        try:
+            redis = await get_redis()
+            cached = await redis.get(cache_key)
+            if cached:
+                return json.loads(cached)
+        except Exception:
+            pass
+
+        try:
+            result = await fetch_driving_route(
+                origin_x=_TAXI_ORIGIN_LNG, origin_y=_TAXI_ORIGIN_LAT,
+                dest_x=dest["lng"], dest_y=dest["lat"],
+            )
+            item = {
+                "id": dest["id"],
+                "name": dest["name"],
+                "duration_seconds": result["duration_seconds"],
+                "distance_meters": result["distance_meters"],
+                "coordinates": result["coordinates"],
+            }
+        except Exception:
+            item = {
+                "id": dest["id"],
+                "name": dest["name"],
+                "duration_seconds": None,
+                "distance_meters": None,
+                "coordinates": [],
+            }
+
+        try:
+            redis = await get_redis()
+            await redis.setex(cache_key, _TAXI_DEST_TTL, json.dumps(item, ensure_ascii=False))
+        except Exception:
+            pass
+        return item
+
+    results = await asyncio.gather(*[fetch_one(d) for d in _TAXI_DESTINATIONS])
+    return ApiResponse.ok({"destinations": list(results)})
 
 
 @router.post("/driving")
