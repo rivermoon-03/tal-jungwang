@@ -1,0 +1,19 @@
+{
+  "name": "정왕 교통 허브",
+  "short_name": "교통허브",
+  "description": "정왕동 한국공학대학교·경기과학기술대학교 통합 교통 정보",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1a237e",
+  "orientation": "portrait-primary",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

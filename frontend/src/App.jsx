@@ -17,14 +17,14 @@ export default function App() {
   const activeTab = useAppStore((s) => s.activeTab)
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
+    <div className="flex flex-col h-dvh bg-slate-50">
       {/* PC navbar — hidden on mobile */}
       <div className="hidden md:block">
         <PCNavbar />
       </div>
 
-      {/* Main area */}
-      <main key={activeTab} className="flex-1 overflow-y-auto animate-fade-in min-h-0">
+      {/* Main area — overflow-hidden: 각 탭이 자체 스크롤 처리 */}
+      <main key={activeTab} className="flex-1 overflow-hidden animate-fade-in min-h-0">
         {TAB_CONTENT[activeTab] ?? TAB_CONTENT.main}
       </main>
 
