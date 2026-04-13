@@ -1,0 +1,30 @@
+# 비밀 환경변수
+.env
+**/.env
+*.env
+!*.env.example
+
+# 에이전트·도구 내부 파일
+.claude/
+.agent/
+.playwright-mcp/
+.superpowers/
+CLAUDE.md
+docs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+dist/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db

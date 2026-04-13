@@ -1,0 +1,245 @@
+{
+  "uid": "transit-hub",
+  "title": "교통 허브 데이터",
+  "tags": ["transit", "postgresql"],
+  "timezone": "Asia/Seoul",
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "오늘 버스 도착 감지 건수",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "-- Mixed --" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres" },
+          "rawSql": "SELECT COUNT(*) AS \"arrivals_today\" FROM bus_arrival_history WHERE arrived_at >= CURRENT_DATE;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "전체 도착 이력 건수",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS \"total_arrivals\" FROM bus_arrival_history;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "교통 이력 건수",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS \"traffic_records\" FROM traffic_history;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "최근 수집 시각",
+      "description": "bus_collector가 마지막으로 도착을 감지한 시간",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT MAX(arrived_at) AS \"last_arrival\" FROM bus_arrival_history;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeFromNow"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "시간대별 버스 도착 추이",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT date_trunc('hour', arrived_at) AS time, r.route_number, COUNT(*) AS arrivals FROM bus_arrival_history h JOIN bus_routes r ON r.id = h.route_id WHERE $__timeFilter(arrived_at) GROUP BY 1, 2 ORDER BY 1;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "fillOpacity": 20, "lineWidth": 2 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "노선별 도착 건수 (최근 24시간)",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT r.route_number AS metric, COUNT(*) AS value FROM bus_arrival_history h JOIN bus_routes r ON r.id = h.route_id WHERE arrived_at >= NOW() - INTERVAL '24 hours' GROUP BY r.route_number ORDER BY value DESC;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "정류장별 도착 건수 (최근 24시간)",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT s.name AS metric, COUNT(*) AS value FROM bus_arrival_history h JOIN bus_stops s ON s.id = h.stop_id WHERE arrived_at >= NOW() - INTERVAL '24 hours' GROUP BY s.name ORDER BY value DESC;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      }
+    },
+    {
+      "id": 8,
+      "title": "요일별 도착 패턴",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT day_type AS metric, COUNT(*) AS value FROM bus_arrival_history GROUP BY day_type ORDER BY CASE day_type WHEN 'weekday' THEN 1 WHEN 'saturday' THEN 2 WHEN 'sunday' THEN 3 END;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      }
+    },
+    {
+      "id": 9,
+      "title": "도로 평균 속도 추이",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT date_trunc('hour', collected_at) AS time, road_name || ' (' || direction || ')' AS metric, AVG(speed)::NUMERIC(5,1) AS value FROM traffic_history WHERE $__timeFilter(collected_at) GROUP BY 1, 2 ORDER BY 1;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocitykmh",
+          "custom": { "fillOpacity": 15, "lineWidth": 2 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "혼잡도 분포",
+      "description": "1=원활, 2=서행, 3=정체, 4=심한정체",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 20 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT CASE congestion WHEN 1 THEN '원활' WHEN 2 THEN '서행' WHEN 3 THEN '정체' WHEN 4 THEN '심한정체' END AS metric, COUNT(*) AS value FROM traffic_history WHERE collected_at >= NOW() - INTERVAL '24 hours' GROUP BY congestion ORDER BY congestion;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "최근 버스 도착 이력 (20건)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 20 },
+      "datasource": { "type": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT h.arrived_at AS \"도착시간\", r.route_number AS \"노선\", s.name AS \"정류장\", h.plate_no AS \"차량번호\" FROM bus_arrival_history h JOIN bus_routes r ON r.id = h.route_id JOIN bus_stops s ON s.id = h.stop_id ORDER BY h.arrived_at DESC LIMIT 20;",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

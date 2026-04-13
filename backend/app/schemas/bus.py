@@ -1,0 +1,38 @@
+from pydantic import BaseModel
+
+
+class BusStationRoute(BaseModel):
+    route_number: str
+    route_name: str | None = None
+    is_realtime: bool
+
+
+class BusStationResponse(BaseModel):
+    station_id: int
+    name: str
+    lat: float
+    lng: float
+    routes: list[BusStationRoute]
+
+
+class BusArrival(BaseModel):
+    route_id: int
+    route_no: str
+    destination: str | None = None
+    arrival_type: str  # "realtime" | "timetable"
+    depart_at: str | None = None  # "HH:MM" (timetable)
+    arrive_in_seconds: int | None = None
+
+
+class BusArrivalsResponse(BaseModel):
+    station_id: int
+    station_name: str
+    updated_at: str
+    arrivals: list[BusArrival]
+
+
+class BusTimetableResponse(BaseModel):
+    route_id: int
+    route_name: str
+    schedule_type: str  # "weekday" | "saturday" | "sunday"
+    times: list[str]  # ["07:00", "07:30", ...]

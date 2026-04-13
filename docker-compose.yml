@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file: backend/.env   # POSTGRES 정보들 읽기
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docs/0413-erd/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    ports:
+      - "127.0.0.1:5432:5432"   # 로컬 전용
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    env_file: backend/.env
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ];
+             then redis-server --requirepass "$$REDIS_PASSWORD";
+             else redis-server; fi'
+    ports:
+      - "127.0.0.1:6379:6379"   # 로컬 전용
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: backend/.env
+    environment:
+      # 컨테이너 내부에서는 서비스 이름으로 접근 (env_file 값을 덮어씀)
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"   # 로컬 전용 — 프로덕션에서는 nginx를 통해서만 접근
+    volumes:
+      - ./backend:/app   # 핫 리로드용
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    env_file: backend/.env   # PGADMIN_DEFAULT_EMAIL / PGADMIN_DEFAULT_PASSWORD
+    environment:
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "127.0.0.1:5050:5050"   # 로컬 전용
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./infra/pgadmin-servers.json:/pgadmin4/servers.json
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "127.0.0.1:9090:9090"   # 로컬 개발용
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    env_file: backend/.env   # GF_SECURITY_ADMIN_USER / GF_SECURITY_ADMIN_PASSWORD
+    ports:
+      - "127.0.0.1:3000:3000"   # 로컬 개발용
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./infra/grafana-dashboard-provider.yml:/etc/grafana/provisioning/dashboards/default.yml
+      - ./infra/grafana-dashboards:/var/lib/grafana/dashboards
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+  prometheus_data:
+  grafana_data:
