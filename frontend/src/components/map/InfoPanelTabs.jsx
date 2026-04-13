@@ -2,6 +2,7 @@ import { toMin, getBoardingStatus } from '../../utils/boardingStatus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
 import { useTaxiToStation } from '../../hooks/useRoute'
+import { getSpecialTrainIndices } from '../../utils/trainTime'
 
 // TODO: GBIS 실시간 연동 시 정류장 ID 채울 것 (현재는 시간표 기반으로 표시)
 export const SEOUL_STATION_ID = null
@@ -36,13 +37,16 @@ function getUpcomingTwo(times = []) {
 
 // ── 서브 컴포넌트 ──────────────────────────────────────────────────────────
 
-function countUpcoming(trains) {
-  if (!trains?.length) return 0
+function isLastTrain(trains) {
+  if (!trains?.length) return false
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
-  return trains.filter((t) => {
+  const { lastIdx } = getSpecialTrainIndices(trains)
+  if (lastIdx === null) return false
+  const nextIdx = trains.findIndex((t) => {
     const [hh, mm] = t.depart_at.split(':').map(Number)
     return hh * 60 + mm > nowMin
-  }).length
+  })
+  return nextIdx >= 0 && nextIdx === lastIdx
 }
 
 function LastBadge() {
@@ -59,10 +63,10 @@ function SubwaySection({ subwayData, timetableData }) {
   }
   const { up, down, line4_up, line4_down } = subwayData
   const isLast = {
-    up:        timetableData ? countUpcoming(timetableData.up) === 1 : false,
-    down:      timetableData ? countUpcoming(timetableData.down) === 1 : false,
-    line4_up:  timetableData ? countUpcoming(timetableData.line4_up) === 1 : false,
-    line4_down: timetableData ? countUpcoming(timetableData.line4_down) === 1 : false,
+    up:         timetableData ? isLastTrain(timetableData.up)        : false,
+    down:       timetableData ? isLastTrain(timetableData.down)      : false,
+    line4_up:   timetableData ? isLastTrain(timetableData.line4_up)  : false,
+    line4_down: timetableData ? isLastTrain(timetableData.line4_down): false,
   }
   return (
     <div className="flex flex-col gap-2">

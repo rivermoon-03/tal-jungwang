@@ -94,7 +94,7 @@ function AboutModal({ onClose }) {
       >
         <div className="flex flex-col items-center gap-1">
           <p className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-wide text-center">
-            Made with ❤️ by CE-SW
+            Made with ❤️ by 소공
           </p>
           <p className="text-[11px] text-slate-400">한국공대 ㅎㅇㅌ</p>
         </div>
