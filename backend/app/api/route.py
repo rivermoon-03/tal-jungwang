@@ -32,7 +32,7 @@ _TAXI_DESTINATIONS = [
     {"id": "jeongwang_station",          "name": "정왕역",       "lat": 37.351618, "lng": 126.742747},
     {"id": "siheung_cityhall_station",   "name": "시흥시청역",   "lat": 37.37970,  "lng": 126.80260},
     {"id": "sadang_station",             "name": "사당역",        "lat": 37.47624,  "lng": 126.98175},
-    {"id": "baegot_raon",                "name": "배곧(라온초)", "lat": 37.35390,  "lng": 126.71580},
+    {"id": "baegot_raon",                "name": "배곧(라온초)", "lat": 37.37258,  "lng": 126.73493},
 ]
 
 
