@@ -306,4 +306,10 @@ async def refresh_subway_timetable(
 
         await db.commit()
 
+    # 지하철 시간표 Redis 캐시 무효화
+    from app.core.cache import get_redis
+    redis = await get_redis()
+    for day in ("weekday", "saturday", "sunday"):
+        await redis.delete(f"subway:entries:{day}")
+
     return ApiResponse.ok({"refreshed": total, "updated_at": now.isoformat()})
