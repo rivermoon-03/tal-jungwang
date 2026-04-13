@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useBusArrivals, useBusStations } from '../../hooks/useBus'
+import useAppStore from '../../stores/useAppStore'
 
 const BUS_STOP = { lat: 37.341633, lng: 126.731252 }
 const STATION_NAME = '한국공학대학교'
@@ -52,6 +53,7 @@ export default function Siheung33BusOverlay({ map }) {
   const { data: stations } = useBusStations()
   const stationId = stations?.find((s) => s.name === STATION_NAME)?.station_id ?? null
   const { data: busData } = useBusArrivals(stationId)
+  const darkMode = useAppStore((s) => s.darkMode)
 
   // 마커 + 라벨 오버레이 생성 (map 준비 후 1회)
   useEffect(() => {
@@ -125,8 +127,10 @@ export default function Siheung33BusOverlay({ map }) {
     } else {
       div.textContent = '33번 - —'
     }
+    div.style.color = darkMode ? '#fca5a5' : '#9a3412'
+    div.style.background = darkMode ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.95)'
     div.style.display = 'block'
-  }, [busData])
+  }, [busData, darkMode])
 
   return null
 }

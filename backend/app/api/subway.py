@@ -1,4 +1,5 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,8 @@ from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.subway import SubwayNextResponse, SubwayTimetableResponse
 from app.services.subway import get_next, get_timetable
+
+KST = ZoneInfo("Asia/Seoul")
 
 router = APIRouter(prefix="/api/v1/subway", tags=["subway"])
 
@@ -32,7 +35,7 @@ async def subway_timetable(
 async def subway_next(
     db: AsyncSession = Depends(get_db),
 ):
-    now = datetime.now(timezone.utc).astimezone()
+    now = datetime.now(KST)
     d = now.date()
     t = now.time()
     result = await get_next(db, d, t)

@@ -18,13 +18,26 @@ function dirLabel(name) {
   return DIRECTION_LABEL[name] ?? name
 }
 
+function toMin(t) {
+  const [hh, mm] = t.split(':').map(Number)
+  return hh * 60 + mm
+}
+
 function findNextShuttle(timeObjs) {
-  const now = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  return timeObjs.find((t) => {
-    const [hh, mm] = t.depart_at.split(':').map(Number)
-    return hh * 60 + mm > nowMin
-  }) ?? null
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  return timeObjs.find((t) => toMin(t.depart_at) > nowMin) ?? null
+}
+
+/** 현재 수시운행 구간 안에 있는지 여부.
+ *  수시운행 항목 중 이미 지난 것이 하나라도 있고,
+ *  다음 항목도 수시운행이면 구간 내로 판단한다. */
+function isInsideFrequentWindow(timeObjs) {
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const hasPastFrequent = timeObjs.some(
+    (t) => t.note === '수시운행' && toMin(t.depart_at) <= nowMin
+  )
+  const next = timeObjs.find((t) => toMin(t.depart_at) > nowMin)
+  return hasPastFrequent && next?.note === '수시운행'
 }
 
 export default function ShuttleTab() {
@@ -48,9 +61,9 @@ export default function ShuttleTab() {
 
   const currentDir = directions.find((d) => d.direction === activeDir)
   const timeObjs = currentDir?.times ?? []
-  // tick은 의존성으로만 사용 — 실제 값은 쓰지 않음
   void tick
   const nextShuttle = findNextShuttle(timeObjs)
+  const inFrequentWindow = isInsideFrequentWindow(timeObjs)
 
   return (
     <div className="flex flex-col h-full">
@@ -61,13 +74,15 @@ export default function ShuttleTab() {
       </div>
 
       {directions.length > 0 && (
-        <div className="flex bg-white border-b border-slate-200">
+        <div className="flex bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
           {directions.map(({ direction }) => (
             <button
               key={direction}
               onClick={() => setActiveDir(direction)}
               className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors
-                ${activeDir === direction ? 'text-navy border-navy' : 'text-slate-500 border-transparent'}`}
+                ${activeDir === direction
+                  ? 'text-navy dark:text-blue-400 border-navy dark:border-blue-400'
+                  : 'text-slate-500 dark:text-slate-400 border-transparent'}`}
             >
               {dirLabel(direction)}
             </button>
@@ -78,6 +93,7 @@ export default function ShuttleTab() {
       <ShuttleCountdown
         nextShuttle={nextShuttle}
         direction={dirLabel(activeDir)}
+        inFrequentWindow={inFrequentWindow}
       />
 
       {schedLoading ? (

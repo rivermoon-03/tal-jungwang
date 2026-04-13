@@ -24,6 +24,7 @@ export default function JeongwangShuttleOverlay({ map }) {
   const labelDivRef = useRef(null)
   const labelOverlayRef = useRef(null)
   const setSelectedStationId = useAppStore((s) => s.setSelectedStationId)
+  const darkMode = useAppStore((s) => s.darkMode)
 
   // 등교 방향 다음 셔틀 (회차편 여부 확인용)
   const { data: nextShuttle } = useShuttleNext('등교')
@@ -77,21 +78,21 @@ export default function JeongwangShuttleOverlay({ map }) {
       if (note.includes('회차편')) {
         // 회차편 탑승 가능 시간대
         div.textContent = '회차 버스 탑승'
-        div.style.color = '#b45309'  // amber-700
-        div.style.background = 'rgba(254,243,199,0.97)'  // amber-100
+        div.style.color = darkMode ? '#fcd34d' : '#b45309'
+        div.style.background = darkMode ? 'rgba(120,53,15,0.95)' : 'rgba(254,243,199,0.97)'
       } else {
         div.textContent = `${Math.floor(sec / 60)}분`
-        div.style.color = '#1a237e'
-        div.style.background = 'rgba(255,255,255,0.95)'
+        div.style.color = darkMode ? '#bfdbfe' : '#1a237e'
+        div.style.background = darkMode ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.95)'
       }
       div.style.display = 'block'
     } else {
       div.textContent = '💤'
       div.style.color = '#94a3b8'
-      div.style.background = 'rgba(255,255,255,0.85)'
+      div.style.background = darkMode ? 'rgba(30,41,59,0.85)' : 'rgba(255,255,255,0.85)'
       div.style.display = 'block'
     }
-  }, [nextShuttle])
+  }, [nextShuttle, darkMode])
 
   return null
 }

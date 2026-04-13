@@ -137,4 +137,26 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   word-break: keep-all;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* ── 카카오맵 다크모드 ──────────────────────────────────── */
+/*
+  컨테이너 전체에 반전 필터 → 지도 타일이 다크해짐.
+  우리 마커 SVG(/icons/)는 역필터로 원래 색상 복원.
+  라벨 div는 MapView에서 darkMode 변경 시 inline style 처리.
+*/
+.dark #kakao-map-canvas {
+  filter: invert(93%) hue-rotate(180deg) brightness(0.82) saturate(0.85) contrast(0.92);
+  transition: filter 0.3s ease;
+}
+
+/* 마커 이미지 역필터 — 원래 SVG 색상 유지 */
+.dark #kakao-map-canvas img[src*="/icons/"] {
+  filter: invert(93%) hue-rotate(180deg) brightness(1.22) saturate(1.18) contrast(1.09) !important;
 }

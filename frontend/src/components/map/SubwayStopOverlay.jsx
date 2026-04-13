@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useSubwayTimetable } from '../../hooks/useSubway'
+import useAppStore from '../../stores/useAppStore'
 
 const JEONGWANG = { lat: 37.351618, lng: 126.742747 }
 const MARKER_W = 22
@@ -44,6 +45,7 @@ export default function SubwayStopOverlay({ map }) {
   const labelDivRef = useRef(null)
   const labelOverlayRef = useRef(null)
   const { data: timetableData } = useSubwayTimetable()
+  const darkMode = useAppStore((s) => s.darkMode)
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return
@@ -95,14 +97,17 @@ export default function SubwayStopOverlay({ map }) {
       return
     }
 
+    const textColor = darkMode ? '#cbd5e1' : '#374151'
+    const bg = darkMode ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.95)'
+    div.style.background = bg
     div.innerHTML = [
       `<span style="color:#d97706;font-weight:900">수</span>`,
-      `<span style="color:#374151"> ↑${fmt(sdUp)} ↓${fmt(sdDown)}</span>`,
-      `<span style="color:#1d4ed8;font-weight:900;margin-left:5px">4</span>`,
-      `<span style="color:#374151"> ↑${fmt(l4Up)} ↓${fmt(l4Down)}</span>`,
+      `<span style="color:${textColor}"> ↑${fmt(sdUp)} ↓${fmt(sdDown)}</span>`,
+      `<span style="color:#3b82f6;font-weight:900;margin-left:5px">4</span>`,
+      `<span style="color:${textColor}"> ↑${fmt(l4Up)} ↓${fmt(l4Down)}</span>`,
     ].join('')
     div.style.display = 'block'
-  }, [timetableData])
+  }, [timetableData, darkMode])
 
   return null
 }

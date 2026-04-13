@@ -22,6 +22,7 @@ class BusArrival(BaseModel):
     arrival_type: str  # "realtime" | "timetable"
     depart_at: str | None = None  # "HH:MM" (timetable)
     arrive_in_seconds: int | None = None
+    is_tomorrow: bool = False  # 오늘 시간표 소진 후 내일 첫차인 경우 True
 
 
 class BusArrivalsResponse(BaseModel):

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, Info } from 'lucide-react'
+import { ChevronLeft, Info, Car, Moon, Sun } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import InfoPanelTabs from './InfoPanelTabs'
 import { toMin } from '../../utils/boardingStatus'
@@ -67,33 +67,33 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick,
         aria-label="정왕역"
         onClick={onClick}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg text-[12px] font-bold transition-colors pressable ${
-          active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+          active ? 'bg-navy text-white' : 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100'
         }`}
       >
         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? 'bg-white/70' : dotClass}`} />
-        <span className={active ? 'text-white' : 'text-slate-900'}>정왕역</span>
+        <span className={active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}>정왕역</span>
         <span className={`${active ? 'text-amber-300' : 'text-amber-500'} font-black`}>수</span>
-        <span className={active ? 'text-white/90' : 'text-slate-700'}>↑{fmt(sdUp)} ↓{fmt(sdDown)}</span>
-        <span className={`${active ? 'text-blue-300' : 'text-blue-600'} font-black`}>4</span>
-        <span className={active ? 'text-white/90' : 'text-slate-700'}>↑{fmt(l4Up)} ↓{fmt(l4Down)}</span>
+        <span className={active ? 'text-white/90' : 'text-slate-700 dark:text-slate-200'}>↑{fmt(sdUp)} ↓{fmt(sdDown)}</span>
+        <span className={`${active ? 'text-blue-300' : 'text-blue-600 dark:text-blue-400'} font-black`}>4</span>
+        <span className={active ? 'text-white/90' : 'text-slate-700 dark:text-slate-200'}>↑{fmt(l4Up)} ↓{fmt(l4Down)}</span>
       </button>
     )
   }
 
-  const val = active ? 'text-white' : 'text-slate-900'
-  const arrow = active ? 'text-white/70' : 'text-slate-900'
+  const val = active ? 'text-white' : 'text-slate-900 dark:text-slate-100'
+  const arrow = active ? 'text-white/70' : 'text-slate-900 dark:text-slate-100'
 
   return (
     <button
       aria-label="정왕역"
       onClick={onClick}
       className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg transition-colors pressable ${
-        active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+        active ? 'bg-navy text-white' : 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100'
       }`}
     >
       <div className="flex items-center gap-1.5">
         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${active ? 'bg-white/70' : dotClass}`} />
-        <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900'}`}>정왕역</span>
+        <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>정왕역</span>
       </div>
       <div className="flex flex-col gap-0.5 pl-[16px]">
         <div className="flex items-center gap-1 text-[12px]">
@@ -118,7 +118,7 @@ function JeongwangPill({ subwayData, busJeongwangData, walkSec, active, onClick,
 // ── 서울 pill ─────────────────────────────────────────────────────────────
 
 function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed }) {
-  const val = active ? 'text-white' : 'text-slate-900'
+  const val = active ? 'text-white' : 'text-slate-900 dark:text-slate-100'
 
   if (collapsed) {
     return (
@@ -126,16 +126,16 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
         aria-label="서울"
         onClick={onClick}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl shadow-lg text-[11px] font-bold transition-colors pressable ${
-          active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+          active ? 'bg-navy text-white' : 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100'
         }`}
       >
         {(seoulNextDepartures ?? []).map(({ route, time }, i) => {
           const m = timeToDiffMin(time)
           return (
             <span key={route} className="flex items-center gap-1">
-              {i > 0 && <span className={active ? 'text-white/40' : 'text-slate-300'}>/</span>}
-              <span className={active ? 'text-white/70' : 'text-slate-500'}>{route}</span>
-              <span className={active ? 'text-white' : 'text-slate-900'}>{m != null ? (m === 0 ? '곧 출발' : `${m}분`) : '없음'}</span>
+              {i > 0 && <span className={active ? 'text-white/40' : 'text-slate-300 dark:text-slate-600'}>/</span>}
+              <span className={active ? 'text-white/70' : 'text-slate-500 dark:text-slate-400'}>{route}</span>
+              <span className={active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}>{m != null ? (m === 0 ? '곧 출발' : `${m}분`) : '없음'}</span>
             </span>
           )
         })}
@@ -148,12 +148,12 @@ function SeoulPill({ seoulNextDepartures, walkSec, active, onClick, collapsed })
       aria-label="서울"
       onClick={onClick}
       className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg flex-1 transition-colors pressable ${
-        active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+        active ? 'bg-navy text-white' : 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100'
       }`}
     >
       <div className="flex items-center gap-1.5">
         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${active ? 'bg-white/70' : 'bg-slate-300'}`} />
-        <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900'}`}>서울</span>
+        <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>서울</span>
       </div>
       <div className={`flex flex-col gap-0.5 pl-[16px] text-[12px] font-semibold ${active ? 'text-white/85' : 'text-slate-600'}`}>
         {(seoulNextDepartures ?? []).length === 0 ? (
@@ -202,13 +202,13 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
         aria-label="셔틀"
         onClick={onClick}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl shadow-lg text-[11px] font-bold transition-colors pressable ${
-          active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+          active ? 'bg-navy text-white' : 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100'
         }`}
       >
-        <span className={active ? 'text-white/70' : 'text-slate-500'}>셔틀</span>
-        <span className={active ? 'text-white/40' : 'text-slate-300'}>/</span>
-        <span className={active ? 'text-white/70' : 'text-slate-500'}>{modeLabel}</span>
-        <span className={active ? 'text-white' : 'text-slate-900'}>{modeTime}</span>
+        <span className={active ? 'text-white/70' : 'text-slate-500 dark:text-slate-400'}>셔틀</span>
+        <span className={active ? 'text-white/40' : 'text-slate-300 dark:text-slate-600'}>/</span>
+        <span className={active ? 'text-white/70' : 'text-slate-500 dark:text-slate-400'}>{modeLabel}</span>
+        <span className={active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}>{modeTime}</span>
       </button>
     )
   }
@@ -218,16 +218,16 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
       aria-label="셔틀"
       onClick={onClick}
       className={`flex flex-col gap-1.5 px-4 py-3 rounded-2xl shadow-lg flex-1 transition-colors pressable ${
-        active ? 'bg-navy text-white' : 'bg-white text-slate-900'
+        active ? 'bg-navy text-white' : 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100'
       }`}
     >
       <div className="flex items-center gap-1.5">
         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${active ? 'bg-white/70' : dotClass}`} />
-        <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900'}`}>셔틀</span>
+        <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>셔틀</span>
       </div>
       <div className={`pl-[16px] text-[12px] font-semibold ${active ? 'text-white/85' : 'text-slate-600'}`}>
         <p className="text-[10px] mb-0.5">{mode}</p>
-        <p className={`tabular-nums font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900'}`}>
+        <p className={`tabular-nums font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
           {target && target.diffSec != null
             ? (toMin(target.diffSec) === 0 ? '곧 출발' : `${toMin(target.diffSec)}분`)
             : '없음'}
@@ -244,13 +244,21 @@ export default function InfoPanelMobile({
   subwayData, busJeongwangData, busSeoulData,
   shuttleDirections,
   seoulNextDepartures,
-  walkSec,
+  walkTimes,
+  timetableData,
   onInfoClick,
   isFirstVisit,
 }) {
   const [open, setOpen] = useState(false)
   const [panelVisible, setPanelVisible] = useState(true)
-  const setSheetOpen = useAppStore((s) => s.setSheetOpen)
+  const setSheetOpen    = useAppStore((s) => s.setSheetOpen)
+  const setActiveTab    = useAppStore((s) => s.setActiveTab)
+  const darkMode        = useAppStore((s) => s.darkMode)
+  const toggleDarkMode  = useAppStore((s) => s.toggleDarkMode)
+  const taxiOpen        = useAppStore((s) => s.taxiOpen)
+  const toggleTaxiOpen  = useAppStore((s) => s.toggleTaxiOpen)
+  const setTaxiOpen     = useAppStore((s) => s.setTaxiOpen)
+  const setDriveRouteCoords = useAppStore((s) => s.setDriveRouteCoords)
 
   useEffect(() => {
     setSheetOpen(open)
@@ -268,12 +276,12 @@ export default function InfoPanelMobile({
 
   return (
     <>
-      {/* ── 항상 고정된 제어 버튼 (토글 + 정보) ── */}
+      {/* ── 항상 고정된 제어 버튼 (토글 + 정보 + 택시 + 다크모드) ── */}
       <div className="absolute top-3 left-3 z-20 flex flex-col gap-2 pointer-events-auto">
         <button
           aria-label={panelVisible ? '카드 숨기기' : '카드 표시'}
           onClick={() => setPanelVisible((v) => !v)}
-          className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 flex items-center justify-center text-slate-500 pressable"
+          className="w-10 h-10 rounded-full bg-white/90 dark:bg-slate-700/90 backdrop-blur-md shadow-lg border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-300 pressable"
         >
           <ChevronLeft
             size={18}
@@ -286,10 +294,31 @@ export default function InfoPanelMobile({
           className={`w-10 h-10 rounded-full backdrop-blur-md shadow-lg border flex items-center justify-center pressable ${
             isFirstVisit
               ? 'info-btn-glow border-transparent text-white'
-              : 'bg-white/90 border-slate-200 text-slate-500'
+              : 'bg-white/90 dark:bg-slate-700/90 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-300'
           }`}
         >
           <Info size={18} />
+        </button>
+        <button
+          aria-label="학교에서 가는 시간"
+          onClick={toggleTaxiOpen}
+          className={`w-10 h-10 rounded-full backdrop-blur-md shadow-lg border-2 flex items-center justify-center pressable transition-colors ${
+            taxiOpen
+              ? 'bg-emerald-500 border-emerald-500 text-white'
+              : 'bg-white/90 dark:bg-slate-700/90 border-emerald-400 text-emerald-500'
+          }`}
+        >
+          <Car size={18} strokeWidth={2} />
+        </button>
+        <button
+          aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          onClick={toggleDarkMode}
+          className="w-10 h-10 rounded-full bg-white/90 dark:bg-slate-700/90 backdrop-blur-md shadow-lg border border-slate-200 dark:border-slate-600 flex items-center justify-center pressable transition-colors"
+        >
+          {darkMode
+            ? <Sun  size={18} strokeWidth={2} className="text-yellow-400" />
+            : <Moon size={18} strokeWidth={2} className="text-slate-500 dark:text-slate-300" />
+          }
         </button>
       </div>
 
@@ -307,7 +336,7 @@ export default function InfoPanelMobile({
         <JeongwangPill
           subwayData={subwayData}
           busJeongwangData={busJeongwangData}
-          walkSec={walkSec}
+          walkSec={walkTimes.station}
           active={tab === 'jeongwang' && open}
           onClick={() => openTab('jeongwang')}
           collapsed
@@ -317,14 +346,14 @@ export default function InfoPanelMobile({
         <div className="flex gap-2">
           <SeoulPill
             seoulNextDepartures={seoulNextDepartures ?? []}
-            walkSec={walkSec}
+            walkSec={walkTimes.bus}
             active={tab === 'seoul' && open}
             onClick={() => openTab('seoul')}
             collapsed
           />
           <ShuttlePill
             shuttleDirections={shuttleDirections}
-            walkSec={walkSec}
+            walkSec={walkTimes.shuttle}
             active={tab === 'shuttle' && open}
             onClick={() => openTab('shuttle')}
             collapsed
@@ -343,16 +372,16 @@ export default function InfoPanelMobile({
 
       {/* 하단 시트 — 슬라이드 업 */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-[70] bg-white rounded-t-2xl shadow-xl p-5 pb-8 pointer-events-auto transition-transform duration-300 ease-out ${
+        className={`fixed bottom-0 left-0 right-0 z-[70] bg-white dark:bg-slate-900 rounded-t-2xl shadow-xl p-5 pb-8 pointer-events-auto transition-transform duration-300 ease-out ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
         <div className="relative flex items-center justify-center mb-4">
-          <div className="w-10 h-1.5 bg-slate-200 rounded-full" />
+          <div className="w-10 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full" />
           <button
             aria-label="닫기"
             onClick={close}
-            className="absolute right-0 text-slate-400 hover:text-slate-600 text-base leading-none"
+            className="absolute right-0 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-base leading-none"
           >✕</button>
         </div>
         <InfoPanelTabs
@@ -360,7 +389,9 @@ export default function InfoPanelMobile({
           setTab={setTab}
           subwayData={subwayData}
           busJeongwangData={busJeongwangData}
-          walkSec={walkSec}
+          walkTimes={walkTimes}
+          timetableData={timetableData}
+          onNavigate={(mainTab) => { close(); setActiveTab(mainTab) }}
         />
       </div>
     </>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TrainFront, ChevronLeft } from 'lucide-react'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import SubwayLineCard from './SubwayLineCard'
@@ -17,15 +17,58 @@ function getNextDestination(trains) {
 }
 
 const CARD_DEFS = [
-  { key: 'line4_up',   lineName: '4호선',    upDown: '상행', fallback: '당고개', color: '#1B5FAD', lightColor: '#E8F0FB' },
-  { key: 'line4_down', lineName: '4호선',    upDown: '하행', fallback: '오이도', color: '#1B5FAD', lightColor: '#E8F0FB' },
-  { key: 'up',         lineName: '수인분당선', upDown: '상행', fallback: '왕십리', color: '#F5A623', lightColor: '#FEF6E6' },
-  { key: 'down',       lineName: '수인분당선', upDown: '하행', fallback: '인천',   color: '#F5A623', lightColor: '#FEF6E6' },
+  { key: 'line4_up',   lineName: '4호선',    upDown: '상행', fallback: '당고개', color: '#1B5FAD', darkColor: '#60a5fa', lightColor: '#E8F0FB' },
+  { key: 'line4_down', lineName: '4호선',    upDown: '하행', fallback: '오이도', color: '#1B5FAD', darkColor: '#60a5fa', lightColor: '#E8F0FB' },
+  { key: 'up',         lineName: '수인분당선', upDown: '상행', fallback: '왕십리', color: '#F5A623', darkColor: '#fbbf24', lightColor: '#FEF6E6' },
+  { key: 'down',       lineName: '수인분당선', upDown: '하행', fallback: '인천',   color: '#F5A623', darkColor: '#fbbf24', lightColor: '#FEF6E6' },
 ]
+
+function useLastTrainWarnings(timetable) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  void tick
+
+  if (!timetable) return []
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+
+  return CARD_DEFS.flatMap((def) => {
+    const trains = timetable[def.key] ?? []
+    const upcoming = trains.filter((t) => {
+      const [hh, mm] = t.depart_at.split(':').map(Number)
+      return hh * 60 + mm > nowMin
+    })
+    if (upcoming.length !== 1) return []
+    const [hh, mm] = upcoming[0].depart_at.split(':').map(Number)
+    const diffMin = hh * 60 + mm - nowMin
+    if (diffMin > 30) return []
+    return [{ lineName: def.lineName, upDown: def.upDown, destination: upcoming[0].destination, diffMin }]
+  })
+}
+
+function LastTrainBanner({ warnings }) {
+  if (warnings.length === 0) return null
+  return (
+    <div className="mx-4 mt-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 px-4 py-3">
+      <p className="text-xs font-extrabold text-red-500 uppercase tracking-wide mb-1.5">막차 임박</p>
+      <div className="flex flex-col gap-1">
+        {warnings.map((w, i) => (
+          <p key={i} className="text-sm text-red-700 dark:text-red-400">
+            <span className="font-bold">{w.lineName} {w.upDown}</span>
+            {' · '}{w.destination} 방면 — <span className="font-bold tabular-nums">{w.diffMin}분 후</span> 막차
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function SubwayTab() {
   const [selectedKey, setSelectedKey] = useState(null)
   const { data: timetable, loading } = useSubwayTimetable()
+  const lastTrainWarnings = useLastTrainWarnings(timetable)
 
   const CARDS = CARD_DEFS.map((def) => {
     const dest = getNextDestination(timetable?.[def.key]) ?? def.fallback
@@ -59,7 +102,7 @@ export default function SubwayTab() {
           </h2>
         </div>
 
-        <SubwayCountdown nextTrain={nextTrain} lineColor={selected.color} />
+        <SubwayCountdown nextTrain={nextTrain} lineColor={selected.color} lineDarkColor={selected.darkColor} />
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
@@ -70,6 +113,7 @@ export default function SubwayTab() {
             entries={trains}
             nextIndex={nextIndex}
             lineColor={selected.color}
+            lineDarkColor={selected.darkColor}
             lineLightColor={selected.lightColor}
           />
         )}
@@ -90,18 +134,22 @@ export default function SubwayTab() {
           <p className="text-base text-slate-400">불러오는 중...</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-28 md:pb-4">
+        <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
+          <LastTrainBanner warnings={lastTrainWarnings} />
+          <div className="p-4 space-y-4">
           {CARDS.map((card) => (
             <SubwayLineCard
               key={card.key}
               lineName={card.lineName}
               dirLabel={card.dirLabel}
               color={card.color}
+              darkColor={card.darkColor}
               lightColor={card.lightColor}
               trains={timetable?.[card.key] ?? []}
               onClick={() => setSelectedKey(card.key)}
             />
           ))}
+          </div>
         </div>
       )}
     </div>

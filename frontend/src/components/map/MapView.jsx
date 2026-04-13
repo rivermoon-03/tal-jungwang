@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Locate, School, Car } from 'lucide-react'
+import { Car } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
 import ShuttleStopOverlay from './ShuttleStopOverlay'
@@ -14,20 +14,31 @@ import RestaurantOverlay from './RestaurantOverlay'
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
 
+
 export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
   const [mapInstance, setMapInstance] = useState(null)
-  const [taxiOpen, setTaxiOpen] = useState(false)
   const kakaoKey = import.meta.env.VITE_KAKAO_JS_APP_KEY
-  const userLocation = useAppStore((s) => s.userLocation)
+  const userLocation        = useAppStore((s) => s.userLocation)
   const setDriveRouteCoords = useAppStore((s) => s.setDriveRouteCoords)
+  const mapPanTarget        = useAppStore((s) => s.mapPanTarget)
+  const setMapPanTarget     = useAppStore((s) => s.setMapPanTarget)
+  const taxiOpen            = useAppStore((s) => s.taxiOpen)
+  const setTaxiOpen         = useAppStore((s) => s.setTaxiOpen)
 
   function panTo(lat, lng) {
     if (!mapRef.current) return
     mapRef.current.panTo(new window.kakao.maps.LatLng(lat, lng))
   }
+
+  // 독 버튼에서 요청한 pan 처리
+  useEffect(() => {
+    if (!mapPanTarget || !mapRef.current) return
+    panTo(mapPanTarget.lat, mapPanTarget.lng)
+    setMapPanTarget(null)
+  }, [mapPanTarget])
 
   // SDK 로드 effect
   useEffect(() => {
@@ -83,10 +94,9 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
     })
     mapRef.current = map
 
-    // 실시간 교통정보 레이어 (마유로 등 도로 혼잡도 색상 오버레이)
+    // 실시간 교통정보 레이어
     map.addOverlayMapTypeId(window.kakao.maps.MapTypeId.TRAFFIC)
 
-    // 자식 오버레이 컴포넌트에 map 인스턴스 전달
     setMapInstance(map)
 
     return () => {
@@ -97,7 +107,7 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
 
   if (!kakaoKey) {
     return (
-      <div className="flex-1 relative bg-slate-200 overflow-hidden select-none">
+      <div className="flex-1 relative bg-slate-200 dark:bg-slate-800 overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-slate-400 text-base font-medium">카카오맵 (API 키 설정 후 활성화)</p>
         </div>
@@ -107,7 +117,7 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
 
   if (!sdkReady) {
     return (
-      <div className="flex-1 relative bg-slate-200 overflow-hidden select-none">
+      <div className="flex-1 relative bg-slate-200 dark:bg-slate-800 overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-slate-400 text-base font-medium">지도를 불러오는 중...</p>
         </div>
@@ -117,41 +127,29 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
 
   return (
     <>
-      <div ref={containerRef} className="flex-1 bg-slate-200 relative" style={{ minHeight: 300 }}>
+      {/*
+        ┌─ 외부 상대 컨테이너 ─────────────────────────────────────────┐
+        │  ┌─ 카카오맵 캔버스 (절대 배치, 다크 필터 적용) ─────────┐  │
+        │  │  SDK가 이 div 안에만 렌더링                           │  │
+        │  └────────────────────────────────────────────────────────┘  │
+        │  ┌─ React UI 오버레이 (필터 없음) ────────────────────────┐  │
+        │  │  InfoPanelSlot, 버튼, TaxiCard                        │  │
+        │  └────────────────────────────────────────────────────────┘  │
+        └──────────────────────────────────────────────────────────────┘
+      */}
+      <div className="flex-1 relative" style={{ minHeight: 300 }}>
+
+        {/* 카카오맵 SDK 전용 컨테이너 — CSS에서 canvas에만 필터 적용 (마커 div 제외) */}
+        <div
+          ref={containerRef}
+          id="kakao-map-canvas"
+          className="absolute inset-0 bg-slate-200"
+        />
+
+        {/* React UI 오버레이 — 필터 영향 없음 */}
         {mapInstance && InfoPanelSlot}
 
-        {/* 우상단 지도 이동 버튼 */}
-        {mapInstance && (
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 pointer-events-auto">
-            {userLocation && (
-              <button
-                aria-label="내 위치로 이동"
-                onClick={() => panTo(userLocation.lat, userLocation.lng)}
-                className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-lg flex items-center justify-center text-navy pressable"
-              >
-                <Locate size={18} strokeWidth={2} />
-              </button>
-            )}
-            <button
-              aria-label="학교로 이동"
-              onClick={() => panTo(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng)}
-              className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-lg flex items-center justify-center text-navy pressable"
-            >
-              <School size={18} strokeWidth={2} />
-            </button>
-            <button
-              aria-label="택시 소요 시간"
-              onClick={() => setTaxiOpen((v) => !v)}
-              className={`w-10 h-10 rounded-full backdrop-blur-md shadow-lg flex items-center justify-center pressable border-2 transition-colors ${
-                taxiOpen
-                  ? 'bg-yellow-400 border-yellow-400 text-white'
-                  : 'bg-white/90 border-yellow-400 text-yellow-500'
-              }`}
-            >
-              <Car size={18} strokeWidth={2} />
-            </button>
-          </div>
-        )}
+        {/* 우상단 지도 이동 버튼 + 다크모드 토글 */}
 
         {/* 택시 카드 */}
         {mapInstance && (
@@ -164,6 +162,7 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           />
         )}
       </div>
+
       {/* map 인스턴스가 준비된 후 오버레이 컴포넌트 마운트 */}
       {mapInstance && (
         <>

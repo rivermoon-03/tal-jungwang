@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import admin, bus, map, recommend, route, shuttle, subway, traffic
+from app.api import admin, bus, dashboard, map, recommend, route, shuttle, subway, traffic
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.cache import close_redis
@@ -68,6 +68,7 @@ app.include_router(route.router)
 app.include_router(recommend.router)
 app.include_router(admin.router)
 app.include_router(traffic.router)
+app.include_router(dashboard.router)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
@@ -84,4 +85,25 @@ async def restrict_metrics(request: Request, call_next):
 
 @app.get("/health", tags=["health"])
 async def health():
-    return {"status": "ok"}
+    from app.core.cache import get_redis
+    from app.core.database import AsyncSessionLocal
+    from sqlalchemy import text
+
+    checks: dict[str, str] = {}
+
+    try:
+        redis = await get_redis()
+        await redis.ping()
+        checks["redis"] = "ok"
+    except Exception:
+        checks["redis"] = "error"
+
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        checks["db"] = "ok"
+    except Exception:
+        checks["db"] = "error"
+
+    overall = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
+    return {"status": overall, **checks}

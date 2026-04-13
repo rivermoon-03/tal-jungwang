@@ -1,4 +1,4 @@
-import { Map, Bus, BusFront, TrainFront } from 'lucide-react'
+import { Map, Bus, BusFront, TrainFront, Moon, Sun } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const TABS = [
@@ -9,8 +9,10 @@ const TABS = [
 ]
 
 export default function PCNavbar() {
-  const activeTab    = useAppStore((s) => s.activeTab)
-  const setActiveTab = useAppStore((s) => s.setActiveTab)
+  const activeTab      = useAppStore((s) => s.activeTab)
+  const setActiveTab   = useAppStore((s) => s.setActiveTab)
+  const darkMode       = useAppStore((s) => s.darkMode)
+  const toggleDarkMode = useAppStore((s) => s.toggleDarkMode)
 
   return (
     <header className="flex items-center gap-6 bg-navy text-white px-6 h-14 shrink-0">
@@ -40,6 +42,22 @@ export default function PCNavbar() {
           )
         })}
       </nav>
+
+      {/* 스페이서 */}
+      <div className="flex-1" />
+
+      {/* 다크모드 토글 */}
+      <button
+        aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
+        onClick={toggleDarkMode}
+        className="w-9 h-9 rounded-full flex items-center justify-center transition-all pressable
+          bg-white/10 hover:bg-white/20 text-white/70 hover:text-white"
+      >
+        {darkMode
+          ? <Sun  size={16} strokeWidth={2} className="text-yellow-300" />
+          : <Moon size={16} strokeWidth={2} />
+        }
+      </button>
     </header>
   )
 }
