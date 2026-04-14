@@ -41,19 +41,23 @@ export default function BusPanel() {
     <div className="space-y-3">
       {/* 그룹 pill 탭 */}
       <div className="flex gap-2">
-        {BUS_GROUPS.map((g) => (
-          <button
-            key={g}
-            onClick={() => setBusGroup(g)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-pill transition-colors
-              ${selectedBusGroup === g
-                ? 'bg-coral text-white shadow-sm'
-                : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
-              }`}
-          >
-            {g}
-          </button>
-        ))}
+        {BUS_GROUPS.map((g) => {
+          const isActive = selectedBusGroup === g
+          return (
+            <button
+              key={g}
+              onClick={() => setBusGroup(g)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors
+                ${isActive
+                  ? 'shadow-sm'
+                  : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
+                }`}
+              style={isActive ? { background: '#FF385C', color: '#FFFFFF' } : undefined}
+            >
+              {g}
+            </button>
+          )
+        })}
       </div>
 
       {/* 노선별 카드 */}

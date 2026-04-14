@@ -43,19 +43,23 @@ export default function SubwayPanel() {
     <div className="space-y-3">
       {/* 역 pill 탭 */}
       <div className="flex gap-2 flex-wrap">
-        {STATIONS.map((st) => (
-          <button
-            key={st}
-            onClick={() => setSubwayStation(st)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-pill transition-colors
-              ${selectedStation === st
-                ? 'bg-coral text-white shadow-sm'
-                : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
-              }`}
-          >
-            {st}
-          </button>
-        ))}
+        {STATIONS.map((st) => {
+          const isActive = selectedStation === st
+          return (
+            <button
+              key={st}
+              onClick={() => setSubwayStation(st)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors
+                ${isActive
+                  ? 'shadow-sm'
+                  : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
+                }`}
+              style={isActive ? { background: '#FF385C', color: '#FFFFFF' } : undefined}
+            >
+              {st}
+            </button>
+          )
+        })}
       </div>
 
       {/* 콘텐츠 */}
