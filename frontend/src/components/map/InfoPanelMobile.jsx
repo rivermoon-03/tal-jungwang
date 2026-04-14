@@ -29,11 +29,11 @@ function getMinSec(...secValues) {
 
 function getShuttleMode() {
   const h = new Date().getHours()
-  return (h >= 3 && h < 13) ? '등교' : '하교'
+  return (h >= 3 && h < 13) ? 0 : 1  // 0=등교, 1=하교
 }
 
 function matchesMode(direction, mode) {
-  return direction.includes(mode)
+  return direction === mode
 }
 
 function timeToDiffMin(timeStr) {
@@ -185,8 +185,8 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
   const minSec = target?.diffSec ?? null
   const dotClass = getDotClass(minSec, walkSec)
 
-  const haegyo = (shuttleDirections ?? []).find((d) => matchesMode(d.direction, '하교'))
-  const deungyo = (shuttleDirections ?? []).find((d) => matchesMode(d.direction, '등교'))
+  const haegyo = (shuttleDirections ?? []).find((d) => d.direction === 1)
+  const deungyo = (shuttleDirections ?? []).find((d) => d.direction === 0)
   const fmtSec = (sec) => {
     if (sec == null) return '없음'
     const m = toMin(sec)
@@ -194,8 +194,8 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
   }
 
   if (collapsed) {
-    const modeTarget = mode === '하교' ? haegyo : deungyo
-    const modeLabel = mode === '하교' ? '하교' : '등교'
+    const modeTarget = mode === 1 ? haegyo : deungyo
+    const modeLabel = mode === 1 ? '하교' : '등교'
     const modeTime = modeTarget && modeTarget.diffSec != null ? fmtSec(modeTarget.diffSec) : '없음'
     return (
       <button
@@ -226,7 +226,7 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
         <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>셔틀</span>
       </div>
       <div className={`pl-[16px] text-[12px] font-semibold ${active ? 'text-white/85' : 'text-slate-600'}`}>
-        <p className="text-[10px] mb-0.5">{mode}</p>
+        <p className="text-[10px] mb-0.5">{mode === 1 ? '하교' : '등교'}</p>
         <p className={`tabular-nums font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
           {target && target.diffSec != null
             ? (toMin(target.diffSec) === 0 ? '곧 출발' : `${toMin(target.diffSec)}분`)

@@ -9,6 +9,7 @@ import Siheung33BusOverlay from './Siheung33BusOverlay'
 import TaxiCard from './TaxiCard'
 import DriveRoutePolyline from './DriveRoutePolyline'
 import RestaurantOverlay from './RestaurantOverlay'
+import TrafficRoadOverlay from './TrafficRoadOverlay'
 
 // 한국공학대학교 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
@@ -104,9 +105,6 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
     })
     mapRef.current = map
 
-    // 실시간 교통정보 레이어
-    map.addOverlayMapTypeId(window.kakao.maps.MapTypeId.TRAFFIC)
-
     setMapInstance(map)
 
     return () => {
@@ -183,6 +181,7 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           <Siheung33BusOverlay map={mapInstance} />
           <DriveRoutePolyline map={mapInstance} />
           <RestaurantOverlay map={mapInstance} />
+          <TrafficRoadOverlay map={mapInstance} />
         </>
       )}
     </>

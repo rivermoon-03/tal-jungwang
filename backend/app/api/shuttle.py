@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1/shuttle", tags=["shuttle"])
 async def shuttle_schedule(
     request: Request,
     date_str: str | None = Query(None, alias="date"),
-    direction: str | None = Query(None),
+    direction: int | None = Query(None, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -35,7 +35,7 @@ async def shuttle_schedule(
 
 @router.get("/next")
 async def shuttle_next(
-    direction: str | None = Query(None),
+    direction: int | None = Query(None, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
 ):
     now = datetime.now(KST)

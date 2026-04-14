@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -28,7 +28,7 @@ class ShuttleRoute(Base):
     __tablename__ = "shuttle_routes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    route_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    direction: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # 0=등교, 1=하교
     description: Mapped[str | None] = mapped_column(String(255))
 
     shuttle_entries: Mapped[list["ShuttleTimetableEntry"]] = relationship(

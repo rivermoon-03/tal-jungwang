@@ -1,6 +1,7 @@
 import asyncio
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,10 +13,22 @@ from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.traffic import RoadTraffic, TrafficResponse
 from app.services.external.tmap import fetch_driving_traffic
-from app.services.traffic import collect_traffic, get_history
+from app.services.traffic import collect_traffic, get_history, persist_traffic_segments
 
+_KST = ZoneInfo("Asia/Seoul")
 _TRAFFIC_LIVE_CACHE_KEY = "traffic:live"
-_TRAFFIC_LIVE_TTL = 60  # 60초
+_TRAFFIC_RUSH_TTL = 60    # 출퇴근 시간대 1분
+_TRAFFIC_NORMAL_TTL = 300  # 평시 5분
+
+
+def _traffic_ttl() -> int:
+    """현재 KST 시각에 따른 교통 캐시 TTL 반환.
+    출퇴근 (07~09, 16~18): 60초 / 그 외: 300초
+    """
+    hour = datetime.now(_KST).hour
+    if 7 <= hour < 10 or 16 <= hour < 19:
+        return _TRAFFIC_RUSH_TTL
+    return _TRAFFIC_NORMAL_TTL
 
 router = APIRouter(prefix="/api/v1/traffic", tags=["traffic"])
 
@@ -26,13 +39,13 @@ ROUTES = [
     # 한국공학대 ↔ 정왕역 양방향
     {
         "direction": "to_station",
-        "start": {"lng": 126.7335, "lat": 37.3403},  # 한국공학대
-        "end":   {"lng": 126.7198, "lat": 37.3399},   # 정왕역
+        "start": {"lng": 126.7335, "lat": 37.3403},    # 한국공학대
+        "end":   {"lng": 126.742747, "lat": 37.351618}, # 정왕역
     },
     {
         "direction": "to_school",
-        "start": {"lng": 126.7198, "lat": 37.3399},
-        "end":   {"lng": 126.7335, "lat": 37.3403},
+        "start": {"lng": 126.742747, "lat": 37.351618}, # 정왕역
+        "end":   {"lng": 126.7335, "lat": 37.3403},    # 한국공학대
     },
 ]
 
@@ -62,7 +75,7 @@ async def get_traffic():
 
     한국공학대 ↔ 정왕역 경로를 TMAP으로 탐색하고,
     경유하는 주요 도로별 소요시간·속도를 반환합니다.
-    Redis에 60초 캐싱 (TMAP API 한도 보호).
+    출퇴근 시간대(07~09, 16~18) Redis 캐싱 60초, 평시 300초.
     """
     # ── 캐시 조회 ────────────────────────────────────────────────
     try:
@@ -127,12 +140,41 @@ async def get_traffic():
         await redis.set(
             _TRAFFIC_LIVE_CACHE_KEY,
             json.dumps(response_data.model_dump(), ensure_ascii=False, default=str),
-            ex=_TRAFFIC_LIVE_TTL,
+            ex=_traffic_ttl(),
         )
     except Exception:
         pass
 
+    # ── DB 저장 (백그라운드, 예측 데이터 축적용) ──────────────────
+    asyncio.create_task(persist_traffic_segments(merged, datetime.now(timezone.utc)))
+
     return ApiResponse[TrafficResponse].ok(response_data)
+
+
+@router.get("/debug/segments")
+async def debug_segments():
+    """TMAP이 반환하는 모든 도로 구간명을 필터 없이 반환한다. (개발용)"""
+    tasks = [
+        fetch_driving_traffic(
+            start_x=r["start"]["lng"], start_y=r["start"]["lat"],
+            end_x=r["end"]["lng"], end_y=r["end"]["lat"],
+        )
+        for r in ROUTES
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    out = []
+    for route_def, result in zip(ROUTES, results):
+        if isinstance(result, Exception):
+            out.append({"direction": route_def["direction"], "error": str(result)})
+            continue
+        names = [
+            {"road_name": s["road_name"], "distance": s["distance"], "time": s["time"]}
+            for s in result["segments"] if s["road_name"]
+        ]
+        out.append({"direction": route_def["direction"], "segments": names})
+
+    return ApiResponse.ok(out)
 
 
 @router.post("/collect")

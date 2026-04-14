@@ -63,14 +63,14 @@ def setup_scheduler():
 
     logger.info("Traffic collection scheduler configured")
 
-    # ── 버스 도착정보 폴링 (06:00~22:00, 2분 간격) ──────────────────
+    # ── 버스 도착정보 폴링 (06:00~22:59, 2분 간격) ──────────────────
     scheduler.add_job(
         _bus_poll_job,
-        CronTrigger(hour="6-21", minute="*/2"),
+        CronTrigger(hour="6-22", minute="*/2"),
         id="bus_arrival_poll",
         replace_existing=True,
     )
-    logger.info("Bus arrival polling scheduler configured (06:00-22:00, every 2min)")
+    logger.info("Bus arrival polling scheduler configured (06:00-22:59, every 2min)")
 
 
 def start_scheduler():

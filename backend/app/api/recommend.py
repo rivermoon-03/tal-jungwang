@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -27,6 +28,28 @@ _BUS_RIDE_CACHE_TTL = 300   # 5분
 _BUS_RIDE_FALLBACK  = 600   # 10분 (API 실패 시 기본값)
 
 router = APIRouter(prefix="/api/v1/recommend", tags=["recommend"])
+
+
+async def _get_traffic_label() -> str | None:
+    """traffic:live 캐시에서 to_station 방향 최악 혼잡도 레이블을 반환한다.
+
+    원활(1)이거나 캐시 미스이면 None 반환 — 메시지에 포함하지 않음.
+    """
+    try:
+        redis = await get_redis()
+        cached = await redis.get("traffic:live")
+        if not cached:
+            return None
+        roads = json.loads(cached).get("roads", [])
+        to_station = [r for r in roads if r["direction"] == "to_station"]
+        if not to_station:
+            return None
+        worst = max(to_station, key=lambda r: r["congestion"])
+        if worst["congestion"] <= 1:
+            return None
+        return worst["congestion_label"]
+    except Exception:
+        return None
 
 
 async def _get_bus_ride_seconds(stop_lat: float, stop_lng: float) -> int:
@@ -119,6 +142,11 @@ async def recommend_transport(
         else:
             total_min = round(bus_option["total_seconds"] / 60)
             message = f"버스({bus_option.get('route_no', '')})를 추천합니다 — 약 {total_min}분"
+
+    # 4. 도로 혼잡도 컨텍스트 prefix (원활이면 생략)
+    traffic_label = await _get_traffic_label()
+    if traffic_label:
+        message = f"도로 {traffic_label} 중 — {message}"
 
     return ApiResponse[RecommendResponse].ok({
         "recommended": recommended,
