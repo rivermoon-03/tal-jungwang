@@ -32,7 +32,9 @@ export function usePWAInstall() {
 
   const isIOS =
     typeof navigator !== 'undefined' &&
-    /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+    /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+    !('MSStream' in window) &&
+    !/CriOS|FxiOS|OPiOS|mercury/i.test(navigator.userAgent) &&
     !navigator.standalone;
 
   useEffect(() => {

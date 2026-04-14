@@ -72,8 +72,19 @@ export function useDynamicCopy({ now = new Date(), weather = null, nextArrival =
   let sub = '다음 출발 정보를 확인하세요'
 
   if (isFirstTrain) {
-    big = '첫차 07:00 · 곧 운행 시작'
-    sub = '잠시 후 운행이 시작돼요'
+    const minsUntil07 = (7 * 60) - (now.getHours() * 60 + now.getMinutes())
+    if (hour < 5) {
+      big = '🌙 막차 끝났어요'
+      sub = '첫차는 07:00부터'
+    } else {
+      big = '첫차 07:00 · 곧 운행 시작'
+      sub =
+        minsUntil07 <= 30
+          ? '잠시 후 운행이 시작돼요'
+          : minsUntil07 <= 90
+            ? '한 시간 내로 시작돼요'
+            : `07:00까지 ${Math.round(minsUntil07 / 60)}시간 남음`
+    }
   } else if (isLastTrain) {
     if (mins !== null) {
       big = `막차 ${mins}분 전 🌙`
