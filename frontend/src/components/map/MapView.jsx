@@ -27,11 +27,21 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
   const setMapPanTarget     = useAppStore((s) => s.setMapPanTarget)
   const taxiOpen            = useAppStore((s) => s.taxiOpen)
   const setTaxiOpen         = useAppStore((s) => s.setTaxiOpen)
+  const activeTab           = useAppStore((s) => s.activeTab)
 
   function panTo(lat, lng) {
     if (!mapRef.current) return
     mapRef.current.panTo(new window.kakao.maps.LatLng(lat, lng))
   }
+
+  // 다른 탭 갔다 돌아올 때 hidden → visible 전환 후 relayout
+  useEffect(() => {
+    if (activeTab === 'main' && mapRef.current) {
+      requestAnimationFrame(() => {
+        mapRef.current?.relayout()
+      })
+    }
+  }, [activeTab])
 
   // 독 버튼에서 요청한 pan 처리
   useEffect(() => {

@@ -78,15 +78,21 @@ export default function BusArrivalCard({ arrival, onTimetableClick }) {
         >
           {arrival.route_no}
         </span>
-        <span className="flex-1 text-sm text-slate-500 dark:text-slate-400 truncate">{arrival.destination}</span>
+        <span className="flex-1" />
         <span className="time-num text-xl font-bold text-slate-900 dark:text-slate-100">{diffText}</span>
         <span className="text-xs px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-medium">
           {isTomorrow ? '내일' : '시간표'}
         </span>
         <ChevronRight size={16} className="text-slate-400 shrink-0" />
       </div>
-      <p className="px-4 pb-3 text-xs text-slate-400">
-        {isTomorrow ? `내일 ${arrival.depart_at}` : arrival.depart_at} 출발
+      <p className="px-4 pb-3 text-xs text-slate-400 flex items-center gap-1.5">
+        <span>{isTomorrow ? `내일 ${arrival.depart_at}` : arrival.depart_at} 출발</span>
+        {arrival.destination && (
+          <>
+            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <span className="truncate">{arrival.destination}</span>
+          </>
+        )}
       </p>
     </button>
   )

@@ -306,8 +306,8 @@ const TABS = [
 
 const TAB_MAIN_MAP = {
   jeongwang: 'subway',
-  seoul:     'bus',
-  shuttle:   'shuttle',
+  seoul:     'transit',
+  shuttle:   'transit',
 }
 
 export default function InfoPanelTabs({ tab, setTab, subwayData, busJeongwangData, walkTimes, timetableData, onNavigate }) {

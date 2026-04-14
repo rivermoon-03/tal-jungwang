@@ -1,6 +1,11 @@
 import { useRef, useEffect } from 'react'
-import { ChevronLeft, BusFront } from 'lucide-react'
+import { ChevronLeft, BusFront, MapPin } from 'lucide-react'
 import { useBusTimetable } from '../../hooks/useBus'
+
+const BOARDING_INFO = {
+  '6502': { stop: '이마트', desc: '육교 건너 이마트 정류장에서 탑승하세요' },
+  '3400': { stop: '한국공학대학교 시화버스터미널', desc: '토비동산에서 내려와 횡단보도 건너기 전 정류장에서 탑승하세요' },
+}
 
 function timeToMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -35,6 +40,16 @@ export default function BusTimetableDetail({ routeId, routeNo, onBack }) {
           </span>
         )}
       </div>
+
+      {BOARDING_INFO[routeNo] && (
+        <div className="flex items-start gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900">
+          <MapPin size={14} className="text-blue-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-bold text-blue-500 dark:text-blue-400 mb-0.5">{BOARDING_INFO[routeNo].stop}</p>
+            <p className="text-sm text-blue-700 dark:text-blue-300">{BOARDING_INFO[routeNo].desc}</p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
