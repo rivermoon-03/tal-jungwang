@@ -5,10 +5,7 @@ import PCNavbar from './components/layout/PCNavbar'
 import MainTab from './components/map/MainTab'
 import SubwayTab from './components/subway/SubwayTab'
 import TransitTab from './components/transit/TransitTab'
-
-function MoreTabPlaceholder() {
-  return <div className="flex-1 flex items-center justify-center text-slate-400">더보기 탭 구현 중</div>
-}
+import MoreTab from './components/more/MoreTab'
 
 const VALID_TABS = ['main', 'transit', 'subway', 'more']
 
@@ -65,7 +62,7 @@ export default function App() {
         )}
         {activeTab === 'more' && (
           <div key="more" className="h-full overflow-hidden animate-fade-in">
-            <MoreTabPlaceholder />
+            <MoreTab />
           </div>
         )}
       </main>
