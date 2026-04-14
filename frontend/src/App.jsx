@@ -133,17 +133,18 @@ export default function App() {
         <PCNavbar />
       </div>
 
-      {/* Hero + Summary (메인 탭에서만) */}
-      {isMainRoute && activeTab === 'main' && (
-        <div className="md:hidden shrink-0">
-          <HeroTitleBar nextArrival={nextArrival} />
-          <SummaryCard onNextArrivalChange={setNextArrival} />
-        </div>
-      )}
-
-      <main className="flex-1 overflow-hidden min-h-0">
+      <main className="flex-1 overflow-hidden min-h-0 relative">
         <div className={`h-full ${activeTab === 'main' ? '' : 'hidden'}`}>
           <MainTab />
+          {/* Hero + Summary — 지도 위 플로팅 오버레이 (모바일 전용) */}
+          {isMainRoute && (
+            <div className="md:hidden absolute inset-x-0 top-0 z-30 pointer-events-none">
+              <div className="pointer-events-auto">
+                <HeroTitleBar nextArrival={nextArrival} />
+                <SummaryCard onNextArrivalChange={setNextArrival} />
+              </div>
+            </div>
+          )}
         </div>
         {activeTab === 'transit' && (
           <div key="transit" className="h-full overflow-hidden animate-fade-in">

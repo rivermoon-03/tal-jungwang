@@ -10,6 +10,7 @@
  *   isFavorite    boolean
  *   onToggleFav   () => void
  *   loading       boolean
+ *   lineColor     string | null  (hex override for the dot, e.g. '#F5A623')
  */
 import { Star } from 'lucide-react'
 import Skeleton from '../common/Skeleton'
@@ -37,15 +38,29 @@ export default function ScheduleSection({
   afterNext,
   isFavorite = false,
   onToggleFav,
+  onClick,
   loading = false,
   realtimeOnly = false,
   disabled = false,
   disabledLabel = '일부 역 정보는 지원 예정',
+  lineColor = null,
 }) {
-  const dotColor = ROUTE_COLOR[routeCode] ?? TYPE_COLOR[type] ?? '#64748B'
+  const dotColor = lineColor ?? ROUTE_COLOR[routeCode] ?? TYPE_COLOR[type] ?? '#64748B'
 
   return (
-    <div className={`bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card px-4 py-4 ${disabled ? 'opacity-50' : ''}`}>
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card px-4 py-4 transition-all duration-150 ${
+        disabled ? 'opacity-50' : ''
+      } ${
+        onClick && !disabled
+          ? 'cursor-pointer hover:shadow-md hover:border-slate-200 dark:hover:border-slate-600 active:scale-[0.98]'
+          : ''
+      }`}
+      onClick={!disabled && onClick ? onClick : undefined}
+      role={!disabled && onClick ? 'button' : undefined}
+      tabIndex={!disabled && onClick ? 0 : undefined}
+      onKeyDown={!disabled && onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
+    >
       {/* top row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -61,7 +76,7 @@ export default function ScheduleSection({
           </div>
         </div>
         <button
-          onClick={onToggleFav}
+          onClick={(e) => { e.stopPropagation(); onToggleFav?.() }}
           aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90 flex-shrink-0"
           style={{ transition: 'transform 0.1s cubic-bezier(0.34,1.56,0.64,1)' }}

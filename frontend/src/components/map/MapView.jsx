@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Navigation, School } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
@@ -11,43 +11,14 @@ import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
 import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
+import { useShuttleNext } from '../../hooks/useShuttle'
+import { useSubwayNext } from '../../hooks/useSubway'
+import { useBusArrivals } from '../../hooks/useBus'
 
 // 한국공학대학교 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
 
-// ZoomAwareOverlayManager에 전달할 주요 정류장 목록.
-// 실제 데이터는 각 Overlay 컴포넌트(ShuttleStopOverlay 등)가 담당하므로
-// 여기서는 위치 + 타입 정보만 선언한다.
-const MANAGED_STATIONS = [
-  {
-    id: 'shuttle_stop',
-    name: '셔틀 탑승지',
-    type: 'shuttle',
-    lat: 37.339343,
-    lng: 126.73279,
-    routeCode: '셔틀',
-    routeColor: '#FF385C',
-  },
-  {
-    id: 'jeongwang_station',
-    name: '정왕역',
-    type: 'subway',
-    lat: 37.351618,
-    lng: 126.742747,
-    routeCode: '수인분당',
-    routeColor: '#F5A623',
-  },
-  {
-    id: 'tec_bus_stop',
-    name: '한국공학대학교',
-    type: 'bus',
-    lat: 37.341633,
-    lng: 126.731252,
-    routeCode: '시흥33',
-    routeColor: '#0891B2',
-  },
-]
 
 export default function MapView({ onMarkerClick, selectedId }) {
   const containerRef = useRef(null)
@@ -63,8 +34,126 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const setTaxiOpen         = useAppStore((s) => s.setTaxiOpen)
   const activeTab           = useAppStore((s) => s.activeTab)
 
-  // 마커 바텀시트 상태
+  // 실시간 데이터 훅
+  const { data: shuttleNextData }  = useShuttleNext()
+  const { data: subwayNextData }   = useSubwayNext()
+  const { data: busArrivalsData }  = useBusArrivals(224000639)
+
+  // liveMinutes 계산
+  const shuttleLiveMinutes = useMemo(() => {
+    const sec = shuttleNextData?.arrive_in_seconds
+    if (sec == null) return null
+    return Math.max(0, Math.round(sec / 60))
+  }, [shuttleNextData])
+
+  const subwayLiveMinutes = useMemo(() => {
+    const sec = subwayNextData?.up?.arrive_in_seconds ?? subwayNextData?.down?.arrive_in_seconds
+    if (sec == null) return null
+    return Math.max(0, Math.round(sec / 60))
+  }, [subwayNextData])
+
+  const busLiveMinutes = useMemo(() => {
+    const arrivals = busArrivalsData?.arrivals ?? []
+    if (!arrivals.length) return null
+    const secs = arrivals
+      .map((a) => a.arrive_in_seconds)
+      .filter((s) => s != null)
+    if (!secs.length) return null
+    return Math.max(0, Math.round(Math.min(...secs) / 60))
+  }, [busArrivalsData])
+
+  // MANAGED_STATIONS with live data injected
+  const managedStations = useMemo(() => [
+    {
+      id: 'shuttle_stop',
+      name: '셔틀 탑승지',
+      type: 'shuttle',
+      lat: 37.339343,
+      lng: 126.73279,
+      routeCode: '셔틀',
+      routeColor: '#FF385C',
+      liveMinutes: shuttleLiveMinutes,
+      showLive: true,
+    },
+    {
+      id: 'jeongwang_station',
+      name: '정왕역',
+      type: 'subway',
+      lat: 37.351618,
+      lng: 126.742747,
+      routeCode: '수인분당',
+      routeColor: '#F5A623',
+      liveMinutes: subwayLiveMinutes,
+      showLive: true,
+    },
+    {
+      id: 'tec_bus_stop',
+      name: '한국공학대학교',
+      type: 'bus',
+      lat: 37.341633,
+      lng: 126.731252,
+      routeCode: '시흥33',
+      routeColor: '#0891B2',
+      liveMinutes: busLiveMinutes,
+      showLive: true,
+    },
+  ], [shuttleLiveMinutes, subwayLiveMinutes, busLiveMinutes])
+
+  // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
+
+  // MarkerSheet arrivals 계산
+  const sheetArrivals = useMemo(() => {
+    if (!sheetStation) return []
+
+    if (sheetStation.type === 'bus') {
+      const arrivals = busArrivalsData?.arrivals ?? []
+      return arrivals.slice(0, 3).map((a) => ({
+        routeCode:  a.route_no,
+        routeColor: null,
+        direction:  a.destination ?? '',
+        minutes:    a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null,
+      }))
+    }
+
+    if (sheetStation.type === 'shuttle') {
+      const result = []
+      if (shuttleNextData) {
+        result.push({
+          routeCode:  '셔틀',
+          routeColor: '#FF385C',
+          direction:  shuttleNextData.direction === 0 ? '등교' : '하교',
+          minutes:    shuttleNextData.arrive_in_seconds != null
+            ? Math.max(0, Math.round(shuttleNextData.arrive_in_seconds / 60))
+            : null,
+        })
+      }
+      return result
+    }
+
+    if (sheetStation.type === 'subway') {
+      const result = []
+      if (subwayNextData?.up) {
+        result.push({
+          routeCode:  '수인분당',
+          routeColor: '#F5A623',
+          direction:  subwayNextData.up.destination ?? '상행',
+          minutes:    Math.max(0, Math.round(subwayNextData.up.arrive_in_seconds / 60)),
+        })
+      }
+      if (subwayNextData?.down) {
+        result.push({
+          routeCode:  '수인분당',
+          routeColor: '#F5A623',
+          direction:  subwayNextData.down.destination ?? '하행',
+          minutes:    Math.max(0, Math.round(subwayNextData.down.arrive_in_seconds / 60)),
+        })
+      }
+      return result
+    }
+
+    return []
+  }, [sheetStation, busArrivalsData, shuttleNextData, subwayNextData])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
@@ -253,8 +342,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
           />
         )}
 
-        {/* 택시 카드 */}
-        {mapInstance && (
+        {/* 택시 카드 — taxiOpen일 때만 마운트 */}
+        {mapInstance && taxiOpen && (
           <TaxiCard
             open={taxiOpen}
             onClose={() => {
@@ -268,7 +357,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
         {sheetStation && (
           <MarkerSheet
             station={sheetStation}
-            arrivals={[]}
+            arrivals={sheetArrivals}
             onClose={() => setSheetStation(null)}
             onNavigate={() => {
               setTaxiOpen(true)
@@ -295,7 +384,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           {/* 줌 레벨 기반 Chip ↔ Dot 하이브리드 마커 (주요 정류장) */}
           <ZoomAwareOverlayManager
             map={mapInstance}
-            stations={MANAGED_STATIONS}
+            stations={managedStations}
             onTap={handleMarkerTap}
           />
         </>
