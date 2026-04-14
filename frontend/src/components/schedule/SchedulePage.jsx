@@ -6,7 +6,7 @@
  * - 섹션별 ScheduleSection cards
  */
 import { useState, useMemo } from 'react'
-import { CalendarDays, TrainFront, Bus, TramFront, Star } from 'lucide-react'
+import { TrainFront, Bus, TramFront, Star } from 'lucide-react'
 import ScheduleSearch from './ScheduleSearch'
 import ScheduleSection from './ScheduleSection'
 import useAppStore from '../../stores/useAppStore'
@@ -50,8 +50,12 @@ function formatTime(iso) {
   }
 }
 
+// Routes that are realtime-only (no static timetable available)
+const REALTIME_ONLY_ROUTES = new Set(['20-1', '시흥33'])
+
 // ─── per-route bus section ───────────────────────────────────────────────────
 function BusRouteSection({ routeCode, isFavorite, onToggleFav }) {
+  const isRealtimeOnly = REALTIME_ONLY_ROUTES.has(routeCode)
   const { data, loading } = useBusTimetableByRoute(routeCode)
   const todayEntries = data?.entries ?? []
   const now = new Date()
@@ -71,14 +75,15 @@ function BusRouteSection({ routeCode, isFavorite, onToggleFav }) {
   return (
     <ScheduleSection
       title={routeCode}
-      subtitle={`버스`}
+      subtitle="버스"
       type="bus"
       routeCode={routeCode}
-      next={toStr(future[0]) ?? '—'}
-      afterNext={toStr(future[1])}
+      next={isRealtimeOnly ? null : (toStr(future[0]) ?? '—')}
+      afterNext={isRealtimeOnly ? null : toStr(future[1])}
+      realtimeOnly={isRealtimeOnly}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(routeCode)}
-      loading={loading}
+      loading={loading && !isRealtimeOnly}
     />
   )
 }
@@ -86,7 +91,7 @@ function BusRouteSection({ routeCode, isFavorite, onToggleFav }) {
 // ─── subway section ──────────────────────────────────────────────────────────
 function SubwaySection({ stationGroup, isFavorite, onToggleFav }) {
   const { data, loading } = useSubwayNext()
-  // Only 정왕 has live data; others show static placeholder
+  // Only 정왕 has live data; others are not yet supported
   const isJeongwang = stationGroup === '정왕'
   const upNext = isJeongwang ? data?.up?.[0] : null
   const upAfter = isJeongwang ? data?.up?.[1] : null
@@ -97,11 +102,13 @@ function SubwaySection({ stationGroup, isFavorite, onToggleFav }) {
       subtitle="수인분당선"
       type="subway"
       routeCode={stationGroup}
-      next={formatTime(upNext?.departureTime) ?? (isJeongwang ? null : '—')}
+      next={formatTime(upNext?.departureTime)}
       afterNext={formatTime(upAfter?.departureTime)}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
       loading={loading && isJeongwang}
+      disabled={!isJeongwang}
+      disabledLabel="일부 역 정보는 지원 예정"
     />
   )
 }
@@ -152,14 +159,8 @@ export default function SchedulePage() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
-      {/* header */}
-      <div className="flex items-center gap-2 bg-navy text-white px-5 py-4 flex-shrink-0">
-        <CalendarDays size={20} strokeWidth={2} />
-        <h2 className="text-lg font-bold">시간표</h2>
-      </div>
-
       {/* controls */}
-      <div className="px-4 pt-3 pb-2 flex flex-col gap-2 flex-shrink-0 bg-slate-50 dark:bg-slate-900">
+      <div className="px-4 pt-5 pb-2 flex flex-col gap-2 flex-shrink-0 bg-slate-50 dark:bg-slate-900">
         {/* mode + fav toggle row */}
         <div className="flex items-center gap-2">
           {/* mode pills */}
