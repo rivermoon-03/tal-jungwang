@@ -29,7 +29,9 @@ async def bus_stations(
 
 
 @router.get("/arrivals/{station_id}")
+@limiter.limit("60/minute")
 async def bus_arrivals(
+    request: Request,
     station_id: int,
     db: AsyncSession = Depends(get_db),
 ):
@@ -78,7 +80,9 @@ async def bus_timetable(
 
 
 @router.get("/locations/{route_id}")
+@limiter.limit("60/minute")
 async def bus_locations(
+    request: Request,
     route_id: int,
     db: AsyncSession = Depends(get_db),
 ):

@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-_REQUIRED_API_KEYS = ("KAKAO_MOBILITY_REST_KEY", "TMAP_APP_KEY", "DATA_GO_KR_SERVICE_KEY")
+_REQUIRED_API_KEYS = ("KAKAO_MOBILITY_REST_KEY", "TMAP_APP_KEY", "DATA_GO_KR_SERVICE_KEY", "KMA_API_KEY")
 
 
 class Settings(BaseSettings):
@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     KAKAO_MOBILITY_REST_KEY: str = ""
     TMAP_APP_KEY: str = ""
     DATA_GO_KR_SERVICE_KEY: str = ""
+    KMA_API_KEY: str = ""  # 기상청 단기예보 OpenAPI 인증키
 
     # ── PostgreSQL ───────────────────────────────────────────
     DB_HOST: str
