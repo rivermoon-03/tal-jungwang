@@ -10,7 +10,7 @@ import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
 import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
-import { useShuttleNext } from '../../hooks/useShuttle'
+import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { useBusArrivals } from '../../hooks/useBus'
 
@@ -36,6 +36,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
   // 실시간 데이터 훅
   const { data: shuttleToSchoolData }   = useShuttleNext(0) // 등교: 정왕역 → 학교
   const { data: shuttleFromSchoolData } = useShuttleNext(1) // 하교: 학교 → 정왕역
+  const { data: shuttleToSchoolSched }  = useShuttleSchedule(0)
+  const { data: shuttleFromSchoolSched } = useShuttleSchedule(1)
   const { data: subwayNextData }        = useSubwayNext()
   const { data: busArrivalsData }       = useBusArrivals(224000639)
 
@@ -136,16 +138,28 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     if (sheetStation.type === 'shuttle') {
-      const data = sheetStation.direction === 1 ? shuttleFromSchoolData : shuttleToSchoolData
-      if (!data) return []
-      return [{
-        routeCode:  sheetStation.direction === 1 ? '하교' : '등교',
-        routeColor: '#FF385C',
-        direction:  sheetStation.direction === 1 ? '학교 → 정왕역' : '정왕역 → 학교',
-        minutes:    data.arrive_in_seconds != null
-          ? Math.max(0, Math.round(data.arrive_in_seconds / 60))
-          : null,
-      }]
+      const isFrom = sheetStation.direction === 1
+      const sched = isFrom ? shuttleFromSchoolSched : shuttleToSchoolSched
+      const dirData = sched?.directions?.find((d) => d.direction === sheetStation.direction)
+      const times = dirData?.times ?? []
+      const now = new Date()
+      const nowMin = now.getHours() * 60 + now.getMinutes()
+      const upcoming = []
+      for (const t of times) {
+        const timeStr = (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5)
+        const note = typeof t === 'object' ? t?.note : null
+        if (!timeStr) continue
+        const [h, m] = timeStr.split(':').map(Number)
+        const mins = h * 60 + m - nowMin
+        if (mins < -1) continue
+        upcoming.push({
+          routeCode:  isFrom ? '하교' : '등교',
+          routeColor: '#FF385C',
+          direction:  note ? `${timeStr} · ${note}` : timeStr,
+          minutes:    Math.max(0, mins),
+        })
+      }
+      return upcoming
     }
 
     if (sheetStation.type === 'subway') {
@@ -154,7 +168,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
         result.push({
           routeCode:  '수인분당',
           routeColor: '#F5A623',
-          direction:  subwayNextData.up.destination ?? '상행',
+          direction:  `상행 · ${subwayNextData.up.destination ?? '왕십리'} 방면`,
           minutes:    Math.max(0, Math.round(subwayNextData.up.arrive_in_seconds / 60)),
         })
       }
@@ -162,15 +176,31 @@ export default function MapView({ onMarkerClick, selectedId }) {
         result.push({
           routeCode:  '수인분당',
           routeColor: '#F5A623',
-          direction:  subwayNextData.down.destination ?? '하행',
+          direction:  `하행 · ${subwayNextData.down.destination ?? '인천'} 방면`,
           minutes:    Math.max(0, Math.round(subwayNextData.down.arrive_in_seconds / 60)),
+        })
+      }
+      if (subwayNextData?.line4_up) {
+        result.push({
+          routeCode:  '4호선',
+          routeColor: '#1B5FAD',
+          direction:  `상행 · ${subwayNextData.line4_up.destination ?? '당고개'} 방면`,
+          minutes:    Math.max(0, Math.round(subwayNextData.line4_up.arrive_in_seconds / 60)),
+        })
+      }
+      if (subwayNextData?.line4_down) {
+        result.push({
+          routeCode:  '4호선',
+          routeColor: '#1B5FAD',
+          direction:  `하행 · ${subwayNextData.line4_down.destination ?? '오이도'} 방면`,
+          minutes:    Math.max(0, Math.round(subwayNextData.line4_down.arrive_in_seconds / 60)),
         })
       }
       return result
     }
 
     return []
-  }, [sheetStation, busArrivalsData, shuttleToSchoolData, shuttleFromSchoolData, subwayNextData])
+  }, [sheetStation, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()

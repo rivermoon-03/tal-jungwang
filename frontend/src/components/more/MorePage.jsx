@@ -3,10 +3,11 @@
  * Sub-pages (dark-mode, notifications) handled via local subPage state.
  */
 import { useState } from 'react'
-import { Megaphone, Link2, Moon, Bell, Info } from 'lucide-react'
+import { Megaphone, Moon, Bell, Info } from 'lucide-react'
 import MoreRow from './MoreRow'
 import DarkModePage from './DarkModePage'
 import NotificationsPage from './NotificationsPage'
+import NoticesPage from './NoticesPage'
 import { useNotices, useAppInfo } from '../../hooks/useMore'
 import useAppStore from '../../stores/useAppStore'
 
@@ -14,7 +15,7 @@ import useAppStore from '../../stores/useAppStore'
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
 
 export default function MorePage() {
-  const [subPage, setSubPage] = useState(null) // null | 'dark-mode' | 'notifications'
+  const [subPage, setSubPage] = useState(null) // null | 'dark-mode' | 'notifications' | 'notices'
 
   const { data: noticesData } = useNotices()
   const { data: infoData } = useAppInfo()
@@ -27,6 +28,7 @@ export default function MorePage() {
   // sub-page routing
   if (subPage === 'dark-mode') return <DarkModePage onBack={() => setSubPage(null)} />
   if (subPage === 'notifications') return <NotificationsPage onBack={() => setSubPage(null)} />
+  if (subPage === 'notices') return <NoticesPage onBack={() => setSubPage(null)} />
 
   const version = infoData?.version ?? APP_VERSION
 
@@ -41,19 +43,11 @@ export default function MorePage() {
             label="공지사항"
             badge={unreadNotices}
             chevron
-            onClick={() => {/* TODO: 공지사항 페이지 or 모달 */}}
+            onClick={() => setSubPage('notices')}
             first
           />
 
-          {/* 2. 유용한 링크 */}
-          <MoreRow
-            icon={<Link2 size={18} />}
-            label="유용한 링크"
-            chevron
-            onClick={() => {/* TODO: 링크 목록 페이지 */}}
-          />
-
-          {/* 3. 다크모드 */}
+          {/* 2. 다크모드 */}
           <MoreRow
             icon={<Moon size={18} />}
             label="다크모드"
