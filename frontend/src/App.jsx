@@ -20,13 +20,12 @@ export default function App() {
   const setActiveTab = useAppStore((s) => s.setActiveTab)
   const darkMode     = useAppStore((s) => s.darkMode)
   const setTabBadges = useAppStore((s) => s.setTabBadges)
-  const tabBadges    = useAppStore((s) => s.tabBadges)
 
   const { data: notices } = useNotices()
 
   useEffect(() => {
-    setTabBadges({ ...tabBadges, more: Array.isArray(notices) && notices.length > 0 })
-  }, [notices]) // eslint-disable-line react-hooks/exhaustive-deps
+    setTabBadges({ more: Array.isArray(notices) && notices.length > 0 })
+  }, [notices, setTabBadges])
 
   useEffect(() => {
     const initial = hashToTab(window.location.hash)

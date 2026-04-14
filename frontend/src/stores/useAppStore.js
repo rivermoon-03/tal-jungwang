@@ -14,7 +14,7 @@ const useAppStore = create((set) => ({
   driveRouteCoords: null,
   setDriveRouteCoords: (coords) => set({ driveRouteCoords: coords }),
   tabBadges: { transit: false, subway: false, more: false },
-  setTabBadges: (badges) => set({ tabBadges: badges }),
+  setTabBadges: (badges) => set((s) => ({ tabBadges: { ...s.tabBadges, ...badges } })),
   mapPanTarget: null,
   setMapPanTarget: (target) => set({ mapPanTarget: target }),
   taxiOpen: false,
