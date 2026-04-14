@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Megaphone, Bell, Info, MessageSquare, Moon, Sun } from 'lucide-react'
+import { Megaphone, Bell, Info, MessageSquare, Moon, Sun, MoreHorizontal } from 'lucide-react'
 import { useNotices, useLinks, useAppInfo } from '../../hooks/useMore'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useShuttleNotification } from '../../hooks/useShuttleNotification'
@@ -65,7 +65,12 @@ export default function MoreTab() {
   const [aboutOpen, setAboutOpen] = useState(false)
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 px-4 py-4 pb-28 md:pb-6 gap-1">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex items-center gap-2 bg-navy text-white px-5 py-4 flex-shrink-0">
+      <MoreHorizontal size={20} strokeWidth={2} />
+      <h2 className="text-lg font-bold">더보기</h2>
+    </div>
+    <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 md:pb-6 gap-1 flex flex-col">
 
       <SectionLabel>공지사항</SectionLabel>
       <Card>
@@ -138,7 +143,8 @@ export default function MoreTab() {
         />
       </Card>
 
+      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
     </div>
-    {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+    </div>
   )
 }
