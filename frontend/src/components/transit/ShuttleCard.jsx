@@ -22,27 +22,40 @@ function findNextTwo(times) {
   return [upcoming[0] ?? null, upcoming[1] ?? null]
 }
 
+function departLabel(next) {
+  if (!next) return null
+  if (next.note === '수시운행') return '수시운행'
+  if (next.note?.startsWith('회차편')) return '회차편'
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const diffMin = toMin(next.depart_at) - nowMin
+  if (diffMin < 1) return '곧 출발'
+  return `${diffMin}분 뒤`
+}
+
 function TimeCell({ label, Icon, pair }) {
   const [next, afterNext] = pair
+  const countdown = departLabel(next)
   return (
-    <div className="p-3">
-      <p className="text-xs font-bold text-slate-400 mb-1.5 flex items-center gap-1"><Icon size={11} /> {label}</p>
+    <div className="p-4 md:p-3">
+      <p className="text-sm md:text-xs font-bold text-slate-400 mb-1.5 flex items-center gap-1"><Icon size={11} /> {label}</p>
       {next ? (
         <>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-[17px] font-extrabold text-navy dark:text-blue-300 tabular-nums">
+            <span className="text-xl md:text-[17px] font-extrabold text-navy dark:text-blue-300 tabular-nums">
               {next.depart_at}
             </span>
-            <span className="text-[10px] font-bold text-white bg-navy dark:bg-blue-600 rounded px-1.5 py-0.5">
-              다음
-            </span>
+            {countdown && (
+              <span className="text-sm md:text-xs font-semibold text-blue-500 dark:text-blue-400">
+                {countdown}
+              </span>
+            )}
           </div>
           {afterNext && (
-            <p className="text-xs text-slate-400 mt-1">다다음 {afterNext.depart_at}</p>
+            <p className="text-sm md:text-xs text-slate-400 mt-1">다다음 {afterNext.depart_at}</p>
           )}
         </>
       ) : (
-        <p className="text-sm text-slate-400 mt-1">운행 종료</p>
+        <p className="text-sm md:text-xs text-slate-400 mt-1">운행 종료</p>
       )}
     </div>
   )
@@ -87,8 +100,8 @@ export default function ShuttleCard({ onOpenSheet }) {
         <div className="py-6 text-center text-slate-400 text-sm">불러오는 중...</div>
       ) : (
         <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-700">
-          <TimeCell label="정왕역" Icon={MapPin} pair={info.station} />
-          <TimeCell label="학교" Icon={School} pair={info.school} />
+          <TimeCell label="정왕역 (하교)" Icon={MapPin} pair={info.station} />
+          <TimeCell label="학교 (등교)" Icon={School} pair={info.school} />
         </div>
       )}
     </div>

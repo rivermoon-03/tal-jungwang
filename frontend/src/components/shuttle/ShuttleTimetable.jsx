@@ -36,6 +36,12 @@ function buildDisplayList(times) {
   return result
 }
 
+function nextLabel(diffMin, isReturn) {
+  if (isReturn) return '회차편'
+  if (diffMin < 1) return '곧 출발'
+  return `${diffMin}분 뒤`
+}
+
 export default function ShuttleTimetable({ times }) {
   const now = new Date()
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
@@ -78,7 +84,7 @@ export default function ShuttleTimetable({ times }) {
               </div>
               {(isActive || isNext) && (
                 <span className="text-sm font-bold text-navy dark:text-blue-400 border border-navy dark:border-blue-400 px-2 py-1 rounded">
-                  {isActive ? '운행 중' : '다음'}
+                  {isActive ? '운행 중' : nextLabel(item.startMin - nowMinutes, false)}
                 </span>
               )}
             </li>
@@ -121,7 +127,7 @@ export default function ShuttleTimetable({ times }) {
             )}
             {isNext && (
               <span className="text-sm font-bold text-navy dark:text-blue-400 border border-navy dark:border-blue-400 px-2 py-1 rounded">
-                다음
+                {nextLabel(item.minutes - nowMinutes, isReturn)}
               </span>
             )}
           </li>

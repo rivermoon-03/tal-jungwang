@@ -4,12 +4,12 @@ import { useShuttleSchedule } from '../../hooks/useShuttle'
 import ShuttleTimetable from '../shuttle/ShuttleTimetable'
 
 const DIRECTION_META = {
-  '정왕역행 (하교)': { Icon: MapPin, label: '정왕역' },
-  '학교행 (등교)':   { Icon: School, label: '학교' },
-  '정왕역방면':      { Icon: MapPin, label: '정왕역' },
-  '정왕역→학교':    { Icon: School, label: '학교' },
-  '하교 (정왕역행)': { Icon: MapPin, label: '정왕역' },
-  '등교 (학교행)':   { Icon: School, label: '학교' },
+  '정왕역행 (하교)': { Icon: MapPin, label: '정왕역 (하교)' },
+  '학교행 (등교)':   { Icon: School, label: '학교 (등교)' },
+  '정왕역방면':      { Icon: MapPin, label: '정왕역 (하교)' },
+  '정왕역→학교':    { Icon: School, label: '학교 (등교)' },
+  '하교 (정왕역행)': { Icon: MapPin, label: '정왕역 (하교)' },
+  '등교 (학교행)':   { Icon: School, label: '학교 (등교)' },
 }
 
 function DirLabel({ name }) {
