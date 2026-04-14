@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Footprints, Bus } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useRecommend } from '../../hooks/useRecommend'
 
@@ -52,7 +52,7 @@ export default function RecommendBanner() {
               <tbody>
                 {comparison.walking && (
                   <tr className="border-b border-slate-100 dark:border-slate-700">
-                    <td className="py-3 text-slate-700 dark:text-slate-300">🚶 도보</td>
+                    <td className="py-3 text-slate-700 dark:text-slate-300 flex items-center gap-1"><Footprints size={15} /> 도보</td>
                     <td className="py-3 text-right font-bold text-slate-900 dark:text-slate-100 time-num">
                       {comparison.walking.total_seconds != null
                         ? `${Math.round(comparison.walking.total_seconds / 60)}분`
@@ -67,7 +67,7 @@ export default function RecommendBanner() {
                   return (
                     <>
                       <tr className="border-b border-slate-50 dark:border-slate-700">
-                        <td className="py-3 text-slate-700 dark:text-slate-300">🚌 버스 ({comparison.bus.route_no ?? ''})</td>
+                        <td className="py-3 text-slate-700 dark:text-slate-300"><span className="flex items-center gap-1"><Bus size={15} /> 버스 ({comparison.bus.route_no ?? ''})</span></td>
                         <td className="py-3 text-right font-bold text-slate-900 dark:text-slate-100 time-num">{totalMin}분</td>
                       </tr>
                       <tr className="border-b border-slate-100 dark:border-slate-700">

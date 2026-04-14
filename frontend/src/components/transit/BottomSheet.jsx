@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { X } from 'lucide-react'
 
 export default function BottomSheet({ open, onClose, title, children }) {
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function BottomSheet({ open, onClose, title, children }) {
             aria-label="닫기"
             className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
         <div className="flex-1 overflow-hidden">

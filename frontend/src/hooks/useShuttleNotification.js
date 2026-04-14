@@ -41,7 +41,7 @@ export function useShuttleNotification(timeObjs = []) {
       if (!next) return
       const diff = toMin(next.depart_at) - nowMin
       if (diff === NOTIFY_BEFORE_MIN) {
-        new Notification('🚌 셔틀 출발 알림', {
+        new Notification('셔틀 출발 알림', {
           body: `${next.depart_at} 셔틀이 ${NOTIFY_BEFORE_MIN}분 후 출발합니다.`,
           icon: '/favicon.ico',
         })

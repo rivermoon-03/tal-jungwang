@@ -1,3 +1,4 @@
+import { Megaphone, Bell, Info, MessageSquare, Moon, Sun } from 'lucide-react'
 import { useNotices, useLinks, useAppInfo } from '../../hooks/useMore'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useShuttleNotification } from '../../hooks/useShuttleNotification'
@@ -23,7 +24,7 @@ function Row({ icon, label, sub, right, onClick, href }) {
   const cls = 'block w-full text-left border-b border-slate-100 dark:border-slate-700 last:border-b-0 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100'
   const inner = (
     <div className="flex items-center gap-3 px-4 py-3.5">
-      <span className="text-xl w-7 text-center flex-shrink-0">{icon}</span>
+      <span className="w-7 flex items-center justify-center flex-shrink-0 text-slate-500 dark:text-slate-400">{icon}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{label}</p>
         {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
@@ -72,7 +73,7 @@ export default function MoreTab() {
           notices.map((n) => (
             <Row
               key={n.id}
-              icon="📢"
+              icon={<Megaphone size={18} />}
               label={n.title}
               sub={new Date(n.created_at).toLocaleDateString('ko-KR')}
             />
@@ -83,7 +84,7 @@ export default function MoreTab() {
       <SectionLabel>알림</SectionLabel>
       <Card>
         <Row
-          icon="🔔"
+          icon={<Bell size={18} />}
           label="셔틀 출발 알림"
           sub={permission === 'denied' ? '브라우저 알림이 차단되어 있습니다' : `다음 셔틀 10분 전 알림`}
           right={<Toggle on={notifEnabled} />}
@@ -113,13 +114,13 @@ export default function MoreTab() {
       <SectionLabel>앱 정보</SectionLabel>
       <Card>
         <Row
-          icon="ℹ️"
+          icon={<Info size={18} />}
           label="탈정왕"
           sub={infoData ? `v${infoData.version} · ${infoData.description ?? '정왕 교통 허브'}` : '정왕 교통 허브'}
         />
         {infoData?.feedback_url && (
           <Row
-            icon="💬"
+            icon={<MessageSquare size={18} />}
             label="피드백 보내기"
             href={infoData.feedback_url}
             right={<span className="text-slate-300 dark:text-slate-500 text-base">↗</span>}
@@ -130,7 +131,7 @@ export default function MoreTab() {
       <SectionLabel>디스플레이</SectionLabel>
       <Card>
         <Row
-          icon={darkMode ? '🌙' : '☀️'}
+          icon={darkMode ? <Moon size={18} /> : <Sun size={18} />}
           label="다크모드"
           sub={darkMode ? '켜짐' : '꺼짐'}
           onClick={toggleDarkMode}
