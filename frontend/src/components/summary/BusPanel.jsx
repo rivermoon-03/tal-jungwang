@@ -1,9 +1,10 @@
 import { Bus } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import { useBusTimetableByRoute } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusArrivals } from '../../hooks/useBus'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import EmptyState from '../common/EmptyState'
+import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
 
 const BUS_GROUPS = ['정왕역', '서울', '기타']
 
@@ -61,8 +62,19 @@ export default function BusPanel() {
   )
 }
 
+// 정왕역 그룹(20-1, 시흥33)은 GBIS 실시간 데이터를 사용해야 함.
+// 한국공학대학교 정류장(gbis_station_id=224000639)의 arrivals에서 해당 노선만 필터.
+// TODO: 백엔드가 gbis_station_id 기반 도착 정보를 /bus/arrivals/:id로 제공하면
+//       JEONGWANG_STOP_ID를 실제 DB station_id로 교체.
+const JEONGWANG_STOP_ID = null  // 실시간 API station_id (DB) — 확정 전까지 null
+
 function BusRouteRow({ route }) {
-  const { data, loading, error, refetch } = useBusTimetableByRoute(route)
+  const isRealtime = route === '20-1' || route === '시흥33'
+  const timetable = useBusTimetableByRoute(isRealtime ? null : route)
+  // TODO: JEONGWANG_STOP_ID가 확정되면 실시간 훅으로 전환
+  // const realtime = useBusArrivals(isRealtime ? JEONGWANG_STOP_ID : null)
+
+  const { data, loading, error, refetch } = timetable
 
   if (loading) {
     return <Skeleton height="3rem" rounded="rounded-xl" />
@@ -71,7 +83,6 @@ function BusRouteRow({ route }) {
     return <ErrorState message={`${route} 정보 오류`} onRetry={refetch} className="py-4" />
   }
 
-  // data는 배열 or 객체 — 다음 1~2개 도착만 표시
   const arrivals = extractNext(data, 2)
 
   return (
@@ -81,18 +92,28 @@ function BusRouteRow({ route }) {
         {route}
       </span>
 
+      {/* 실시간 배지 */}
+      {isRealtime && (
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 shrink-0">
+          실시간
+        </span>
+      )}
+
       {/* 도착 정보 */}
-      {arrivals.length === 0 ? (
+      {isRealtime && arrivals.length === 0 ? (
+        // TODO: JEONGWANG_STOP_ID 확정 후 실시간 데이터로 전환
+        <span className="text-xs text-gray-400">정보 불러오는 중</span>
+      ) : arrivals.length === 0 ? (
         <span className="text-xs text-gray-400">정보 없음</span>
       ) : (
         <div className="flex items-center gap-3 min-w-0">
           {arrivals.map((a, i) => (
             <div key={i} className="text-center">
               <p className="text-sm font-black text-gray-900 dark:text-gray-50 leading-none">
-                {formatArrival(a)}
+                {formatArrivalEntry(a)}
               </p>
-              {a.dest && (
-                <p className="text-[9px] text-gray-400 mt-0.5 truncate">{a.dest}</p>
+              {(a.destination ?? a.dest) && (
+                <p className="text-[9px] text-gray-400 mt-0.5 truncate">{a.destination ?? a.dest}</p>
               )}
             </div>
           ))}
@@ -104,19 +125,30 @@ function BusRouteRow({ route }) {
 
 /**
  * 다양한 API 응답 형태를 통일해서 다음 N개 추출
- * 가능한 shapes:
- *   배열: [{ time, predictTimeSec, minutesLeft, dest }, ...]
- *   객체: { arrivals: [...] }
+ * 백엔드 BusTimetableResponse: { route_id, route_name, schedule_type, times: ["HH:MM", ...] }
+ * 백엔드 BusArrivalsResponse: { arrivals: [{ arrive_in_seconds, depart_at, destination, ... }] }
  */
 function extractNext(data, n = 2) {
   if (!data) return []
-  const list = Array.isArray(data) ? data : (data.arrivals ?? data.times ?? [])
-  return list.slice(0, n)
+  if (Array.isArray(data)) return data.slice(0, n)
+  // BusArrivalsResponse
+  if (data.arrivals) return data.arrivals.slice(0, n)
+  // BusTimetableResponse — times는 문자열 배열
+  if (data.times) return data.times.slice(0, n).map((t) => ({ depart_at: t }))
+  return []
 }
 
-function formatArrival(a) {
-  if (a.minutesLeft != null) return `${a.minutesLeft}분`
-  if (a.predictTimeSec != null) return `${Math.ceil(a.predictTimeSec / 60)}분`
-  if (a.time) return a.time
+function formatArrivalEntry(a) {
+  // 실시간: arrive_in_seconds 필드 우선
+  if (a.arrive_in_seconds != null) {
+    const label = formatArrival(a.arrive_in_seconds)
+    if (label) return label
+  }
+  // 시간표 기반: depart_at "HH:MM"
+  if (a.depart_at) {
+    const label = formatArrivalFromTime(a.depart_at)
+    if (label) return label
+    return a.depart_at
+  }
   return '–'
 }
