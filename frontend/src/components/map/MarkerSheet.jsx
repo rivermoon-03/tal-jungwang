@@ -171,7 +171,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {arrivals.slice(0, 3).map((arr, i) => {
+              {arrivals.map((arr, i) => {
                 const color = resolveColor(arr.routeCode, arr.routeColor)
                 return (
                   <li key={i} className="flex items-center gap-3">
