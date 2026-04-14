@@ -6,6 +6,7 @@ import MainTab from './components/map/MainTab'
 import SubwayTab from './components/subway/SubwayTab'
 import TransitTab from './components/transit/TransitTab'
 import MoreTab from './components/more/MoreTab'
+import { useNotices } from './hooks/useMore'
 
 const VALID_TABS = ['main', 'transit', 'subway', 'more']
 
@@ -18,6 +19,14 @@ export default function App() {
   const activeTab    = useAppStore((s) => s.activeTab)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
   const darkMode     = useAppStore((s) => s.darkMode)
+  const setTabBadges = useAppStore((s) => s.setTabBadges)
+  const tabBadges    = useAppStore((s) => s.tabBadges)
+
+  const { data: notices } = useNotices()
+
+  useEffect(() => {
+    setTabBadges({ ...tabBadges, more: Array.isArray(notices) && notices.length > 0 })
+  }, [notices]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const initial = hashToTab(window.location.hash)
