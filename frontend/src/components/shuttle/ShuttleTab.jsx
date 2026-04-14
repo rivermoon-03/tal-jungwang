@@ -33,6 +33,15 @@ function isInsideFrequentWindow(timeObjs) {
   return hasPastFrequent && next?.note === '수시운행'
 }
 
+/** 수시운행 회차 구간 안에 있는지 여부.
+ *  직전에 지나간 항목이 '회차편 · 학교 수시운행 출발'이면
+ *  수시운행 버스들이 아직 회차 중인 구간으로 판단한다. */
+function isInsideFrequentReturnWindow(timeObjs) {
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const lastPast = [...timeObjs].reverse().find((t) => toMin(t.depart_at) <= nowMin)
+  return !!(lastPast?.note?.startsWith('회차편') && lastPast.note.includes('수시운행'))
+}
+
 export default function ShuttleTab() {
   const [activeDir, setActiveDir] = useState(null)
   const [tick, setTick] = useState(0)
@@ -57,6 +66,7 @@ export default function ShuttleTab() {
   void tick
   const nextShuttle = findNextShuttle(timeObjs)
   const inFrequentWindow = isInsideFrequentWindow(timeObjs)
+  const inFrequentReturnWindow = isInsideFrequentReturnWindow(timeObjs)
 
   return (
     <div className="flex flex-col h-full">
@@ -87,6 +97,7 @@ export default function ShuttleTab() {
         nextShuttle={nextShuttle}
         direction={dirLabel(activeDir)}
         inFrequentWindow={inFrequentWindow}
+        inFrequentReturnWindow={inFrequentReturnWindow}
       />
 
       {schedLoading ? (

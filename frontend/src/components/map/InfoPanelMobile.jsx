@@ -187,16 +187,19 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
 
   const haegyo = (shuttleDirections ?? []).find((d) => d.direction === 1)
   const deungyo = (shuttleDirections ?? []).find((d) => d.direction === 0)
-  const fmtSec = (sec) => {
-    if (sec == null) return '없음'
-    const m = toMin(sec)
+  const fmtTarget = (t) => {
+    if (!t) return '없음'
+    if (t.inFrequent) return '수시운행'
+    if (t.inFrequentReturn) return '수시 회차 중'
+    if (t.diffSec == null) return '없음'
+    const m = toMin(t.diffSec)
     return m === 0 ? '곧 출발' : `${m}분`
   }
 
   if (collapsed) {
     const modeTarget = mode === 1 ? haegyo : deungyo
     const modeLabel = mode === 1 ? '하교' : '등교'
-    const modeTime = modeTarget && modeTarget.diffSec != null ? fmtSec(modeTarget.diffSec) : '없음'
+    const modeTime = fmtTarget(modeTarget)
     return (
       <button
         aria-label="셔틀"
@@ -227,10 +230,8 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
       </div>
       <div className={`pl-[16px] text-[12px] font-semibold ${active ? 'text-white/85' : 'text-slate-600'}`}>
         <p className="text-[10px] mb-0.5">{mode === 1 ? '하교' : '등교'}</p>
-        <p className={`tabular-nums font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
-          {target && target.diffSec != null
-            ? (toMin(target.diffSec) === 0 ? '곧 출발' : `${toMin(target.diffSec)}분`)
-            : '없음'}
+        <p className={`font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+          {fmtTarget(target)}
         </p>
       </div>
     </button>
