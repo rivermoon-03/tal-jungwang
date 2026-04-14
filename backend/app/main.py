@@ -1,5 +1,8 @@
 import ipaddress
+import logging
 from contextlib import asynccontextmanager
+
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +40,23 @@ def _is_private(ip: str) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+    from app.services.bus_collector import poll_and_collect
+
     start_scheduler()
+
+    # 재시작 직후 Redis 캐시가 비어 실시간 버스가 안 나오는 문제 방지:
+    # 스케줄러 첫 cron 발동(최대 2분 후) 전에 즉시 1회 폴링
+    async def _initial_poll():
+        await asyncio.sleep(3)  # DB/Redis 연결 안정화 대기
+        try:
+            await poll_and_collect()
+            logger.info("초기 버스 폴링 완료")
+        except Exception:
+            logger.exception("초기 버스 폴링 실패")
+
+    asyncio.create_task(_initial_poll())
+
     yield
     stop_scheduler()
     await close_redis()
