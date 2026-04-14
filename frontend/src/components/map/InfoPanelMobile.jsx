@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, Info, Car, Moon, Sun } from 'lucide-react'
+import { ChevronLeft, Info, Car, Moon, Sun, X } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import InfoPanelTabs from './InfoPanelTabs'
 import { toMin } from '../../utils/boardingStatus'
@@ -382,7 +382,7 @@ export default function InfoPanelMobile({
             aria-label="닫기"
             onClick={close}
             className="absolute right-0 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-base leading-none"
-          >✕</button>
+          ><X size={16} /></button>
         </div>
         <InfoPanelTabs
           tab={tab}

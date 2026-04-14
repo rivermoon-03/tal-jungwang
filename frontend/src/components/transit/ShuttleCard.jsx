@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Bus } from 'lucide-react'
+import { Bus, MapPin, School } from 'lucide-react'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 
 const DIR_KEY = {
@@ -22,11 +22,11 @@ function findNextTwo(times) {
   return [upcoming[0] ?? null, upcoming[1] ?? null]
 }
 
-function TimeCell({ label, emoji, pair }) {
+function TimeCell({ label, Icon, pair }) {
   const [next, afterNext] = pair
   return (
     <div className="p-3">
-      <p className="text-xs font-bold text-slate-400 mb-1.5">{emoji} {label}</p>
+      <p className="text-xs font-bold text-slate-400 mb-1.5 flex items-center gap-1"><Icon size={11} /> {label}</p>
       {next ? (
         <>
           <div className="flex items-baseline gap-1.5">
@@ -87,8 +87,8 @@ export default function ShuttleCard({ onOpenSheet }) {
         <div className="py-6 text-center text-slate-400 text-sm">불러오는 중...</div>
       ) : (
         <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-700">
-          <TimeCell label="정왕역" emoji="📍" pair={info.station} />
-          <TimeCell label="학교" emoji="🏫" pair={info.school} />
+          <TimeCell label="정왕역" Icon={MapPin} pair={info.station} />
+          <TimeCell label="학교" Icon={School} pair={info.school} />
         </div>
       )}
     </div>

@@ -1,18 +1,22 @@
 import { useState } from 'react'
+import { MapPin, School } from 'lucide-react'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import ShuttleTimetable from '../shuttle/ShuttleTimetable'
 
-const DIRECTION_LABEL = {
-  '정왕역행 (하교)': '📍 정왕역',
-  '학교행 (등교)':   '🏫 학교',
-  '정왕역방면':      '📍 정왕역',
-  '정왕역→학교':    '🏫 학교',
-  '하교 (정왕역행)': '📍 정왕역',
-  '등교 (학교행)':   '🏫 학교',
+const DIRECTION_META = {
+  '정왕역행 (하교)': { Icon: MapPin, label: '정왕역' },
+  '학교행 (등교)':   { Icon: School, label: '학교' },
+  '정왕역방면':      { Icon: MapPin, label: '정왕역' },
+  '정왕역→학교':    { Icon: School, label: '학교' },
+  '하교 (정왕역행)': { Icon: MapPin, label: '정왕역' },
+  '등교 (학교행)':   { Icon: School, label: '학교' },
 }
 
-function dirLabel(name) {
-  return DIRECTION_LABEL[name] ?? name
+function DirLabel({ name }) {
+  const meta = DIRECTION_META[name]
+  if (!meta) return <span>{name}</span>
+  const { Icon, label } = meta
+  return <span className="flex items-center justify-center gap-1"><Icon size={13} /> {label}</span>
 }
 
 export default function ShuttleSheetContent() {
@@ -47,7 +51,7 @@ export default function ShuttleSheetContent() {
                     ? 'text-navy dark:text-blue-400 border-navy dark:border-blue-400'
                     : 'text-slate-500 dark:text-slate-400 border-transparent'}`}
               >
-                {dirLabel(direction)}
+                <DirLabel name={direction} />
               </button>
             )
           })}

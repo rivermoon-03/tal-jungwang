@@ -8,6 +8,7 @@ import InfoPanelPC from './InfoPanelPC'
 import { SEOUL_STATION_ID } from './InfoPanelTabs'
 import useAppStore from '../../stores/useAppStore'
 import { apiFetch } from '../../hooks/useApi'
+import { Heart } from 'lucide-react'
 
 const JEONGWANG_STATION_ID = '224000639'
 const DEFAULT_WALK_SEC = 720
@@ -94,7 +95,7 @@ function AboutModal({ onClose }) {
       >
         <div className="flex flex-col items-center gap-1">
           <p className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-wide text-center">
-            Made with ❤️ by 소공
+            Made with <Heart size={13} className="inline-block text-red-400 mx-0.5" /> by 소공
           </p>
           <p className="text-[11px] text-slate-400">한국공대 ㅎㅇㅌ</p>
         </div>
