@@ -208,7 +208,7 @@ export default function InfoPanel() {
       (a) => a.arrival_type === 'realtime' && a.arrive_in_seconds <= 180
     )
 
-    setTabBadges({ shuttle: shuttleBadge, bus: busBadge, subway: false })
+    setTabBadges({ transit: shuttleBadge || busBadge, subway: false })
   }, [shuttleDirections, adjustedBusJeongwangData, timetableData, setTabBadges])
   const seoulNextDepartures = [
     { route: '3400', time: getNextFromTimetable(timetable3400) },

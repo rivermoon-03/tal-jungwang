@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config, pool
 
 # 모델을 임포트해야 autogenerate가 감지한다
 from app.models import bus, shuttle, subway  # noqa: F401
+from app.models import more  # noqa: F401
 from app.core.database import Base
 
 config = context.config
