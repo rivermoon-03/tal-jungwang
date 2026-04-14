@@ -57,64 +57,72 @@ function LastBadge() {
   )
 }
 
+function SubwayLineBlock({ label, upKey, dnKey, upFallback, dnFallback, bgCls, borderCls, textCls, subwayData, timetableData }) {
+  const up = subwayData?.[upKey]
+  const dn = subwayData?.[dnKey]
+  const isLastUp = timetableData ? isLastTrain(timetableData[upKey]) : false
+  const isLastDn = timetableData ? isLastTrain(timetableData[dnKey]) : false
+  return (
+    <div className={`${bgCls} border-l-[3px] ${borderCls} rounded-md px-3 py-2.5`}>
+      <p className={`text-base font-extrabold ${textCls} mb-1.5`}>{label}</p>
+      <div className="flex justify-between items-center text-base text-slate-500 dark:text-slate-400">
+        <span>{up?.destination ? `${up.destination} 방면` : `${upFallback} 방면`}</span>
+        <div className="flex items-center gap-1.5">
+          {isLastUp && <LastBadge />}
+          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+            {up ? `${minsUntilDepart(up.depart_at) ?? '—'}분` : '종료'}
+          </span>
+        </div>
+      </div>
+      <div className="flex justify-between items-center text-base text-slate-500 dark:text-slate-400">
+        <span>{dn?.destination ? `${dn.destination} 방면` : `${dnFallback} 방면`}</span>
+        <div className="flex items-center gap-1.5">
+          {isLastDn && <LastBadge />}
+          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+            {dn ? `${minsUntilDepart(dn.depart_at) ?? '—'}분` : '종료'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SubwaySection({ subwayData, timetableData }) {
   if (!subwayData) {
     return <p className="text-xs text-slate-400">지하철 정보 없음</p>
   }
-  const { up, down, line4_up, line4_down } = subwayData
-  const isLast = {
-    up:         timetableData ? isLastTrain(timetableData.up)        : false,
-    down:       timetableData ? isLastTrain(timetableData.down)      : false,
-    line4_up:   timetableData ? isLastTrain(timetableData.line4_up)  : false,
-    line4_down: timetableData ? isLastTrain(timetableData.line4_down): false,
-  }
   return (
     <div className="flex flex-col gap-2">
-      {/* 수인분당선 */}
-      <div className="bg-orange-50 dark:bg-orange-950/40 border-l-[3px] border-amber-400 rounded-md px-3 py-2.5">
-        <p className="text-base font-extrabold text-amber-600 dark:text-amber-400 mb-1.5">수인분당선</p>
-        <div className="flex justify-between items-center text-base text-slate-500 dark:text-slate-400">
-          <span>{up?.destination ? `${up.destination} 방면` : '왕십리 방면'}</span>
-          <div className="flex items-center gap-1.5">
-            {isLast.up && <LastBadge />}
-            <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-              {up ? `${minsUntilDepart(up.depart_at) ?? '—'}분` : '종료'}
-            </span>
-          </div>
-        </div>
-        <div className="flex justify-between items-center text-base text-slate-500 dark:text-slate-400">
-          <span>{down?.destination ? `${down.destination} 방면` : '인천(오이도) 방면'}</span>
-          <div className="flex items-center gap-1.5">
-            {isLast.down && <LastBadge />}
-            <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-              {down ? `${minsUntilDepart(down.depart_at) ?? '—'}분` : '종료'}
-            </span>
-          </div>
-        </div>
-      </div>
-      {/* 4호선 */}
-      <div className="bg-blue-50 dark:bg-blue-950/40 border-l-[3px] border-blue-600 rounded-md px-3 py-2.5">
-        <p className="text-base font-extrabold text-blue-700 dark:text-blue-400 mb-1.5">4호선</p>
-        <div className="flex justify-between items-center text-base text-slate-500 dark:text-slate-400">
-          <span>{line4_up?.destination ? `${line4_up.destination} 방면` : '당고개 방면'}</span>
-          <div className="flex items-center gap-1.5">
-            {isLast.line4_up && <LastBadge />}
-            <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-              {line4_up ? `${minsUntilDepart(line4_up.depart_at) ?? '—'}분` : '종료'}
-            </span>
-          </div>
-        </div>
-        <div className="flex justify-between items-center text-base text-slate-500 dark:text-slate-400">
-          <span>{line4_down?.destination ? `${line4_down.destination} 방면` : '오이도 방면'}</span>
-          <div className="flex items-center gap-1.5">
-            {isLast.line4_down && <LastBadge />}
-            <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-              {line4_down ? `${minsUntilDepart(line4_down.depart_at) ?? '—'}분` : '종료'}
-            </span>
-          </div>
-        </div>
-      </div>
+      <SubwayLineBlock
+        label="수인분당선"
+        upKey="up" dnKey="down" upFallback="왕십리" dnFallback="인천(오이도)"
+        bgCls="bg-orange-50 dark:bg-orange-950/40" borderCls="border-amber-400"
+        textCls="text-amber-600 dark:text-amber-400"
+        subwayData={subwayData} timetableData={timetableData}
+      />
+      <SubwayLineBlock
+        label="4호선"
+        upKey="line4_up" dnKey="line4_down" upFallback="당고개" dnFallback="오이도"
+        bgCls="bg-blue-50 dark:bg-blue-950/40" borderCls="border-blue-600"
+        textCls="text-blue-700 dark:text-blue-400"
+        subwayData={subwayData} timetableData={timetableData}
+      />
     </div>
+  )
+}
+
+function SeohaeSubwaySection({ upKey, dnKey, subwayData, timetableData }) {
+  if (!subwayData) {
+    return <p className="text-xs text-slate-400">지하철 정보 없음</p>
+  }
+  return (
+    <SubwayLineBlock
+      label="서해선"
+      upKey={upKey} dnKey={dnKey} upFallback="대곡/일산" dnFallback="원시"
+      bgCls="bg-lime-50 dark:bg-lime-950/40" borderCls="border-lime-500"
+      textCls="text-lime-700 dark:text-lime-400"
+      subwayData={subwayData} timetableData={timetableData}
+    />
   )
 }
 
@@ -307,17 +315,38 @@ function ShuttleSection({ onNavigate }) {
   )
 }
 
+function ChojiTab({ subwayData, timetableData, onNavigate }) {
+  const clickable = onNavigate ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+  return (
+    <div className={clickable} onClick={onNavigate ? () => onNavigate('subway') : undefined}>
+      <SeohaeSubwaySection upKey="choji_up" dnKey="choji_dn" subwayData={subwayData} timetableData={timetableData} />
+    </div>
+  )
+}
+
+function SiheungTab({ subwayData, timetableData, onNavigate }) {
+  const clickable = onNavigate ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+  return (
+    <div className={clickable} onClick={onNavigate ? () => onNavigate('subway') : undefined}>
+      <SeohaeSubwaySection upKey="siheung_up" dnKey="siheung_dn" subwayData={subwayData} timetableData={timetableData} />
+    </div>
+  )
+}
+
 // ── 탭 목록 및 메인 컴포넌트 ──────────────────────────────────────────────
 
 const TABS = [
-  { id: 'jeongwang', label: '정왕역' },
+  { id: 'jeongwang', label: '정왕' },
+  { id: 'choji',     label: '초지' },
+  { id: 'siheung',   label: '시흥시청' },
   { id: 'seoul',     label: '서울' },
   { id: 'shuttle',   label: '셔틀' },
-  // { id: 'siheung', label: '시흥시청' }, // 추후 추가
 ]
 
 const TAB_MAIN_MAP = {
   jeongwang: 'subway',
+  choji:     'subway',
+  siheung:   'subway',
   seoul:     'transit',
   shuttle:   'transit',
 }
@@ -326,12 +355,12 @@ export default function InfoPanelTabs({ tab, setTab, subwayData, busJeongwangDat
   return (
     <div className="flex flex-col gap-2">
       {/* 탭 토글 */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1 flex-wrap">
         {TABS.map(({ id, label }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-colors ${
               tab === id
                 ? 'bg-navy text-white'
                 : 'bg-slate-200 dark:bg-slate-700 text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-600'
@@ -346,7 +375,9 @@ export default function InfoPanelTabs({ tab, setTab, subwayData, busJeongwangDat
       {tab === 'jeongwang' && (
         <JeongwangTab subwayData={subwayData} busJeongwangData={busJeongwangData} walkTimes={walkTimes} timetableData={timetableData} onNavigate={onNavigate} />
       )}
-      {tab === 'seoul' && <SeoulTab onNavigate={onNavigate} />}
+      {tab === 'choji'   && <ChojiTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
+      {tab === 'siheung' && <SiheungTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
+      {tab === 'seoul'   && <SeoulTab onNavigate={onNavigate} />}
       {tab === 'shuttle' && <ShuttleSection onNavigate={onNavigate} />}
 
       {/* 전체 시간표 이동 */}

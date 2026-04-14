@@ -48,40 +48,45 @@ export default function TaxiCard({ open, onClose }) {
         </button>
       </div>
 
-      {/* 목록 */}
+      {/* 목록 — 경로 활성화 시 해당 항목만 표시 */}
       <div className="divide-y divide-slate-50 dark:divide-slate-700">
         {loading || !destinations ? (
           <div className="px-4 py-5 text-center text-slate-400 text-sm">불러오는 중...</div>
         ) : (
-          destinations.map((dest) => {
-            const isActive = driveRouteCoords === dest.coordinates && dest.coordinates?.length > 0
-            const hasRoute = dest.coordinates?.length > 0
-            return (
-              <div key={dest.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-bold text-slate-900 dark:text-slate-100 truncate">{dest.name}</p>
-                  <p className="text-xs text-slate-400">{fmtKm(dest.distance_meters)}</p>
+          destinations
+            .filter((dest) => {
+              if (!driveRouteCoords) return true
+              return driveRouteCoords === dest.coordinates
+            })
+            .map((dest) => {
+              const isActive = driveRouteCoords === dest.coordinates && dest.coordinates?.length > 0
+              const hasRoute = dest.coordinates?.length > 0
+              return (
+                <div key={dest.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-bold text-slate-900 dark:text-slate-100 truncate">{dest.name}</p>
+                    <p className="text-xs text-slate-400">{fmtKm(dest.distance_meters)}</p>
+                  </div>
+                  <span className="text-lg font-extrabold tabular-nums text-navy dark:text-blue-300 whitespace-nowrap">
+                    {fmtMin(dest.duration_seconds)}
+                  </span>
+                  <button
+                    aria-label={`${dest.name} 경로 보기`}
+                    onClick={() => handleRoute(dest)}
+                    disabled={!hasRoute}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors pressable flex-shrink-0 ${
+                      isActive
+                        ? 'bg-navy text-white'
+                        : hasRoute
+                          ? 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                          : 'bg-slate-50 dark:bg-slate-700/50 text-slate-300 cursor-not-allowed'
+                    }`}
+                  >
+                    <Navigation size={15} />
+                  </button>
                 </div>
-                <span className="text-lg font-extrabold tabular-nums text-navy dark:text-blue-300 whitespace-nowrap">
-                  {fmtMin(dest.duration_seconds)}
-                </span>
-                <button
-                  aria-label={`${dest.name} 경로 보기`}
-                  onClick={() => handleRoute(dest)}
-                  disabled={!hasRoute}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors pressable flex-shrink-0 ${
-                    isActive
-                      ? 'bg-navy text-white'
-                      : hasRoute
-                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-                        : 'bg-slate-50 dark:bg-slate-700/50 text-slate-300 cursor-not-allowed'
-                  }`}
-                >
-                  <Navigation size={15} />
-                </button>
-              </div>
-            )
-          })
+              )
+            })
         )}
       </div>
       <p className="px-4 pb-3 text-[11px] text-slate-300 dark:text-slate-600 text-center">

@@ -17,12 +17,34 @@ function getNextDestination(trains) {
   return trains.find((t) => timeToMinutes(t.depart_at) > nowMin)?.destination ?? null
 }
 
-const CARD_DEFS = [
-  { key: 'line4_up',   lineName: '4호선',    upDown: '상행', fallback: '당고개', color: '#1B5FAD', darkColor: '#60a5fa', lightColor: '#E8F0FB' },
-  { key: 'line4_down', lineName: '4호선',    upDown: '하행', fallback: '오이도', color: '#1B5FAD', darkColor: '#60a5fa', lightColor: '#E8F0FB' },
-  { key: 'up',         lineName: '수인분당선', upDown: '상행', fallback: '왕십리', color: '#F5A623', darkColor: '#fbbf24', lightColor: '#FEF6E6' },
-  { key: 'down',       lineName: '수인분당선', upDown: '하행', fallback: '인천',   color: '#F5A623', darkColor: '#fbbf24', lightColor: '#FEF6E6' },
+// 역별 카드 정의
+const STATION_GROUPS = [
+  {
+    stationName: '정왕역',
+    cards: [
+      { key: 'line4_up',   lineName: '4호선',    upDown: '상행', fallback: '당고개', color: '#1B5FAD', darkColor: '#60a5fa', lightColor: '#E8F0FB' },
+      { key: 'line4_down', lineName: '4호선',    upDown: '하행', fallback: '오이도', color: '#1B5FAD', darkColor: '#60a5fa', lightColor: '#E8F0FB' },
+      { key: 'up',         lineName: '수인분당선', upDown: '상행', fallback: '왕십리', color: '#F5A623', darkColor: '#fbbf24', lightColor: '#FEF6E6' },
+      { key: 'down',       lineName: '수인분당선', upDown: '하행', fallback: '인천',   color: '#F5A623', darkColor: '#fbbf24', lightColor: '#FEF6E6' },
+    ],
+  },
+  {
+    stationName: '초지역',
+    cards: [
+      { key: 'choji_up', lineName: '서해선', upDown: '상행', fallback: '대곡/일산', color: '#75bf43', darkColor: '#75bf43', lightColor: '#f2fde6' },
+      { key: 'choji_dn', lineName: '서해선', upDown: '하행', fallback: '원시', color: '#75bf43', darkColor: '#75bf43', lightColor: '#f2fde6' },
+    ],
+  },
+  {
+    stationName: '시흥시청역',
+    cards: [
+      { key: 'siheung_up', lineName: '서해선', upDown: '상행', fallback: '대곡/일산', color: '#75bf43', darkColor: '#75bf43', lightColor: '#f2fde6' },
+      { key: 'siheung_dn', lineName: '서해선', upDown: '하행', fallback: '원시', color: '#75bf43', darkColor: '#75bf43', lightColor: '#f2fde6' },
+    ],
+  },
 ]
+
+const ALL_CARD_DEFS = STATION_GROUPS.flatMap((g) => g.cards)
 
 function useLastTrainWarnings(timetable) {
   const [tick, setTick] = useState(0)
@@ -35,12 +57,11 @@ function useLastTrainWarnings(timetable) {
   if (!timetable) return []
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
 
-  return CARD_DEFS.flatMap((def) => {
+  return ALL_CARD_DEFS.flatMap((def) => {
     const trains = timetable[def.key] ?? []
     const status = getLastTrainStatus(trains, nowMin)
     if (!status?.isLast) return []
     const [hh, mm] = status.nextTrain.depart_at.split(':').map(Number)
-    // 자정 넘어가는 경우 effective 분 계산
     let rawMin = hh * 60 + mm
     if (rawMin < 3 * 60 && nowMin > 22 * 60) rawMin += 1440
     const diffMin = rawMin - nowMin
@@ -66,17 +87,15 @@ function LastTrainBanner({ warnings }) {
   )
 }
 
+const STATION_TABS = STATION_GROUPS.map((g) => g.stationName)
+
 export default function SubwayTab() {
   const [selectedKey, setSelectedKey] = useState(null)
+  const [stationTab, setStationTab] = useState(STATION_TABS[0])
   const { data: timetable, loading } = useSubwayTimetable()
   const lastTrainWarnings = useLastTrainWarnings(timetable)
 
-  const CARDS = CARD_DEFS.map((def) => {
-    const dest = getNextDestination(timetable?.[def.key]) ?? def.fallback
-    return { ...def, dirLabel: `${def.upDown} · ${dest} 방면` }
-  })
-
-  const selected = selectedKey ? CARDS.find((c) => c.key === selectedKey) : null
+  const selected = selectedKey ? ALL_CARD_DEFS.find((c) => c.key === selectedKey) : null
   const trains = selected ? (timetable?.[selected.key] ?? []) : []
 
   const now = new Date()
@@ -100,7 +119,7 @@ export default function SubwayTab() {
           </button>
           <TrainFront size={20} strokeWidth={2} />
           <h2 className="text-lg font-bold">
-            {selected.lineName} · {selected.dirLabel.split(' · ')[1]}
+            {selected.lineName} · {getNextDestination(timetable?.[selected.key]) ?? selected.fallback} 방면
           </h2>
         </div>
 
@@ -126,11 +145,30 @@ export default function SubwayTab() {
   }
 
   // ── 카드 목록 뷰 ─────────────────────────────────────────
+  const activeGroup = STATION_GROUPS.find((g) => g.stationName === stationTab) ?? STATION_GROUPS[0]
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 bg-navy text-white px-5 py-4">
         <TrainFront size={20} strokeWidth={2} />
-        <h2 className="text-lg font-bold">정왕역</h2>
+        <h2 className="text-lg font-bold">지하철</h2>
+      </div>
+
+      {/* 역 탭 */}
+      <div className="flex gap-1.5 px-4 pt-3 pb-1 border-b border-slate-100 dark:border-slate-800">
+        {STATION_TABS.map((name) => (
+          <button
+            key={name}
+            onClick={() => setStationTab(name)}
+            className={`px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
+              stationTab === name
+                ? 'bg-navy text-white'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+            }`}
+          >
+            {name}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -140,19 +178,28 @@ export default function SubwayTab() {
       ) : (
         <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
           <LastTrainBanner warnings={lastTrainWarnings} />
-          <div className="p-4 space-y-4">
-          {CARDS.map((card) => (
-            <SubwayLineCard
-              key={card.key}
-              lineName={card.lineName}
-              dirLabel={card.dirLabel}
-              color={card.color}
-              darkColor={card.darkColor}
-              lightColor={card.lightColor}
-              trains={timetable?.[card.key] ?? []}
-              onClick={() => setSelectedKey(card.key)}
-            />
-          ))}
+          <div className="p-4 flex flex-col gap-3">
+            {[activeGroup].map((group) => (
+              <div key={group.stationName}>
+                <div className="flex flex-col gap-3">
+                  {group.cards.map((card) => {
+                    const dest = getNextDestination(timetable?.[card.key]) ?? card.fallback
+                    return (
+                      <SubwayLineCard
+                        key={card.key}
+                        lineName={card.lineName}
+                        dirLabel={`${card.upDown} · ${dest} 방면`}
+                        color={card.color}
+                        darkColor={card.darkColor}
+                        lightColor={card.lightColor}
+                        trains={timetable?.[card.key] ?? []}
+                        onClick={() => setSelectedKey(card.key)}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

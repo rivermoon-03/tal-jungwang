@@ -52,7 +52,10 @@ async def get_timetable(
     day = _day_type(d)
     entries = await _load_entries(db, day)
 
-    groups: dict[str, list[dict]] = {"up": [], "down": [], "line4_up": [], "line4_down": []}
+    groups: dict[str, list[dict]] = {
+        "up": [], "down": [], "line4_up": [], "line4_down": [],
+        "choji_up": [], "choji_dn": [], "siheung_up": [], "siheung_dn": [],
+    }
     updated_at = None
 
     for e in entries:
@@ -72,6 +75,10 @@ async def get_timetable(
         "down": groups["down"],
         "line4_up": groups["line4_up"],
         "line4_down": groups["line4_down"],
+        "choji_up": groups["choji_up"],
+        "choji_dn": groups["choji_dn"],
+        "siheung_up": groups["siheung_up"],
+        "siheung_dn": groups["siheung_dn"],
     }
 
 
@@ -81,6 +88,7 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
 
     nexts: dict[str, dict | None] = {
         "up": None, "down": None, "line4_up": None, "line4_down": None,
+        "choji_up": None, "choji_dn": None, "siheung_up": None, "siheung_dn": None,
     }
 
     now_str = now_time.strftime("%H:%M:%S")
@@ -112,6 +120,8 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
 _TAGO_BASE = "https://apis.data.go.kr/1613000/SubwayInfo/GetSubwaySttnAcctoSchdulList"
 _SUINBUNDANG_ID = "MTRKRK1K257"
 _LINE4_ID = "MTRKR4455"
+_CHOJI_ID = "MTRSWWSS26"      # 초지역 서해선
+_SIHEUNG_ID = "MTRSWWSS22"    # 시흥시청역 서해선
 _SUBWAY_COMBOS = [
     (_SUINBUNDANG_ID, "01", "U", "weekday", "up"),
     (_SUINBUNDANG_ID, "01", "D", "weekday", "down"),
@@ -121,6 +131,14 @@ _SUBWAY_COMBOS = [
     (_LINE4_ID,       "01", "D", "weekday", "line4_down"),
     (_LINE4_ID,       "03", "U", "sunday",  "line4_up"),
     (_LINE4_ID,       "03", "D", "sunday",  "line4_down"),
+    (_CHOJI_ID,       "01", "U", "weekday", "choji_up"),
+    (_CHOJI_ID,       "01", "D", "weekday", "choji_dn"),
+    (_CHOJI_ID,       "03", "U", "sunday",  "choji_up"),
+    (_CHOJI_ID,       "03", "D", "sunday",  "choji_dn"),
+    (_SIHEUNG_ID,     "01", "U", "weekday", "siheung_up"),
+    (_SIHEUNG_ID,     "01", "D", "weekday", "siheung_dn"),
+    (_SIHEUNG_ID,     "03", "U", "sunday",  "siheung_up"),
+    (_SIHEUNG_ID,     "03", "D", "sunday",  "siheung_dn"),
 ]
 
 
@@ -161,6 +179,8 @@ async def refresh_timetable(db: AsyncSession) -> int:
                 dest = item.get("endSubwayStationNm", "") or ""
                 if not dest and direction == "line4_up":
                     dest = "당고개"
+                if not dest and direction in ("choji_up", "siheung_up"):
+                    dest = "대곡"
                 db.add(SubwayTimetableEntry(
                     direction=direction,
                     day_type=day_type,

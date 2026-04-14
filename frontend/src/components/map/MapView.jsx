@@ -4,6 +4,7 @@ import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
 import ShuttleStopOverlay from './ShuttleStopOverlay'
 import SubwayStopOverlay from './SubwayStopOverlay'
+import SeohaeStopOverlay from './SeohaeStopOverlay'
 import JeongwangShuttleOverlay from './JeongwangShuttleOverlay'
 import Siheung33BusOverlay from './Siheung33BusOverlay'
 import TaxiCard from './TaxiCard'
@@ -177,6 +178,7 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           <UserLocationMarker map={mapInstance} />
           <ShuttleStopOverlay map={mapInstance} />
           <SubwayStopOverlay map={mapInstance} />
+          <SeohaeStopOverlay map={mapInstance} />
           <JeongwangShuttleOverlay map={mapInstance} />
           <Siheung33BusOverlay map={mapInstance} />
           <DriveRoutePolyline map={mapInstance} />

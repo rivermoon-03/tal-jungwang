@@ -17,6 +17,8 @@ const useAppStore = create((set) => ({
   setTabBadges: (badges) => set((s) => ({ tabBadges: { ...s.tabBadges, ...badges } })),
   mapPanTarget: null,
   setMapPanTarget: (target) => set({ mapPanTarget: target }),
+  openInfoTab: null,
+  setOpenInfoTab: (tab) => set({ openInfoTab: tab }),
   taxiOpen: false,
   setTaxiOpen: (v) => set({ taxiOpen: v }),
   toggleTaxiOpen: () => set((s) => ({ taxiOpen: !s.taxiOpen })),
