@@ -24,18 +24,27 @@ function skyEmoji(icon, sky) {
 }
 
 export default function WeatherLine({ weather }) {
+  // null/undefined: 렌더 없음 (Hero가 바로 시작)
   if (!weather) return null
 
   const { currentTemp, currentSky, icon, timeBucket } = weather
   const emoji = skyEmoji(icon, currentSky)
   const sky = currentSky ?? ''
-  const temp = typeof currentTemp === 'number' ? currentTemp : '–'
   const nextLabel = timeBucket?.nextLabel ?? ''
   const nextTemp = timeBucket?.nextTemp ?? null
 
+  // 기온 없음: "날씨 불러오는 중" 표시 (대시 금지)
+  if (typeof currentTemp !== 'number') {
+    return (
+      <p className="text-[10.5px] text-gray-500 dark:text-gray-400 leading-tight tracking-tight truncate">
+        {emoji} 정왕 · 날씨 불러오는 중
+      </p>
+    )
+  }
+
   return (
     <p className="text-[10.5px] text-gray-500 dark:text-gray-400 leading-tight tracking-tight truncate">
-      {emoji} 정왕 · {sky} {temp}°
+      {emoji} 정왕 · {sky} {currentTemp}°
       {nextLabel && nextTemp !== null && (
         <> · {nextLabel} {nextTemp}°</>
       )}
