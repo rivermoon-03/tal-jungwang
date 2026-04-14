@@ -4,6 +4,7 @@ import { useSubwayNext } from '../../hooks/useSubway'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import EmptyState from '../common/EmptyState'
+import { formatArrival } from '../../utils/arrivalTime'
 
 const STATIONS = ['정왕', '초지', '시흥시청']
 
@@ -68,6 +69,9 @@ export default function SubwayPanel() {
 }
 
 function TrainCard({ label, train }) {
+  // 백엔드 응답: { depart_at: "HH:MM", arrive_in_seconds: int, destination: string }
+  const arrivalStr = train ? formatArrival(train.arrive_in_seconds) ?? train.depart_at ?? '–' : null
+
   return (
     <div className="bg-suinbundang-light dark:bg-gray-700/50 rounded-xl p-3 flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
@@ -77,10 +81,10 @@ function TrainCard({ label, train }) {
       {train ? (
         <>
           <p className="text-lg font-black text-gray-900 dark:text-gray-50 leading-none">
-            {train.minutesLeft != null ? `${train.minutesLeft}분` : train.time ?? '–'}
+            {arrivalStr}
           </p>
-          {train.dest && (
-            <p className="text-[10px] text-gray-500 dark:text-gray-400">{train.dest} 방향</p>
+          {train.destination && (
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">{train.destination} 방향</p>
           )}
         </>
       ) : (

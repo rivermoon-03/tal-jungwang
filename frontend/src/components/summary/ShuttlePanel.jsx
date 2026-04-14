@@ -3,6 +3,7 @@ import { useShuttleNext } from '../../hooks/useShuttle'
 import Skeleton from '../common/Skeleton'
 import EmptyState from '../common/EmptyState'
 import ErrorState from '../common/ErrorState'
+import { formatArrival } from '../../utils/arrivalTime'
 
 /**
  * ShuttlePanel — 셔틀 모드 패널
@@ -53,12 +54,14 @@ function ShuttleCard({ direction, label, isActive }) {
         </div>
       ) : error ? (
         <ErrorState message="오류" onRetry={refetch} className="py-2" />
-      ) : !data?.next ? (
-        <EmptyState title="🌙 운행 종료" className="py-2" />
+      ) : !data?.depart_at ? (
+        <EmptyState title="🌙 오늘 운행 종료" className="py-2" />
       ) : (
         <div className="space-y-1">
-          <ShuttleRow entry={data.next} isNext />
-          {data.afterNext && <ShuttleRow entry={data.afterNext} />}
+          <ShuttleRow entry={data} isNext />
+          {data.is_last && (
+            <p className="text-[10px] text-gray-400 mt-0.5">오늘 마지막 셔틀</p>
+          )}
         </div>
       )}
     </div>
@@ -66,18 +69,17 @@ function ShuttleCard({ direction, label, isActive }) {
 }
 
 function ShuttleRow({ entry, isNext = false }) {
-  const minsLabel =
-    entry.minutesLeft != null
-      ? `${entry.minutesLeft}분`
-      : null
-  const timeLabel = entry.time ?? '–'
+  // 백엔드 응답: { depart_at: "HH:MM:SS", arrive_in_seconds: int, is_last: bool }
+  const minsLabel = formatArrival(entry.arrive_in_seconds)
+  // depart_at을 "HH:MM"으로 자름
+  const timeLabel = entry.depart_at ? entry.depart_at.slice(0, 5) : '–'
 
   return (
     <div className="flex items-baseline justify-between">
       <span className={`font-black leading-none ${isNext ? 'text-xl text-gray-900 dark:text-gray-50' : 'text-sm text-gray-500 dark:text-gray-400'}`}>
         {minsLabel ?? timeLabel}
       </span>
-      {minsLabel && (
+      {minsLabel && minsLabel !== timeLabel && (
         <span className="text-[10px] text-gray-400 ml-1">{timeLabel}</span>
       )}
     </div>
