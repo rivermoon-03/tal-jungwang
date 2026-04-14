@@ -38,11 +38,14 @@ export default function ScheduleSection({
   isFavorite = false,
   onToggleFav,
   loading = false,
+  realtimeOnly = false,
+  disabled = false,
+  disabledLabel = '일부 역 정보는 지원 예정',
 }) {
   const dotColor = ROUTE_COLOR[routeCode] ?? TYPE_COLOR[type] ?? '#64748B'
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card px-4 py-4">
+    <div className={`bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card px-4 py-4 ${disabled ? 'opacity-50' : ''}`}>
       {/* top row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -73,7 +76,13 @@ export default function ScheduleSection({
 
       {/* arrival times */}
       <div className="mt-3 flex items-baseline gap-3">
-        {loading ? (
+        {disabled ? (
+          <span className="text-xs text-slate-400 dark:text-slate-500">{disabledLabel}</span>
+        ) : realtimeOnly ? (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+            실시간
+          </span>
+        ) : loading ? (
           <>
             <Skeleton width="4rem" height="1.5rem" rounded="rounded-lg" />
             <Skeleton width="3rem" height="1rem" rounded="rounded-lg" />

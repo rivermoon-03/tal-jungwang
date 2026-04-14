@@ -3,7 +3,7 @@
  * Sub-pages (dark-mode, notifications) handled via local subPage state.
  */
 import { useState } from 'react'
-import { Megaphone, Link2, Moon, Bell, Info, MoreHorizontal } from 'lucide-react'
+import { Megaphone, Link2, Moon, Bell, Info } from 'lucide-react'
 import MoreRow from './MoreRow'
 import DarkModePage from './DarkModePage'
 import NotificationsPage from './NotificationsPage'
@@ -32,13 +32,7 @@ export default function MorePage() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
-      {/* header */}
-      <div className="flex items-center gap-2 bg-navy text-white px-5 py-4 flex-shrink-0">
-        <MoreHorizontal size={20} strokeWidth={2} />
-        <h2 className="text-lg font-bold">더보기</h2>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 py-5 pb-28 md:pb-6">
+      <div className="flex-1 overflow-y-auto px-4 pt-5 pb-28 md:pb-6">
         {/* card wrapper */}
         <div className="rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card overflow-hidden">
           {/* 1. 공지사항 */}
