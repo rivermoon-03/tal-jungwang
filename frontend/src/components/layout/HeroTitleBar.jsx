@@ -64,7 +64,7 @@ export default function HeroTitleBar({ nextArrival = null }) {
   // ── 펼침 ──────────────────────────────────────────────────────────
   return (
     <div
-      className="bg-[#fafafa] dark:bg-bg-soft px-4 pt-3 pb-3"
+      className="bg-white/85 dark:bg-bg-soft/90 backdrop-blur-md px-4 pt-3 pb-3 border-b border-white/40 dark:border-border-dark/40"
       style={{ transition: 'background 0.3s var(--ease-ios)' }}
     >
       {/* 경고 배너 */}

@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { TrainFront, Bus, TramFront, Star } from 'lucide-react'
 import ScheduleSearch from './ScheduleSearch'
 import ScheduleSection from './ScheduleSection'
+import ScheduleDetailModal from './ScheduleDetailModal'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
@@ -43,7 +44,7 @@ const MODES = [
 const REALTIME_ONLY_ROUTES = new Set(['20-1', '시흥33'])
 
 // ─── per-route bus section ───────────────────────────────────────────────────
-function BusRouteSection({ routeCode, isFavorite, onToggleFav }) {
+function BusRouteSection({ routeCode, isFavorite, onToggleFav, onCardClick }) {
   const isRealtimeOnly = REALTIME_ONLY_ROUTES.has(routeCode)
   const { data, loading } = useBusTimetableByRoute(routeCode)
   // 백엔드는 { times: ["HH:MM", ...] } 형태로 반환
@@ -73,38 +74,88 @@ function BusRouteSection({ routeCode, isFavorite, onToggleFav }) {
       realtimeOnly={isRealtimeOnly}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(routeCode)}
+      onClick={!isRealtimeOnly ? () => onCardClick({ type: 'bus', routeCode, title: `${routeCode}번 버스` }) : undefined}
       loading={loading && !isRealtimeOnly}
     />
   )
 }
 
+// ─── subway direction config per station ─────────────────────────────────────
+const SUBWAY_DIRECTIONS = {
+  정왕: [
+    { subtitle: '수인분당선', upKey: 'up',       downKey: 'down',       upLabel: '상행',   downLabel: '하행',   color: '#F5A623' },
+    { subtitle: '4호선',     upKey: 'line4_up', downKey: 'line4_down', upLabel: '상행',   downLabel: '하행',   color: '#1B5FAD' },
+  ],
+  초지: [
+    { subtitle: '서해선',    upKey: 'choji_up', downKey: 'choji_dn',   upLabel: '상행',   downLabel: '하행',   color: '#1B5FAD' },
+  ],
+  시흥시청: [
+    { subtitle: '서해선',    upKey: 'siheung_up', downKey: 'siheung_dn', upLabel: '상행', downLabel: '하행',   color: '#1B5FAD' },
+  ],
+}
+
 // ─── subway section ──────────────────────────────────────────────────────────
-function SubwaySection({ stationGroup, isFavorite, onToggleFav }) {
+function SubwaySection({ stationGroup, isFavorite, onToggleFav, onCardClick }) {
   const { data, loading } = useSubwayNext()
-  // 백엔드 /subway/next 는 { up: {depart_at, arrive_in_seconds, destination}, down: {...}, ... } 반환
-  // up/down 은 단일 객체 (배열 아님)
-  const isJeongwang = stationGroup === '정왕'
-  const upNext = isJeongwang ? data?.up : null
+  // 백엔드 /subway/next 는 { up, down, line4_up, line4_down, choji_up, choji_dn, siheung_up, siheung_dn } 반환
+  const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
+
+  if (directions.length === 0) {
+    return (
+      <ScheduleSection
+        title={stationGroup}
+        subtitle="지하철"
+        type="subway"
+        routeCode={stationGroup}
+        next={null}
+        afterNext={null}
+        isFavorite={isFavorite}
+        onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
+        loading={false}
+        disabled
+        disabledLabel="정보 준비 중"
+      />
+    )
+  }
 
   return (
-    <ScheduleSection
-      title={stationGroup}
-      subtitle="수인분당선"
-      type="subway"
-      routeCode={stationGroup}
-      next={upNext?.depart_at ?? null}
-      afterNext={null}
-      isFavorite={isFavorite}
-      onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
-      loading={loading && isJeongwang}
-      disabled={!isJeongwang}
-      disabledLabel="일부 역 정보는 지원 예정"
-    />
+    <>
+      {directions.flatMap((dir) => [
+        <ScheduleSection
+          key={`${stationGroup}:${dir.upKey}`}
+          title={`${stationGroup} ${dir.upLabel}`}
+          subtitle={dir.subtitle}
+          type="subway"
+          routeCode={`subway:${dir.upKey}`}
+          next={data?.[dir.upKey]?.depart_at ?? null}
+          afterNext={null}
+          isFavorite={isFavorite}
+          onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
+          onClick={() => onCardClick({ type: 'subway', routeCode: stationGroup, title: `${stationGroup}역 ${dir.subtitle}` })}
+          loading={loading}
+          lineColor={dir.color}
+        />,
+        <ScheduleSection
+          key={`${stationGroup}:${dir.downKey}`}
+          title={`${stationGroup} ${dir.downLabel}`}
+          subtitle={dir.subtitle}
+          type="subway"
+          routeCode={`subway:${dir.downKey}`}
+          next={data?.[dir.downKey]?.depart_at ?? null}
+          afterNext={null}
+          isFavorite={isFavorite}
+          onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
+          onClick={() => onCardClick({ type: 'subway', routeCode: stationGroup, title: `${stationGroup}역 ${dir.subtitle}` })}
+          loading={loading}
+          lineColor={dir.color}
+        />,
+      ])}
+    </>
   )
 }
 
 // ─── shuttle section ─────────────────────────────────────────────────────────
-function ShuttleSection({ direction, isFavorite, onToggleFav }) {
+function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
   const label = direction === 0 ? '등교' : '하교'
   // useShuttleSchedule: { data: { directions: [{direction, times:[{depart_at,note}]}] } }
   const { data, loading } = useShuttleSchedule(direction)
@@ -127,6 +178,7 @@ function ShuttleSection({ direction, isFavorite, onToggleFav }) {
       afterNext={futureTimes[1] ? futureTimes[1].slice(0, 5) : null}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(`shuttle:${label}`)}
+      onClick={() => onCardClick({ type: 'shuttle', routeCode: `셔틀${label}`, direction, title: `셔틀버스 ${label}` })}
       loading={loading}
     />
   )
@@ -137,6 +189,7 @@ export default function SchedulePage() {
   const [mode, setMode] = useState('bus')
   const [favOnly, setFavOnly] = useState(false)
   const [query, setQuery] = useState('')
+  const [selectedDetail, setSelectedDetail] = useState(null)
 
   const favorites = useAppStore((s) => s.favorites)
   const toggleFavoriteRoute = useAppStore((s) => s.toggleFavoriteRoute)
@@ -153,6 +206,14 @@ export default function SchedulePage() {
   function matchesQuery(label) {
     if (!query) return true
     return label.toLowerCase().includes(query.toLowerCase())
+  }
+
+  function handleCardClick(detail) {
+    setSelectedDetail(detail)
+  }
+
+  function handleModalClose() {
+    setSelectedDetail(null)
   }
 
   return (
@@ -214,6 +275,7 @@ export default function SchedulePage() {
                     routeCode={routeCode}
                     isFavorite={isFav(routeCode)}
                     onToggleFav={handleToggleFav}
+                    onCardClick={handleCardClick}
                   />
                 ))}
               </div>
@@ -229,6 +291,7 @@ export default function SchedulePage() {
             stationGroup={group}
             isFavorite={isFav(`subway:${group}`)}
             onToggleFav={handleToggleFav}
+            onCardClick={handleCardClick}
           />
         ))}
 
@@ -240,6 +303,7 @@ export default function SchedulePage() {
             direction={direction}
             isFavorite={isFav(`shuttle:${group}`)}
             onToggleFav={handleToggleFav}
+            onCardClick={handleCardClick}
           />
         ))}
 
@@ -252,6 +316,16 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+
+      {/* detail modal */}
+      <ScheduleDetailModal
+        open={selectedDetail != null}
+        onClose={handleModalClose}
+        type={selectedDetail?.type}
+        routeCode={selectedDetail?.routeCode}
+        direction={selectedDetail?.direction}
+        title={selectedDetail?.title ?? ''}
+      />
     </div>
   )
 }

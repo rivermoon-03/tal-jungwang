@@ -50,24 +50,20 @@ export default function BottomDock() {
               onClick={(e) => handleNav(e, href)}
               aria-label={label}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center min-w-[44px] min-h-[44px] w-14 h-14 rounded-full transition-colors active:scale-95
-                ${active
-                  ? 'text-coral'
-                  : 'text-slate-500 dark:text-slate-400'
-                }`}
-              style={{ transition: 'color 0.2s ease, transform 0.1s ease' }}
+              className="flex items-center justify-center min-w-[44px] min-h-[44px] active:scale-95"
+              style={{ transition: 'transform 0.1s ease' }}
             >
-              <Icon
-                size={23}
-                strokeWidth={active ? 2.2 : 1.8}
-                aria-hidden="true"
-              />
-              {/* active indicator dot */}
-              {active && (
-                <span
-                  className="absolute bottom-[8px] w-1 h-1 rounded-full bg-coral"
-                  aria-hidden="true"
-                />
+              {active ? (
+                /* 활성: 코랄 필 + 흰색 아이콘 + 라벨 */
+                <span className="flex items-center gap-1.5 bg-coral text-white px-3.5 py-2 rounded-full shadow-sm">
+                  <Icon size={20} strokeWidth={2.2} aria-hidden="true" />
+                  <span className="text-[12px] font-bold leading-none">{label}</span>
+                </span>
+              ) : (
+                /* 비활성: 회색 아이콘만 */
+                <span className="flex flex-col items-center text-zinc-500 dark:text-zinc-400">
+                  <Icon size={22} strokeWidth={1.8} aria-hidden="true" />
+                </span>
               )}
             </a>
           )

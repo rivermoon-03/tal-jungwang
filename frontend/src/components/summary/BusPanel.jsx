@@ -1,16 +1,14 @@
-import { Bus } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetableByRoute, useBusArrivals } from '../../hooks/useBus'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
-import EmptyState from '../common/EmptyState'
 import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
 
 const BUS_GROUPS = ['정왕역', '서울', '기타']
 
 /**
  * 스펙 §2.6 그룹 매핑
- * 정왕역: 20-1, 시흥33 (GBIS 실시간)
+ * 정왕역: 20-1, 시흥33 (GBIS 실시간, 한국공학대학교 정류장 224000639)
  * 서울: 3400, 6502 (시간표 기반)
  * 기타: 시흥1 (시간표 기반)
  */
@@ -28,10 +26,16 @@ const ROUTE_COLOR = {
   '시흥1':  'bg-route-1 text-white',
 }
 
+// 한국공학대학교 정류장 station_id (gbis_station_id=224000639)
+const HANKUK_STOP_ID = '224000639'
+
 export default function BusPanel() {
   const selectedBusGroup = useAppStore((s) => s.selectedBusGroup)
   const setBusGroup       = useAppStore((s) => s.setBusGroup)
   const routes            = GROUP_ROUTES[selectedBusGroup] ?? []
+
+  // 정왕역 그룹(20-1, 시흥33)용 실시간 도착 정보 — 30초마다 갱신
+  const realtimeArrivals = useBusArrivals(HANKUK_STOP_ID)
 
   return (
     <div className="space-y-3">
@@ -43,8 +47,8 @@ export default function BusPanel() {
             onClick={() => setBusGroup(g)}
             className={`px-3 py-1.5 text-xs font-semibold rounded-pill transition-colors
               ${selectedBusGroup === g
-                ? 'bg-coral text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                ? 'bg-coral text-white shadow-sm'
+                : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
               }`}
           >
             {g}
@@ -55,35 +59,48 @@ export default function BusPanel() {
       {/* 노선별 카드 */}
       <div className="space-y-2">
         {routes.map((route) => (
-          <BusRouteRow key={route} route={route} />
+          <BusRouteRow key={route} route={route} realtimeArrivals={realtimeArrivals} />
         ))}
       </div>
     </div>
   )
 }
 
-// 정왕역 그룹(20-1, 시흥33)은 GBIS 실시간 데이터를 사용해야 함.
-// 한국공학대학교 정류장(gbis_station_id=224000639)의 arrivals에서 해당 노선만 필터.
-// TODO: 백엔드가 gbis_station_id 기반 도착 정보를 /bus/arrivals/:id로 제공하면
-//       JEONGWANG_STOP_ID를 실제 DB station_id로 교체.
-const JEONGWANG_STOP_ID = null  // 실시간 API station_id (DB) — 확정 전까지 null
-
-function BusRouteRow({ route }) {
+function BusRouteRow({ route, realtimeArrivals }) {
   const isRealtime = route === '20-1' || route === '시흥33'
-  const timetable = useBusTimetableByRoute(isRealtime ? null : route)
-  // TODO: JEONGWANG_STOP_ID가 확정되면 실시간 훅으로 전환
-  // const realtime = useBusArrivals(isRealtime ? JEONGWANG_STOP_ID : null)
 
-  const { data, loading, error, refetch } = timetable
+  // 실시간 데이터에서 이 노선 항목만 추출 (route_no 기준)
+  const liveEntries = isRealtime && realtimeArrivals.data?.arrivals
+    ? realtimeArrivals.data.arrivals.filter((a) => a.route_no === route).slice(0, 2)
+    : []
+  const hasLiveData = liveEntries.length > 0
+
+  // 실시간 데이터가 없을 때 시간표로 폴백 (서비스 시간 외, 오류 등)
+  const useFallback = !isRealtime || (!realtimeArrivals.loading && !hasLiveData)
+  const timetable = useBusTimetableByRoute(useFallback ? route : null)
+
+  // 로딩: 실시간 노선은 실시간 훅, 비실시간은 시간표 훅
+  const loading = isRealtime ? realtimeArrivals.loading : timetable.loading
+  const refetch = isRealtime
+    ? () => { realtimeArrivals.refetch(); timetable.refetch?.() }
+    : timetable.refetch
+
+  // 에러: 실시간 + 폴백도 에러인 경우에만 에러 표시
+  const hasError = isRealtime
+    ? (realtimeArrivals.error && timetable.error && !timetable.data)
+    : (timetable.error && !timetable.data)
 
   if (loading) {
     return <Skeleton height="3rem" rounded="rounded-xl" />
   }
-  if (error) {
+  if (hasError) {
     return <ErrorState message={`${route} 정보 오류`} onRetry={refetch} className="py-4" />
   }
 
-  const arrivals = extractNext(data, 2)
+  // 표시할 도착 항목: 실시간 우선, 없으면 시간표
+  const arrivals = hasLiveData
+    ? liveEntries
+    : extractNext(timetable.data, 2)
 
   return (
     <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl px-3 py-2.5">
@@ -92,19 +109,16 @@ function BusRouteRow({ route }) {
         {route}
       </span>
 
-      {/* 실시간 배지 */}
-      {isRealtime && (
+      {/* 실시간 배지 — 실제 실시간 데이터를 표시할 때만 */}
+      {isRealtime && hasLiveData && (
         <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 shrink-0">
           실시간
         </span>
       )}
 
       {/* 도착 정보 */}
-      {isRealtime && arrivals.length === 0 ? (
-        // TODO: JEONGWANG_STOP_ID 확정 후 실시간 데이터로 전환
-        <span className="text-xs text-gray-400">정보 불러오는 중</span>
-      ) : arrivals.length === 0 ? (
-        <span className="text-xs text-gray-400">정보 없음</span>
+      {arrivals.length === 0 ? (
+        <span className="text-xs text-gray-400">운행 정보 없음</span>
       ) : (
         <div className="flex items-center gap-3 min-w-0">
           {arrivals.map((a, i) => (
