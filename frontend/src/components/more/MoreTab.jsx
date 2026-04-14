@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Megaphone, Bell, Info, MessageSquare, Moon, Sun } from 'lucide-react'
 import { useNotices, useLinks, useAppInfo } from '../../hooks/useMore'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useShuttleNotification } from '../../hooks/useShuttleNotification'
 import useAppStore from '../../stores/useAppStore'
+import { AboutModal } from '../map/InfoPanel'
 
 function SectionLabel({ children }) {
   return (
@@ -60,6 +62,8 @@ export default function MoreTab() {
   const notices = noticesData ?? []
   const links = linksData ?? []
 
+  const [aboutOpen, setAboutOpen] = useState(false)
+
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 px-4 py-4 pb-28 md:pb-6 gap-1">
 
@@ -68,7 +72,7 @@ export default function MoreTab() {
         {noticesLoading ? (
           <div className="py-6 text-center text-slate-400 text-sm">불러오는 중...</div>
         ) : notices.length === 0 ? (
-          <div className="py-6 text-center text-slate-400 text-sm">공지사항이 없습니다.</div>
+          <div className="py-6 text-center text-slate-400 text-sm">언젠가 업데이트..</div>
         ) : (
           notices.map((n) => (
             <Row
@@ -83,13 +87,7 @@ export default function MoreTab() {
 
       <SectionLabel>알림</SectionLabel>
       <Card>
-        <Row
-          icon={<Bell size={18} />}
-          label="셔틀 출발 알림"
-          sub={permission === 'denied' ? '브라우저 알림이 차단되어 있습니다' : `다음 셔틀 10분 전 알림`}
-          right={<Toggle on={notifEnabled} />}
-          onClick={toggleNotif}
-        />
+        <div className="py-6 text-center text-slate-400 text-sm">언젠가 업데이트..</div>
       </Card>
 
       <SectionLabel>유용한 링크</SectionLabel>
@@ -97,7 +95,7 @@ export default function MoreTab() {
         {linksLoading ? (
           <div className="py-6 text-center text-slate-400 text-sm">불러오는 중...</div>
         ) : links.length === 0 ? (
-          <div className="py-6 text-center text-slate-400 text-sm">링크가 없습니다.</div>
+          <div className="py-6 text-center text-slate-400 text-sm">언젠가 업데이트..</div>
         ) : (
           links.map((lnk) => (
             <Row
@@ -117,6 +115,7 @@ export default function MoreTab() {
           icon={<Info size={18} />}
           label="탈정왕"
           sub={infoData ? `v${infoData.version} · ${infoData.description ?? '정왕 교통 허브'}` : '정왕 교통 허브'}
+          onClick={() => setAboutOpen(true)}
         />
         {infoData?.feedback_url && (
           <Row
@@ -140,5 +139,6 @@ export default function MoreTab() {
       </Card>
 
     </div>
+    {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
   )
 }
