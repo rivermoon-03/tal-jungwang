@@ -97,6 +97,7 @@ async def poll_and_collect():
                         "arrival_type": "realtime",
                         "depart_at": None,
                         "arrive_in_seconds": sec1,
+                        "is_tomorrow": False,
                     })
                 if sec2:
                     arrivals_for_cache.append({
@@ -106,12 +107,18 @@ async def poll_and_collect():
                         "arrival_type": "realtime",
                         "depart_at": None,
                         "arrive_in_seconds": sec2,
+                        "is_tomorrow": False,
                     })
 
+            # cached_at을 함께 저장해 서빙 시 경과 시간만큼 arrive_in_seconds를 보정
+            cache_payload = {
+                "cached_at": now.isoformat(),
+                "arrivals": arrivals_for_cache,
+            }
             cache_key = f"bus:arrivals:{target['stop_id']}"
             await redis.set(
                 cache_key,
-                json.dumps(arrivals_for_cache, ensure_ascii=False),
+                json.dumps(cache_payload, ensure_ascii=False),
                 ex=CACHE_TTL,
             )
 
