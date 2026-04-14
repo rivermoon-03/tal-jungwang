@@ -52,7 +52,7 @@ const MANAGED_STATIONS = [
   },
 ]
 
-export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
+export default function MapView({ onMarkerClick, selectedId }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
@@ -205,7 +205,7 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
         │  │  SDK가 이 div 안에만 렌더링                           │  │
         │  └────────────────────────────────────────────────────────┘  │
         │  ┌─ React UI 오버레이 (필터 없음) ────────────────────────┐  │
-        │  │  InfoPanelSlot, 버튼, TaxiCard                        │  │
+        │  │  FAB 버튼, TaxiCard, MarkerSheet                      │  │
         │  └────────────────────────────────────────────────────────┘  │
         └──────────────────────────────────────────────────────────────┘
       */}
@@ -217,15 +217,6 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           id="kakao-map-canvas"
           className="absolute inset-0 bg-slate-200"
         />
-
-        {/*
-          React UI 오버레이 — 필터 영향 없음.
-          TODO(cleanup): InfoPanelSlot은 MapView 외부(MainTab)에서 주입되는 기존 InfoPanel입니다.
-          MarkerSheet(바텀시트)가 동일 역할을 수행하므로 향후 MainTab에서 InfoPanelSlot을 제거하고
-          InfoPanel 마운트를 지도 탭 외부로 이동해야 합니다.
-          현재는 InfoPanelSlot을 그대로 유지하여 기존 기능이 깨지지 않도록 합니다.
-        */}
-        {mapInstance && InfoPanelSlot}
 
         {/* 우하단 플로팅 버튼 (§2.8): 내 위치, 학교로 */}
         {mapInstance && (
