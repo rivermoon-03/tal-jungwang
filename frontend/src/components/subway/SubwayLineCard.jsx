@@ -42,7 +42,9 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
   const upcoming = nextTrainIdx >= 0 ? trains.slice(nextTrainIdx) : []
   const nextTrain = upcoming[0] ?? null
   const afterNext = upcoming[1] ?? null
-  const missWaitMin = afterNext ? Math.round(timeToMinutes(afterNext.depart_at) - nowMin) : null
+  const missWaitMin = afterNext && nextTrain
+    ? Math.round(timeToMinutes(afterNext.depart_at) - timeToMinutes(nextTrain.depart_at))
+    : null
   const preview = upcoming.slice(1, 4)
 
   const { lastIdx, firstIdx } = getSpecialTrainIndices(trains)
@@ -82,7 +84,7 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
           <NextTrainBadge train={nextTrain} color={color} darkColor={darkColor} />
           {missWaitMin != null && (
             <span className="text-xs text-slate-500 dark:text-slate-400 bg-white/70 dark:bg-slate-700/70 border border-slate-200 dark:border-slate-600 px-2 py-1 rounded-full whitespace-nowrap">
-              놓치면 {missWaitMin}분 기다림
+              놓치면 {missWaitMin}분 더 기다림
             </span>
           )}
         </div>

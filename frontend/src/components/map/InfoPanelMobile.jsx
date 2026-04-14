@@ -253,6 +253,11 @@ export default function InfoPanelMobile({
   const [open, setOpen] = useState(false)
   const [panelVisible, setPanelVisible] = useState(true)
   const setSheetOpen    = useAppStore((s) => s.setSheetOpen)
+  const openInfoTab     = useAppStore((s) => s.openInfoTab)
+
+  useEffect(() => {
+    if (openInfoTab) setOpen(true)
+  }, [openInfoTab])
   const setActiveTab    = useAppStore((s) => s.setActiveTab)
   const darkMode        = useAppStore((s) => s.darkMode)
   const toggleDarkMode  = useAppStore((s) => s.toggleDarkMode)
@@ -289,17 +294,15 @@ export default function InfoPanelMobile({
             className={`transition-transform duration-300 ${!panelVisible ? 'rotate-180' : ''}`}
           />
         </button>
-        <button
-          aria-label="정보"
-          onClick={onInfoClick}
-          className={`w-10 h-10 rounded-full backdrop-blur-md shadow-lg border flex items-center justify-center pressable ${
-            isFirstVisit
-              ? 'info-btn-glow border-transparent text-white'
-              : 'bg-white/90 dark:bg-slate-700/90 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-300'
-          }`}
-        >
-          <Info size={18} />
-        </button>
+        {isFirstVisit && (
+          <button
+            aria-label="정보"
+            onClick={onInfoClick}
+            className="w-10 h-10 rounded-full backdrop-blur-md shadow-lg border border-transparent flex items-center justify-center pressable info-btn-glow text-white"
+          >
+            <Info size={18} />
+          </button>
+        )}
         <button
           aria-label="학교에서 가는 시간"
           onClick={toggleTaxiOpen}

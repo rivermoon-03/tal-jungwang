@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import useAppStore from '../../stores/useAppStore'
+// useAppStore.getState() used in event listener closure
 
 const JEONGWANG = { lat: 37.351618, lng: 126.742747 }
 const MARKER_W = 22
@@ -58,6 +59,9 @@ export default function SubwayStopOverlay({ map }) {
     )
     markerRef.current = new window.kakao.maps.Marker({ position: pos, image: markerImage })
     markerRef.current.setMap(map)
+    window.kakao.maps.event.addListener(markerRef.current, 'click', () => {
+      useAppStore.getState().setOpenInfoTab('jeongwang')
+    })
 
     const labelDiv = document.createElement('div')
     labelDiv.style.cssText = LABEL_STYLE

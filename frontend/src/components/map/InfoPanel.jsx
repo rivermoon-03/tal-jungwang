@@ -150,6 +150,15 @@ export default function InfoPanel() {
   const isMobile = useIsMobile()
   const setTabBadges = useAppStore((s) => s.setTabBadges)
   const userLocation = useAppStore((s) => s.userLocation)
+  const openInfoTab = useAppStore((s) => s.openInfoTab)
+  const setOpenInfoTab = useAppStore((s) => s.setOpenInfoTab)
+
+  useEffect(() => {
+    if (openInfoTab) {
+      setTab(openInfoTab)
+      setOpenInfoTab(null)
+    }
+  }, [openInfoTab, setOpenInfoTab])
 
   const [walkTimes, setWalkTimes] = useState({
     shuttle: DEFAULT_WALK_SEC,
@@ -185,10 +194,14 @@ export default function InfoPanel() {
 
   const { data: timetableData }    = useSubwayTimetable()
   const subwayData = timetableData ? {
-    up:        getNextTrain(timetableData.up),
-    down:      getNextTrain(timetableData.down),
-    line4_up:  getNextTrain(timetableData.line4_up),
-    line4_down: getNextTrain(timetableData.line4_down),
+    up:          getNextTrain(timetableData.up),
+    down:        getNextTrain(timetableData.down),
+    line4_up:    getNextTrain(timetableData.line4_up),
+    line4_down:  getNextTrain(timetableData.line4_down),
+    choji_up:    getNextTrain(timetableData.choji_up),
+    choji_dn:    getNextTrain(timetableData.choji_dn),
+    siheung_up:  getNextTrain(timetableData.siheung_up),
+    siheung_dn:  getNextTrain(timetableData.siheung_dn),
   } : null
   // GBIS 정류장 ID 대신 /bus/stations 기준 내부 DB ID 사용 (하드코딩 제거)
   const { data: stations } = useBusStations()
