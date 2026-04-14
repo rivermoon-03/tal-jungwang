@@ -76,11 +76,14 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 @app.middleware("http")
 async def restrict_metrics(request: Request, call_next):
-    """내부 네트워크(Docker, localhost)에서만 /metrics 접근 허용."""
+    """/metrics 접근 제어: 내부 네트워크 또는 유효한 Bearer 토큰만 허용."""
     if request.url.path == "/metrics":
         client_host = request.client.host if request.client else ""
         if not _is_private(client_host):
-            return Response(status_code=404)
+            token = settings.METRICS_TOKEN
+            auth = request.headers.get("Authorization", "")
+            if not token or auth != f"Bearer {token}":
+                return Response(status_code=404)
     return await call_next(request)
 
 

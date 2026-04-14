@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     PGADMIN_DEFAULT_PASSWORD: str = ""
     GF_SECURITY_ADMIN_USER: str = "admin"
     GF_SECURITY_ADMIN_PASSWORD: str = ""
+    METRICS_TOKEN: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
