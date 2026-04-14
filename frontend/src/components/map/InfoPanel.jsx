@@ -47,14 +47,28 @@ function computeShuttleDirections(schedule) {
 
   return schedule.directions.map(({ direction, times }) => {
     const mappedDirection = DIRECTION_LABEL[direction] ?? direction
-    const next = times.find((t) => {
-      const [hh, mm] = t.depart_at.split(':').map(Number)
-      return hh * 60 + mm > nowMin
-    })
-    if (!next) return { direction: mappedDirection, diffSec: null, nextTime: null }
+    const toM = (t) => { const [h, m] = t.depart_at.split(':').map(Number); return h * 60 + m }
+    const next = times.find((t) => toM(t) > nowMin)
+
+    // 수시운행 구간
+    const hasPastFrequent = times.some((t) => t.note === '수시운행' && toM(t) <= nowMin)
+    const inFrequent = hasPastFrequent && next?.note === '수시운행'
+
+    // 수시운행 회차 구간
+    const lastPast = [...times].reverse().find((t) => toM(t) <= nowMin)
+    const inFrequentReturn = !!(lastPast?.note?.startsWith('회차편') && lastPast.note.includes('수시운행'))
+
+    if (!next) return { direction: mappedDirection, diffSec: null, nextTime: null, note: null, inFrequent: false, inFrequentReturn: false }
     const [hh, mm] = next.depart_at.split(':').map(Number)
     const diffSec = hh * 3600 + mm * 60 - nowSec
-    return { direction: mappedDirection, diffSec: diffSec > 0 ? diffSec : null, nextTime: next.depart_at }
+    return {
+      direction: mappedDirection,
+      diffSec: diffSec > 0 ? diffSec : null,
+      nextTime: next.depart_at,
+      note: next.note ?? null,
+      inFrequent,
+      inFrequentReturn,
+    }
   })
 }
 

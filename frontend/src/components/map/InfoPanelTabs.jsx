@@ -118,25 +118,21 @@ function SubwaySection({ subwayData, timetableData }) {
   )
 }
 
-function BusRow({ arrival, walkSec }) {
-  if (arrival.arrival_type === 'timetable') {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-bold text-white bg-slate-500 px-2 py-0.5 rounded min-w-[40px] text-center">{arrival.route_no}</span>
-        <span className="flex-1 text-sm text-slate-500 dark:text-slate-400">{arrival.destination}</span>
-        <span className="text-sm text-slate-600 dark:text-slate-300">{arrival.depart_at} 출발</span>
-      </div>
-    )
+function BusRow({ routeNo, arrival }) {
+  const bg = arrival ? 'bg-navy' : 'bg-slate-400'
+  let timeText = '현재 없음'
+  if (arrival) {
+    if (arrival.arrival_type === 'timetable') {
+      timeText = `${arrival.depart_at} 출발`
+    } else {
+      const min = toMin(arrival.arrive_in_seconds)
+      timeText = min == null ? '현재 없음' : min === 0 ? '곧 출발' : `${min}분 후`
+    }
   }
-  const min = toMin(arrival.arrive_in_seconds)
-  if (min == null) return null
-  const status = getBoardingStatus(arrival.arrive_in_seconds, walkSec)
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm font-bold text-white bg-navy px-2 py-0.5 rounded min-w-[40px] text-center">{arrival.route_no}</span>
-      <span className="flex-1 text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums">{min === 0 ? '곧 출발' : `${min}분 후`}</span>
-      <span className="text-sm px-2 py-0.5 rounded font-semibold" style={{ background: status.bg, color: status.color }}>{status.label}</span>
-      <span className="text-xs text-blue-500 font-semibold whitespace-nowrap">±2분 | 테스트 중</span>
+      <span className={`text-sm font-bold text-white ${bg} px-2 py-0.5 rounded min-w-[40px] text-center`}>{routeNo}</span>
+      <span className={`flex-1 text-base font-bold tabular-nums ${arrival ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>{timeText}</span>
     </div>
   )
 }
@@ -186,9 +182,7 @@ function TimetableRouteCard({ routeNumber }) {
 function JeongwangTab({ subwayData, busJeongwangData, walkTimes, timetableData, onNavigate }) {
   const { data: taxiData } = useTaxiToStation()
 
-  const arrivals = busJeongwangData?.arrivals?.filter(
-    (a) => a.route_no === '20-1' || a.route_no === '33'
-  ) ?? []
+  const allArrivals = busJeongwangData?.arrivals ?? []
 
   const taxiMin = taxiData?.duration_seconds != null
     ? Math.ceil(taxiData.duration_seconds / 60)
@@ -203,17 +197,19 @@ function JeongwangTab({ subwayData, busJeongwangData, walkTimes, timetableData, 
       <div className={clickable} onClick={onNavigate ? () => onNavigate('subway') : undefined}>
         <SubwaySection subwayData={subwayData} timetableData={timetableData} />
       </div>
-      {arrivals.length > 0 && (
-        <div
-          className={`bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md px-3 py-2 flex flex-col gap-1.5 ${clickable}`}
-          onClick={onNavigate ? () => onNavigate('bus') : undefined}
-        >
-          <p className="text-[12px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">버스 (정왕역 방면)</p>
-          {arrivals.map((a, i) => (
-            <BusRow key={`${a.route_no}-${i}`} arrival={a} walkSec={walkTimes.bus} />
-          ))}
-        </div>
-      )}
+      <div
+        className={`bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md px-3 py-2 flex flex-col gap-1.5 ${clickable}`}
+        onClick={onNavigate ? () => onNavigate('bus') : undefined}
+      >
+        <p className="text-[12px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">버스 (정왕역 방면)</p>
+        {['20-1', '33'].map((routeNo) => (
+          <BusRow
+            key={routeNo}
+            routeNo={routeNo}
+            arrival={allArrivals.find((a) => a.route_no === routeNo) ?? null}
+          />
+        ))}
+      </div>
       {/* 택시 */}
       <div className="bg-green-50 dark:bg-green-950/40 border-l-[3px] border-green-500 rounded-md px-3 py-2">
         <p className="text-[12px] font-bold text-green-800 dark:text-green-400 mb-1">택시</p>
@@ -251,16 +247,22 @@ function ShuttleSection({ onNavigate }) {
 
   const now = new Date()
   const nowMin = now.getHours() * 60 + now.getMinutes()
+  const toM = (t) => { const [h, m] = t.depart_at.split(':').map(Number); return h * 60 + m }
 
   return (
     <div className="flex flex-col gap-2">
       {schedule.directions.map(({ direction, times }) => {
-        const upcoming = times
-          .filter((t) => {
-            const [hh, mm] = t.depart_at.split(':').map(Number)
-            return hh * 60 + mm > nowMin
-          })
-          .slice(0, 2)
+        const next = times.find((t) => toM(t) > nowMin)
+
+        // 수시운행 구간 판단
+        const hasPastFrequent = times.some((t) => t.note === '수시운행' && toM(t) <= nowMin)
+        const inFrequent = hasPastFrequent && next?.note === '수시운행'
+
+        // 수시운행 회차 구간 판단
+        const lastPast = [...times].reverse().find((t) => toM(t) <= nowMin)
+        const inFrequentReturn = !!(lastPast?.note?.startsWith('회차편') && lastPast.note.includes('수시운행'))
+
+        const upcoming = times.filter((t) => toM(t) > nowMin).slice(0, 2)
 
         return (
           <div
@@ -269,19 +271,29 @@ function ShuttleSection({ onNavigate }) {
             onClick={onNavigate ? () => onNavigate('shuttle') : undefined}
           >
             <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100 mb-1.5">{direction === 0 ? '학교행 (등교)' : '정왕역행 (하교)'}</p>
-            {upcoming.length === 0 ? (
+            {inFrequent ? (
+              <p className="text-base font-bold text-navy dark:text-blue-400">수시운행 중</p>
+            ) : inFrequentReturn ? (
+              <p className="text-base font-bold text-navy dark:text-blue-400">수시 회차 중</p>
+            ) : upcoming.length === 0 ? (
               <p className="text-base text-slate-400">오늘 남은 셔틀 없음</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {upcoming.map((t, i) => {
-                  const [hh, mm] = t.depart_at.split(':').map(Number)
-                  const diffMin = hh * 60 + mm - nowMin
+                  const diffMin = toM(t) - nowMin
+                  const isReturn = t.note?.startsWith('회차편')
                   return (
                     <div key={t.depart_at} className="flex justify-between items-center">
                       <span className="text-sm text-slate-400">{i === 0 ? '다음' : '그 다음'}</span>
                       <span className="text-base tabular-nums">
-                        <span className="font-bold text-slate-900 dark:text-slate-100">{t.depart_at}</span>
-                        <span className="text-slate-400 ml-1.5">{diffMin}분 후</span>
+                        {!isReturn && (
+                          <span className="font-bold text-slate-900 dark:text-slate-100">{t.depart_at}</span>
+                        )}
+                        {isReturn ? (
+                          <span className="font-bold text-slate-900 dark:text-slate-100">회차편</span>
+                        ) : (
+                          <span className="text-slate-400 ml-1.5">{diffMin}분 후</span>
+                        )}
                       </span>
                     </div>
                   )

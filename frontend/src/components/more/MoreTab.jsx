@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Megaphone, Bell, Info, MessageSquare, Moon, Sun, MoreHorizontal } from 'lucide-react'
+import { Megaphone, Bell, Info, MessageSquare, Moon, Sun, MoreHorizontal, ChevronDown } from 'lucide-react'
 import { useNotices, useLinks, useAppInfo } from '../../hooks/useMore'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useShuttleNotification } from '../../hooks/useShuttleNotification'
@@ -16,14 +16,14 @@ function SectionLabel({ children }) {
 
 function Card({ children }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
       {children}
     </div>
   )
 }
 
 function Row({ icon, label, sub, right, onClick, href }) {
-  const cls = 'block w-full text-left border-b border-slate-100 dark:border-slate-700 last:border-b-0 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100'
+  const cls = 'block w-full text-left border-b border-slate-100 dark:border-slate-700 last:border-b-0 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100 first:rounded-t-2xl last:rounded-b-2xl overflow-hidden'
   const inner = (
     <div className="flex items-center gap-3 px-4 py-3.5">
       <span className="w-7 flex items-center justify-center flex-shrink-0 text-slate-500 dark:text-slate-400">{icon}</span>
@@ -41,8 +41,9 @@ function Row({ icon, label, sub, right, onClick, href }) {
 
 function NoticeRow({ notice }) {
   const [open, setOpen] = useState(false)
+
   return (
-    <div className="border-b border-slate-100 dark:border-slate-700 last:border-b-0">
+    <div className="border-b border-slate-100 dark:border-slate-700 last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         className="block w-full text-left px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100 transition-colors"
@@ -55,12 +56,15 @@ function NoticeRow({ notice }) {
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{notice.title}</p>
             <p className="text-xs text-slate-400 mt-0.5">{new Date(notice.created_at).toLocaleDateString('ko-KR')}</p>
           </div>
-          <span className={`text-slate-400 text-xs mt-1 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}>▾</span>
+          <ChevronDown
+            size={20}
+            className={`text-slate-400 flex-shrink-0 mt-0.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
         </div>
       </button>
       {open && (
-        <div className="px-4 pb-4 ml-10 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-          {notice.content}
+        <div className="px-4 pb-5 ml-10 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+          {notice.content?.replace(/\\n/g, '\n')}
         </div>
       )}
     </div>
