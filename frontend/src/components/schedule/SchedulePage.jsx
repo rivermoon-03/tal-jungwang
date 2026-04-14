@@ -11,7 +11,7 @@ import ScheduleSearch from './ScheduleSearch'
 import ScheduleSection from './ScheduleSection'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
-import { useShuttleNext } from '../../hooks/useShuttle'
+import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 
 // ─── static section definitions ────────────────────────────────────────────
@@ -39,17 +39,6 @@ const MODES = [
   { id: 'shuttle', label: '셔틀',   Icon: TramFront },
 ]
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-function formatTime(iso) {
-  if (!iso) return null
-  try {
-    const d = new Date(iso)
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  } catch {
-    return null
-  }
-}
-
 // Routes that are realtime-only (no static timetable available)
 const REALTIME_ONLY_ROUTES = new Set(['20-1', '시흥33'])
 
@@ -57,11 +46,12 @@ const REALTIME_ONLY_ROUTES = new Set(['20-1', '시흥33'])
 function BusRouteSection({ routeCode, isFavorite, onToggleFav }) {
   const isRealtimeOnly = REALTIME_ONLY_ROUTES.has(routeCode)
   const { data, loading } = useBusTimetableByRoute(routeCode)
-  const todayEntries = data?.entries ?? []
+  // 백엔드는 { times: ["HH:MM", ...] } 형태로 반환
+  const allTimes = data?.times ?? []
   const now = new Date()
-  const future = todayEntries
-    .map((e) => {
-      const [h, m] = (e.time ?? '00:00').split(':')
+  const future = allTimes
+    .map((t) => {
+      const [h, m] = (t ?? '00:00').split(':')
       const d = new Date()
       d.setHours(Number(h), Number(m), 0, 0)
       return d
@@ -91,10 +81,10 @@ function BusRouteSection({ routeCode, isFavorite, onToggleFav }) {
 // ─── subway section ──────────────────────────────────────────────────────────
 function SubwaySection({ stationGroup, isFavorite, onToggleFav }) {
   const { data, loading } = useSubwayNext()
-  // Only 정왕 has live data; others are not yet supported
+  // 백엔드 /subway/next 는 { up: {depart_at, arrive_in_seconds, destination}, down: {...}, ... } 반환
+  // up/down 은 단일 객체 (배열 아님)
   const isJeongwang = stationGroup === '정왕'
-  const upNext = isJeongwang ? data?.up?.[0] : null
-  const upAfter = isJeongwang ? data?.up?.[1] : null
+  const upNext = isJeongwang ? data?.up : null
 
   return (
     <ScheduleSection
@@ -102,8 +92,8 @@ function SubwaySection({ stationGroup, isFavorite, onToggleFav }) {
       subtitle="수인분당선"
       type="subway"
       routeCode={stationGroup}
-      next={formatTime(upNext?.departureTime)}
-      afterNext={formatTime(upAfter?.departureTime)}
+      next={upNext?.depart_at ?? null}
+      afterNext={null}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
       loading={loading && isJeongwang}
@@ -116,8 +106,16 @@ function SubwaySection({ stationGroup, isFavorite, onToggleFav }) {
 // ─── shuttle section ─────────────────────────────────────────────────────────
 function ShuttleSection({ direction, isFavorite, onToggleFav }) {
   const label = direction === 0 ? '등교' : '하교'
-  const { data, loading } = useShuttleNext(direction)
-  const entries = data?.entries ?? []
+  // useShuttleSchedule: { data: { directions: [{direction, times:[{depart_at,note}]}] } }
+  const { data, loading } = useShuttleSchedule(direction)
+
+  // 해당 direction 의 times 배열에서 현재 시각 이후 항목 추출
+  const now = new Date()
+  const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const dirData = data?.directions?.find((d) => d.direction === direction)
+  const futureTimes = (dirData?.times ?? [])
+    .map((t) => (typeof t === 'string' ? t : t?.depart_at ?? ''))
+    .filter((t) => t >= nowStr)
 
   return (
     <ScheduleSection
@@ -125,8 +123,8 @@ function ShuttleSection({ direction, isFavorite, onToggleFav }) {
       subtitle="한국공학대학교"
       type="shuttle"
       routeCode={`셔틀${label}`}
-      next={entries[0]?.time ?? null}
-      afterNext={entries[1]?.time ?? null}
+      next={futureTimes[0] ? futureTimes[0].slice(0, 5) : null}
+      afterNext={futureTimes[1] ? futureTimes[1].slice(0, 5) : null}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(`shuttle:${label}`)}
       loading={loading}
