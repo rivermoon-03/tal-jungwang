@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── 이징 커스텀 변수 ────────────────────────── */
+:root {
+  --ease-ios: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── 접근성: 모션 최소화 ──────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ── A2z 폰트 (로고용) ──────────────────────── */
 @font-face {
     font-family: 'A2z';
@@ -106,7 +124,7 @@
 
 /* ── 시간/숫자 모던 폰트 ────────────────────── */
 .time-num {
-  font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+  font-family: 'SUIT Variable', SUIT, -apple-system, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
   -webkit-font-smoothing: antialiased;
@@ -129,7 +147,7 @@ html {
 
 body {
   margin: 0;
-  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;
+  font-family: 'SUIT Variable', SUIT, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
   letter-spacing: -0.01em;
@@ -141,7 +159,7 @@ body {
 }
 
 .dark body {
-  background-color: #0f172a;
+  background-color: #1c1f26;
   color: #f1f5f9;
 }
 
@@ -167,4 +185,13 @@ body {
 }
 .animate-slide-up {
   animation: slideUp 0.25s ease-out;
+}
+
+/* ── Toast slide-up ──────────────────────────── */
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.animate-toast-slide-up {
+  animation: toastSlideUp 0.3s var(--ease-ios) both;
 }
