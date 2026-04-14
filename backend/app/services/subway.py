@@ -1,9 +1,11 @@
 from datetime import date, datetime, time, timezone
 
-from sqlalchemy import select
+import httpx
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.cache import get_cached_json, set_cached_json
+from app.core.cache import get_cached_json, get_redis, set_cached_json
+from app.core.config import settings
 from app.models.subway import SubwayTimetableEntry
 
 _TIMETABLE_TTL = 43200  # 12시간 — 시간표는 하루 단위로 갱신
@@ -104,3 +106,80 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
             break
 
     return nexts
+
+
+# ── TAGO API 상수 ─────────────────────────────────────────────
+_TAGO_BASE = "https://apis.data.go.kr/1613000/SubwayInfo/GetSubwaySttnAcctoSchdulList"
+_SUINBUNDANG_ID = "MTRKRK1K257"
+_LINE4_ID = "MTRKR4455"
+_SUBWAY_COMBOS = [
+    (_SUINBUNDANG_ID, "01", "U", "weekday", "up"),
+    (_SUINBUNDANG_ID, "01", "D", "weekday", "down"),
+    (_SUINBUNDANG_ID, "03", "U", "sunday",  "up"),
+    (_SUINBUNDANG_ID, "03", "D", "sunday",  "down"),
+    (_LINE4_ID,       "01", "U", "weekday", "line4_up"),
+    (_LINE4_ID,       "01", "D", "weekday", "line4_down"),
+    (_LINE4_ID,       "03", "U", "sunday",  "line4_up"),
+    (_LINE4_ID,       "03", "D", "sunday",  "line4_down"),
+]
+
+
+async def refresh_timetable(db: AsyncSession) -> int:
+    """TAGO API에서 정왕역 시간표를 새로 가져와 DB + Redis 캐시를 갱신한다.
+
+    Returns:
+        삽입된 행 수
+    """
+    now = datetime.now(timezone.utc)
+    total = 0
+
+    async with httpx.AsyncClient() as client:
+        await db.execute(delete(SubwayTimetableEntry))
+
+        for station_id, daily_code, ud_code, day_type, direction in _SUBWAY_COMBOS:
+            params = {
+                "serviceKey": settings.DATA_GO_KR_SERVICE_KEY,
+                "subwayStationId": station_id,
+                "dailyTypeCode": daily_code,
+                "upDownTypeCode": ud_code,
+                "numOfRows": 500,
+                "_type": "json",
+            }
+            resp = await client.get(_TAGO_BASE, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+
+            items = data.get("response", {}).get("body", {}).get("items", {}).get("item", [])
+            if isinstance(items, dict):
+                items = [items]
+
+            for item in items:
+                dep_str = item.get("depTime", "")
+                if not dep_str or len(dep_str) < 6:
+                    continue
+                hh, mm, ss = int(dep_str[:2]), int(dep_str[2:4]), int(dep_str[4:6])
+                dest = item.get("endSubwayStationNm", "") or ""
+                if not dest and direction == "line4_up":
+                    dest = "당고개"
+                db.add(SubwayTimetableEntry(
+                    direction=direction,
+                    day_type=day_type,
+                    departure_time=time(hh, mm, ss),
+                    destination=dest,
+                    updated_at=now,
+                ))
+                total += 1
+
+        await db.commit()
+
+    redis = await get_redis()
+    for day in ("weekday", "saturday", "sunday"):
+        await redis.delete(f"subway:entries:{day}")
+
+    return total
+
+
+async def needs_refresh(db: AsyncSession) -> bool:
+    """DB에 지하철 시간표 데이터가 없으면 True."""
+    result = await db.execute(select(func.count()).select_from(SubwayTimetableEntry))
+    return (result.scalar() or 0) == 0

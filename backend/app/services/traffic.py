@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 COLLECTION_ROUTES = [
     {
         "direction": "to_station",
-        "start": {"lng": 126.7335, "lat": 37.3403},
-        "end":   {"lng": 126.7198, "lat": 37.3399},
+        "start": {"lng": 126.7335,   "lat": 37.3403},    # 한국공학대
+        "end":   {"lng": 126.742747, "lat": 37.351618},  # 정왕역
     },
     {
         "direction": "to_school",
-        "start": {"lng": 126.7198, "lat": 37.3399},
-        "end":   {"lng": 126.7335, "lat": 37.3403},
+        "start": {"lng": 126.742747, "lat": 37.351618},  # 정왕역
+        "end":   {"lng": 126.7335,   "lat": 37.3403},    # 한국공학대
     },
 ]
 
@@ -45,12 +45,36 @@ def _speed_to_congestion(speed: float) -> int:
     return 4
 
 
+async def persist_traffic_segments(
+    merged: dict[tuple[str, str], dict],
+    now: datetime,
+) -> int:
+    """merged 구간 데이터를 DB에 저장한다. 저장 건수를 반환.
+
+    merged 키: (road_name, direction)
+    merged 값: {"distance": meters, "time": seconds}
+    """
+    async with AsyncSessionLocal() as db:
+        count = 0
+        for (road_name, direction), totals in merged.items():
+            speed = round(totals["distance"] / totals["time"] * 3.6, 1) if totals["time"] > 0 else 0
+            db.add(TrafficHistory(
+                road_name=road_name,
+                direction=direction,
+                speed=speed,
+                duration_seconds=totals["time"],
+                distance_meters=totals["distance"],
+                congestion=_speed_to_congestion(speed),
+                collected_at=now,
+            ))
+            count += 1
+        await db.commit()
+    return count
+
+
 async def collect_traffic() -> int:
     """TMAP API로 교통정보를 수집하여 DB에 저장한다. 저장 건수를 반환."""
     now = datetime.now(timezone.utc)
-    count = 0
-
-    # 도로별 구간 합산용
     merged: dict[tuple[str, str], dict] = {}
 
     for route in COLLECTION_ROUTES:
@@ -73,22 +97,7 @@ async def collect_traffic() -> int:
             merged[key]["distance"] += seg["distance"]
             merged[key]["time"] += seg["time"]
 
-    async with AsyncSessionLocal() as db:
-        for (road_name, direction), totals in merged.items():
-            speed = round(totals["distance"] / totals["time"] * 3.6, 1) if totals["time"] > 0 else 0
-            entry = TrafficHistory(
-                road_name=road_name,
-                direction=direction,
-                speed=speed,
-                duration_seconds=totals["time"],
-                distance_meters=totals["distance"],
-                congestion=_speed_to_congestion(speed),
-                collected_at=now,
-            )
-            db.add(entry)
-            count += 1
-        await db.commit()
-
+    count = await persist_traffic_segments(merged, now)
     logger.info("Traffic collected: %d records at %s", count, now.isoformat())
     return count
 

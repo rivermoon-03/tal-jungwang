@@ -42,20 +42,33 @@ def _is_private(ip: str) -> bool:
 async def lifespan(app: FastAPI):
     import asyncio
     from app.services.bus_collector import poll_and_collect
+    from app.services.subway import needs_refresh, refresh_timetable
+    from app.core.database import AsyncSessionLocal
 
     start_scheduler()
 
-    # 재시작 직후 Redis 캐시가 비어 실시간 버스가 안 나오는 문제 방지:
-    # 스케줄러 첫 cron 발동(최대 2분 후) 전에 즉시 1회 폴링
-    async def _initial_poll():
+    async def _initial_tasks():
         await asyncio.sleep(3)  # DB/Redis 연결 안정화 대기
+
+        # 버스 도착정보 초기 폴링
         try:
             await poll_and_collect()
             logger.info("초기 버스 폴링 완료")
         except Exception:
             logger.exception("초기 버스 폴링 실패")
 
-    asyncio.create_task(_initial_poll())
+        # 지하철 시간표 — DB가 비어있을 때만 TAGO API에서 로드
+        try:
+            async with AsyncSessionLocal() as db:
+                if await needs_refresh(db):
+                    total = await refresh_timetable(db)
+                    logger.info("초기 지하철 시간표 로드 완료: %d건", total)
+                else:
+                    logger.info("지하철 시간표 이미 존재 — 초기 로드 생략")
+        except Exception:
+            logger.exception("초기 지하철 시간표 로드 실패")
+
+    asyncio.create_task(_initial_tasks())
 
     yield
     stop_scheduler()

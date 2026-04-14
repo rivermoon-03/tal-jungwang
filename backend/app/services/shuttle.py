@@ -72,7 +72,7 @@ async def _load_entries(db: AsyncSession, period_id: int, day: str) -> list[dict
 
     data = [
         {
-            "route_name": route.route_name,
+            "direction": route.direction,
             "departure_time": entry.departure_time.strftime("%H:%M:%S"),
             "note": entry.note,
         }
@@ -89,7 +89,7 @@ async def get_current_period(db: AsyncSession, d: date) -> SchedulePeriod | None
 
 
 async def get_schedule(
-    db: AsyncSession, d: date, direction: str | None = None
+    db: AsyncSession, d: date, direction: int | None = None
 ) -> dict | None:
     period = await _load_period(db, d)
     if not period:
@@ -98,14 +98,14 @@ async def get_schedule(
     day = _day_type(d)
     entries = await _load_entries(db, period["id"], day)
 
-    directions_map: dict[str, list[dict]] = {}
+    directions_map: dict[int, list[dict]] = {}
     for e in entries:
-        name = e["route_name"]
-        if direction and direction.lower() not in name.lower():
+        dir_key = e["direction"]
+        if direction is not None and dir_key != direction:
             continue
-        if name not in directions_map:
-            directions_map[name] = []
-        directions_map[name].append({"depart_at": e["departure_time"][:5], "note": e["note"]})
+        if dir_key not in directions_map:
+            directions_map[dir_key] = []
+        directions_map[dir_key].append({"depart_at": e["departure_time"][:5], "note": e["note"]})
 
     return {
         "schedule_type": period["period_type"],
@@ -113,14 +113,14 @@ async def get_schedule(
         "valid_from": period["start_date"],
         "valid_until": period["end_date"],
         "directions": [
-            {"direction": d, "times": times}
-            for d, times in directions_map.items()
+            {"direction": dir_key, "times": times}
+            for dir_key, times in directions_map.items()
         ],
     }
 
 
 async def get_next(
-    db: AsyncSession, d: date, now_time: time, direction: str | None = None
+    db: AsyncSession, d: date, now_time: time, direction: int | None = None
 ) -> dict | None:
     period = await _load_period(db, d)
     if not period:
@@ -133,7 +133,7 @@ async def get_next(
     future = [
         e for e in entries
         if e["departure_time"] > now_str
-        and (not direction or direction.lower() in e["route_name"].lower())
+        and (direction is None or e["direction"] == direction)
     ]
 
     if not future:
@@ -145,7 +145,7 @@ async def get_next(
     diff = int((depart_dt - now_dt).total_seconds())
 
     return {
-        "direction": e["route_name"],
+        "direction": e["direction"],
         "depart_at": e["departure_time"][:8],
         "arrive_in_seconds": diff,
         "is_last": len(future) == 1,

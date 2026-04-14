@@ -20,7 +20,7 @@ _STATION_LAT = 37.351618
 _TAXI_CACHE_KEY = "route:taxi_to_station"
 _TAXI_CACHE_TTL = 300  # 5분
 
-_WALKING_CACHE_TTL = 600   # 10분 (도보 경로는 교통 상황 무관)
+_WALKING_CACHE_TTL = 21600  # 6시간 (도보 경로는 교통 상황 무관)
 _DRIVING_CACHE_TTL = 300   # 5분 (자동차는 교통 상황 반영)
 
 # 택시 카드 — 학교 정문 → 주요 목적지

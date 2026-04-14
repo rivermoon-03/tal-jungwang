@@ -4,18 +4,11 @@ import { useShuttleSchedule } from '../../hooks/useShuttle'
 import ShuttleCountdown from './ShuttleCountdown'
 import ShuttleTimetable from './ShuttleTimetable'
 
-// DB route_name → 사용자 표시 이름 (과거 이름 포함, 이전 데이터 호환)
-const DIRECTION_LABEL = {
-  '정왕역행 (하교)':  '정왕역행 (하교)',
-  '학교행 (등교)':    '학교행 (등교)',
-  '정왕역방면':       '정왕역행 (하교)',
-  '정왕역→학교':     '학교행 (등교)',
-  '하교 (정왕역행)':  '정왕역행 (하교)',
-  '등교 (학교행)':    '학교행 (등교)',
-}
+// direction int → 사용자 표시 이름 (0=등교, 1=하교)
+const DIRECTION_LABEL = { 0: '학교행 (등교)', 1: '정왕역행 (하교)' }
 
-function dirLabel(name) {
-  return DIRECTION_LABEL[name] ?? name
+function dirLabel(dir) {
+  return DIRECTION_LABEL[dir] ?? String(dir)
 }
 
 function toMin(t) {

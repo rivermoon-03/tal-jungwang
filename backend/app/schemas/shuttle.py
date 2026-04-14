@@ -7,7 +7,7 @@ class ShuttleTime(BaseModel):
 
 
 class ShuttleDirection(BaseModel):
-    direction: str
+    direction: int  # 0=등교, 1=하교
     times: list[ShuttleTime]
 
 
@@ -20,7 +20,7 @@ class ShuttleScheduleResponse(BaseModel):
 
 
 class ShuttleNextResponse(BaseModel):
-    direction: str
+    direction: int  # 0=등교, 1=하교
     depart_at: str  # "HH:MM:SS"
     arrive_in_seconds: int
     is_last: bool

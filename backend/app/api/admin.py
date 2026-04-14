@@ -13,7 +13,6 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.models.shuttle import SchedulePeriod, ShuttleRoute, ShuttleTimetableEntry
-from app.models.subway import SubwayTimetableEntry
 from app.schemas.admin import (
     LoginRequest,
     LoginResponse,
@@ -226,85 +225,23 @@ async def upload_timetable(
 
 # ── Subway Timetable Refresh (TAGO API) ──────────────────────
 
-TAGO_BASE = "https://apis.data.go.kr/1613000/SubwayInfo/GetSubwaySttnAcctoSchdulList"
-SUINBUNDANG_ID = "MTRKRK1K257"
-LINE4_ID = "MTRKR4455"
-
-# (station_id, daily, ud, day_type, direction)
-SUBWAY_COMBOS = [
-    (SUINBUNDANG_ID, "01", "U", "weekday", "up"),
-    (SUINBUNDANG_ID, "01", "D", "weekday", "down"),
-    (SUINBUNDANG_ID, "03", "U", "sunday", "up"),
-    (SUINBUNDANG_ID, "03", "D", "sunday", "down"),
-    (LINE4_ID, "01", "U", "weekday", "line4_up"),
-    (LINE4_ID, "01", "D", "weekday", "line4_down"),
-    (LINE4_ID, "03", "U", "sunday", "line4_up"),
-    (LINE4_ID, "03", "D", "sunday", "line4_down"),
-]
-
-
 @router.post("/subway/refresh")
 async def refresh_subway_timetable(
     db: AsyncSession = Depends(get_db),
     _user: str = Depends(verify_token),
 ):
     """TAGO API에서 정왕역 시간표(수인분당선+4호선)를 새로 가져와 DB를 갱신한다."""
-    now = datetime.now(timezone.utc)
-    total = 0
+    from app.services.subway import refresh_timetable
+    from datetime import timezone
 
-    async with httpx.AsyncClient() as client:
-        await db.execute(delete(SubwayTimetableEntry))
-
-        for station_id, daily_code, ud_code, day_type, direction in SUBWAY_COMBOS:
-            params = {
-                "serviceKey": settings.DATA_GO_KR_SERVICE_KEY,
-                "subwayStationId": station_id,
-                "dailyTypeCode": daily_code,
-                "upDownTypeCode": ud_code,
-                "numOfRows": 500,
-                "_type": "json",
-            }
-            resp = await client.get(TAGO_BASE, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-
-            items = data.get("response", {}).get("body", {}).get("items", {}).get("item", [])
-            if isinstance(items, dict):
-                items = [items]
-
-            for item in items:
-                dep_str = item.get("depTime", "")
-                if not dep_str or len(dep_str) < 6:
-                    continue
-                hh, mm, ss = int(dep_str[:2]), int(dep_str[2:4]), int(dep_str[4:6])
-                dest = item.get("endSubwayStationNm", "") or ""
-                if not dest and direction == "line4_up":
-                    dest = "당고개"
-                entry = SubwayTimetableEntry(
-                    direction=direction,
-                    day_type=day_type,
-                    departure_time=time(hh, mm, ss),
-                    destination=dest,
-                    updated_at=now,
-                )
-                db.add(entry)
-                total += 1
-
-        await db.commit()
-
-    # 지하철 시간표 Redis 캐시 무효화
-    from app.core.cache import get_redis
-    redis = await get_redis()
-    for day in ("weekday", "saturday", "sunday"):
-        await redis.delete(f"subway:entries:{day}")
-
-    return ApiResponse.ok({"refreshed": total, "updated_at": now.isoformat()})
+    total = await refresh_timetable(db)
+    return ApiResponse.ok({"refreshed": total, "updated_at": datetime.now(timezone.utc).isoformat()})
 
 
 # ── 등교 셔틀 시간표 시드 ────────────────────────────────────
 
-_OUTBOUND_ROUTE_NAME = "등교 (학교행)"
-_OUTBOUND_ROUTE_DESC = "정왕역 출발 → 한국공학대학교/경기과학기술대학교 (등교)"
+_OUTBOUND_DIRECTION = 0  # 0=등교, 1=하교
+_OUTBOUND_DESC = "정왕역 출발 → 한국공학대학교/경기과학기술대학교 (등교)"
 _OUTBOUND_TIMETABLE: list[tuple[time, str | None]] = [
     (time(8, 40),  "수시운행"), (time(8, 50),  "수시운행"), (time(9, 0),   "수시운행"),
     (time(9, 10),  "수시운행"), (time(9, 20),  "수시운행"), (time(9, 30),  "수시운행"),
@@ -361,11 +298,11 @@ async def seed_outbound_shuttle(
 
     # ShuttleRoute upsert
     route_row = await db.execute(
-        select(ShuttleRoute).where(ShuttleRoute.route_name == _OUTBOUND_ROUTE_NAME)
+        select(ShuttleRoute).where(ShuttleRoute.direction == _OUTBOUND_DIRECTION)
     )
     route = route_row.scalar_one_or_none()
     if route is None:
-        route = ShuttleRoute(route_name=_OUTBOUND_ROUTE_NAME, description=_OUTBOUND_ROUTE_DESC)
+        route = ShuttleRoute(direction=_OUTBOUND_DIRECTION, description=_OUTBOUND_DESC)
         db.add(route)
         await db.flush()
 
@@ -391,60 +328,11 @@ async def seed_outbound_shuttle(
     await db.commit()
 
     return ApiResponse.ok({
-        "route": _OUTBOUND_ROUTE_NAME,
+        "direction": _OUTBOUND_DIRECTION,
         "periods": len(periods),
         "entries": len(periods) * len(_OUTBOUND_TIMETABLE),
     })
 
-
-# ── GBIS ID 등록 ─────────────────────────────────────────────
-
-GBIS_ROUTE_IDS = {
-    "시흥33": "224000062",
-    "20-1": "224000023",
-    "시흥1": "213000006",
-}
-
-GBIS_STATION_IDS = {
-    "한국공학대학교": "224000639",
-    "이마트 (6502·시흥1번 정류장)": "224000513",
-}
-
-
-@router.post("/bus/register-gbis-ids")
-async def register_gbis_ids(
-    db: AsyncSession = Depends(get_db),
-    _user: str = Depends(verify_token),
-):
-    """버스 노선·정류장에 GBIS ID를 등록하고 is_realtime을 활성화한다."""
-    from sqlalchemy import update
-    from app.models.bus import BusRoute, BusStop
-
-    updated_routes = []
-    updated_stops = []
-
-    for route_number, gbis_route_id in GBIS_ROUTE_IDS.items():
-        await db.execute(
-            update(BusRoute)
-            .where(BusRoute.route_number == route_number)
-            .values(gbis_route_id=gbis_route_id, is_realtime=True)
-        )
-        updated_routes.append(route_number)
-
-    for name, gbis_station_id in GBIS_STATION_IDS.items():
-        await db.execute(
-            update(BusStop)
-            .where(BusStop.name == name)
-            .values(gbis_station_id=gbis_station_id)
-        )
-        updated_stops.append(name)
-
-    await db.commit()
-
-    return ApiResponse.ok({
-        "updated_routes": updated_routes,
-        "updated_stops": updated_stops,
-    })
 
 
 # ── More 관리 ─────────────────────────────────────────────────

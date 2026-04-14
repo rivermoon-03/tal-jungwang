@@ -27,7 +27,7 @@ export default function JeongwangShuttleOverlay({ map }) {
   const darkMode = useAppStore((s) => s.darkMode)
 
   // 등교 방향 다음 셔틀 (회차편 여부 확인용)
-  const { data: nextShuttle } = useShuttleNext('등교')
+  const { data: nextShuttle } = useShuttleNext(0)
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return

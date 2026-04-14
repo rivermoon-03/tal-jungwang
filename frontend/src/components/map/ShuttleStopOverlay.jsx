@@ -27,7 +27,7 @@ export default function ShuttleStopOverlay({ map }) {
   const markerRef = useRef(null)
   const labelDivRef = useRef(null)
   const labelOverlayRef = useRef(null)
-  const { data: nextShuttle } = useShuttleNext('하교')
+  const { data: nextShuttle } = useShuttleNext(1)
   const darkMode = useAppStore((s) => s.darkMode)
 
   // 마커 + 레이블 오버레이 생성 (map 준비 후 1회)

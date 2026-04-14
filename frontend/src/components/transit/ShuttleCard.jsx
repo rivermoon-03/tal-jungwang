@@ -2,14 +2,8 @@ import { useState, useEffect } from 'react'
 import { Bus, MapPin, School } from 'lucide-react'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 
-const DIR_KEY = {
-  '정왕역행 (하교)': 'station',
-  '학교행 (등교)':   'school',
-  '정왕역방면':      'station',
-  '정왕역→학교':    'school',
-  '하교 (정왕역행)': 'station',
-  '등교 (학교행)':   'school',
-}
+// direction int → 내부 key (0=등교, 1=하교)
+const DIR_KEY = { 0: 'school', 1: 'station' }
 
 function toMin(t) {
   const [h, m] = t.split(':').map(Number)

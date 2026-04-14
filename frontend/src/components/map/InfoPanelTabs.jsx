@@ -268,7 +268,7 @@ function ShuttleSection({ onNavigate }) {
             className={`bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md px-3 py-2.5 ${onNavigate ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
             onClick={onNavigate ? () => onNavigate('shuttle') : undefined}
           >
-            <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100 mb-1.5">{direction}</p>
+            <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100 mb-1.5">{direction === 0 ? '학교행 (등교)' : '정왕역행 (하교)'}</p>
             {upcoming.length === 0 ? (
               <p className="text-base text-slate-400">오늘 남은 셔틀 없음</p>
             ) : (
