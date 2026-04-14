@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Car } from 'lucide-react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Navigation, School } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
 import ShuttleStopOverlay from './ShuttleStopOverlay'
@@ -11,11 +11,46 @@ import TaxiCard from './TaxiCard'
 import DriveRoutePolyline from './DriveRoutePolyline'
 import RestaurantOverlay from './RestaurantOverlay'
 import TrafficRoadOverlay from './TrafficRoadOverlay'
+import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
+import MarkerSheet from './MarkerSheet'
+import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
 
 // 한국공학대학교 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
 
+// ZoomAwareOverlayManager에 전달할 주요 정류장 목록.
+// 실제 데이터는 각 Overlay 컴포넌트(ShuttleStopOverlay 등)가 담당하므로
+// 여기서는 위치 + 타입 정보만 선언한다.
+const MANAGED_STATIONS = [
+  {
+    id: 'shuttle_stop',
+    name: '셔틀 탑승지',
+    type: 'shuttle',
+    lat: 37.339343,
+    lng: 126.73279,
+    routeCode: '셔틀',
+    routeColor: '#FF385C',
+  },
+  {
+    id: 'jeongwang_station',
+    name: '정왕역',
+    type: 'subway',
+    lat: 37.351618,
+    lng: 126.742747,
+    routeCode: '수인분당',
+    routeColor: '#F5A623',
+  },
+  {
+    id: 'tec_bus_stop',
+    name: '한국공학대학교',
+    type: 'bus',
+    lat: 37.341633,
+    lng: 126.731252,
+    routeCode: '시흥33',
+    routeColor: '#0891B2',
+  },
+]
 
 export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
   const containerRef = useRef(null)
@@ -30,6 +65,34 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
   const taxiOpen            = useAppStore((s) => s.taxiOpen)
   const setTaxiOpen         = useAppStore((s) => s.setTaxiOpen)
   const activeTab           = useAppStore((s) => s.activeTab)
+
+  // 마커 바텀시트 상태
+  const [sheetStation, setSheetStation] = useState(null)
+
+  // GPS 소프트 프롬프트 훅
+  const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
+
+  const handleMarkerTap = useCallback((station) => {
+    setSheetStation(station)
+    onMarkerClick?.(station.id)
+  }, [onMarkerClick])
+
+  // 학교로 이동 버튼 핸들러
+  function panToSchool() {
+    if (!mapRef.current) return
+    mapRef.current.panTo(new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng))
+  }
+
+  // 내 위치 FAB 핸들러 — GPS 권한 확인 후 소프트 프롬프트 또는 지도 이동
+  // checkGps() 내부에서 권한 상태를 쿼리하여 promptState를 업데이트함.
+  // promptState가 'granted'면 GpsSoftPrompt가 렌더되지 않아 조용히 처리됨.
+  async function handleLocationFab() {
+    await checkGps()
+    // 이미 granted인 경우 — 현재 위치로 pan
+    if (userLocation && mapRef.current) {
+      mapRef.current.panTo(new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng))
+    }
+  }
 
   function panTo(lat, lng) {
     if (!mapRef.current) return
@@ -155,10 +218,52 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           className="absolute inset-0 bg-slate-200"
         />
 
-        {/* React UI 오버레이 — 필터 영향 없음 */}
+        {/*
+          React UI 오버레이 — 필터 영향 없음.
+          TODO(cleanup): InfoPanelSlot은 MapView 외부(MainTab)에서 주입되는 기존 InfoPanel입니다.
+          MarkerSheet(바텀시트)가 동일 역할을 수행하므로 향후 MainTab에서 InfoPanelSlot을 제거하고
+          InfoPanel 마운트를 지도 탭 외부로 이동해야 합니다.
+          현재는 InfoPanelSlot을 그대로 유지하여 기존 기능이 깨지지 않도록 합니다.
+        */}
         {mapInstance && InfoPanelSlot}
 
-        {/* 우상단 지도 이동 버튼 + 다크모드 토글 */}
+        {/* 우하단 플로팅 버튼 (§2.8): 내 위치, 학교로 */}
+        {mapInstance && (
+          <div className="absolute bottom-6 right-4 flex flex-col gap-2 z-[50]">
+            {/* 내 위치 FAB */}
+            <button
+              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
+              onClick={handleLocationFab}
+              aria-label="내 위치"
+              title="내 위치"
+            >
+              <Navigation size={17} className="text-coral" />
+            </button>
+            {/* 학교로 FAB */}
+            <button
+              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
+              onClick={panToSchool}
+              aria-label="학교로"
+              title="학교로"
+            >
+              <School size={17} className="text-navy" />
+            </button>
+          </div>
+        )}
+
+        {/* GPS 소프트 프롬프트 */}
+        {(promptState === 'prompt' || promptState === 'denied') && (
+          <GpsSoftPrompt
+            permissionState={promptState}
+            onClose={hideGpsPrompt}
+            onGranted={({ coords }) => {
+              useAppStore.getState().setUserLocation({ lat: coords.latitude, lng: coords.longitude })
+              if (mapRef.current) {
+                mapRef.current.panTo(new window.kakao.maps.LatLng(coords.latitude, coords.longitude))
+              }
+            }}
+          />
+        )}
 
         {/* 택시 카드 */}
         {mapInstance && (
@@ -167,6 +272,23 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
             onClose={() => {
               setTaxiOpen(false)
               setDriveRouteCoords(null)
+            }}
+          />
+        )}
+
+        {/* 마커 탭 → 바텀시트 */}
+        {sheetStation && (
+          <MarkerSheet
+            station={sheetStation}
+            arrivals={[]}
+            onClose={() => setSheetStation(null)}
+            onNavigate={() => {
+              setTaxiOpen(true)
+              setSheetStation(null)
+            }}
+            onDetail={() => {
+              useAppStore.getState().setOpenInfoTab(sheetStation.id)
+              setSheetStation(null)
             }}
           />
         )}
@@ -184,6 +306,13 @@ export default function MapView({ onMarkerClick, selectedId, InfoPanelSlot }) {
           <DriveRoutePolyline map={mapInstance} />
           <RestaurantOverlay map={mapInstance} />
           <TrafficRoadOverlay map={mapInstance} />
+
+          {/* 줌 레벨 기반 Chip ↔ Dot 하이브리드 마커 (주요 정류장) */}
+          <ZoomAwareOverlayManager
+            map={mapInstance}
+            stations={MANAGED_STATIONS}
+            onTap={handleMarkerTap}
+          />
         </>
       )}
     </>
