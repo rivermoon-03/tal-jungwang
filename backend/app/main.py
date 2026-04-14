@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import admin, bus, dashboard, map, more, recommend, route, shuttle, subway, traffic
+from app.api import admin, bus, dashboard, map, more, recommend, route, shuttle, subway, traffic, weather
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.cache import close_redis
@@ -102,6 +102,7 @@ app.include_router(admin.router)
 app.include_router(traffic.router)
 app.include_router(more.router)
 app.include_router(dashboard.router)
+app.include_router(weather.router)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 

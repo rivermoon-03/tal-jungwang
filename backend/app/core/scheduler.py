@@ -25,6 +25,20 @@ async def _collect_job():
         logger.exception("Scheduled traffic collection failed")
 
 
+async def _weather_refresh_job():
+    """날씨 캐시를 갱신하는 스케줄 작업 (05:00~24:00 KST)."""
+    hour = datetime.now(_KST).hour
+    if not (5 <= hour <= 23):
+        return  # 심야 제외
+
+    from app.services.weather import refresh_weather_cache
+
+    try:
+        await refresh_weather_cache()
+    except Exception:
+        logger.exception("날씨 캐시 갱신 실패")
+
+
 async def _bus_poll_job():
     """스케줄러에서 호출되는 버스 도착정보 폴링 작업.
 
@@ -85,6 +99,17 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info("Bus arrival polling scheduler configured (every 120s, active 06:00-22:59 KST)")
+
+    # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
+    scheduler.add_job(
+        _weather_refresh_job,
+        IntervalTrigger(minutes=10),
+        id="weather_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("Weather cache refresh scheduler configured (every 10min, active 05:00-23:59 KST)")
 
 
 def start_scheduler():

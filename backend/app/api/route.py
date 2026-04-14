@@ -2,9 +2,10 @@ import asyncio
 import json
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.core.cache import get_redis
+from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.route import DrivingRouteResponse, RouteRequest, WalkingRouteResponse
 from app.services.external.kakao import fetch_driving_route
@@ -47,7 +48,8 @@ def _coord_cache_key(prefix: str, origin_lat: float, origin_lng: float,
 
 
 @router.get("/taxi-to-station")
-async def taxi_to_station():
+@limiter.limit("30/minute")
+async def taxi_to_station(request: Request):
     """학교 셔틀 탑승지 → 정왕역 자동차 이동 시간 (카카오모빌리티, 5분 캐시)."""
     try:
         redis = await get_redis()
@@ -74,7 +76,8 @@ async def taxi_to_station():
 
 
 @router.post("/walking")
-async def walking_route(req: RouteRequest):
+@limiter.limit("30/minute")
+async def walking_route(request: Request, req: RouteRequest):
     """도보 경로 탐색 (TMAP, 좌표 기반 10분 캐시)."""
     origin_lat = req.origin.lat
     origin_lng = req.origin.lng
@@ -108,7 +111,8 @@ async def walking_route(req: RouteRequest):
 
 
 @router.get("/taxi-destinations")
-async def taxi_destinations():
+@limiter.limit("30/minute")
+async def taxi_destinations(request: Request):
     """학교 정문 → 주요 목적지 자동차 소요 시간 목록 (카카오모빌리티, 20분 캐시)."""
 
     async def fetch_one(dest: dict) -> dict:
@@ -154,7 +158,8 @@ async def taxi_destinations():
 
 
 @router.post("/driving")
-async def driving_route(req: RouteRequest):
+@limiter.limit("30/minute")
+async def driving_route(request: Request, req: RouteRequest):
     """자동차 경로 탐색 (카카오모빌리티, 좌표 기반 5분 캐시)."""
     origin_lat = req.origin.lat
     origin_lng = req.origin.lng
