@@ -72,7 +72,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const managedStations = useMemo(() => [
     {
       id: 'shuttle_to_school',
-      name: '등교셔틀',
+      name: '등교',
       type: 'shuttle',
       direction: 0,
       lat: 37.351134,
@@ -84,7 +84,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     },
     {
       id: 'shuttle_from_school',
-      name: '하교셔틀',
+      name: '하교',
       type: 'shuttle',
       direction: 1,
       lat: 37.339343,
@@ -98,7 +98,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       id: 'jeongwang_station',
       name: '정왕역',
       type: 'subway',
-      lat: 37.351618,
+      lat: 37.352618,
       lng: 126.742747,
       routeCode: '수인분당',
       routeColor: '#F5A623',
@@ -111,7 +111,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       type: 'bus',
       lat: 37.341633,
       lng: 126.731252,
-      routeCode: '시흥33',
+      routeCode: '33번',
       routeColor: '#0891B2',
       liveMinutes: busLiveMinutes,
       showLive: true,
