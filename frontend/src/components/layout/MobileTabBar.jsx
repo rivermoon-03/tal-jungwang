@@ -1,11 +1,11 @@
-import { Map, Bus, BusFront, TrainFront, Locate, School } from 'lucide-react'
+import { Map, Bus, TrainFront, MoreHorizontal, Locate, School } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const TABS = [
-  { id: 'main',    label: '지도',   Icon: Map       },
-  { id: 'shuttle', label: '셔틀',   Icon: Bus        },
-  { id: 'bus',     label: '버스',   Icon: BusFront   },
-  { id: 'subway',  label: '지하철', Icon: TrainFront },
+  { id: 'main',    label: '지도',   Icon: Map            },
+  { id: 'transit', label: '교통',   Icon: Bus            },
+  { id: 'subway',  label: '지하철', Icon: TrainFront     },
+  { id: 'more',    label: '더보기', Icon: MoreHorizontal },
 ]
 
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
@@ -27,7 +27,6 @@ export default function MobileTabBar() {
         ${sheetOpen ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'}`}
       style={{ bottom: 'max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))' }}
     >
-      {/* 내 위치 버튼 */}
       <button
         aria-label="내 위치로 이동"
         disabled={!userLocation}
@@ -44,7 +43,6 @@ export default function MobileTabBar() {
         <Locate size={18} strokeWidth={2} />
       </button>
 
-      {/* 독 */}
       <nav className="flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-full px-2 py-2 shadow-2xl shadow-black/20 border border-slate-100/80 dark:border-slate-700/80">
         {TABS.map(({ id, label, Icon }) => {
           const active = activeTab === id
@@ -70,7 +68,6 @@ export default function MobileTabBar() {
         })}
       </nav>
 
-      {/* 학교 버튼 */}
       <button
         aria-label="학교로 이동"
         onClick={() => setMapPanTarget(DEFAULT_CENTER)}

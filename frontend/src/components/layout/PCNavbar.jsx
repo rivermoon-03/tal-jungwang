@@ -1,11 +1,11 @@
-import { Map, Bus, BusFront, TrainFront, Moon, Sun } from 'lucide-react'
+import { Map, Bus, TrainFront, MoreHorizontal, Moon, Sun } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const TABS = [
-  { id: 'main',    label: '메인 지도', Icon: Map       },
-  { id: 'shuttle', label: '셔틀버스',  Icon: Bus        },
-  { id: 'bus',     label: '버스',      Icon: BusFront   },
-  { id: 'subway',  label: '지하철',    Icon: TrainFront },
+  { id: 'main',    label: '메인 지도', Icon: Map            },
+  { id: 'transit', label: '교통',     Icon: Bus            },
+  { id: 'subway',  label: '지하철',   Icon: TrainFront     },
+  { id: 'more',    label: '더보기',   Icon: MoreHorizontal },
 ]
 
 export default function PCNavbar() {
@@ -16,12 +16,9 @@ export default function PCNavbar() {
 
   return (
     <header className="flex items-center gap-6 bg-navy text-white px-6 h-14 shrink-0">
-      {/* 브랜드 */}
       <div className="flex flex-col leading-tight mr-4">
         <span className="font-a2z text-xl font-bold">탈정왕</span>
       </div>
-
-      {/* 탭 */}
       <nav className="flex items-center gap-1">
         {TABS.map(({ id, label, Icon }) => {
           const active = activeTab === id
@@ -42,11 +39,7 @@ export default function PCNavbar() {
           )
         })}
       </nav>
-
-      {/* 스페이서 */}
       <div className="flex-1" />
-
-      {/* 다크모드 토글 */}
       <button
         aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
         onClick={toggleDarkMode}

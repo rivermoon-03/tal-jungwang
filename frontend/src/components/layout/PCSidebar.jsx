@@ -1,11 +1,11 @@
-import { Map, Bus, BusFront, TrainFront } from 'lucide-react'
+import { Map, Bus, TrainFront, MoreHorizontal } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const TABS = [
-  { id: 'main',    label: '메인 지도', Icon: Map       },
-  { id: 'shuttle', label: '셔틀버스',  Icon: Bus        },
-  { id: 'bus',     label: '버스',      Icon: BusFront   },
-  { id: 'subway',  label: '지하철',    Icon: TrainFront },
+  { id: 'main',    label: '메인 지도', Icon: Map            },
+  { id: 'transit', label: '교통',     Icon: Bus            },
+  { id: 'subway',  label: '지하철',   Icon: TrainFront     },
+  { id: 'more',    label: '더보기',   Icon: MoreHorizontal },
 ]
 
 export default function PCSidebar() {
@@ -20,7 +20,6 @@ export default function PCSidebar() {
       <div className="px-5 py-5 border-b border-white/10">
         <div className="font-a2z text-2xl font-bold leading-tight">탈정왕</div>
       </div>
-
       <nav className="flex-1 py-3">
         {TABS.map(({ id, label, Icon }) => {
           const active = activeTab === id

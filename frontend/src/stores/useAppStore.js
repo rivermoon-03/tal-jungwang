@@ -11,11 +11,11 @@ const useAppStore = create((set) => ({
   setUserLocation: (loc) => set({ userLocation: loc }),
   sheetOpen: false,
   setSheetOpen: (open) => set({ sheetOpen: open }),
-  driveRouteCoords: null,       // [[lng, lat], ...] | null — 지도에 그릴 경로
+  driveRouteCoords: null,
   setDriveRouteCoords: (coords) => set({ driveRouteCoords: coords }),
-  tabBadges: { shuttle: false, bus: false, subway: false },
+  tabBadges: { transit: false, subway: false, more: false },
   setTabBadges: (badges) => set({ tabBadges: badges }),
-  mapPanTarget: null,            // { lat, lng } | null — 지도 이동 요청
+  mapPanTarget: null,
   setMapPanTarget: (target) => set({ mapPanTarget: target }),
   taxiOpen: false,
   setTaxiOpen: (v) => set({ taxiOpen: v }),
