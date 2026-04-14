@@ -1,31 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- 배경 -->
-  <rect width="512" height="512" rx="100" fill="#1a237e"/>
-
-  <!-- 버스 지붕 -->
-  <rect x="108" y="108" width="296" height="68" rx="22" fill="white"/>
-
-  <!-- 버스 몸체 -->
-  <rect x="84" y="158" width="344" height="206" rx="20" fill="white"/>
-
-  <!-- 창문 3개 -->
-  <rect x="108" y="178" width="88" height="66" rx="10" fill="#1a237e"/>
-  <rect x="212" y="178" width="88" height="66" rx="10" fill="#1a237e"/>
-  <rect x="316" y="178" width="88" height="66" rx="10" fill="#1a237e"/>
-
-  <!-- 허리선 -->
-  <rect x="84" y="252" width="344" height="8" rx="4" fill="#c5cae9"/>
-
-  <!-- 앞범퍼 영역 -->
-  <rect x="84" y="340" width="344" height="22" rx="8" fill="#e8eaf6"/>
-
-  <!-- 왼쪽 바퀴 -->
-  <circle cx="162" cy="392" r="50" fill="white"/>
-  <circle cx="162" cy="392" r="24" fill="#1a237e"/>
-  <circle cx="162" cy="392" r="8" fill="white"/>
-
-  <!-- 오른쪽 바퀴 -->
-  <circle cx="350" cy="392" r="50" fill="white"/>
-  <circle cx="350" cy="392" r="24" fill="#1a237e"/>
-  <circle cx="350" cy="392" r="8" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Navy background with rounded corners -->
+  <rect width="512" height="512" rx="100" fill="#1b3a6e"/>
+  <!-- Pole at bottom, centered -->
+  <rect x="246" y="290" width="20" height="172" rx="5" fill="#ffffff"/>
+  <!-- Coral circle border (signpost) -->
+  <circle cx="256" cy="208" r="148" fill="#FF385C"/>
+  <!-- White inner circle -->
+  <circle cx="256" cy="208" r="116" fill="#ffffff"/>
+  <!-- TU monogram, navy, centered in circle -->
+  <text
+    x="256"
+    y="254"
+    text-anchor="middle"
+    dominant-baseline="auto"
+    font-family="Arial Black, 'Arial Bold', Helvetica, sans-serif"
+    font-weight="900"
+    font-size="116"
+    fill="#1b3a6e"
+    letter-spacing="-4">TU</text>
 </svg>
