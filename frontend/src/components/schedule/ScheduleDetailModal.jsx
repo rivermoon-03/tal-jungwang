@@ -1,58 +1,127 @@
 /**
- * ScheduleDetailModal — bottom-sheet modal showing full upcoming schedule.
- *
- * Props:
- *   open        boolean
- *   onClose     () => void
- *   type        'bus' | 'subway' | 'shuttle'
- *   routeCode   string  (bus route number, subway station group, shuttle direction label)
- *   direction   number | undefined  (shuttle: 0=등교, 1=하교)
- *   title       string  (display title in modal header)
+ * ScheduleDetailModal — bottom-sheet modal with full upcoming schedule.
+ * - 세로 리스트 + "다음" 배지 + "N분 뒤"
+ * - 드래그 손잡이로 스와이프 다운 닫기
+ * - BottomDock 위로 띄워지도록 bottom padding 확보
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, Clock } from 'lucide-react'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import Skeleton from '../common/Skeleton'
 
-// ─── per-type content components ────────────────────────────────────────────
+// ─── helpers ────────────────────────────────────────────────────────────
 
-function BusContent({ routeCode }) {
-  const { data, loading, error } = useBusTimetableByRoute(routeCode)
+function toHHMM(date) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
 
-  const now = new Date()
-  const allTimes = data?.times ?? []
-  const { future, past } = allTimes.reduce(
-    (acc, t) => {
-      const [h, m] = (t ?? '00:00').split(':').map(Number)
-      const d = new Date()
-      d.setHours(h, m, 0, 0)
-      if (d > now) acc.future.push(t)
-      else acc.past.push(t)
-      return acc
-    },
-    { future: [], past: [] },
+function minutesUntil(hhmm, now = new Date()) {
+  const [h, m] = (hhmm ?? '00:00').split(':').map(Number)
+  const d = new Date(now)
+  d.setHours(h, m, 0, 0)
+  return Math.round((d.getTime() - now.getTime()) / 60000)
+}
+
+function fmtDelta(mins) {
+  if (mins <= 0) return '곧 출발'
+  if (mins < 60) return `${mins}분 뒤`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m === 0 ? `${h}시간 뒤` : `${h}시간 ${m}분 뒤`
+}
+
+function scheduleTypeLabel(type) {
+  return type === 'weekday' ? '평일' : type === 'saturday' ? '토요일' : '일/공휴일'
+}
+
+// ─── shared list row ────────────────────────────────────────────────────
+
+function TimeRow({ time, isNext, destination, note, accentColor }) {
+  const mins = minutesUntil(time)
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+        isNext
+          ? 'bg-coral/10 dark:bg-coral/15 border border-coral/40'
+          : 'bg-slate-50 dark:bg-slate-700/40 border border-transparent'
+      }`}
+    >
+      <span
+        className={`text-lg font-extrabold tabular-nums ${
+          isNext ? 'text-coral' : 'text-slate-800 dark:text-slate-100'
+        }`}
+      >
+        {time}
+      </span>
+      {(destination || note) && (
+        <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+          {destination || note}
+        </span>
+      )}
+      <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+        {isNext && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-coral text-white">
+            다음
+          </span>
+        )}
+        <span
+          className={`text-xs font-semibold tabular-nums ${
+            isNext ? 'text-coral' : 'text-slate-500 dark:text-slate-400'
+          }`}
+          style={isNext ? { color: accentColor } : undefined}
+        >
+          {fmtDelta(mins)}
+        </span>
+      </div>
+    </div>
   )
+}
+
+function PastRow({ time }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2 opacity-50">
+      <span className="text-sm text-slate-400 dark:text-slate-500 tabular-nums">{time}</span>
+      <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-auto">지난 시각</span>
+    </div>
+  )
+}
+
+// ─── per-type content ───────────────────────────────────────────────────
+
+function BusContent({ routeCode, accentColor }) {
+  const { data, loading, error } = useBusTimetableByRoute(routeCode)
+  const now = new Date()
+  const nowStr = toHHMM(now)
+  const allTimes = data?.times ?? []
+  const future = allTimes.filter((t) => t >= nowStr)
+  const past = allTimes.filter((t) => t < nowStr).slice(-2)
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
   if (!allTimes.length) return <EmptyMsg text="오늘 운행 정보가 없어요" />
 
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       {data?.schedule_type && (
-        <p className="text-xs text-slate-400 mb-3">
-          {scheduleTypeLabel(data.schedule_type)} 시간표 · 총 {allTimes.length}회
+        <p className="text-xs text-slate-400 mb-1">
+          {scheduleTypeLabel(data.schedule_type)} 시간표 · 총 {allTimes.length}회 · 남은 {future.length}회
         </p>
       )}
-      <TimeList items={future} pastItems={past.slice(-2)} labelPast="이미 지난 시각" />
+      {past.map((t) => <PastRow key={`p-${t}`} time={t} />)}
+      {future.length === 0 ? (
+        <p className="text-sm text-slate-400 py-4 text-center">오늘 남은 운행이 없어요</p>
+      ) : (
+        future.map((t, i) => (
+          <TimeRow key={t} time={t} isNext={i === 0} accentColor={accentColor} />
+        ))
+      )}
     </div>
   )
 }
 
-function SubwayContent({ routeCode }) {
-  // routeCode is the station group ('정왕', '초지', '시흥시청')
+function SubwayContent({ accentColor }) {
   const { data, loading, error } = useSubwayTimetable()
   const now = new Date()
   const nowStr = toHHMM(now)
@@ -61,119 +130,45 @@ function SubwayContent({ routeCode }) {
   if (error) return <ErrorMsg />
   if (!data) return <EmptyMsg text="시간표 정보가 없어요" />
 
-  // Choose up/down based on station — currently only 정왕 has data
-  const upTimes = (data.up ?? []).map((t) => t.depart_at)
-  const downTimes = (data.down ?? []).map((t) => t.depart_at)
-
-  const upFuture = upTimes.filter((t) => t >= nowStr)
-  const downFuture = downTimes.filter((t) => t >= nowStr)
+  const upItems = (data.up ?? []).filter((t) => (t.depart_at ?? '') >= nowStr)
+  const downItems = (data.down ?? []).filter((t) => (t.depart_at ?? '') >= nowStr)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <DirectionBlock
         label="상행 (왕십리 방면)"
-        times={upFuture}
-        allCount={upTimes.length}
-        destinations={data.up ?? []}
+        items={upItems}
+        totalCount={(data.up ?? []).length}
+        accentColor={accentColor}
       />
       <DirectionBlock
         label="하행 (인천 방면)"
-        times={downFuture}
-        allCount={downTimes.length}
-        destinations={data.down ?? []}
+        items={downItems}
+        totalCount={(data.down ?? []).length}
+        accentColor={accentColor}
       />
     </div>
   )
 }
 
-function DirectionBlock({ label, times, allCount, destinations }) {
+function DirectionBlock({ label, items, totalCount, accentColor }) {
   return (
     <div>
-      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
-        {label} · 남은 {times.length}회 / 오늘 {allCount}회
+      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+        {label} · 남은 {items.length}회 / 오늘 {totalCount}회
       </p>
-      {times.length === 0 ? (
+      {items.length === 0 ? (
         <p className="text-xs text-slate-400">오늘 남은 열차가 없어요</p>
       ) : (
-        <div className="grid grid-cols-3 gap-x-3 gap-y-2">
-          {times.slice(0, 30).map((t, i) => {
-            const dest = destinations.find((d) => d.depart_at === t)?.destination
-            return (
-              <div key={i} className="flex flex-col">
-                <span className={`text-sm font-bold ${i === 0 ? 'text-coral' : 'text-slate-800 dark:text-slate-200'}`}>
-                  {t}
-                </span>
-                {dest && (
-                  <span className="text-[10px] text-slate-400 truncate">{dest}</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ShuttleContent({ direction }) {
-  const { data, loading, error } = useShuttleSchedule(direction)
-  const now = new Date()
-  const nowStr = toHHMM(now)
-
-  const dirData = data?.directions?.find((d) => d.direction === direction)
-  const times = dirData?.times ?? []
-  const future = times.filter((t) => {
-    const timeStr = typeof t === 'string' ? t : t?.depart_at ?? ''
-    return timeStr.slice(0, 5) >= nowStr
-  })
-  const past = times.filter((t) => {
-    const timeStr = typeof t === 'string' ? t : t?.depart_at ?? ''
-    return timeStr.slice(0, 5) < nowStr
-  })
-
-  if (loading) return <LoadingList />
-  if (error) return <ErrorMsg />
-  if (!times.length) return <EmptyMsg text="오늘 셔틀 정보가 없어요" />
-
-  return (
-    <div>
-      {data?.schedule_name && (
-        <p className="text-xs text-slate-400 mb-3">
-          {data.schedule_name} · 총 {times.length}회
-        </p>
-      )}
-      <ShuttleTimeList items={future} pastItems={past.slice(-2)} />
-    </div>
-  )
-}
-
-// ─── shared UI helpers ───────────────────────────────────────────────────────
-
-function TimeList({ items, pastItems }) {
-  return (
-    <div>
-      {pastItems?.length > 0 && (
-        <div className="mb-3">
-          <p className="text-[10px] text-slate-400 mb-1.5">이미 지난 시각</p>
-          <div className="grid grid-cols-4 gap-x-3 gap-y-2 opacity-40">
-            {pastItems.map((t, i) => (
-              <span key={i} className="text-sm text-slate-500 dark:text-slate-400 font-medium">{t}</span>
-            ))}
-          </div>
-          <div className="border-t border-slate-100 dark:border-slate-700 my-3" />
-        </div>
-      )}
-      {items.length === 0 ? (
-        <p className="text-xs text-slate-400">오늘 남은 운행이 없어요</p>
-      ) : (
-        <div className="grid grid-cols-4 gap-x-3 gap-y-2">
-          {items.slice(0, 40).map((t, i) => (
-            <span
-              key={i}
-              className={`text-sm font-bold ${i === 0 ? 'text-coral' : 'text-slate-800 dark:text-slate-200'}`}
-            >
-              {t}
-            </span>
+        <div className="flex flex-col gap-2">
+          {items.slice(0, 30).map((t, i) => (
+            <TimeRow
+              key={`${t.depart_at}-${i}`}
+              time={t.depart_at}
+              destination={t.destination}
+              isNext={i === 0}
+              accentColor={accentColor}
+            />
           ))}
         </div>
       )}
@@ -181,63 +176,52 @@ function TimeList({ items, pastItems }) {
   )
 }
 
-function ShuttleTimeList({ items, pastItems }) {
+function ShuttleContent({ direction, accentColor }) {
+  const { data, loading, error } = useShuttleSchedule(direction)
+  const now = new Date()
+  const nowStr = toHHMM(now)
+  const dirData = data?.directions?.find((d) => d.direction === direction)
+  const times = dirData?.times ?? []
+
+  const future = []
+  const past = []
+  for (const t of times) {
+    const timeStr = (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5)
+    const note = typeof t === 'object' ? t?.note : null
+    if (timeStr >= nowStr) future.push({ time: timeStr, note })
+    else past.push({ time: timeStr, note })
+  }
+
+  if (loading) return <LoadingList />
+  if (error) return <ErrorMsg />
+  if (!times.length) return <EmptyMsg text="오늘 셔틀 정보가 없어요" />
+
   return (
-    <div>
-      {pastItems?.length > 0 && (
-        <div className="mb-3">
-          <p className="text-[10px] text-slate-400 mb-1.5">이미 지난 시각</p>
-          <div className="grid grid-cols-4 gap-x-3 gap-y-2 opacity-40">
-            {pastItems.map((t, i) => {
-              const timeStr = typeof t === 'string' ? t : t?.depart_at ?? ''
-              return (
-                <span key={i} className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                  {timeStr.slice(0, 5)}
-                </span>
-              )
-            })}
-          </div>
-          <div className="border-t border-slate-100 dark:border-slate-700 my-3" />
-        </div>
+    <div className="flex flex-col gap-2">
+      {data?.schedule_name && (
+        <p className="text-xs text-slate-400 mb-1">
+          {data.schedule_name} · 총 {times.length}회 · 남은 {future.length}회
+        </p>
       )}
-      {items.length === 0 ? (
-        <p className="text-xs text-slate-400">오늘 남은 셔틀이 없어요</p>
+      {past.slice(-2).map(({ time }, i) => <PastRow key={`p-${i}`} time={time} />)}
+      {future.length === 0 ? (
+        <p className="text-sm text-slate-400 py-4 text-center">오늘 남은 셔틀이 없어요</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {items.map((t, i) => {
-            const timeStr = typeof t === 'string' ? t : t?.depart_at ?? ''
-            const note = typeof t === 'object' ? t?.note : null
-            return (
-              <div key={i} className="flex items-center gap-3">
-                <span
-                  className={`text-sm font-bold w-12 flex-shrink-0 ${
-                    i === 0 ? 'text-coral' : 'text-slate-800 dark:text-slate-200'
-                  }`}
-                >
-                  {timeStr.slice(0, 5)}
-                </span>
-                {note && (
-                  <span className="text-xs text-slate-400 truncate">{note}</span>
-                )}
-                {i === 0 && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-coral/10 text-coral ml-auto flex-shrink-0">
-                    다음
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
+        future.map(({ time, note }, i) => (
+          <TimeRow key={i} time={time} note={note} isNext={i === 0} accentColor={accentColor} />
+        ))
       )}
     </div>
   )
 }
 
+// ─── shared UI ──────────────────────────────────────────────────────────
+
 function LoadingList() {
   return (
-    <div className="grid grid-cols-4 gap-x-3 gap-y-2 mt-1">
-      {Array.from({ length: 12 }).map((_, i) => (
-        <Skeleton key={i} width="3rem" height="1.25rem" rounded="rounded" />
+    <div className="flex flex-col gap-2 mt-1">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Skeleton key={i} width="100%" height="3rem" rounded="rounded-xl" />
       ))}
     </div>
   )
@@ -252,33 +236,23 @@ function ErrorMsg() {
 }
 
 function EmptyMsg({ text }) {
-  return (
-    <p className="text-sm text-slate-400 text-center py-4">{text}</p>
-  )
+  return <p className="text-sm text-slate-400 text-center py-4">{text}</p>
 }
 
-function scheduleTypeLabel(type) {
-  return type === 'weekday' ? '평일' : type === 'saturday' ? '토요일' : '일/공휴일'
-}
-
-function toHHMM(date) {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-// ─── modal shell ─────────────────────────────────────────────────────────────
+// ─── modal shell ────────────────────────────────────────────────────────
 
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
-const TYPE_COLOR = { bus: '#3B82F6', subway: '#EAB308', shuttle: '#FF385C' }
+const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#FF385C' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, direction, title }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, direction, title, accentColor }) {
   const sheetRef = useRef(null)
+  const [dragY, setDragY] = useState(0)
+  const startY = useRef(null)
 
-  // Close on backdrop click
   function handleBackdrop(e) {
     if (e.target === e.currentTarget) onClose()
   }
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return
     function onKey(e) {
@@ -288,48 +262,85 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, di
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  // Prevent body scroll when open
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
+      setDragY(0)
     }
     return () => { document.body.style.overflow = '' }
   }, [open])
 
+  // ─ drag-to-dismiss on handle ──────────────────────────────────────────
+  function onDragStart(e) {
+    const y = e.touches ? e.touches[0].clientY : e.clientY
+    startY.current = y
+  }
+  function onDragMove(e) {
+    if (startY.current == null) return
+    const y = e.touches ? e.touches[0].clientY : e.clientY
+    const dy = Math.max(0, y - startY.current)
+    setDragY(dy)
+  }
+  function onDragEnd() {
+    if (startY.current == null) return
+    const finalY = dragY
+    startY.current = null
+    if (finalY > 120) {
+      onClose()
+    } else {
+      setDragY(0)
+    }
+  }
+
   if (!open) return null
 
-  const accentColor = TYPE_COLOR[type] ?? '#64748B'
+  const fallbackColor = TYPE_COLOR[type] ?? '#64748B'
+  const color = accentColor ?? fallbackColor
   const typeLabel = TYPE_LABEL[type] ?? ''
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
       onClick={handleBackdrop}
       aria-modal="true"
       role="dialog"
       aria-label={`${title} 시간표`}
     >
-      {/* backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-      {/* sheet */}
       <div
         ref={sheetRef}
         className="relative z-10 w-full md:max-w-md bg-white dark:bg-slate-800 rounded-t-[28px] md:rounded-[24px] shadow-2xl flex flex-col"
-        style={{ maxHeight: '85dvh' }}
+        style={{
+          maxHeight: '88dvh',
+          transform: `translateY(${dragY}px)`,
+          transition: startY.current == null ? 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+        }}
       >
-        {/* drag handle (mobile) */}
-        <div className="flex justify-center pt-3 pb-1 md:hidden flex-shrink-0">
-          <div className="w-10 h-1.5 rounded-full bg-slate-200 dark:bg-slate-600" />
-        </div>
+        {/* drag handle — tap/swipe to dismiss */}
+        <button
+          onClick={onClose}
+          onTouchStart={onDragStart}
+          onTouchMove={onDragMove}
+          onTouchEnd={onDragEnd}
+          onMouseDown={onDragStart}
+          onMouseMove={startY.current != null ? onDragMove : undefined}
+          onMouseUp={onDragEnd}
+          onMouseLeave={startY.current != null ? onDragEnd : undefined}
+          aria-label="닫기 (아래로 드래그)"
+          className="flex justify-center pt-3 pb-2 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
+          style={{ touchAction: 'none' }}
+        >
+          <span className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-500" />
+        </button>
 
         {/* header */}
-        <div className="flex items-center gap-3 px-5 pt-4 pb-3 flex-shrink-0 border-b border-slate-100 dark:border-slate-700">
+        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-slate-100 dark:border-slate-700">
           <span
             className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ background: accentColor }}
+            style={{ background: color }}
           />
           <div className="flex-1 min-w-0">
             <p className="text-base font-black text-slate-900 dark:text-slate-100 truncate leading-tight">
@@ -346,7 +357,6 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, di
           </button>
         </div>
 
-        {/* today label */}
         <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center gap-1.5">
           <Clock size={12} className="text-slate-400" />
           <p className="text-xs text-slate-400">
@@ -354,11 +364,14 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, di
           </p>
         </div>
 
-        {/* scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 pb-8">
-          {type === 'bus' && <BusContent routeCode={routeCode} />}
-          {type === 'subway' && <SubwayContent routeCode={routeCode} />}
-          {type === 'shuttle' && <ShuttleContent direction={direction} />}
+        {/* scrollable content — bottom padding 확보해 BottomDock 위로 */}
+        <div
+          className="flex-1 overflow-y-auto px-4 pt-2"
+          style={{ paddingBottom: 'max(7rem, calc(env(safe-area-inset-bottom) + 6rem))' }}
+        >
+          {type === 'bus' && <BusContent routeCode={routeCode} accentColor={color} />}
+          {type === 'subway' && <SubwayContent accentColor={color} />}
+          {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
         </div>
       </div>
     </div>

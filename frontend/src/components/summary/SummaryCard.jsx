@@ -88,12 +88,12 @@ export default function SummaryCard({ onNextArrivalChange }) {
   // ── 접힘 pill ──────────────────────────────────────────────────────
   if (cardCollapsed) {
     return (
-      <div className="px-3 pb-2 flex justify-center">
+      <div className="px-3 pb-2 pt-2 flex justify-start">
         <button
           onClick={toggleCard}
           aria-label="교통수단 카드 펼치기"
           aria-expanded={false}
-          className="flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-surface-dark/90 backdrop-blur-md
+          className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md
                      border border-white/60 dark:border-border-dark/60
                      rounded-pill shadow-pill text-sm font-semibold text-gray-800 dark:text-gray-100
                      active:scale-95 transition-transform"
@@ -109,7 +109,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
 
   // ── 펼침 ──────────────────────────────────────────────────────────
   return (
-    <div className="mx-3 mb-3 bg-white/90 dark:bg-surface-dark/90 backdrop-blur-md rounded-card shadow-lg overflow-hidden border border-white/60 dark:border-border-dark/60">
+    <div className="mx-3 mt-2 mb-3 bg-white/90 dark:bg-surface-dark/90 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden border border-white/60 dark:border-border-dark/60">
       {/* 카드 헤더 — 교통수단 + 접기 버튼만 */}
       <div
         className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"

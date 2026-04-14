@@ -23,7 +23,7 @@ class HourTemp(BaseModel):
 
 
 class CurrentWeatherResponse(BaseModel):
-    current_temp: int
+    current_temp: int | None = None
     current_sky: str          # 맑음 / 구름많음 / 흐림
     icon: str                 # sunny / partly_cloudy / cloudy / rainy / snowy
     rain_prob: int            # 강수확률 (%)
