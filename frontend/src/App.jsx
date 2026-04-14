@@ -4,10 +4,8 @@ import MobileTabBar from './components/layout/MobileTabBar'
 import PCNavbar from './components/layout/PCNavbar'
 import MainTab from './components/map/MainTab'
 import SubwayTab from './components/subway/SubwayTab'
+import TransitTab from './components/transit/TransitTab'
 
-function TransitTabPlaceholder() {
-  return <div className="flex-1 flex items-center justify-center text-slate-400">교통 탭 구현 중</div>
-}
 function MoreTabPlaceholder() {
   return <div className="flex-1 flex items-center justify-center text-slate-400">더보기 탭 구현 중</div>
 }
@@ -57,7 +55,7 @@ export default function App() {
         </div>
         {activeTab === 'transit' && (
           <div key="transit" className="h-full overflow-hidden animate-fade-in">
-            <TransitTabPlaceholder />
+            <TransitTab />
           </div>
         )}
         {activeTab === 'subway' && (

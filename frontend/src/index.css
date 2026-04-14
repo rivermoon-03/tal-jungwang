@@ -160,3 +160,11 @@ body {
 .dark #kakao-map-canvas img[src*="/icons/"] {
   filter: invert(93%) hue-rotate(180deg) brightness(1.22) saturate(1.18) contrast(1.09) !important;
 }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUp 0.25s ease-out;
+}
