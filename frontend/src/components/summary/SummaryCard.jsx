@@ -109,7 +109,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
 
   // ── 펼침 ──────────────────────────────────────────────────────────
   return (
-    <div className="mx-3 mt-2 mb-3 bg-white/90 dark:bg-surface-dark/90 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden border border-white/60 dark:border-border-dark/60">
+    <div className="mx-3 mt-2 mb-3 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md rounded-[24px] shadow-xl overflow-hidden border border-white/60 dark:border-border-dark/60">
       {/* 카드 헤더 — 교통수단 + 접기 버튼만 */}
       <div
         className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"

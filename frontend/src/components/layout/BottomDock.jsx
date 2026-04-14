@@ -55,21 +55,14 @@ export default function BottomDock() {
             >
               {active ? (
                 <span
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full shadow-md"
-                  style={{ background: '#FF385C', color: '#FFFFFF' }}
+                  className="flex items-center justify-center w-10 h-10 rounded-full shadow-md"
+                  style={{ background: '#FF385C' }}
                 >
-                  <Icon size={20} strokeWidth={2.4} color="#FFFFFF" aria-hidden="true" />
-                  <span
-                    className="text-[12px] font-bold leading-none"
-                    style={{ color: '#FFFFFF' }}
-                  >
-                    {label}
-                  </span>
+                  <Icon size={22} strokeWidth={2.4} color="#FFFFFF" aria-hidden="true" />
                 </span>
               ) : (
-                <span className="flex flex-col items-center gap-0.5 text-zinc-500 dark:text-zinc-300 px-2">
+                <span className="flex items-center justify-center w-10 h-10 text-zinc-500 dark:text-zinc-300">
                   <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
-                  <span className="text-[9.5px] font-medium leading-none">{label}</span>
                 </span>
               )}
             </a>
