@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSubwayTimetable } from '../../hooks/useSubway'
-import { useBusArrivals } from '../../hooks/useBus'
+import { useBusArrivals, useBusStations } from '../../hooks/useBus'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import InfoPanelMobile from './InfoPanelMobile'
@@ -10,7 +10,7 @@ import useAppStore from '../../stores/useAppStore'
 import { apiFetch } from '../../hooks/useApi'
 import { Heart } from 'lucide-react'
 
-const JEONGWANG_STATION_ID = '224000639'
+const JEONGWANG_GBIS_ID = '224000639'
 const DEFAULT_WALK_SEC = 720
 
 const WALK_DESTINATIONS = {
@@ -176,7 +176,13 @@ export default function InfoPanel() {
     line4_up:  getNextTrain(timetableData.line4_up),
     line4_down: getNextTrain(timetableData.line4_down),
   } : null
-  const { data: busJeongwangData, fetchedAt: busJeongwangFetchedAt } = useBusArrivals(JEONGWANG_STATION_ID)
+  // GBIS 정류장 ID 대신 /bus/stations 기준 내부 DB ID 사용 (하드코딩 제거)
+  const { data: stations } = useBusStations()
+  const jeongwangStationId = useMemo(
+    () => stations?.find((s) => s.routes?.some((r) => r.route_number === '시흥33'))?.station_id ?? null,
+    [stations]
+  )
+  const { data: busJeongwangData, fetchedAt: busJeongwangFetchedAt } = useBusArrivals(jeongwangStationId)
   const { data: busSeoulData }     = useBusArrivals(SEOUL_STATION_ID)
 
   const adjustedBusJeongwangData = useMemo(() => {
