@@ -95,7 +95,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
           aria-expanded={false}
           className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md
                      border border-white/60 dark:border-border-dark/60
-                     rounded-pill shadow-pill text-sm font-semibold text-gray-800 dark:text-gray-100
+                     rounded-full shadow-pill text-sm font-semibold text-gray-800 dark:text-gray-100
                      active:scale-95 transition-transform"
           style={{ transition: 'transform 0.1s var(--ease-spring)' }}
         >
@@ -125,20 +125,24 @@ export default function SummaryCard({ onNextArrivalChange }) {
 
       {/* Mode pill tabs */}
       <div className="flex gap-2 px-4 pb-3">
-        {MODE_TABS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            onClick={() => setSelectedMode(id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-pill transition-colors
-              ${selectedMode === id
-                ? 'bg-coral text-white shadow-sm'
-                : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
-              }`}
-          >
-            <Icon size={12} aria-hidden="true" />
-            {label}
-          </button>
-        ))}
+        {MODE_TABS.map(({ id, label, Icon }) => {
+          const isActive = selectedMode === id
+          return (
+            <button
+              key={id}
+              onClick={() => setSelectedMode(id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors
+                ${isActive
+                  ? 'shadow-sm'
+                  : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
+                }`}
+              style={isActive ? { background: '#FF385C', color: '#FFFFFF' } : undefined}
+            >
+              <Icon size={12} color={isActive ? '#FFFFFF' : undefined} aria-hidden="true" />
+              <span style={isActive ? { color: '#FFFFFF' } : undefined}>{label}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* 선택된 모드 패널 */}
