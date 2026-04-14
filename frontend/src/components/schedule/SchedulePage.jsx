@@ -5,7 +5,7 @@
  * - 검색 필터
  * - 섹션별 ScheduleSection cards
  */
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { TrainFront, Bus, TramFront, Star } from 'lucide-react'
 import ScheduleSearch from './ScheduleSearch'
 import ScheduleSection from './ScheduleSection'
