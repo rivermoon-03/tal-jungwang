@@ -445,3 +445,161 @@ async def register_gbis_ids(
         "updated_routes": updated_routes,
         "updated_stops": updated_stops,
     })
+
+
+# ── More 관리 ─────────────────────────────────────────────────
+from app.models.more import AppInfo as AppInfoModel
+from app.models.more import AppLink as AppLinkModel
+from app.models.more import Notice as NoticeModel
+from app.schemas.more import (
+    AppInfoOut, AppInfoUpdate,
+    AppLinkCreate, AppLinkOut, AppLinkUpdate,
+    NoticeCreate, NoticeOut, NoticeUpdate,
+)
+from app.services.more import invalidate_info, invalidate_links, invalidate_notices
+
+
+@router.get("/notices", response_model=ApiResponse[list[NoticeOut]])
+async def admin_list_notices(
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    rows = await db.execute(select(NoticeModel).order_by(NoticeModel.created_at.desc()))
+    return ApiResponse.ok(rows.scalars().all())
+
+
+@router.post("/notices", response_model=ApiResponse[NoticeOut])
+async def admin_create_notice(
+    body: NoticeCreate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    notice = NoticeModel(**body.model_dump())
+    db.add(notice)
+    await db.commit()
+    await db.refresh(notice)
+    await invalidate_notices()
+    return ApiResponse.ok(notice)
+
+
+@router.patch("/notices/{notice_id}", response_model=ApiResponse[NoticeOut])
+async def admin_update_notice(
+    notice_id: int,
+    body: NoticeUpdate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    notice = await db.get(NoticeModel, notice_id)
+    if not notice:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(notice, field, value)
+    await db.commit()
+    await db.refresh(notice)
+    await invalidate_notices()
+    return ApiResponse.ok(notice)
+
+
+@router.delete("/notices/{notice_id}", response_model=ApiResponse[dict])
+async def admin_delete_notice(
+    notice_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    notice = await db.get(NoticeModel, notice_id)
+    if not notice:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
+    await db.delete(notice)
+    await db.commit()
+    await invalidate_notices()
+    return ApiResponse.ok({"deleted": notice_id})
+
+
+@router.get("/links", response_model=ApiResponse[list[AppLinkOut]])
+async def admin_list_links(
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    rows = await db.execute(select(AppLinkModel).order_by(AppLinkModel.sort_order))
+    return ApiResponse.ok(rows.scalars().all())
+
+
+@router.post("/links", response_model=ApiResponse[AppLinkOut])
+async def admin_create_link(
+    body: AppLinkCreate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    link = AppLinkModel(**body.model_dump())
+    db.add(link)
+    await db.commit()
+    await db.refresh(link)
+    await invalidate_links()
+    return ApiResponse.ok(link)
+
+
+@router.patch("/links/{link_id}", response_model=ApiResponse[AppLinkOut])
+async def admin_update_link(
+    link_id: int,
+    body: AppLinkUpdate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    link = await db.get(AppLinkModel, link_id)
+    if not link:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="링크를 찾을 수 없습니다.")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(link, field, value)
+    await db.commit()
+    await db.refresh(link)
+    await invalidate_links()
+    return ApiResponse.ok(link)
+
+
+@router.delete("/links/{link_id}", response_model=ApiResponse[dict])
+async def admin_delete_link(
+    link_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    link = await db.get(AppLinkModel, link_id)
+    if not link:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="링크를 찾을 수 없습니다.")
+    await db.delete(link)
+    await db.commit()
+    await invalidate_links()
+    return ApiResponse.ok({"deleted": link_id})
+
+
+@router.get("/info", response_model=ApiResponse[AppInfoOut])
+async def admin_get_info(
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    info = await db.get(AppInfoModel, 1)
+    if not info:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="앱 정보가 없습니다.")
+    return ApiResponse.ok(info)
+
+
+@router.patch("/info", response_model=ApiResponse[AppInfoOut])
+async def admin_update_info(
+    body: AppInfoUpdate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    info = await db.get(AppInfoModel, 1)
+    if not info:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="앱 정보가 없습니다.")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(info, field, value)
+    await db.commit()
+    await db.refresh(info)
+    await invalidate_info()
+    return ApiResponse.ok(info)
