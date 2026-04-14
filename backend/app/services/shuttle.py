@@ -78,7 +78,8 @@ async def _load_entries(db: AsyncSession, period_id: int, day: str) -> list[dict
         }
         for entry, route in rows
     ]
-    await set_cached_json(cache_key, data, ttl=_ENTRIES_TTL)
+    if data:  # 빈 리스트는 캐시하지 않음 — 데이터 삽입 전 캐시로 인한 오탐 방지
+        await set_cached_json(cache_key, data, ttl=_ENTRIES_TTL)
     return data
 
 

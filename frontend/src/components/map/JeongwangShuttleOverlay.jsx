@@ -74,7 +74,7 @@ export default function JeongwangShuttleOverlay({ map }) {
     const sec = nextShuttle?.arrive_in_seconds
     const note = nextShuttle?.note ?? ''
 
-    if (sec != null && sec > 0) {
+    if (sec != null && sec >= 0) {
       if (note.includes('회차편')) {
         // 회차편 탑승 가능 시간대
         div.textContent = '회차 버스 탑승'
