@@ -2,13 +2,16 @@
 
 import logging
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
+_KST = ZoneInfo("Asia/Seoul")
 
 
 async def _collect_job():
@@ -23,7 +26,15 @@ async def _collect_job():
 
 
 async def _bus_poll_job():
-    """스케줄러에서 호출되는 버스 도착정보 폴링 작업."""
+    """스케줄러에서 호출되는 버스 도착정보 폴링 작업.
+
+    운행 시간(06:00~22:59 KST)에만 GBIS API를 호출한다.
+    IntervalTrigger로 120초마다 호출되며, 시간대 밖이면 즉시 반환.
+    """
+    hour = datetime.now(_KST).hour
+    if not (6 <= hour <= 22):
+        return  # 심야 시간 제외
+
     from app.services.bus_collector import poll_and_collect
 
     try:
@@ -63,14 +74,17 @@ def setup_scheduler():
 
     logger.info("Traffic collection scheduler configured")
 
-    # ── 버스 도착정보 폴링 (06:00~22:59, 2분 간격) ──────────────────
+    # ── 버스 도착정보 폴링 (120초 간격, 06:00~22:59 KST 시간 체크는 job 내부) ──
+    # CronTrigger 대신 IntervalTrigger를 사용해 APScheduler 재스케줄링 문제 방지
     scheduler.add_job(
         _bus_poll_job,
-        CronTrigger(hour="6-22", minute="*/2"),
+        IntervalTrigger(seconds=120),
         id="bus_arrival_poll",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
-    logger.info("Bus arrival polling scheduler configured (06:00-22:59, every 2min)")
+    logger.info("Bus arrival polling scheduler configured (every 120s, active 06:00-22:59 KST)")
 
 
 def start_scheduler():

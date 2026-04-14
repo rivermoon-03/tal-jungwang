@@ -82,7 +82,30 @@ async def get_arrivals(
             redis = await get_redis()
             cached = await redis.get(f"bus:arrivals:{station_id}")
             if cached:
-                arrivals.extend(json.loads(cached))
+                payload = json.loads(cached)
+
+                # 구형(리스트) 형태와 신형(dict with cached_at) 모두 지원
+                if isinstance(payload, list):
+                    cached_arrivals = payload
+                    elapsed_sec = 0
+                else:
+                    cached_arrivals = payload.get("arrivals", [])
+                    try:
+                        cached_at = datetime.fromisoformat(payload["cached_at"])
+                        # cached_at은 KST aware datetime — 현재 시각과 비교
+                        now_kst = datetime.now(_KST)
+                        if cached_at.tzinfo is None:
+                            cached_at = cached_at.replace(tzinfo=_KST)
+                        elapsed_sec = max(0, int((now_kst - cached_at).total_seconds()))
+                    except (KeyError, ValueError):
+                        elapsed_sec = 0
+
+                for arrival in cached_arrivals:
+                    if elapsed_sec > 0 and arrival.get("arrive_in_seconds") is not None:
+                        arrival["arrive_in_seconds"] = max(
+                            0, arrival["arrive_in_seconds"] - elapsed_sec
+                        )
+                arrivals.extend(cached_arrivals)
         except Exception as exc:
             logger.warning("Redis 캐시 읽기 실패 (정류장 %s): %s", station_id, exc)
 

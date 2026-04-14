@@ -53,10 +53,10 @@ ROUTES = [
 TARGET_ROADS = {"마유로", "공단1대로", "희망공원로", "산기대학로", "옥구공원로", "군자천로"}
 
 SPEED_THRESHOLDS = [
-    (40, "원활"),    # >= 40 km/h
-    (20, "서행"),    # >= 20 km/h
-    (10, "지체"),    # >= 10 km/h
-    (0,  "정체"),    # < 10 km/h
+    (38, "원활"),    # >= 38 km/h
+    (18, "서행"),    # >= 18 km/h
+    (8,  "지체"),    # >= 8 km/h
+    (0,  "정체"),    # < 8 km/h
 ]
 
 
@@ -64,7 +64,7 @@ def _classify_speed(speed: float) -> tuple[int, str]:
     """속도 기반 혼잡도 판별. (congestion_level, label) 반환."""
     for threshold, label in SPEED_THRESHOLDS:
         if speed >= threshold:
-            level = {40: 1, 20: 2, 10: 3, 0: 4}[threshold]
+            level = {38: 1, 18: 2, 8: 3, 0: 4}[threshold]
             return level, label
     return 4, "정체"
 
