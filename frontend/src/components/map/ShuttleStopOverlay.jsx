@@ -72,7 +72,7 @@ export default function ShuttleStopOverlay({ map }) {
     if (!div) return
     const sec = nextShuttle?.arrive_in_seconds
     const bg = darkMode ? LABEL_DARK : LABEL_LIGHT
-    if (sec != null && sec > 0) {
+    if (sec != null && sec >= 0) {
       div.textContent = `${Math.floor(sec / 60)}분`
       div.style.color = darkMode ? '#bfdbfe' : '#1a237e'
       div.style.background = bg
