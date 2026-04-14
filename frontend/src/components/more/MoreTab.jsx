@@ -39,6 +39,34 @@ function Row({ icon, label, sub, right, onClick, href }) {
   return <div className={cls}>{inner}</div>
 }
 
+function NoticeRow({ notice }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="border-b border-slate-100 dark:border-slate-700 last:border-b-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="block w-full text-left px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100 transition-colors"
+      >
+        <div className="flex items-start gap-3">
+          <span className="w-7 flex items-center justify-center flex-shrink-0 text-slate-500 dark:text-slate-400 mt-0.5">
+            <Megaphone size={18} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{notice.title}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{new Date(notice.created_at).toLocaleDateString('ko-KR')}</p>
+          </div>
+          <span className={`text-slate-400 text-xs mt-1 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}>▾</span>
+        </div>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 ml-10 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+          {notice.content}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Toggle({ on }) {
   return (
     <div className={`w-10 h-6 rounded-full flex-shrink-0 transition-colors relative ${on ? 'bg-navy dark:bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'}`}>
@@ -80,12 +108,7 @@ export default function MoreTab() {
           <div className="py-6 text-center text-slate-400 text-sm">언젠가 업데이트..</div>
         ) : (
           notices.map((n) => (
-            <Row
-              key={n.id}
-              icon={<Megaphone size={18} />}
-              label={n.title}
-              sub={new Date(n.created_at).toLocaleDateString('ko-KR')}
-            />
+            <NoticeRow key={n.id} notice={n} />
           ))
         )}
       </Card>
