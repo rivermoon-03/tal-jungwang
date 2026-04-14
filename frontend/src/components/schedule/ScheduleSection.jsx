@@ -21,12 +21,13 @@ const TYPE_COLOR = {
   shuttle: '#FF385C',
 }
 
+// 경기 시내버스(파랑) / 마을버스(초록) / 광역버스(빨강) 원칙을 따르는 노선별 색상
 const ROUTE_COLOR = {
-  '20-1':   '#3B82F6',
-  '시흥33': '#14B8A6',
-  '시흥1':  '#F97316',
-  '3400':   '#8B5CF6',
-  '6502':   '#EC4899',
+  '20-1':   '#2563EB',  // 일반 시내
+  '시흥33': '#0891B2',  // 지선
+  '시흥1':  '#F97316',  // 마을/순환
+  '3400':   '#DC2626',  // 경기 광역(빨강)
+  '6502':   '#DC2626',  // 경기 광역(빨강)
 }
 
 export default function ScheduleSection({
@@ -46,6 +47,8 @@ export default function ScheduleSection({
   lineColor = null,
 }) {
   const dotColor = lineColor ?? ROUTE_COLOR[routeCode] ?? TYPE_COLOR[type] ?? '#64748B'
+  // 버스 카드는 노선번호를 컬러 pill 배경으로 강조, 그 외(지하철/셔틀)는 작은 점 유지
+  const showBadge = type === 'bus' && routeCode
 
   return (
     <div
@@ -64,10 +67,19 @@ export default function ScheduleSection({
       {/* top row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="inline-flex w-3 h-3 rounded-full flex-shrink-0"
-            style={{ background: dotColor }}
-          />
+          {showBadge ? (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-md text-[13px] font-black tracking-tight flex-shrink-0 shadow-sm"
+              style={{ background: dotColor, color: '#FFFFFF' }}
+            >
+              {routeCode}
+            </span>
+          ) : (
+            <span
+              className="inline-flex w-3 h-3 rounded-full flex-shrink-0"
+              style={{ background: dotColor }}
+            />
+          )}
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{title}</p>
             {subtitle && (
