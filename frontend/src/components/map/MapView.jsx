@@ -3,7 +3,6 @@ import { Navigation, School } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
 import SeohaeStopOverlay from './SeohaeStopOverlay'
-import JeongwangShuttleOverlay from './JeongwangShuttleOverlay'
 import TaxiCard from './TaxiCard'
 import DriveRoutePolyline from './DriveRoutePolyline'
 import RestaurantOverlay from './RestaurantOverlay'
@@ -35,16 +34,23 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const activeTab           = useAppStore((s) => s.activeTab)
 
   // 실시간 데이터 훅
-  const { data: shuttleNextData }  = useShuttleNext()
-  const { data: subwayNextData }   = useSubwayNext()
-  const { data: busArrivalsData }  = useBusArrivals(224000639)
+  const { data: shuttleToSchoolData }   = useShuttleNext(0) // 등교: 정왕역 → 학교
+  const { data: shuttleFromSchoolData } = useShuttleNext(1) // 하교: 학교 → 정왕역
+  const { data: subwayNextData }        = useSubwayNext()
+  const { data: busArrivalsData }       = useBusArrivals(224000639)
 
   // liveMinutes 계산
-  const shuttleLiveMinutes = useMemo(() => {
-    const sec = shuttleNextData?.arrive_in_seconds
+  const shuttleToSchoolMins = useMemo(() => {
+    const sec = shuttleToSchoolData?.arrive_in_seconds
     if (sec == null) return null
     return Math.max(0, Math.round(sec / 60))
-  }, [shuttleNextData])
+  }, [shuttleToSchoolData])
+
+  const shuttleFromSchoolMins = useMemo(() => {
+    const sec = shuttleFromSchoolData?.arrive_in_seconds
+    if (sec == null) return null
+    return Math.max(0, Math.round(sec / 60))
+  }, [shuttleFromSchoolData])
 
   const subwayLiveMinutes = useMemo(() => {
     const sec = subwayNextData?.up?.arrive_in_seconds ?? subwayNextData?.down?.arrive_in_seconds
@@ -65,14 +71,27 @@ export default function MapView({ onMarkerClick, selectedId }) {
   // MANAGED_STATIONS with live data injected
   const managedStations = useMemo(() => [
     {
-      id: 'shuttle_stop',
-      name: '셔틀 탑승지',
+      id: 'shuttle_to_school',
+      name: '등교셔틀',
       type: 'shuttle',
+      direction: 0,
+      lat: 37.351134,
+      lng: 126.742043,
+      routeCode: '등교',
+      routeColor: '#FF385C',
+      liveMinutes: shuttleToSchoolMins,
+      showLive: true,
+    },
+    {
+      id: 'shuttle_from_school',
+      name: '하교셔틀',
+      type: 'shuttle',
+      direction: 1,
       lat: 37.339343,
       lng: 126.73279,
-      routeCode: '셔틀',
+      routeCode: '하교',
       routeColor: '#FF385C',
-      liveMinutes: shuttleLiveMinutes,
+      liveMinutes: shuttleFromSchoolMins,
       showLive: true,
     },
     {
@@ -97,7 +116,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       liveMinutes: busLiveMinutes,
       showLive: true,
     },
-  ], [shuttleLiveMinutes, subwayLiveMinutes, busLiveMinutes])
+  ], [shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, busLiveMinutes])
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
@@ -117,18 +136,16 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     if (sheetStation.type === 'shuttle') {
-      const result = []
-      if (shuttleNextData) {
-        result.push({
-          routeCode:  '셔틀',
-          routeColor: '#FF385C',
-          direction:  shuttleNextData.direction === 0 ? '등교' : '하교',
-          minutes:    shuttleNextData.arrive_in_seconds != null
-            ? Math.max(0, Math.round(shuttleNextData.arrive_in_seconds / 60))
-            : null,
-        })
-      }
-      return result
+      const data = sheetStation.direction === 1 ? shuttleFromSchoolData : shuttleToSchoolData
+      if (!data) return []
+      return [{
+        routeCode:  sheetStation.direction === 1 ? '하교' : '등교',
+        routeColor: '#FF385C',
+        direction:  sheetStation.direction === 1 ? '학교 → 정왕역' : '정왕역 → 학교',
+        minutes:    data.arrive_in_seconds != null
+          ? Math.max(0, Math.round(data.arrive_in_seconds / 60))
+          : null,
+      }]
     }
 
     if (sheetStation.type === 'subway') {
@@ -153,7 +170,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, busArrivalsData, shuttleNextData, subwayNextData])
+  }, [sheetStation, busArrivalsData, shuttleToSchoolData, shuttleFromSchoolData, subwayNextData])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
@@ -376,7 +393,6 @@ export default function MapView({ onMarkerClick, selectedId }) {
         <>
           <UserLocationMarker map={mapInstance} />
           <SeohaeStopOverlay map={mapInstance} />
-          <JeongwangShuttleOverlay map={mapInstance} />
           <DriveRoutePolyline map={mapInstance} />
           <RestaurantOverlay map={mapInstance} />
           <TrafficRoadOverlay map={mapInstance} />

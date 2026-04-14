@@ -38,12 +38,12 @@ export default function HeroTitleBar({ nextArrival = null }) {
     const skyEmoji = weather?.icon === 'rainy' ? '☔' : weather?.icon === 'snowy' ? '❄️' : '🌤️'
 
     return (
-      <div className="px-3 pt-2 pb-1 flex justify-center">
+      <div className="px-3 pt-3 pb-1 flex justify-start">
         <button
           onClick={toggleHeader}
           aria-label="타이틀 바 펼치기"
           aria-expanded={false}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark rounded-pill shadow-pill
+          className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md border border-white/60 dark:border-border-dark/60 rounded-pill shadow-pill
                      text-sm font-semibold text-gray-800 dark:text-gray-100
                      active:scale-95 transition-transform"
           style={{ transition: 'transform 0.1s var(--ease-spring)' }}
@@ -64,7 +64,7 @@ export default function HeroTitleBar({ nextArrival = null }) {
   // ── 펼침 ──────────────────────────────────────────────────────────
   return (
     <div
-      className="bg-white/85 dark:bg-bg-soft/90 backdrop-blur-md px-4 pt-3 pb-3 border-b border-white/40 dark:border-border-dark/40"
+      className="mx-3 mt-3 bg-white/90 dark:bg-bg-soft/90 backdrop-blur-md px-4 pt-3 pb-3 rounded-2xl shadow-lg border border-white/60 dark:border-border-dark/60"
       style={{ transition: 'background 0.3s var(--ease-ios)' }}
     >
       {/* 경고 배너 */}

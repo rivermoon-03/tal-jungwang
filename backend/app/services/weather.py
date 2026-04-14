@@ -69,7 +69,7 @@ def _sky_icon(sky_code: str, pty_code: str = "0") -> str:
 
 
 def _detect_warning(
-    current_temp: int,
+    current_temp: int | None,
     rain_prob: int,
     pty_code: str,
     fcst: dict[tuple[str, str], dict[str, str]],
@@ -91,11 +91,11 @@ def _detect_warning(
         return WeatherWarning(type="rain", copy="☔ 비 예상 · 우산 챙기세요")
 
     # 한파
-    if current_temp <= -5:
+    if current_temp is not None and current_temp <= -5:
         return WeatherWarning(type="cold", copy=f"🥶 {current_temp}° 한파 · 두껍게")
 
     # 폭염
-    if current_temp >= 32:
+    if current_temp is not None and current_temp >= 32:
         return WeatherWarning(type="heat", copy=f"🥵 {current_temp}° 폭염 · 그늘로")
 
     return None
@@ -107,7 +107,6 @@ def _build_current(
     now: datetime,
 ) -> CurrentWeatherResponse:
     """초단기실황 + 단기예보에서 CurrentWeatherResponse 생성."""
-    current_temp = int(float(ncst.get("T1H", "0") or 0))
     sky_code = ncst.get("SKY", "1")
     pty_code = ncst.get("PTY", "0")
     rain_prob_raw = ncst.get("POP", None)  # 실황에는 없으므로 예보에서 가져옴
@@ -119,6 +118,16 @@ def _build_current(
     if rain_prob_raw is None:
         rain_prob_raw = cur_slot.get("POP", "0")
     rain_prob = int(rain_prob_raw or 0)
+
+    # 기온: 실황(T1H) → 단기예보(TMP) → None (프론트에서 숨김)
+    t1h_raw = ncst.get("T1H")
+    tmp_raw = cur_slot.get("TMP")
+    if t1h_raw not in (None, "", "0"):
+        current_temp = int(float(t1h_raw))
+    elif tmp_raw is not None:
+        current_temp = int(float(tmp_raw))
+    else:
+        current_temp = None
 
     # 예보 SKY/PTY 가 실황에 없을 경우 보완
     if not sky_code or sky_code == "0":
@@ -257,6 +266,6 @@ async def refresh_weather_cache() -> None:
         fcst = _fcst_map(fcst_items)
         result = _build_current(ncst, fcst, now)
         await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
-        logger.info("날씨 캐시 갱신 완료 (temp=%d°)", result.current_temp)
+        logger.info("날씨 캐시 갱신 완료 (temp=%s°)", result.current_temp)
     except Exception:
         logger.exception("날씨 캐시 갱신 실패")

@@ -54,15 +54,22 @@ export default function BottomDock() {
               style={{ transition: 'transform 0.1s ease' }}
             >
               {active ? (
-                /* 활성: 코랄 필 + 흰색 아이콘 + 라벨 */
-                <span className="flex items-center gap-1.5 bg-coral text-white px-3.5 py-2 rounded-full shadow-sm">
-                  <Icon size={20} strokeWidth={2.2} aria-hidden="true" />
-                  <span className="text-[12px] font-bold leading-none">{label}</span>
+                <span
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full shadow-md"
+                  style={{ background: '#FF385C', color: '#FFFFFF' }}
+                >
+                  <Icon size={20} strokeWidth={2.4} color="#FFFFFF" aria-hidden="true" />
+                  <span
+                    className="text-[12px] font-bold leading-none"
+                    style={{ color: '#FFFFFF' }}
+                  >
+                    {label}
+                  </span>
                 </span>
               ) : (
-                /* 비활성: 회색 아이콘만 */
-                <span className="flex flex-col items-center text-zinc-500 dark:text-zinc-400">
-                  <Icon size={22} strokeWidth={1.8} aria-hidden="true" />
+                <span className="flex flex-col items-center gap-0.5 text-zinc-500 dark:text-zinc-300 px-2">
+                  <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
+                  <span className="text-[9.5px] font-medium leading-none">{label}</span>
                 </span>
               )}
             </a>
