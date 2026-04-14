@@ -12,12 +12,15 @@ export async function apiFetch(path, options) {
 
 export function useApi(path, { interval = null, enabled = true } = {}) {
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState(null)
   const [fetchedAt, setFetchedAt] = useState(null)
 
   const fetchData = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
     try {
       const result = await apiFetch(path)
       setData(result)
