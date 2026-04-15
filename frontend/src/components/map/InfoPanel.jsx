@@ -217,11 +217,14 @@ export default function InfoPanel() {
     const elapsedSec = (Date.now() - busJeongwangFetchedAt) / 1000
     return {
       ...busJeongwangData,
-      arrivals: busJeongwangData.arrivals.map((a) =>
-        a.arrival_type === 'realtime'
-          ? { ...a, arrive_in_seconds: Math.max(0, a.arrive_in_seconds - elapsedSec) }
-          : a
-      ),
+      arrivals: busJeongwangData.arrivals
+        .map((a) =>
+          a.arrival_type === 'realtime'
+            ? { ...a, arrive_in_seconds: a.arrive_in_seconds - elapsedSec }
+            : a
+        )
+        // 실시간 도착이 이미 지난(음수) 경우는 표시에서 제외 — 잘못된 "곧 출발" 방지
+        .filter((a) => a.arrival_type !== 'realtime' || a.arrive_in_seconds > 0),
     }
   }, [busJeongwangData, busJeongwangFetchedAt])
   const { data: shuttleSchedule }  = useShuttleSchedule()

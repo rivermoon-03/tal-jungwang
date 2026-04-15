@@ -21,8 +21,8 @@ _KST = ZoneInfo("Asia/Seoul")
 
 CACHE_KEY_LIVE = "weather:live"
 CACHE_KEY_FORECAST = "weather:forecast"
-CACHE_TTL_LIVE = 600      # 10분
-CACHE_TTL_FORECAST = 3600  # 1시간
+CACHE_TTL_LIVE = 3600      # 1시간 — 초단기실황, 사용자 요구에 맞춰 호출 빈도 최소화
+CACHE_TTL_FORECAST = 10800  # 3시간 — 단기예보 발표 주기(02·05·08·11·14·17·20·23시)와 동기화
 
 # 기상청 SKY 코드 → 문자열/아이콘 매핑
 _SKY_LABEL = {"1": "맑음", "3": "구름많음", "4": "흐림"}
@@ -122,9 +122,9 @@ def _build_current(
     # 기온: 실황(T1H) → 단기예보(TMP) → None (프론트에서 숨김)
     t1h_raw = ncst.get("T1H")
     tmp_raw = cur_slot.get("TMP")
-    if t1h_raw not in (None, "", "0"):
+    if t1h_raw not in (None, ""):
         current_temp = int(float(t1h_raw))
-    elif tmp_raw is not None:
+    elif tmp_raw not in (None, ""):
         current_temp = int(float(tmp_raw))
     else:
         current_temp = None

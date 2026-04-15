@@ -28,33 +28,42 @@ def _kst_now() -> datetime:
 
 
 def _base_date_time_ncst() -> tuple[str, str]:
-    """초단기실황 baseDatetime — 10분 단위로 내림."""
+    """초단기실황 baseDatetime — 매시 정각 발표, HH:40부터 조회 가능.
+
+    KMA getUltraSrtNcst 의 base_time 은 HHmm 중 분이 항상 "00" 이며,
+    해당 시각 관측치는 HH:40 이후에야 응답에 잡힌다. 분이 40 미만이면
+    안전하게 직전 시간을 base_time 으로 사용한다.
+    """
+    from datetime import timedelta
     now = _kst_now()
-    # 매 10분 단위 발표 (실제로는 매 정시 +40분 발표, 안전하게 최근 정각 사용)
-    minute = (now.minute // 10) * 10
-    base_time = f"{now.hour:02d}{minute:02d}"
+    if now.minute < 40:
+        now = now - timedelta(hours=1)
+    base_time = f"{now.hour:02d}00"
     base_date = now.strftime("%Y%m%d")
     return base_date, base_time
 
 
 def _base_date_time_fcst() -> tuple[str, str]:
-    """단기예보 baseDatetime — 02·05·08·11·14·17·20·23시 발표, 직전 회차 사용."""
+    """단기예보 baseDatetime — 02·05·08·11·14·17·20·23시 발표, 발표 +10분 이후 사용 가능.
+
+    발표 직후(예: 02:00~02:10) 호출하면 직전 회차가 아직 응답에 없을 수 있으므로,
+    `발표시각:10` 이전이면 한 단계 이전 회차로 폴백한다.
+    """
+    from datetime import timedelta
     issue_hours = [2, 5, 8, 11, 14, 17, 20, 23]
     now = _kst_now()
-    prev_hour = max((h for h in issue_hours if h <= now.hour), default=23)
-    if prev_hour > now.hour:
-        # 자정 이전 마지막 발표(23시)가 어제
-        from datetime import timedelta
-        yesterday = (now - timedelta(days=1)).strftime("%Y%m%d")
-        return yesterday, "2300"
-    base_date = now.strftime("%Y%m%d")
-    base_time = f"{prev_hour:02d}00"
-    return base_date, base_time
+    candidates = [h for h in issue_hours if h < now.hour or (h == now.hour and now.minute >= 10)]
+    if candidates:
+        prev_hour = candidates[-1]
+        return now.strftime("%Y%m%d"), f"{prev_hour:02d}00"
+    # 오늘 사용할 회차 없음 → 전날 23시
+    yesterday = (now - timedelta(days=1)).strftime("%Y%m%d")
+    return yesterday, "2300"
 
 
 def _common_params(base_date: str, base_time: str, nx: int, ny: int, **extra) -> dict:
     return {
-        "serviceKey": settings.KMA_API_KEY,
+        "serviceKey": settings.DATA_GO_KR_SERVICE_KEY,
         "numOfRows": extra.pop("numOfRows", 1000),
         "pageNo": 1,
         "dataType": "JSON",

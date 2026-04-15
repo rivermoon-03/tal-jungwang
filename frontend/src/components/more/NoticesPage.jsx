@@ -59,7 +59,7 @@ export default function NoticesPage({ onBack }) {
               </div>
               <p className="text-[11px] text-slate-400 mb-2 pl-6">{fmtDate(n.created_at)}</p>
               <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-line pl-6">
-                {n.content}
+                {(n.content ?? '').replace(/\\n/g, '\n')}
               </p>
             </article>
           ))}

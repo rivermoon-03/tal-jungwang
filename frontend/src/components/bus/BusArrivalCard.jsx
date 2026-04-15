@@ -48,7 +48,7 @@ export default function BusArrivalCard({ arrival, onTimetableClick }) {
             className="text-xs px-2 py-1 rounded-lg font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 whitespace-nowrap cursor-default select-none relative group"
             title="실험 중인 기능입니다. 정확성이 떨어지니 주의하세요"
           >
-            ±2분 | 테스트 중
+            테스트-부정확
             <span className="pointer-events-none absolute right-0 top-full mt-1.5 w-48 rounded-lg bg-slate-800 text-white text-xs font-normal px-3 py-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 leading-snug">
               실험 중인 기능입니다. 정확성이 떨어지니 주의하세요
             </span>

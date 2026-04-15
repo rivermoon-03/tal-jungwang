@@ -5,6 +5,9 @@ import UserLocationMarker from './UserLocationMarker'
 import SeohaeStopOverlay from './SeohaeStopOverlay'
 import TaxiCard from './TaxiCard'
 import DriveRoutePolyline from './DriveRoutePolyline'
+import WalkRoutePolyline from './WalkRoutePolyline'
+import WalkRouteCard from './WalkRouteCard'
+import { apiFetch } from '../../hooks/useApi'
 import RestaurantOverlay from './RestaurantOverlay'
 import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
@@ -109,7 +112,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     },
     {
       id: 'tec_bus_stop',
-      name: '한국공학대학교',
+      name: '한국공대',
       type: 'bus',
       lat: 37.341633,
       lng: 126.731252,
@@ -117,6 +120,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       routeColor: '#0891B2',
       liveMinutes: busLiveMinutes,
       showLive: true,
+      liveInaccurate: true,
     },
   ], [shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, busLiveMinutes])
 
@@ -389,6 +393,9 @@ export default function MapView({ onMarkerClick, selectedId }) {
           />
         )}
 
+        {/* 도보 경로 카드 */}
+        <WalkRouteCard />
+
         {/* 택시 카드 — taxiOpen일 때만 마운트 */}
         {mapInstance && taxiOpen && (
           <TaxiCard
@@ -406,9 +413,32 @@ export default function MapView({ onMarkerClick, selectedId }) {
             station={sheetStation}
             arrivals={sheetArrivals}
             onClose={() => setSheetStation(null)}
-            onNavigate={() => {
-              setTaxiOpen(true)
+            onNavigate={async () => {
+              const destLat = sheetStation.lat
+              const destLng = sheetStation.lng
+              const destName = sheetStation.name ?? '목적지'
+              const origin = userLocation?.lat && userLocation?.lng
+                ? { lat: userLocation.lat, lng: userLocation.lng }
+                : { lat: DEFAULT_CENTER.lat, lng: DEFAULT_CENTER.lng }
               setSheetStation(null)
+              try {
+                const result = await apiFetch('/route/walking', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    origin,
+                    destination: { lat: destLat, lng: destLng },
+                  }),
+                })
+                useAppStore.getState().setWalkRoute({
+                  coords: result.coordinates ?? [],
+                  destName,
+                  durationSec: result.duration_seconds,
+                  distanceM: result.distance_meters,
+                })
+              } catch (err) {
+                console.warn('도보 경로 탐색 실패:', err)
+              }
             }}
             onDetail={() => {
               useAppStore.getState().setOpenInfoTab(sheetStation.id)
@@ -424,6 +454,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           <UserLocationMarker map={mapInstance} />
           <SeohaeStopOverlay map={mapInstance} />
           <DriveRoutePolyline map={mapInstance} />
+          <WalkRoutePolyline map={mapInstance} />
           <RestaurantOverlay map={mapInstance} />
           <TrafficRoadOverlay map={mapInstance} />
 

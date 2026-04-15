@@ -27,13 +27,17 @@ export default function HeroTitleBar({ nextArrival = null }) {
 
   // ── 접힘 pill ──────────────────────────────────────────────────────
   if (headerCollapsed) {
-    const modeLabel =
+    const fallbackModeLabel =
       nextArrival?.mode === 'subway'
         ? '지하철'
         : nextArrival?.mode === 'shuttle'
           ? '셔틀'
           : nextArrival?.route ?? '버스'
-    const minsLabel = nextArrival?.minutes != null ? `${nextArrival.minutes}분` : '–'
+    const primaryLabel =
+      nextArrival?.pillLabel
+        ?? (nextArrival?.minutes != null
+          ? `${fallbackModeLabel} ${nextArrival.minutes}분`
+          : `${fallbackModeLabel} –`)
     const tempLabel = typeof weather?.currentTemp === 'number' ? `${weather.currentTemp}°` : ''
     const skyEmoji = weather?.icon === 'rainy' ? '☔' : weather?.icon === 'snowy' ? '❄️' : '🌤️'
 
@@ -43,12 +47,12 @@ export default function HeroTitleBar({ nextArrival = null }) {
           onClick={toggleHeader}
           aria-label="타이틀 바 펼치기"
           aria-expanded={false}
-          className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md border border-white/60 dark:border-border-dark/60 rounded-pill shadow-pill
+          className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md border border-white/60 dark:border-border-dark/60 rounded-full shadow-pill
                      text-sm font-semibold text-gray-800 dark:text-gray-100
                      active:scale-95 transition-transform"
           style={{ transition: 'transform 0.1s var(--ease-spring)' }}
         >
-          <span>{modeLabel} {minsLabel}</span>
+          <span>{primaryLabel}</span>
           {tempLabel && (
             <>
               <span className="text-gray-300 dark:text-gray-600">·</span>

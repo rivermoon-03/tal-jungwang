@@ -8,12 +8,19 @@ import { useState } from 'react'
 import { Bus, TramFront, TrainFront, MoreVertical, Trash2 } from 'lucide-react'
 
 const ROUTE_COLOR = {
-  '20-1': '#3B82F6',
-  '시흥33': '#14B8A6',
-  '시흥1': '#F97316',
-  '3400': '#8B5CF6',
-  '6502': '#EC4899',
+  // 버스 (다른 탭과 통일: 광역=빨강, 시내=청록, 20-1=파랑)
+  '20-1': '#5096E6',
+  '시흥33': '#33B5A5',
+  '시흥1': '#33B5A5',
+  '3400': '#E02020',
+  '6502': '#E02020',
+  // 지하철 노선
+  '수인분당선': '#F5A623',
+  '4호선': '#1B5FAD',
+  '서해선': '#75bf43',
 }
+
+const SHUTTLE_COLOR = '#FF385C' // coral
 
 const STATUS_STYLE = {
   여유: 'text-green-500',
@@ -22,19 +29,44 @@ const STATUS_STYLE = {
 }
 
 function RouteDot({ routeCode, type }) {
-  const color = ROUTE_COLOR[routeCode]
-  if (color) {
+  // 지하철: 컬러 원 + 흰 아이콘
+  if (type === 'subway') {
+    const color = ROUTE_COLOR[routeCode] ?? '#64748B'
     return (
       <span
-        className="inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-bold flex-shrink-0"
+        className="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
         style={{ background: color }}
       >
-        {routeCode.length <= 2 ? routeCode : routeCode.slice(0, 2)}
+        <TrainFront size={15} className="text-white" />
       </span>
     )
   }
-  if (type === 'shuttle') return <TramFront size={20} className="text-coral flex-shrink-0" />
-  if (type === 'subway') return <TrainFront size={20} className="text-yellow-500 flex-shrink-0" />
+  // 셔틀: 코랄 원 + 흰 아이콘
+  if (type === 'shuttle') {
+    return (
+      <span
+        className="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
+        style={{ background: SHUTTLE_COLOR }}
+      >
+        <TramFront size={15} className="text-white" />
+      </span>
+    )
+  }
+  // 버스: 컬러 원 + 번호
+  const color = ROUTE_COLOR[routeCode]
+  if (color) {
+    const label = routeCode.replace(/^시흥/, '') // "시흥33" → "33"
+    return (
+      <span
+        className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-white font-bold flex-shrink-0 ${
+          label.length >= 4 ? 'text-[9px]' : label.length === 3 ? 'text-[10px]' : 'text-xs'
+        }`}
+        style={{ background: color }}
+      >
+        {label}
+      </span>
+    )
+  }
   return <Bus size={20} className="text-navy dark:text-blue-300 flex-shrink-0" />
 }
 
@@ -55,7 +87,7 @@ function RowMenu({ id, onRemove, onClose }) {
   )
 }
 
-export default function FavoritesList({ items = [], onRemove }) {
+export default function FavoritesList({ items = [], onRemove, onOpenDetail }) {
   const [openMenu, setOpenMenu] = useState(null)
 
   const sorted = [...items].sort((a, b) => (a.minutes ?? 999) - (b.minutes ?? 999))
@@ -67,13 +99,29 @@ export default function FavoritesList({ items = [], onRemove }) {
       {sorted.map((item) => (
         <div
           key={item.id}
-          className="relative flex items-center gap-3 bg-white dark:bg-slate-800 rounded-[14px] px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-700"
+          role={onOpenDetail ? 'button' : undefined}
+          tabIndex={onOpenDetail ? 0 : undefined}
+          onClick={() => onOpenDetail?.(item.detail)}
+          onKeyDown={(e) => {
+            if (onOpenDetail && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault()
+              onOpenDetail(item.detail)
+            }
+          }}
+          className={`relative flex items-center gap-3 bg-white dark:bg-slate-800 rounded-[14px] px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-700 ${
+            onOpenDetail ? 'cursor-pointer active:scale-[0.99] transition-transform' : ''
+          }`}
         >
           <RouteDot routeCode={item.routeCode} type={item.type} />
 
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
               {item.routeCode}
+              {item.destination && (
+                <span className="ml-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {item.destination}
+                </span>
+              )}
             </p>
             <p className="text-xs text-slate-400 truncate">{item.stationName}</p>
           </div>

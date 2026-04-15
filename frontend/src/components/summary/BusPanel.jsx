@@ -18,12 +18,13 @@ const GROUP_ROUTES = {
   '기타':   ['시흥1'],
 }
 
-const ROUTE_COLOR = {
-  '20-1':   'bg-route-201 text-white',
-  '시흥33': 'bg-route-33 text-white',
-  '3400':   'bg-navy text-white',
-  '6502':   'bg-navy text-white',
-  '시흥1':  'bg-route-1 text-white',
+// 노선 번호 배지 배경색 — inline style로 명시 (Tailwind 커스텀 클래스 누락 방지)
+const ROUTE_INLINE_BG = {
+  '20-1':  '#2563EB',
+  '시흥33': '#0891B2',
+  '시흥1': '#F97316',
+  '3400':  '#E02020',
+  '6502':  '#E02020',
 }
 
 // 한국공학대학교 정류장 station_id (gbis_station_id=224000639)
@@ -106,36 +107,47 @@ function BusRouteRow({ route, realtimeArrivals }) {
     ? liveEntries
     : extractNext(timetable.data, 2)
 
+  // 방면은 어차피 그룹 내에서 동일 → 첫 번째 도착의 목적지만 우측에 작게 표시
+  const sharedDestination = arrivals[0]?.destination ?? arrivals[0]?.dest ?? null
+
   return (
-    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl px-3 py-2.5">
+    <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/40 rounded-xl px-3 py-2.5">
       {/* 노선 배지 */}
-      <span className={`text-[11px] font-black px-2 py-1 rounded-lg shrink-0 ${ROUTE_COLOR[route] ?? 'bg-gray-400 text-white'}`}>
+      <span
+        className="text-[11px] font-black text-white px-2 py-1 rounded-lg shrink-0 min-w-[44px] text-center"
+        style={{ background: ROUTE_INLINE_BG[route] ?? '#64748B' }}
+      >
         {route}
       </span>
 
-      {/* 실시간 배지 — 실제 실시간 데이터를 표시할 때만 */}
+      {/* 테스트 배지 — 실제 실시간 데이터를 표시할 때만 */}
       {isRealtime && hasLiveData && (
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 shrink-0">
-          실시간
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 shrink-0">
+          테스트-부정확
         </span>
       )}
 
       {/* 도착 정보 */}
       {arrivals.length === 0 ? (
-        <span className="text-xs text-gray-400">운행 정보 없음</span>
+        <span className="text-xs text-gray-400 flex-1">운행 정보 없음</span>
       ) : (
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-baseline gap-3 flex-1 min-w-0">
           {arrivals.map((a, i) => (
-            <div key={i} className="text-center">
-              <p className="text-sm font-black text-gray-900 dark:text-gray-50 leading-none">
-                {formatArrivalEntry(a)}
-              </p>
-              {(a.destination ?? a.dest) && (
-                <p className="text-[9px] text-gray-400 mt-0.5 truncate">{a.destination ?? a.dest}</p>
-              )}
-            </div>
+            <span
+              key={i}
+              className="text-sm font-black text-gray-900 dark:text-gray-50 tabular-nums whitespace-nowrap"
+            >
+              {formatArrivalEntry(a)}
+            </span>
           ))}
         </div>
+      )}
+
+      {/* 방면 — 우측에 작게 */}
+      {sharedDestination && (
+        <span className="text-[10px] text-gray-400 truncate max-w-[72px] text-right shrink-0">
+          {sharedDestination}
+        </span>
       )}
     </div>
   )
@@ -151,8 +163,15 @@ function extractNext(data, n = 2) {
   if (Array.isArray(data)) return data.slice(0, n)
   // BusArrivalsResponse
   if (data.arrivals) return data.arrivals.slice(0, n)
-  // BusTimetableResponse — times는 문자열 배열
-  if (data.times) return data.times.slice(0, n).map((t) => ({ depart_at: t }))
+  // BusTimetableResponse — times는 HH:MM 문자열 배열. 과거 시각은 제외하고 앞에서 n개.
+  if (data.times) {
+    const now = new Date()
+    const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    return data.times
+      .filter((t) => typeof t === 'string' && t >= nowStr)
+      .slice(0, n)
+      .map((t) => ({ depart_at: t }))
+  }
   return []
 }
 

@@ -210,7 +210,7 @@ function JeongwangTab({ subwayData, busJeongwangData, walkTimes, timetableData, 
         onClick={onNavigate ? () => onNavigate('bus') : undefined}
       >
         <p className="text-[12px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">버스 (정왕역 방면)</p>
-        {['20-1', '33'].map((routeNo) => (
+        {['20-1', '시흥33'].map((routeNo) => (
           <BusRow
             key={routeNo}
             routeNo={routeNo}

@@ -3,23 +3,22 @@
  * Props:
  *   onBack  () => void
  */
-import { ChevronLeft, Palette } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import DarkModeSegment from './DarkModeSegment'
 
 export default function DarkModePage({ onBack }) {
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
-      {/* header */}
-      <div className="flex items-center gap-2 bg-navy text-white px-4 py-4 flex-shrink-0">
+      {/* header — NoticesPage와 통일된 스타일 */}
+      <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
         <button
           onClick={onBack}
-          className="p-1.5 -ml-1.5 rounded-full hover:bg-white/10 transition-colors"
-          aria-label="뒤로 가기"
+          aria-label="뒤로"
+          className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={22} className="text-slate-600 dark:text-slate-300" />
         </button>
-        <Palette size={18} />
-        <h2 className="text-lg font-bold">다크모드</h2>
+        <h1 className="text-base font-bold text-slate-900 dark:text-slate-100">다크모드</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 pb-28 md:pb-6 flex flex-col gap-5">

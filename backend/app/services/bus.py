@@ -57,16 +57,28 @@ async def get_stations(db: AsyncSession) -> list[dict]:
 async def get_arrivals(
     db: AsyncSession, station_id: int, d: date, now_time: time
 ) -> dict | None:
-    # 정류장 + 연결된 노선 정보 로드
+    # 정류장 조회 — 먼저 gbis_station_id(외부 ID)로, 없으면 내부 PK(id)로 매칭
+    # 프론트엔드는 GBIS 정류장 ID(예: 224000639)를 그대로 전달하므로 외부 ID 우선.
     stmt = (
         select(BusStop)
-        .where(BusStop.id == station_id)
+        .where(BusStop.gbis_station_id == str(station_id))
         .options(selectinload(BusStop.routes))
     )
     result = await db.execute(stmt)
     stop = result.scalar_one_or_none()
     if not stop:
+        stmt = (
+            select(BusStop)
+            .where(BusStop.id == station_id)
+            .options(selectinload(BusStop.routes))
+        )
+        result = await db.execute(stmt)
+        stop = result.scalar_one_or_none()
+    if not stop:
         return None
+
+    # 내부 PK로 이후 쿼리를 수행 (시간표 JOIN 등은 stop.id 기준)
+    station_id = stop.id
 
     day = _day_type(d)
     # now_time은 KST 기준으로 넘어오며, DB departure_time도 KST 기준

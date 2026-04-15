@@ -5,6 +5,7 @@
  * - BottomDock 위로 띄워지도록 bottom padding 확보
  */
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Clock } from 'lucide-react'
 import { useBusTimetableByRoute } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
@@ -38,10 +39,12 @@ function scheduleTypeLabel(type) {
 
 // ─── shared list row ────────────────────────────────────────────────────
 
-function TimeRow({ time, isNext, destination, note, accentColor }) {
-  const mins = minutesUntil(time)
+function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef }) {
+  const isHHMM = typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)
+  const mins = isHHMM ? minutesUntil(time) : null
   return (
     <div
+      ref={rowRef}
       className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
         isNext
           ? 'bg-coral/10 dark:bg-coral/15 border border-coral/40'
@@ -49,9 +52,11 @@ function TimeRow({ time, isNext, destination, note, accentColor }) {
       }`}
     >
       <span
-        className={`text-lg font-extrabold tabular-nums ${
-          isNext ? 'text-coral' : 'text-slate-800 dark:text-slate-100'
-        }`}
+        className={`${
+          isHHMM
+            ? 'text-lg font-extrabold tabular-nums flex-shrink-0'
+            : 'text-sm font-bold leading-snug break-keep min-w-0'
+        } ${isNext ? 'text-coral' : 'text-slate-800 dark:text-slate-100'}`}
       >
         {time}
       </span>
@@ -66,14 +71,21 @@ function TimeRow({ time, isNext, destination, note, accentColor }) {
             다음
           </span>
         )}
-        <span
-          className={`text-xs font-semibold tabular-nums ${
-            isNext ? 'text-coral' : 'text-slate-500 dark:text-slate-400'
-          }`}
-          style={isNext ? { color: accentColor } : undefined}
-        >
-          {fmtDelta(mins)}
-        </span>
+        {isLast && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900">
+            막차
+          </span>
+        )}
+        {mins != null && (
+          <span
+            className={`text-xs font-semibold tabular-nums ${
+              isNext ? 'text-coral' : 'text-slate-500 dark:text-slate-400'
+            }`}
+            style={isNext ? { color: accentColor } : undefined}
+          >
+            {fmtDelta(mins)}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -92,11 +104,18 @@ function PastRow({ time }) {
 
 function BusContent({ routeCode, accentColor }) {
   const { data, loading, error } = useBusTimetableByRoute(routeCode)
+  const nextRef = useRef(null)
   const now = new Date()
   const nowStr = toHHMM(now)
   const allTimes = data?.times ?? []
-  const future = allTimes.filter((t) => t >= nowStr)
-  const past = allTimes.filter((t) => t < nowStr).slice(-2)
+  const firstFutureIdx = allTimes.findIndex((t) => t >= nowStr)
+  const futureCount = firstFutureIdx === -1 ? 0 : allTimes.length - firstFutureIdx
+
+  useEffect(() => {
+    if (nextRef.current) {
+      nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
+    }
+  }, [data])
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
@@ -106,22 +125,32 @@ function BusContent({ routeCode, accentColor }) {
     <div className="flex flex-col gap-2">
       {data?.schedule_type && (
         <p className="text-xs text-slate-400 mb-1">
-          {scheduleTypeLabel(data.schedule_type)} 시간표 · 총 {allTimes.length}회 · 남은 {future.length}회
+          {scheduleTypeLabel(data.schedule_type)} 시간표 · 첫차 {allTimes[0]} ~ 막차 {allTimes[allTimes.length - 1]} · 총 {allTimes.length}회 · 남은 {futureCount}회
         </p>
       )}
-      {past.map((t) => <PastRow key={`p-${t}`} time={t} />)}
-      {future.length === 0 ? (
-        <p className="text-sm text-slate-400 py-4 text-center">오늘 남은 운행이 없어요</p>
-      ) : (
-        future.map((t, i) => (
-          <TimeRow key={t} time={t} isNext={i === 0} accentColor={accentColor} />
-        ))
-      )}
+      {allTimes.map((t, i) => {
+        if (t < nowStr) return <PastRow key={`p-${t}-${i}`} time={t} />
+        const isNext = i === firstFutureIdx
+        const isLast = i === allTimes.length - 1
+        return <TimeRow key={`f-${t}-${i}`} time={t} isNext={isNext} isLast={isLast} accentColor={accentColor} rowRef={isNext ? nextRef : undefined} />
+      })}
     </div>
   )
 }
 
-function SubwayContent({ accentColor }) {
+// subwayKey → { dataKey, label }
+const SUBWAY_KEY_META = {
+  up:         { dataKey: 'up',         label: '상행 (왕십리 방면)' },
+  down:       { dataKey: 'down',       label: '하행 (인천 방면)' },
+  line4_up:   { dataKey: 'line4_up',   label: '상행' },
+  line4_down: { dataKey: 'line4_down', label: '하행' },
+  choji_up:   { dataKey: 'choji_up',   label: '상행 (소사 방면)' },
+  choji_dn:   { dataKey: 'choji_dn',   label: '하행 (원시 방면)' },
+  siheung_up: { dataKey: 'siheung_up', label: '상행 (소사 방면)' },
+  siheung_dn: { dataKey: 'siheung_dn', label: '하행 (원시 방면)' },
+}
+
+function SubwayContent({ accentColor, subwayKey }) {
   const { data, loading, error } = useSubwayTimetable()
   const now = new Date()
   const nowStr = toHHMM(now)
@@ -130,6 +159,22 @@ function SubwayContent({ accentColor }) {
   if (error) return <ErrorMsg />
   if (!data) return <EmptyMsg text="시간표 정보가 없어요" />
 
+  // 단일 방향 모드 (카드에서 특정 방향 클릭)
+  if (subwayKey && SUBWAY_KEY_META[subwayKey]) {
+    const { dataKey, label } = SUBWAY_KEY_META[subwayKey]
+    const list = data[dataKey] ?? []
+    const items = list.filter((t) => (t.depart_at ?? '') >= nowStr)
+    return (
+      <DirectionBlock
+        label={label}
+        items={items}
+        totalCount={list.length}
+        accentColor={accentColor}
+      />
+    )
+  }
+
+  // 폴백: 양방향 (레거시)
   const upItems = (data.up ?? []).filter((t) => (t.depart_at ?? '') >= nowStr)
   const downItems = (data.down ?? []).filter((t) => (t.depart_at ?? '') >= nowStr)
 
@@ -152,22 +197,30 @@ function SubwayContent({ accentColor }) {
 }
 
 function DirectionBlock({ label, items, totalCount, accentColor }) {
+  const nextRef = useRef(null)
+  useEffect(() => {
+    if (nextRef.current) {
+      nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
+    }
+  }, [items.length])
   return (
     <div>
       <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
-        {label} · 남은 {items.length}회 / 오늘 {totalCount}회
+        {label} · 오늘 총 {totalCount}편 중 {items.length}편 남음
       </p>
       {items.length === 0 ? (
         <p className="text-xs text-slate-400">오늘 남은 열차가 없어요</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {items.slice(0, 30).map((t, i) => (
+          {items.map((t, i) => (
             <TimeRow
               key={`${t.depart_at}-${i}`}
               time={t.depart_at}
               destination={t.destination}
               isNext={i === 0}
+              isLast={i === items.length - 1}
               accentColor={accentColor}
+              rowRef={i === 0 ? nextRef : undefined}
             />
           ))}
         </div>
@@ -178,8 +231,10 @@ function DirectionBlock({ label, items, totalCount, accentColor }) {
 
 function ShuttleContent({ direction, accentColor }) {
   const { data, loading, error } = useShuttleSchedule(direction)
+  const nextRef = useRef(null)
   const now = new Date()
   const nowStr = toHHMM(now)
+  const dirLabel = direction === 0 ? '등교' : '하교'
   const dirData = data?.directions?.find((d) => d.direction === direction)
   const times = dirData?.times ?? []
 
@@ -191,6 +246,17 @@ function ShuttleContent({ direction, accentColor }) {
     if (timeStr >= nowStr) future.push({ time: timeStr, note })
     else past.push({ time: timeStr, note })
   }
+
+  // 첫 수시운행 블록의 종료 시각 = 이후 첫 비(非)수시운행 편의 time
+  const frequentEndAt = future[0]?.note === '수시운행'
+    ? future.find((e) => e.note !== '수시운행')?.time ?? null
+    : null
+
+  useEffect(() => {
+    if (nextRef.current) {
+      nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
+    }
+  }, [data])
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
@@ -207,9 +273,31 @@ function ShuttleContent({ direction, accentColor }) {
       {future.length === 0 ? (
         <p className="text-sm text-slate-400 py-4 text-center">오늘 남은 셔틀이 없어요</p>
       ) : (
-        future.map(({ time, note }, i) => (
-          <TimeRow key={i} time={time} note={note} isNext={i === 0} accentColor={accentColor} />
-        ))
+        future.map(({ time, note }, i) => {
+          // 수시운행/회차편은 정확한 시간 대신 상태 라벨 표시
+          const isFrequent = note === '수시운행'
+          const isReturn = note?.startsWith?.('회차편')
+          let displayTime = time
+          if (isFrequent) {
+            displayTime = i === 0 && frequentEndAt
+              ? `${frequentEndAt}까지 수시운행`
+              : '수시운행'
+          } else if (isReturn) {
+            displayTime = i === 0
+              ? `${time}에 출발하는 ${dirLabel}버스 회차편 탑승`
+              : '회차편 탑승'
+          }
+          return (
+            <TimeRow
+              key={i}
+              time={displayTime}
+              note={isFrequent || isReturn ? null : note}
+              isNext={i === 0}
+              accentColor={accentColor}
+              rowRef={i === 0 ? nextRef : undefined}
+            />
+          )
+        })
       )}
     </div>
   )
@@ -244,7 +332,7 @@ function EmptyMsg({ text }) {
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#FF385C' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, direction, title, accentColor }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, direction, subwayKey, title, accentColor }) {
   const sheetRef = useRef(null)
   const [dragY, setDragY] = useState(0)
   const startY = useRef(null)
@@ -300,9 +388,9 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, di
   const color = accentColor ?? fallbackColor
   const typeLabel = TYPE_LABEL[type] ?? ''
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-end md:items-center justify-center"
       onClick={handleBackdrop}
       aria-modal="true"
       role="dialog"
@@ -367,13 +455,14 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, di
         {/* scrollable content — bottom padding 확보해 BottomDock 위로 */}
         <div
           className="flex-1 overflow-y-auto px-4 pt-2"
-          style={{ paddingBottom: 'max(7rem, calc(env(safe-area-inset-bottom) + 6rem))' }}
+          style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
         >
           {type === 'bus' && <BusContent routeCode={routeCode} accentColor={color} />}
-          {type === 'subway' && <SubwayContent accentColor={color} />}
+          {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
           {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
