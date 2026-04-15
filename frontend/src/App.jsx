@@ -90,6 +90,9 @@ export default function App() {
     return (
       <div className="flex flex-col h-dvh bg-[#fafafa] dark:bg-bg-soft transition-colors duration-300">
         <PWAInstallBanner />
+        <div className="hidden md:block">
+          <PCNavbar />
+        </div>
         <main className="flex-1 overflow-auto min-h-0">
           <FavoritesPage />
         </main>
@@ -102,6 +105,9 @@ export default function App() {
     return (
       <div className="flex flex-col h-dvh bg-[#fafafa] dark:bg-bg-soft transition-colors duration-300">
         <PWAInstallBanner />
+        <div className="hidden md:block">
+          <PCNavbar />
+        </div>
         <main className="flex-1 overflow-auto min-h-0">
           <SchedulePage />
         </main>
@@ -114,6 +120,9 @@ export default function App() {
     return (
       <div className="flex flex-col h-dvh bg-[#fafafa] dark:bg-bg-soft transition-colors duration-300">
         <PWAInstallBanner />
+        <div className="hidden md:block">
+          <PCNavbar />
+        </div>
         <main className="flex-1 overflow-auto min-h-0">
           <MorePage />
         </main>

@@ -368,6 +368,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       const upKey = sheetStation.tabId === 'choji' ? 'choji_up' : 'siheung_up'
       const dnKey = sheetStation.tabId === 'choji' ? 'choji_dn' : 'siheung_dn'
 
+      // key를 routeCode에 포함시켜 상행/하행이 groupArrivalsByRoute에서 합쳐지지 않도록 함
       const addSeohae = (key, labelPrefix, defaultDest) => {
         const next = subwayNextData?.[key]
         const diffMin = next ? Math.max(0, Math.round(next.arrive_in_seconds / 60)) : null
@@ -376,7 +377,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
         if (next && !isLateNightGap) {
           result.push({
-            routeCode: '서해선', routeColor: '#75bf43',
+            routeCode: `서해선:${key}`, routeColor: '#75bf43',
             direction: `${labelPrefix} · ${next.destination || defaultDest} 방면`,
             minutes: diffMin,
           })
@@ -385,7 +386,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           if (trains.length > 0) {
             const timeStrings = trains.map(t => String(t.depart_at).slice(0, 5))
             result.push({
-              routeCode: '서해선', routeColor: '#75bf43',
+              routeCode: `서해선:${key}`, routeColor: '#75bf43',
               direction: `${labelPrefix} · ${trains[0]?.destination || defaultDest} 방면`,
               minutes: getFirstBusLabel(timeStrings, now),
             })
@@ -402,7 +403,9 @@ export default function MapView({ onMarkerClick, selectedId }) {
       const result = []
       const now = new Date()
 
+      // key를 routeCode에 포함시켜 상행/하행이 groupArrivalsByRoute에서 합쳐지지 않도록 함
       const addSubway = (key, routeCode, routeColor, labelPrefix, defaultDest) => {
+        const uniqueCode = `${routeCode}:${key}`
         const next = subwayNextData?.[key]
         const diffMin = next ? Math.max(0, Math.round(next.arrive_in_seconds / 60)) : null
         const _hSubway = now.getHours()
@@ -410,7 +413,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
         if (next && !isLateNightGap) {
           result.push({
-            routeCode, routeColor,
+            routeCode: uniqueCode, routeColor,
             direction: `${labelPrefix} · ${next.destination || defaultDest} 방면`,
             minutes: diffMin,
           })
@@ -419,7 +422,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           if (trains.length > 0) {
             const timeStrings = trains.map(t => String(t.depart_at).slice(0, 5))
             result.push({
-              routeCode, routeColor,
+              routeCode: uniqueCode, routeColor,
               direction: `${labelPrefix} · ${trains[0]?.destination || defaultDest} 방면`,
               minutes: getFirstBusLabel(timeStrings, now),
             })
@@ -427,10 +430,10 @@ export default function MapView({ onMarkerClick, selectedId }) {
         }
       }
 
-      addSubway('up', '수인분당', '#F5A623', '상행', '왕십리')
-      addSubway('down', '수인분당', '#F5A623', '하행', '인천')
-      addSubway('line4_up', '4호선', '#1B5FAD', '상행', '당고개')
-      addSubway('line4_down', '4호선', '#1B5FAD', '하행', '오이도')
+      addSubway('up',         '수인분당', '#F5A623', '상행', '왕십리')
+      addSubway('down',       '수인분당', '#F5A623', '하행', '인천')
+      addSubway('line4_up',   '4호선',   '#1B5FAD', '상행', '당고개')
+      addSubway('line4_down', '4호선',   '#1B5FAD', '하행', '오이도')
 
       return result
     }

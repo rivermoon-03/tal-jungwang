@@ -226,7 +226,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                       className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-[10px] font-bold"
                       style={{ background: color }}
                     >
-                      {(group.routeCode ?? '').slice(0, 3)}
+                      {(group.routeCode ?? '').split(':')[0].slice(0, 3)}
                     </span>
 
                     {/* 방향 */}
