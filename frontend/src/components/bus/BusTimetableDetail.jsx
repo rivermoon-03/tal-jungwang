@@ -4,6 +4,7 @@ import { useBusTimetable } from '../../hooks/useBus'
 
 const BOARDING_INFO = {
   '6502': { stop: '이마트', desc: '육교 건너 이마트 정류장에서 탑승하세요' },
+  '3401': { stop: '이마트', desc: '육교 건너 이마트 정류장에서 탑승하세요' },
   '3400': { stop: '한국공학대학교 시화버스터미널', desc: '토비동산에서 내려와 횡단보도 건너기 전 정류장에서 탑승하세요' },
 }
 
