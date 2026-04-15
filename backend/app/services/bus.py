@@ -227,14 +227,32 @@ async def get_timetable_by_route_number(
     db: AsyncSession, route_number: str, d: date, *, stop_id: int | None = None
 ) -> dict | None:
     """route_number(예: "3400") 문자열로 조회. ID를 모를 때 사용.
-    양방향 분리 이후 같은 route_number에 여러 row가 있을 수 있어 첫 번째 row만 사용.
-    방향별 조회는 /bus/routes?category=... 로 route_id 받아 /bus/timetable/{route_id} 사용 권장."""
+    같은 route_number에 여러 row가 있을 때(양방향 분리) stop_id로 실제 시간표가 있는
+    row를 찾아 사용한다. stop_id가 없거나 단일 row면 첫 번째 row를 사용한다."""
     stmt = select(BusRoute).where(BusRoute.route_number == route_number).order_by(BusRoute.id)
     result = await db.execute(stmt)
-    route = result.scalars().first()
-    if not route:
+    routes = result.scalars().all()
+    if not routes:
         return None
-    return await get_timetable(db, route.id, d, stop_id=stop_id)
+
+    if stop_id is not None and len(routes) > 1:
+        # 여러 row 중 해당 stop에 실제 시간표 데이터가 있는 row를 우선 선택
+        day = _day_type(d)
+        for route in routes:
+            check_stmt = (
+                select(BusTimetableEntry.id)
+                .where(
+                    BusTimetableEntry.route_id == route.id,
+                    BusTimetableEntry.stop_id == stop_id,
+                    BusTimetableEntry.day_type == day,
+                )
+                .limit(1)
+            )
+            exists = (await db.execute(check_stmt)).scalar_one_or_none()
+            if exists is not None:
+                return await get_timetable(db, route.id, d, stop_id=stop_id)
+
+    return await get_timetable(db, routes[0].id, d, stop_id=stop_id)
 
 
 async def get_timetable(

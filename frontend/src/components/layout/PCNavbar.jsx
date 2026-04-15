@@ -1,54 +1,86 @@
-import { Map, Bus, TrainFront, MoreHorizontal, Moon, Sun } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Map, Star, Calendar, MoreHorizontal, Moon, Sun } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const TABS = [
-  { id: 'main',    label: '메인 지도', Icon: Map            },
-  { id: 'transit', label: '교통',     Icon: Bus            },
-  { id: 'subway',  label: '지하철',   Icon: TrainFront     },
-  { id: 'more',    label: '더보기',   Icon: MoreHorizontal },
+  { id: 'map',       label: '지도',     Icon: Map,            href: '/'          },
+  { id: 'favorites', label: '즐겨찾기', Icon: Star,           href: '/favorites' },
+  { id: 'schedule',  label: '시간표',   Icon: Calendar,       href: '/schedule'  },
+  { id: 'more',      label: '더보기',   Icon: MoreHorizontal, href: '/more'      },
 ]
 
+function getActiveId(pathname) {
+  if (pathname === '/' || pathname === '') return 'map'
+  if (pathname.startsWith('/favorites')) return 'favorites'
+  if (pathname.startsWith('/schedule'))  return 'schedule'
+  if (pathname.startsWith('/more'))      return 'more'
+  return 'map'
+}
+
 export default function PCNavbar() {
-  const activeTab      = useAppStore((s) => s.activeTab)
-  const setActiveTab   = useAppStore((s) => s.setActiveTab)
   const darkMode       = useAppStore((s) => s.darkMode)
   const toggleDarkMode = useAppStore((s) => s.toggleDarkMode)
 
+  const [pathname, setPathname] = useState(window.location.pathname)
+
+  useEffect(() => {
+    const onPop = () => setPathname(window.location.pathname)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const activeId = getActiveId(pathname)
+
+  const handleNav = (e, href) => {
+    e.preventDefault()
+    if (window.location.pathname !== href) {
+      window.history.pushState({}, '', href)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
+
   return (
-    <header className="flex items-center gap-6 bg-navy text-white px-6 h-14 shrink-0">
-      <div className="flex flex-col leading-tight mr-4">
-        <span className="font-a2z text-xl font-bold">탈정왕</span>
-      </div>
-      <nav className="flex items-center gap-1">
-        {TABS.map(({ id, label, Icon }) => {
-          const active = activeTab === id
+    <header className="flex items-center gap-4 bg-white/95 dark:bg-[#1e2128]/95 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 px-6 h-14 shrink-0 shadow-sm">
+      {/* 로고 */}
+      <span className="font-a2z text-xl font-black text-slate-900 dark:text-white mr-2 select-none">
+        탈정왕
+      </span>
+
+      {/* 탭 */}
+      <nav className="flex items-center gap-0.5" aria-label="메인 메뉴">
+        {TABS.map(({ id, label, Icon, href }) => {
+          const active = activeId === id
           return (
-            <button
+            <a
               key={id}
-              onClick={() => setActiveTab(id)}
+              href={href}
+              onClick={(e) => handleNav(e, href)}
               aria-current={active ? 'page' : undefined}
-              className={`flex items-center gap-2 px-4 h-14 text-sm font-medium border-b-2 transition-colors
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors
                 ${active
-                  ? 'text-white border-accent'
-                  : 'text-white/55 border-transparent hover:text-white/80'
+                  ? 'bg-[#FF385C]/10 text-[#FF385C]'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100'
                 }`}
             >
-              <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
+              <Icon size={16} strokeWidth={active ? 2.4 : 1.9} aria-hidden="true" />
               {label}
-            </button>
+            </a>
           )
         })}
       </nav>
+
       <div className="flex-1" />
+
+      {/* 다크모드 토글 */}
       <button
         aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
         onClick={toggleDarkMode}
-        className="w-9 h-9 rounded-full flex items-center justify-center transition-all pressable
-          bg-white/10 hover:bg-white/20 text-white/70 hover:text-white"
+        className="w-9 h-9 rounded-full flex items-center justify-center transition-all
+          bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
       >
         {darkMode
-          ? <Sun  size={16} strokeWidth={2} className="text-yellow-300" />
-          : <Moon size={16} strokeWidth={2} />
+          ? <Sun  size={16} strokeWidth={2} className="text-yellow-500" />
+          : <Moon size={16} strokeWidth={2} className="text-slate-600 dark:text-slate-300" />
         }
       </button>
     </header>
