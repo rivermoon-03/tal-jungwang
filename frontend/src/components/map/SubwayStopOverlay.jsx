@@ -104,12 +104,19 @@ export default function SubwayStopOverlay({ map }) {
     const textColor = darkMode ? '#cbd5e1' : '#374151'
     const bg = darkMode ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.95)'
     div.style.background = bg
-    div.innerHTML = [
-      `<span style="color:#d97706;font-weight:900">수</span>`,
-      `<span style="color:${textColor}"> ↑${fmt(sdUp)} ↓${fmt(sdDown)}</span>`,
-      `<span style="color:#3b82f6;font-weight:900;margin-left:5px">4</span>`,
-      `<span style="color:${textColor}"> ↑${fmt(l4Up)} ↓${fmt(l4Down)}</span>`,
-    ].join('')
+    div.textContent = ''
+    const mkLine = (tag, tagColor, up, down, leftMargin = 0) => {
+      const t = document.createElement('span')
+      t.style.cssText = `color:${tagColor};font-weight:900${leftMargin ? `;margin-left:${leftMargin}px` : ''}`
+      t.textContent = tag
+      div.appendChild(t)
+      const v = document.createElement('span')
+      v.style.color = textColor
+      v.textContent = ` ↑${fmt(up)} ↓${fmt(down)}`
+      div.appendChild(v)
+    }
+    mkLine('수', '#d97706', sdUp, sdDown)
+    mkLine('4', '#3b82f6', l4Up, l4Down, 5)
     div.style.display = 'block'
   }, [timetableData, darkMode])
 

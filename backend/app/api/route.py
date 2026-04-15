@@ -2,7 +2,7 @@ import asyncio
 import json
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from app.core.cache import get_redis
 from app.core.limiter import limiter
@@ -23,6 +23,15 @@ _TAXI_CACHE_TTL = 300  # 5분
 
 _WALKING_CACHE_TTL = 21600  # 6시간 (도보 경로는 교통 상황 무관)
 _DRIVING_CACHE_TTL = 300   # 5분 (자동차는 교통 상황 반영)
+
+# 수도권 남서부 bounding box — 익명 호출자가 임의 좌표로 외부 API 쿼터 고갈하는 것 방지
+_BBOX_LAT_MIN, _BBOX_LAT_MAX = 37.0, 37.8
+_BBOX_LNG_MIN, _BBOX_LNG_MAX = 126.4, 127.3
+
+
+def _require_in_bbox(lat: float, lng: float) -> None:
+    if not (_BBOX_LAT_MIN <= lat <= _BBOX_LAT_MAX and _BBOX_LNG_MIN <= lng <= _BBOX_LNG_MAX):
+        raise HTTPException(status_code=422, detail="서비스 범위(수도권 남서부)를 벗어난 좌표입니다.")
 
 # 택시 카드 — 학교 정문 → 주요 목적지
 _TAXI_ORIGIN_LAT = 37.3400
@@ -83,6 +92,8 @@ async def walking_route(request: Request, req: RouteRequest):
     origin_lng = req.origin.lng
     dest_lat = req.destination.lat
     dest_lng = req.destination.lng
+    _require_in_bbox(origin_lat, origin_lng)
+    _require_in_bbox(dest_lat, dest_lng)
 
     cache_key = _coord_cache_key("route:walking", origin_lat, origin_lng, dest_lat, dest_lng)
 
@@ -165,6 +176,8 @@ async def driving_route(request: Request, req: RouteRequest):
     origin_lng = req.origin.lng
     dest_lat = req.destination.lat
     dest_lng = req.destination.lng
+    _require_in_bbox(origin_lat, origin_lng)
+    _require_in_bbox(dest_lat, dest_lng)
 
     cache_key = _coord_cache_key("route:driving", origin_lat, origin_lng, dest_lat, dest_lng)
 

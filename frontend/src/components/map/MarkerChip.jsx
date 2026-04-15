@@ -160,10 +160,21 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'text-overflow:ellipsis',
   ].join(';')
   if (hasLive) {
-    const inaccTag = inaccurate
-      ? `<span style="margin-left:4px;font-size:9px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 4px">부정확</span>`
-      : ''
-    label.innerHTML = `${stationName}<span style="color:#cbd5e1;margin:0 4px">·</span><span style="color:#FF385C">${liveMinutes}분</span>${inaccTag}`
+    label.textContent = stationName
+    const sep = document.createElement('span')
+    sep.style.cssText = 'color:#cbd5e1;margin:0 4px'
+    sep.textContent = '·'
+    label.appendChild(sep)
+    const mins = document.createElement('span')
+    mins.style.color = '#FF385C'
+    mins.textContent = `${liveMinutes}분`
+    label.appendChild(mins)
+    if (inaccurate) {
+      const tag = document.createElement('span')
+      tag.style.cssText = 'margin-left:4px;font-size:9px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 4px'
+      tag.textContent = '부정확'
+      label.appendChild(tag)
+    }
   } else {
     label.textContent = stationName
   }

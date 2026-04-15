@@ -1,10 +1,9 @@
 import { useEffect } from 'react'
-import { Bus, TramFront, TrainFront, Car, ChevronUp, ChevronDown } from 'lucide-react'
+import { Bus, TramFront, TrainFront, ChevronUp, ChevronDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import SubwayPanel from './SubwayPanel'
 import BusPanel from './BusPanel'
 import ShuttlePanel from './ShuttlePanel'
-import TaxiPanel from './TaxiPanel'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useBusTimetableByRoute, useBusArrivals } from '../../hooks/useBus'
@@ -49,7 +48,6 @@ const MODE_TABS = [
   { id: 'subway',  label: '지하철', Icon: TrainFront },
   { id: 'bus',     label: '버스',   Icon: Bus },
   { id: 'shuttle', label: '셔틀',   Icon: TramFront },
-  { id: 'taxi',    label: '택시',   Icon: Car },
 ]
 
 /**
@@ -241,7 +239,6 @@ export default function SummaryCard({ onNextArrivalChange }) {
         {selectedMode === 'subway' && <SubwayPanel />}
         {selectedMode === 'bus'    && <BusPanel />}
         {selectedMode === 'shuttle' && <ShuttlePanel />}
-        {selectedMode === 'taxi'   && <TaxiPanel />}
       </div>
     </div>
   )
