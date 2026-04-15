@@ -70,7 +70,10 @@ function ShuttleCard({ direction, label, isActive }) {
 
 function ShuttleRow({ entry, isNext = false }) {
   // 백엔드 응답: { depart_at: "HH:MM:SS", arrive_in_seconds: int, is_last: bool }
-  const minsLabel = formatArrival(entry.arrive_in_seconds)
+  // arrive_in_seconds가 60분 초과이면 Date.now() drift 방지를 위해 depart_at 직접 사용
+  const minsLabel = entry.arrive_in_seconds != null && entry.arrive_in_seconds <= 3600
+    ? formatArrival(entry.arrive_in_seconds)
+    : null
   // depart_at을 "HH:MM"으로 자름
   const timeLabel = entry.depart_at ? entry.depart_at.slice(0, 5) : '–'
 

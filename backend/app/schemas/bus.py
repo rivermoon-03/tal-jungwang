@@ -20,6 +20,8 @@ class BusRouteStop(BaseModel):
     stop_id: int
     name: str
     sub_name: str | None = None
+    lat: float
+    lng: float
 
 
 class BusRouteSummary(BaseModel):

@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Clock } from 'lucide-react'
-import { useBusTimetableByRoute } from '../../hooks/useBus'
+import { useBusTimetable, useBusTimetableByRoute } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import Skeleton from '../common/Skeleton'
@@ -101,13 +101,24 @@ function PastRow({ time }) {
 
 // ─── per-type content ───────────────────────────────────────────────────
 
-function BusContent({ routeCode, stopId = null, accentColor }) {
-  const { data, loading, error } = useBusTimetableByRoute(routeCode, stopId != null ? { stopId } : undefined)
+function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
+  // routeId가 있으면 방향 정확한 /bus/timetable/{route_id} 사용 (등교/하교 분리 route에 필수)
+  const byId    = useBusTimetable(routeId)
+  const byRoute = useBusTimetableByRoute(routeId == null ? routeCode : null, stopId != null ? { stopId } : undefined)
+  const { data, loading, error } = routeId != null ? byId : byRoute
   const nextRef = useRef(null)
   const now = new Date()
   const nowStr = toHHMM(now)
   const allTimes = data?.times ?? []
-  const firstFutureIdx = allTimes.findIndex((t) => t >= nowStr)
+  // Date 기반 비교: 자정 이후 00:xx 시간대를 문자열 비교가 미래로 잘못 잡는 버그 방지
+  // 12h 필터 없음 — 상세 모달은 당일 시간표 전체를 표시하므로 단순 미래 여부만 판단
+  const firstFutureIdx = allTimes.findIndex((t) => {
+    const [h, m] = (t ?? '').split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) return false
+    const d = new Date(now)
+    d.setHours(h, m, 0, 0)
+    return d > now
+  })
   const futureCount = firstFutureIdx === -1 ? 0 : allTimes.length - firstFutureIdx
 
   useEffect(() => {
@@ -128,7 +139,11 @@ function BusContent({ routeCode, stopId = null, accentColor }) {
         </p>
       )}
       {allTimes.map((t, i) => {
-        if (t < nowStr) return <PastRow key={`p-${t}-${i}`} time={t} />
+        const [th, tm] = (t ?? '').split(':').map(Number)
+        const td = new Date(now)
+        if (!Number.isNaN(th) && !Number.isNaN(tm)) td.setHours(th, tm, 0, 0)
+        const isPast = td <= now
+        if (isPast) return <PastRow key={`p-${t}-${i}`} time={t} />
         const isNext = i === firstFutureIdx
         const isLast = i === allTimes.length - 1
         return <TimeRow key={`f-${t}-${i}`} time={t} isNext={isNext} isLast={isLast} accentColor={accentColor} rowRef={isNext ? nextRef : undefined} />
@@ -331,7 +346,7 @@ function EmptyMsg({ text }) {
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#FF385C' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, stopId = null, direction, subwayKey, title, accentColor }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, direction, subwayKey, title, accentColor }) {
   const sheetRef = useRef(null)
   const [dragY, setDragY] = useState(0)
   const startY = useRef(null)
@@ -456,7 +471,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, st
           className="flex-1 overflow-y-auto px-4 pt-2"
           style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
         >
-          {type === 'bus' && <BusContent routeCode={routeCode} stopId={stopId} accentColor={color} />}
+          {type === 'bus' && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
           {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
           {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
         </div>

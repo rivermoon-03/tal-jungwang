@@ -47,8 +47,56 @@ export function formatArrivalFromTime(departAtStr) {
   const departDate = new Date(now)
   departDate.setHours(h, m, 0, 0)
 
-  // 자정 이후 시간표가 다음날 날짜로 잡히는 경우 보정하지 않음
-  // (백엔드가 arrive_in_seconds를 제공하므로 이 함수는 fallback용)
   const diffSec = Math.floor((departDate.getTime() - now.getTime()) / 1000)
-  return formatArrival(diffSec)
+
+  // 이미 지났거나 12시간 초과이면 표시 안 함
+  if (diffSec < 0 || diffSec > 12 * 60 * 60) return null
+
+  const mins = Math.ceil(diffSec / 60)
+  if (mins <= 60) return `${mins}분`
+
+  // 60분 초과 → 절대 시각은 입력 문자열에서 직접 추출 (Date.now() drift 방지)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/**
+ * 막차가 끝난 경우 첫차까지의 정보를 반환하는 라벨 생성기
+ * @param {string[]} allTimes - 모든 시간표 ("HH:MM" 리스트)
+ * @param {Date} now - 현재 시각
+ * @returns {string}
+ */
+export function getFirstBusLabel(allTimes, now = new Date()) {
+  // 00:00~03:59 시간대는 전날 막차의 연장 운행이므로 "첫차" 기준에서 제외.
+  // 04:00 이후 첫 번째 시간을 실질적인 첫차로 간주.
+  const morningFirst = allTimes.find((t) => {
+    const h = parseInt((t ?? '').split(':')[0], 10)
+    return !Number.isNaN(h) && h >= 4
+  })
+  const firstStr = morningFirst ?? allTimes[0]
+  if (!firstStr) return '—'
+  const [fh, fm] = firstStr.split(':').map(Number)
+
+  // 서비스 날짜 기준: 새벽 4시 이전은 아직 '어제'의 연장선으로 취급할 수 있음.
+  // 하지만 첫차 라벨을 붙이는 시점은 보통 막차가 끊긴 이후임.
+  const hour = now.getHours()
+  const isEarlyMorning = hour < 4
+
+  // '다음' 첫차의 날짜 결정
+  const firstBusDate = new Date(now)
+  if (!isEarlyMorning) {
+    // 밤 늦은 시간 (4시~23시) -> '내일' 첫차
+    firstBusDate.setDate(firstBusDate.getDate() + 1)
+  }
+  // 새벽 시간 (0시~4시) -> '오늘' 아침 첫차
+  firstBusDate.setHours(fh, fm, 0, 0)
+
+  const diffMin = Math.round((firstBusDate - now) / 60000)
+
+  if (diffMin >= 0 && diffMin <= 100) {
+    const h = Math.floor(diffMin / 60)
+    const m = diffMin % 60
+    return h > 0 ? `${h}시간 ${m}분 뒤에 첫차` : `${m}분 뒤에 첫차`
+  }
+
+  return isEarlyMorning ? `${firstStr}에 첫차` : `내일 ${firstStr}에 첫차`
 }

@@ -240,14 +240,14 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                         <span
                           key={i}
                           className={`text-[13px] font-bold tabular-nums ${
-                            min <= 3
+                            typeof min === 'number' && min <= 3
                               ? 'text-[#ef4444]'
-                              : min <= 7
+                              : typeof min === 'number' && min <= 7
                                 ? 'text-[#f59e0b]'
                                 : 'text-[#1b3a6e] dark:text-[#f1f5f9]'
                           }`}
                         >
-                          {min != null ? `${min}분` : '—'}
+                          {typeof min === 'number' ? `${min}분` : (min ?? '—')}
                         </span>
                       ))}
                     </div>

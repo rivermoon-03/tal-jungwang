@@ -102,7 +102,12 @@ export default function SubwayPanel() {
 
 function TrainCard({ label, train, lineColor }) {
   // 백엔드 응답: { depart_at: "HH:MM", arrive_in_seconds: int, destination: string }
-  const arrivalStr = train ? formatArrival(train.arrive_in_seconds) ?? train.depart_at ?? '–' : null
+  // arrive_in_seconds가 60분 초과이면 Date.now() drift 방지를 위해 depart_at 직접 사용
+  const arrivalStr = train
+    ? (train.arrive_in_seconds != null && train.arrive_in_seconds <= 3600
+        ? formatArrival(train.arrive_in_seconds)
+        : train.depart_at ?? '–')
+    : null
 
   return (
     <div className="bg-suinbundang-light dark:bg-gray-700/50 rounded-xl p-3 flex flex-col gap-1">

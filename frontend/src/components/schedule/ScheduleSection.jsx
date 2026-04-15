@@ -28,6 +28,7 @@ const ROUTE_COLOR = {
   '시흥1':  '#F97316',  // 마을/순환
   '3400':   '#DC2626',  // 경기 광역(빨강)
   '6502':   '#DC2626',  // 경기 광역(빨강)
+  '3401':   '#DC2626',  // 경기 광역(빨강)
 }
 
 export default function ScheduleSection({

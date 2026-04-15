@@ -43,15 +43,15 @@ async def bus_routes(
     route_ids = [r.id for r in routes]
     stop_rows = (
         await db.execute(
-            select(BusStopRoute.bus_route_id, BusStop.id, BusStop.name, BusStop.sub_name)
+            select(BusStopRoute.bus_route_id, BusStop.id, BusStop.name, BusStop.sub_name, BusStop.lat, BusStop.lng)
             .join(BusStop, BusStop.id == BusStopRoute.bus_stop_id)
             .where(BusStopRoute.bus_route_id.in_(route_ids))
         )
     ).all()
     stops_by_route: dict[int, list[BusRouteStop]] = {}
-    for route_id, stop_id, name, sub_name in stop_rows:
+    for route_id, stop_id, name, sub_name, lat, lng in stop_rows:
         stops_by_route.setdefault(route_id, []).append(
-            BusRouteStop(stop_id=stop_id, name=name, sub_name=sub_name)
+            BusRouteStop(stop_id=stop_id, name=name, sub_name=sub_name, lat=float(lat), lng=float(lng))
         )
 
     data = [

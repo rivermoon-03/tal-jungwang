@@ -165,9 +165,17 @@ function extractNext(data, n = 2) {
   if (data.arrivals) return data.arrivals.slice(0, n)
   if (data.times) {
     const now = new Date()
-    const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
     return data.times
-      .filter((t) => typeof t === 'string' && t >= nowStr)
+      .filter((t) => {
+        if (typeof t !== 'string') return false
+        const [h, m] = t.split(':').map(Number)
+        if (Number.isNaN(h) || Number.isNaN(m)) return false
+        const d = new Date(now)
+        d.setHours(h, m, 0, 0)
+        const diff = d.getTime() - now.getTime()
+        // 자정 이후 전날 막차 오인 방지: 0 이상 12시간 이내만 포함
+        return diff >= 0 && diff <= 12 * 60 * 60 * 1000
+      })
       .slice(0, n)
       .map((t) => ({ depart_at: t }))
   }

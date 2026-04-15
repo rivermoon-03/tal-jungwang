@@ -5,7 +5,7 @@ import SubwayPanel from './SubwayPanel'
 import BusPanel from './BusPanel'
 import ShuttlePanel from './ShuttlePanel'
 import { useSubwayNext } from '../../hooks/useSubway'
-import { useShuttleNext } from '../../hooks/useShuttle'
+import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
 
 const SUBWAY_STATION_LINES = {
@@ -28,10 +28,12 @@ function minsFromTimes(times) {
   for (const t of times) {
     if (typeof t !== 'string') continue
     const [h, m] = t.split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) continue
     const d = new Date(now)
     d.setHours(h, m, 0, 0)
     const diff = Math.floor((d.getTime() - now.getTime()) / 1000)
-    if (diff >= -60) return Math.ceil(diff / 60)
+    // 자정 이후 전날 막차 오인 방지: 0 이상 12시간 이내만 허용
+    if (diff >= 0 && diff <= 12 * 60 * 60) return Math.ceil(diff / 60)
   }
   return null
 }
@@ -74,6 +76,8 @@ export default function SummaryCard({ onNextArrivalChange }) {
   const { data: subwayData } = useSubwayNext()
   const { data: shuttleUp } = useShuttleNext(0)    // 등교
   const { data: shuttleDown } = useShuttleNext(1)  // 하교
+  const { data: shuttleScheduleUp } = useShuttleSchedule(0)
+  const { data: shuttleScheduleDown } = useShuttleSchedule(1)
 
   const routes = BUS_GROUP_ROUTES[selectedBusGroup] ?? ['시흥33']
   const route1 = routes[0] ?? null
@@ -98,14 +102,38 @@ export default function SummaryCard({ onNextArrivalChange }) {
   }
   const stopId1 = resolveStopId(selectedBusGroup, route1)
   const stopId2 = resolveStopId(selectedBusGroup, route2)
-  const { data: busData1 } = useBusTimetableByRoute(route1, { stopId: stopId1 ?? undefined })
-  const { data: busData2 } = useBusTimetableByRoute(route2, { stopId: stopId2 ?? undefined })
+  // 양방향 분리된 노선(3400/6502/3401)은 stop_id 없이 호출하면 outbound/inbound 혼재 → requireStopId로 방지
+  // '기타' 그룹(시흥1 등 순환 노선)은 단방향이므로 stop_id 불필요
+  const needsStopId = selectedBusGroup !== '기타'
+  const { data: busData1 } = useBusTimetableByRoute(route1, { stopId: stopId1 ?? undefined, requireStopId: needsStopId })
+  const { data: busData2 } = useBusTimetableByRoute(route2, { stopId: stopId2 ?? undefined, requireStopId: needsStopId })
   const { data: realtimeData } = useBusArrivals(
     selectedBusGroup === '하교' ? HANKUK_STOP_ID : null,
   )
 
   useEffect(() => {
     if (!onNextArrivalChange) return
+
+    // 막차 끝난 후 isDeepNight 분기에서 사용할 첫차 라벨 계산
+    const computeFirstTrainLabel = () => {
+      if (selectedMode === 'bus') {
+        const times = busData1?.times ?? busData2?.times ?? []
+        const first = times[0]
+        return first ? `첫차는 ${first}부터` : null
+      }
+      if (selectedMode === 'shuttle') {
+        const upTimes = shuttleScheduleUp?.directions?.find((d) => d.direction === 0)?.times ?? []
+        const downTimes = shuttleScheduleDown?.directions?.find((d) => d.direction === 1)?.times ?? []
+        const pick = (arr) => (typeof arr[0] === 'string' ? arr[0] : arr[0]?.depart_at)?.slice(0, 5)
+        const upFirst = pick(upTimes)
+        const downFirst = pick(downTimes)
+        if (upFirst && downFirst) return `등교 ${upFirst} · 하교 ${downFirst}부터`
+        const first = upFirst ?? downFirst
+        return first ? `첫차는 ${first}부터` : null
+      }
+      // subway: 동적으로 구하기 어려우므로 null (useDynamicCopy가 generic fallback 사용)
+      return null
+    }
 
     if (selectedMode === 'subway' && subwayData) {
       const lineKeys = SUBWAY_STATION_LINES[selectedSubwayStation] ?? SUBWAY_STATION_LINES['정왕']
@@ -205,8 +233,9 @@ export default function SummaryCard({ onNextArrivalChange }) {
       }
     }
 
-    onNextArrivalChange(null)
-  }, [selectedMode, subwayData, shuttleUp, shuttleDown, busData1, busData2, realtimeData, selectedBusGroup, selectedSubwayStation]) // eslint-disable-line react-hooks/exhaustive-deps
+    // 도착 정보 없음: mode + firstTrainLabel만 전달해 HeroTitleBar isDeepNight 분기에서 활용
+    onNextArrivalChange({ mode: selectedMode, firstTrainLabel: computeFirstTrainLabel() })
+  }, [selectedMode, subwayData, shuttleUp, shuttleDown, busData1, busData2, realtimeData, selectedBusGroup, selectedSubwayStation, shuttleScheduleUp, shuttleScheduleDown]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 접힘 pill ──────────────────────────────────────────────────────
   if (cardCollapsed) {

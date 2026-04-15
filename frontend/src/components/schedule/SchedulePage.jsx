@@ -10,36 +10,16 @@ import ScheduleSection from './ScheduleSection'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
 import useAppStore from '../../stores/useAppStore'
-import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
+import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
+import { getFirstBusLabel } from '../../utils/arrivalTime'
 
 // ─── static section definitions ────────────────────────────────────────────
-// 각 route는 { code, stopName? } — stopName이 있으면 해당 정류장의 방면별 시간표 조회
-const BUS_GROUPS = [
-  {
-    id: '하교',
-    label: '하교',
-    routes: [
-      { code: '20-1' },
-      { code: '시흥33' },
-      { code: '3400', stopName: '시화',   destLabel: '강남행',   originLabel: '시화',   mapLat: 37.342546, mapLng: 126.735365 },
-      { code: '6502', stopName: '이마트', destLabel: '사당행',   originLabel: '이마트', mapLat: 37.345999, mapLng: 126.737995 },
-    ],
-  },
-  {
-    id: '등교',
-    label: '등교',
-    routes: [
-      { code: '3400', stopName: '강남역', destLabel: '학교행',   originLabel: '강남역', mapLat: 37.498427, mapLng: 127.029829 },
-      { code: '6502', stopName: '사당역', destLabel: '이마트행', originLabel: '사당역', mapLat: 37.476654, mapLng: 126.982610 },
-    ],
-  },
-  {
-    id: '기타',
-    label: '기타',
-    routes: [{ code: '시흥1' }],
-  },
+const BUS_GROUP_IDS = [
+  { id: '하교', label: '하교' },
+  { id: '등교', label: '등교' },
+  { id: '기타', label: '기타' },
 ]
 
 const SUBWAY_GROUPS = [
@@ -60,14 +40,8 @@ const MODES = [
   { id: 'shuttle', label: '셔틀',   Icon: TramFront },
 ]
 
-// Routes that are realtime-only (no static timetable available)
-const REALTIME_ONLY_ROUTES = new Set(['20-1', '시흥33'])
-
-// 실시간 노선의 조회 대상 정류장 (GBIS stationId)
-const REALTIME_ROUTE_STATION = {
-  '20-1':   '224000639', // 한국공학대학교
-  '시흥33': '224000639', // 한국공학대학교
-}
+// 실시간 노선의 조회 대상 정류장 (GBIS stationId) — is_realtime=true 고정값
+const REALTIME_STATION_ID = '224000639' // 한국공학대학교
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function timeStrToMinutes(timeStr, now) {
@@ -76,11 +50,15 @@ function timeStrToMinutes(timeStr, now) {
   if (Number.isNaN(h) || Number.isNaN(m)) return null
   const d = new Date(now)
   d.setHours(h, m, 0, 0)
-  return Math.round((d - now) / 60000)
+  const diff = Math.round((d - now) / 60000)
+  // 자정 이후 전날 막차 오인 방지: 음수이거나 12시간 이상이면 null
+  if (diff < 0 || diff > 12 * 60) return null
+  return diff
 }
 
 // ─── per-route bus section ───────────────────────────────────────────────────
-function BusRouteSection({ routeCode, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isFavorite, onToggleFav, onCardClick }) {
+function BusRouteSection({ routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, isFavorite, onToggleFav, onCardClick }) {
+  const now = new Date()
   const titleText = destLabel
     ? (originLabel ? `${destLabel} · ${originLabel} 출발` : destLabel)
     : routeCode
@@ -96,15 +74,19 @@ function BusRouteSection({ routeCode, stopId, favCode, destLabel, originLabel, m
   }
   const onShowMap = (mapLat != null && mapLng != null) ? handleShowOnMap : null
 
-  const isRealtimeOnly = REALTIME_ONLY_ROUTES.has(routeCode)
-  const stationId = isRealtimeOnly ? REALTIME_ROUTE_STATION[routeCode] : null
-  const { data: timetableData, loading: timetableLoading } = useBusTimetableByRoute(
-    isRealtimeOnly ? null : routeCode,
+  const stationId = isRealtime ? REALTIME_STATION_ID : null
+  // route_id가 있으면 /bus/timetable/{route_id}(방향 정확)를 우선 사용
+  // route_id 없으면 route_number 기반 fallback
+  const { data: timetableByIdData, loading: timetableByIdLoading } = useBusTimetable(routeId ?? null)
+  const { data: timetableByRouteData, loading: timetableByRouteLoading } = useBusTimetableByRoute(
+    routeId == null ? routeCode : null,
     stopId ? { stopId } : undefined,
   )
+  const timetableData = routeId != null ? timetableByIdData : timetableByRouteData
+  const timetableLoading = routeId != null ? timetableByIdLoading : timetableByRouteLoading
   const { data: arrivalsData, loading: arrivalsLoading } = useBusArrivals(stationId)
 
-  if (isRealtimeOnly) {
+  if (isRealtime) {
     const list = Array.isArray(arrivalsData) ? arrivalsData : arrivalsData?.arrivals ?? []
     const matches = list
       .filter((a) => a.route_no === routeCode && a.arrival_type === 'realtime')
@@ -119,8 +101,9 @@ function BusRouteSection({ routeCode, stopId, favCode, destLabel, originLabel, m
       : null
 
     let nextLabel
-    if (firstMin == null) nextLabel = '정보 없음'
-    else if (firstMin <= 0) nextLabel = '곧 도착'
+    if (firstMin == null) {
+      nextLabel = getFirstBusLabel(timetableData?.times ?? [], now)
+    } else if (firstMin <= 0) nextLabel = '곧 도착'
     else nextLabel = `${firstMin}분 뒤`
 
     const favKey = favCode ?? routeCode
@@ -144,22 +127,33 @@ function BusRouteSection({ routeCode, stopId, favCode, destLabel, originLabel, m
   }
 
   const allTimes = timetableData?.times ?? []
-  const now = new Date()
   const future = allTimes
     .map((t) => {
-      const [h, m] = (t ?? '00:00').split(':')
-      const d = new Date()
-      d.setHours(Number(h), Number(m), 0, 0)
-      return d
+      const [h, m] = (t ?? '00:00').split(':').map(Number)
+      const today = new Date(now)
+      today.setHours(h, m, 0, 0)
+      if (today > now) return today
+
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(h, m, 0, 0)
+      return tomorrow
     })
-    .filter((d) => d > now)
+    .filter((d) => {
+      // 12시간 이내의 다가오는 버스만 '다음 버스'로 인정 (너무 먼 미래 배제)
+      return (d - now) < 12 * 60 * 60 * 1000
+    })
     .sort((a, b) => a - b)
 
   const toStr = (d) =>
     d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : null
 
-  const nextStr = toStr(future[0]) ?? '—'
-  const mins = !future[0] ? null : Math.max(0, Math.round((future[0] - now) / 60000))
+  const nextMin = !future[0] ? null : Math.round((future[0] - now) / 60000)
+  const _hour = now.getHours()
+  const isLateNightGap = (_hour >= 23 || _hour < 5) && (nextMin === null || nextMin >= 100)
+
+  const nextStr = isLateNightGap ? getFirstBusLabel(allTimes, now) : (toStr(future[0]) ?? getFirstBusLabel(allTimes, now))
+  const mins = isLateNightGap ? null : nextMin
 
   const favKey = favCode ?? routeCode
   return (
@@ -177,9 +171,10 @@ function BusRouteSection({ routeCode, stopId, favCode, destLabel, originLabel, m
       onClick={() => onCardClick({
         type: 'bus',
         routeCode,
+        routeId,
         stopId,
         title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
-        accentColor: (routeCode === '3400' || routeCode === '6502') ? '#DC2626' : undefined,
+        accentColor: (['3400', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
       })}
       loading={timetableLoading}
       onShowMap={onShowMap}
@@ -264,17 +259,34 @@ function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
   const { data, loading } = useShuttleSchedule(direction)
 
   const now = new Date()
-  const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const dirData = data?.directions?.find((d) => d.direction === direction)
 
   // note 판별: 수시운행 / 회차편은 정확한 시간 대신 상태 라벨로 표시
   const rawEntries = (dirData?.times ?? []).map((t) =>
     typeof t === 'string' ? { depart_at: t, note: null } : { depart_at: t?.depart_at ?? '', note: t?.note ?? null }
   )
-  const futureEntries = rawEntries.filter((e) => (e.depart_at ?? '').slice(0, 5) >= nowStr)
+  // Date 기반 비교로 자정 이후 오인 방지 (문자열 비교 제거)
+  const futureEntries = rawEntries.filter((e) => {
+    const ts = (e.depart_at ?? '').slice(0, 5)
+    if (!ts) return false
+    const [h, m] = ts.split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) return false
+    const d = new Date(now)
+    d.setHours(h, m, 0, 0)
+    return d > now && (d - now) <= 12 * 60 * 60 * 1000
+  })
 
-  // 수시운행 구간 판단
-  const hasPastFrequent = rawEntries.some((e) => e.note === '수시운행' && (e.depart_at ?? '').slice(0, 5) <= nowStr)
+  // 수시운행 구간 판단 (Date 기반으로 이미 지난 수시운행 항목 체크)
+  const hasPastFrequent = rawEntries.some((e) => {
+    if (e.note !== '수시운행') return false
+    const ts = (e.depart_at ?? '').slice(0, 5)
+    if (!ts) return false
+    const [h, m] = ts.split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) return false
+    const d = new Date(now)
+    d.setHours(h, m, 0, 0)
+    return d <= now
+  })
   const inFrequent = hasPastFrequent && futureEntries[0]?.note === '수시운행'
 
   const firstEntry = futureEntries[0]
@@ -320,6 +332,68 @@ function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
   )
 }
 
+// ─── bus group content (동적 API 로드) ─────────────────────────────────────
+function BusGroupContent({ busGroup, favOnly, isFav, onToggleFav, onCardClick }) {
+  const { data: routes, loading } = useBusRoutesByCategory(busGroup)
+
+  if (loading && !routes) {
+    return (
+      <>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+        ))}
+      </>
+    )
+  }
+
+  const routeList = Array.isArray(routes) ? routes : []
+
+  const entries = routeList.map((route) => {
+    const stop = route.stops?.[0] ?? null
+    const stopName = stop?.name ?? null
+    const favCode = stopName != null ? `${busGroup}:${route.route_number}` : route.route_number
+    return {
+      code: route.route_number,
+      routeId: route.route_id ?? null,
+      favCode,
+      stopId: stop?.stop_id ?? null,
+      destLabel: route.direction_name ?? null,
+      originLabel: stopName,
+      mapLat: stop?.lat ?? null,
+      mapLng: stop?.lng ?? null,
+      isRealtime: route.is_realtime ?? false,
+    }
+  })
+
+  const visible = entries.filter((e) => !favOnly || isFav(e.favCode))
+
+  if (visible.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-slate-400">
+        {favOnly ? '즐겨찾기된 버스가 없어요' : '해당 그룹의 버스가 없어요'}
+      </p>
+    )
+  }
+
+  return visible.map((e) => (
+    <BusRouteSection
+      key={e.favCode}
+      routeCode={e.code}
+      routeId={e.routeId}
+      stopId={e.stopId}
+      favCode={e.favCode}
+      destLabel={e.destLabel}
+      originLabel={e.originLabel}
+      mapLat={e.mapLat}
+      mapLng={e.mapLng}
+      isRealtime={e.isRealtime}
+      isFavorite={isFav(e.favCode)}
+      onToggleFav={onToggleFav}
+      onCardClick={onCardClick}
+    />
+  ))
+}
+
 // ─── main component ──────────────────────────────────────────────────────────
 export default function SchedulePage() {
   const [mode, setMode] = useState('bus')
@@ -333,13 +407,6 @@ export default function SchedulePage() {
   const toggleFavoriteRoute = useAppStore((s) => s.toggleFavoriteRoute)
   const scheduleHint = useAppStore((s) => s.scheduleHint)
   const setScheduleHint = useAppStore((s) => s.setScheduleHint)
-
-  // 정류장명 → station_id 해석 (버스 방면별 시간표 조회에 사용)
-  const { data: stationsData } = useBusStations()
-  const stationNameToId = (stationsData ?? []).reduce((acc, s) => {
-    acc[s.name] = s.station_id
-    return acc
-  }, {})
 
   useEffect(() => {
     if (!scheduleHint) return
@@ -369,7 +436,7 @@ export default function SchedulePage() {
   }
 
   const groups =
-    mode === 'bus' ? BUS_GROUPS : mode === 'subway' ? SUBWAY_GROUPS : SHUTTLE_GROUPS
+    mode === 'bus' ? BUS_GROUP_IDS : mode === 'subway' ? SUBWAY_GROUPS : SHUTTLE_GROUPS
   const activeGroupId =
     mode === 'bus' ? busGroup : mode === 'subway' ? subwayGroup : shuttleGroup
   const setActiveGroup =
@@ -442,43 +509,15 @@ export default function SchedulePage() {
 
       {/* content */}
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6 flex flex-col gap-2">
-        {mode === 'bus' && (() => {
-          const group = BUS_GROUPS.find((g) => g.id === busGroup)
-          const rawRoutes = group?.routes ?? []
-          // 즐겨찾기 key는 방향 구분을 위해 group.id와 조합
-          const entries = rawRoutes.map((r) => ({
-            ...r,
-            favCode: r.stopName ? `${group.id}:${r.code}` : r.code,
-            stopId: r.stopName ? (stationNameToId[r.stopName] ?? null) : null,
-            destLabel: r.destLabel ?? null,
-            originLabel: r.originLabel ?? null,
-            mapLat: r.mapLat ?? null,
-            mapLng: r.mapLng ?? null,
-          }))
-          const visible = entries.filter((e) => !favOnly || isFav(e.favCode))
-          if (visible.length === 0) {
-            return (
-              <p className="py-8 text-center text-sm text-slate-400">
-                {favOnly ? '즐겨찾기된 버스가 없어요' : '해당 그룹의 버스가 없어요'}
-              </p>
-            )
-          }
-          return visible.map((e) => (
-            <BusRouteSection
-              key={e.favCode}
-              routeCode={e.code}
-              stopId={e.stopId}
-              favCode={e.favCode}
-              destLabel={e.destLabel}
-              originLabel={e.originLabel}
-              mapLat={e.mapLat}
-              mapLng={e.mapLng}
-              isFavorite={isFav(e.favCode)}
-              onToggleFav={handleToggleFav}
-              onCardClick={handleCardClick}
-            />
-          ))
-        })()}
+        {mode === 'bus' && (
+          <BusGroupContent
+            busGroup={busGroup}
+            favOnly={favOnly}
+            isFav={isFav}
+            onToggleFav={handleToggleFav}
+            onCardClick={handleCardClick}
+          />
+        )}
 
         {mode === 'subway' && (() => {
           const stationKeys = (SUBWAY_DIRECTIONS[subwayGroup] ?? []).flatMap((d) => [d.upKey, d.downKey])
@@ -527,6 +566,7 @@ export default function SchedulePage() {
         onClose={handleModalClose}
         type={selectedDetail?.type}
         routeCode={selectedDetail?.routeCode}
+        routeId={selectedDetail?.routeId ?? null}
         stopId={selectedDetail?.stopId ?? null}
         direction={selectedDetail?.direction}
         subwayKey={selectedDetail?.subwayKey}
