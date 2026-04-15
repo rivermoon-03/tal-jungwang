@@ -43,12 +43,20 @@ async def lifespan(app: FastAPI):
     import asyncio
     from app.services.bus_collector import poll_and_collect
     from app.services.subway import needs_refresh, refresh_timetable
+    from app.services.weather import refresh_weather_cache
     from app.core.database import AsyncSessionLocal
 
     start_scheduler()
 
     async def _initial_tasks():
         await asyncio.sleep(3)  # DB/Redis 연결 안정화 대기
+
+        # 날씨 캐시 초기 로드 (서버 기동 직후 바로 받아둔다)
+        try:
+            await refresh_weather_cache()
+            logger.info("초기 날씨 캐시 로드 완료")
+        except Exception:
+            logger.exception("초기 날씨 캐시 로드 실패")
 
         # 버스 도착정보 초기 폴링
         try:

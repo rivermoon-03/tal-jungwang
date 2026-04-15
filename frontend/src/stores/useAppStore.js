@@ -15,6 +15,10 @@ const useAppStore = create(
       setSheetOpen: (open) => set({ sheetOpen: open }),
       driveRouteCoords: null,
       setDriveRouteCoords: (coords) => set({ driveRouteCoords: coords }),
+      // 도보 경로: { coords: [[lng,lat],...], destName, durationSec, distanceM } | null
+      walkRoute: null,
+      setWalkRoute: (route) => set({ walkRoute: route }),
+      clearWalkRoute: () => set({ walkRoute: null }),
       tabBadges: { transit: false, subway: false, more: false },
       setTabBadges: (badges) => set((s) => ({ tabBadges: { ...s.tabBadges, ...badges } })),
       mapPanTarget: null,

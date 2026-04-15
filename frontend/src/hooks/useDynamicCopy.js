@@ -61,12 +61,22 @@ export function useDynamicCopy({ now = new Date(), weather = null, nextArrival =
   const isGoingHome = hour >= 15 && hour < 23
 
   // 모드 표시 레이블
-  const modeLabel =
-    nextArrival?.mode === 'subway'
-      ? '지하철'
-      : nextArrival?.mode === 'shuttle'
-        ? '셔틀'
-        : nextArrival?.route ?? '버스'
+  let modeLabel
+  if (nextArrival?.mode === 'subway') {
+    const fallback = [
+      nextArrival?.station,
+      nextArrival?.line && `(${nextArrival.line})`,
+      nextArrival?.route,
+    ].filter(Boolean).join(' ')
+    modeLabel = nextArrival?.headLabel || fallback || '지하철'
+  } else if (nextArrival?.mode === 'shuttle') {
+    modeLabel = '셔틀'
+  } else {
+    modeLabel = nextArrival?.route ?? '버스'
+  }
+
+  // 상세 보조 라인 — subLabel 우선(시간 없음), 없으면 pillLabel
+  const detailSub = nextArrival?.subLabel ?? nextArrival?.pillLabel ?? null
 
   let big = '정왕 교통'
   let sub = '다음 출발 정보를 확인하세요'
@@ -88,37 +98,39 @@ export function useDynamicCopy({ now = new Date(), weather = null, nextArrival =
   } else if (isLastTrain) {
     if (mins !== null) {
       big = `막차 ${mins}분 전 🌙`
-      sub = `${modeLabel} · 오늘 마지막 차량`
+      sub = detailSub ?? `${modeLabel} · 오늘 마지막 차량`
     } else {
       big = '막차 임박 🌙'
       sub = '막차 시간을 확인하세요'
     }
   } else if (isCommute) {
-    // 등교
+    const isShuttle = nextArrival?.mode === 'shuttle'
+    const prefix = isShuttle ? '등교 ' : ''
     if (mins !== null) {
-      big = `등교 ${modeLabel} ${mins}분 뒤${urgencyEmoji}${weatherEmoji}`
-      sub = mins <= 3 ? '지금 바로 출발하세요!' : `${modeLabel}으로 등교`
+      big = `${prefix}${modeLabel} ${mins}분 뒤${urgencyEmoji}${weatherEmoji}`
+      sub = mins <= 3 ? '지금 바로 출발하세요!' : (detailSub ?? modeLabel)
     } else {
-      big = `등교${weatherEmoji}`
-      sub = '도착 정보를 확인하세요'
+      big = isShuttle ? `등교${weatherEmoji}` : `정왕 교통 허브${weatherEmoji}`
+      sub = detailSub ?? '도착 정보를 확인하세요'
     }
   } else if (isMidday) {
     // 11–15: 현재 조건 기준
     if (mins !== null) {
       big = `${modeLabel} ${mins}분 뒤${urgencyEmoji}${weatherEmoji}`
-      sub = '정왕 교통 허브'
+      sub = detailSub ?? '정왕 교통 허브'
     } else {
       big = `정왕 교통 허브${weatherEmoji}`
-      sub = '다음 출발 정보'
+      sub = detailSub ?? '다음 출발 정보'
     }
   } else if (isGoingHome) {
-    // 하교
+    const isShuttle = nextArrival?.mode === 'shuttle'
+    const prefix = isShuttle ? '하교 ' : ''
     if (mins !== null) {
-      big = `하교 ${modeLabel} ${mins}분 뒤${urgencyEmoji}${weatherEmoji}`
-      sub = mins <= 3 ? '지금 바로 출발하세요!' : `${modeLabel}으로 하교`
+      big = `${prefix}${modeLabel} ${mins}분 뒤${urgencyEmoji}${weatherEmoji}`
+      sub = mins <= 3 ? '지금 바로 출발하세요!' : (detailSub ?? modeLabel)
     } else {
-      big = `하교${weatherEmoji}`
-      sub = '도착 정보를 확인하세요'
+      big = isShuttle ? `하교${weatherEmoji}` : `정왕 교통 허브${weatherEmoji}`
+      sub = detailSub ?? '도착 정보를 확인하세요'
     }
   }
 

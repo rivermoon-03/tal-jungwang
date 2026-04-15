@@ -45,6 +45,9 @@ export default function ScheduleSection({
   disabled = false,
   disabledLabel = '일부 역 정보는 지원 예정',
   lineColor = null,
+  minutesUntil = null,
+  extraTimes = null,
+  testBadge = false,
 }) {
   const dotColor = lineColor ?? ROUTE_COLOR[routeCode] ?? TYPE_COLOR[type] ?? '#64748B'
   // 버스 카드는 노선번호를 컬러 pill 배경으로 강조, 그 외(지하철/셔틀)는 작은 점 유지
@@ -102,31 +105,70 @@ export default function ScheduleSection({
       </div>
 
       {/* arrival times */}
-      <div className="mt-3 flex items-baseline gap-3">
-        {disabled ? (
-          <span className="text-xs text-slate-400 dark:text-slate-500">{disabledLabel}</span>
-        ) : realtimeOnly ? (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-            실시간
-          </span>
-        ) : loading ? (
-          <>
-            <Skeleton width="4rem" height="1.5rem" rounded="rounded-lg" />
-            <Skeleton width="3rem" height="1rem" rounded="rounded-lg" />
-          </>
-        ) : (
-          <>
-            <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
-              {next ?? '—'}
+      <div className="mt-3 flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline gap-3 min-w-0">
+          {disabled ? (
+            <span className="text-xs text-slate-400 dark:text-slate-500">{disabledLabel}</span>
+          ) : realtimeOnly ? (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+              실시간
             </span>
-            {afterNext && (
-              <span className="text-sm text-slate-400 font-medium">
-                다음 {afterNext}
-              </span>
-            )}
-          </>
-        )}
+          ) : loading ? (
+            <>
+              <Skeleton width="4rem" height="1.5rem" rounded="rounded-lg" />
+              <Skeleton width="3rem" height="1rem" rounded="rounded-lg" />
+            </>
+          ) : (
+            <>
+              {(() => {
+                const isTime = typeof next === 'string' && /^\d{1,2}:\d{2}$/.test(next)
+                return (
+                  <span
+                    className={
+                      isTime
+                        ? 'text-2xl font-black text-slate-900 dark:text-slate-100'
+                        : 'text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug break-keep'
+                    }
+                  >
+                    {next ?? '—'}
+                  </span>
+                )
+              })()}
+              {afterNext && (
+                <span className="text-sm text-slate-400 font-medium">
+                  다음 {afterNext}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {!disabled && !loading && testBadge && (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-lg font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 whitespace-nowrap cursor-default select-none"
+              title="실험 중인 기능입니다. 정확성이 떨어지니 주의하세요"
+            >
+              테스트-부정확
+            </span>
+          )}
+          {!disabled && !loading && minutesUntil != null && (
+            <span className="text-xs font-bold text-blue-500 dark:text-blue-400">
+              {minutesUntil <= 0 ? '곧 출발' : `${minutesUntil}분 뒤`}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* 추가 시간 (셔틀) */}
+      {!disabled && !loading && Array.isArray(extraTimes) && extraTimes.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-wrap gap-x-3 gap-y-1">
+          {extraTimes.map((t, i) => (
+            <span key={`${t}-${i}`} className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

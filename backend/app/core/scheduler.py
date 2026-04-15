@@ -103,13 +103,13 @@ def setup_scheduler():
     # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
     scheduler.add_job(
         _weather_refresh_job,
-        IntervalTrigger(minutes=10),
+        IntervalTrigger(minutes=60),
         id="weather_refresh",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
     )
-    logger.info("Weather cache refresh scheduler configured (every 10min, active 05:00-23:59 KST)")
+    logger.info("Weather cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)")
 
 
 def start_scheduler():

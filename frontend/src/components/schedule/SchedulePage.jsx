@@ -1,36 +1,35 @@
 /**
  * SchedulePage — 시간표 탭
  * - Mode pill: 지하철 · 버스 · 셔틀
+ * - 각 모드별 그룹 pill selector
  * - ⭐ 즐겨찾기만 toggle
- * - 검색 필터
- * - 섹션별 ScheduleSection cards
  */
 import { useState } from 'react'
 import { TrainFront, Bus, TramFront, Star } from 'lucide-react'
-import ScheduleSearch from './ScheduleSearch'
 import ScheduleSection from './ScheduleSection'
 import ScheduleDetailModal from './ScheduleDetailModal'
+import PageHeader from '../layout/PageHeader'
 import useAppStore from '../../stores/useAppStore'
-import { useBusTimetableByRoute } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusArrivals } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 
 // ─── static section definitions ────────────────────────────────────────────
-const BUS_SECTIONS = [
-  { group: '정왕역', routes: ['20-1', '시흥33'] },
-  { group: '서울',   routes: ['3400', '6502'] },
-  { group: '기타',   routes: ['시흥1'] },
+const BUS_GROUPS = [
+  { id: '정왕역행', label: '정왕역행', routes: ['20-1', '시흥33'] },
+  { id: '서울행',   label: '서울행',   routes: ['3400', '6502'] },
+  { id: '기타',     label: '기타',     routes: ['시흥1'] },
 ]
 
-const SUBWAY_SECTIONS = [
-  { group: '정왕',     stationCode: 'K449' },
-  { group: '초지',     stationCode: 'K448' },
-  { group: '시흥시청', stationCode: 'K447' },
+const SUBWAY_GROUPS = [
+  { id: '정왕',     label: '정왕',     stationCode: 'K449' },
+  { id: '초지',     label: '초지',     stationCode: 'K448' },
+  { id: '시흥시청', label: '시흥시청', stationCode: 'K447' },
 ]
 
-const SHUTTLE_SECTIONS = [
-  { group: '등교', direction: 0 },
-  { group: '하교', direction: 1 },
+const SHUTTLE_GROUPS = [
+  { id: '등교', label: '등교', direction: 0 },
+  { id: '하교', label: '하교', direction: 1 },
 ]
 
 // ─── mode pill config ────────────────────────────────────────────────────────
@@ -43,12 +42,68 @@ const MODES = [
 // Routes that are realtime-only (no static timetable available)
 const REALTIME_ONLY_ROUTES = new Set(['20-1', '시흥33'])
 
+// 실시간 노선의 조회 대상 정류장 (GBIS stationId)
+const REALTIME_ROUTE_STATION = {
+  '20-1':   '224000639', // 한국공학대학교
+  '시흥33': '224000639', // 한국공학대학교
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+function timeStrToMinutes(timeStr, now) {
+  if (!timeStr) return null
+  const [h, m] = timeStr.split(':').map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return null
+  const d = new Date(now)
+  d.setHours(h, m, 0, 0)
+  return Math.round((d - now) / 60000)
+}
+
 // ─── per-route bus section ───────────────────────────────────────────────────
 function BusRouteSection({ routeCode, isFavorite, onToggleFav, onCardClick }) {
   const isRealtimeOnly = REALTIME_ONLY_ROUTES.has(routeCode)
-  const { data, loading } = useBusTimetableByRoute(routeCode)
-  // 백엔드는 { times: ["HH:MM", ...] } 형태로 반환
-  const allTimes = data?.times ?? []
+  const stationId = isRealtimeOnly ? REALTIME_ROUTE_STATION[routeCode] : null
+  const { data: timetableData, loading: timetableLoading } = useBusTimetableByRoute(
+    isRealtimeOnly ? null : routeCode
+  )
+  const { data: arrivalsData, loading: arrivalsLoading } = useBusArrivals(stationId)
+
+  if (isRealtimeOnly) {
+    const list = Array.isArray(arrivalsData) ? arrivalsData : arrivalsData?.arrivals ?? []
+    const matches = list
+      .filter((a) => a.route_no === routeCode && a.arrival_type === 'realtime')
+      .sort((a, b) => (a.arrive_in_seconds ?? 0) - (b.arrive_in_seconds ?? 0))
+    const first = matches[0]
+    const second = matches[1]
+    const firstMin = first?.arrive_in_seconds != null
+      ? Math.max(0, Math.round(first.arrive_in_seconds / 60))
+      : null
+    const secondMin = second?.arrive_in_seconds != null
+      ? Math.max(0, Math.round(second.arrive_in_seconds / 60))
+      : null
+
+    let nextLabel
+    if (firstMin == null) nextLabel = '정보 없음'
+    else if (firstMin <= 0) nextLabel = '곧 도착'
+    else nextLabel = `${firstMin}분 뒤`
+
+    return (
+      <ScheduleSection
+        title={routeCode}
+        subtitle={first?.destination ? `실시간 · ${first.destination}행` : '실시간'}
+        type="bus"
+        routeCode={routeCode}
+        next={nextLabel}
+        afterNext={secondMin != null ? (secondMin <= 0 ? '곧 도착' : `${secondMin}분 뒤`) : null}
+        minutesUntil={null}
+        isFavorite={isFavorite}
+        onToggleFav={() => onToggleFav(routeCode)}
+        loading={arrivalsLoading && matches.length === 0}
+        testBadge
+      />
+    )
+  }
+
+  const allTimes = timetableData?.times ?? []
   const now = new Date()
   const future = allTimes
     .map((t) => {
@@ -63,19 +118,22 @@ function BusRouteSection({ routeCode, isFavorite, onToggleFav, onCardClick }) {
   const toStr = (d) =>
     d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : null
 
+  const nextStr = toStr(future[0]) ?? '—'
+  const mins = !future[0] ? null : Math.max(0, Math.round((future[0] - now) / 60000))
+
   return (
     <ScheduleSection
       title={routeCode}
       subtitle="버스"
       type="bus"
       routeCode={routeCode}
-      next={isRealtimeOnly ? null : (toStr(future[0]) ?? '—')}
-      afterNext={isRealtimeOnly ? null : toStr(future[1])}
-      realtimeOnly={isRealtimeOnly}
+      next={nextStr}
+      afterNext={toStr(future[1])}
+      minutesUntil={mins}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(routeCode)}
-      onClick={!isRealtimeOnly ? () => onCardClick({ type: 'bus', routeCode, title: `${routeCode}번 버스` }) : undefined}
-      loading={loading && !isRealtimeOnly}
+      onClick={() => onCardClick({ type: 'bus', routeCode, title: `${routeCode}번 버스` })}
+      loading={timetableLoading}
     />
   )
 }
@@ -87,18 +145,18 @@ const SUBWAY_DIRECTIONS = {
     { subtitle: '4호선',     upKey: 'line4_up', downKey: 'line4_down', upLabel: '상행',   downLabel: '하행',   color: '#1B5FAD' },
   ],
   초지: [
-    { subtitle: '서해선',    upKey: 'choji_up', downKey: 'choji_dn',   upLabel: '상행',   downLabel: '하행',   color: '#1B5FAD' },
+    { subtitle: '서해선',    upKey: 'choji_up', downKey: 'choji_dn',   upLabel: '상행',   downLabel: '하행',   color: '#75bf43' },
   ],
   시흥시청: [
-    { subtitle: '서해선',    upKey: 'siheung_up', downKey: 'siheung_dn', upLabel: '상행', downLabel: '하행',   color: '#1B5FAD' },
+    { subtitle: '서해선',    upKey: 'siheung_up', downKey: 'siheung_dn', upLabel: '상행', downLabel: '하행',   color: '#75bf43' },
   ],
 }
 
 // ─── subway section ──────────────────────────────────────────────────────────
-function SubwaySection({ stationGroup, isFavorite, onToggleFav, onCardClick }) {
+function SubwaySection({ stationGroup, isFav, onToggleFav, onCardClick }) {
   const { data, loading } = useSubwayNext()
-  // 백엔드 /subway/next 는 { up, down, line4_up, line4_down, choji_up, choji_dn, siheung_up, siheung_dn } 반환
   const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
+  const now = new Date()
 
   if (directions.length === 0) {
     return (
@@ -109,8 +167,8 @@ function SubwaySection({ stationGroup, isFavorite, onToggleFav, onCardClick }) {
         routeCode={stationGroup}
         next={null}
         afterNext={null}
-        isFavorite={isFavorite}
-        onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
+        isFavorite={false}
+        onToggleFav={() => {}}
         loading={false}
         disabled
         disabledLabel="정보 준비 중"
@@ -121,34 +179,31 @@ function SubwaySection({ stationGroup, isFavorite, onToggleFav, onCardClick }) {
   return (
     <>
       {directions.flatMap((dir) => [
-        <ScheduleSection
-          key={`${stationGroup}:${dir.upKey}`}
-          title={`${stationGroup} ${dir.upLabel}`}
-          subtitle={dir.subtitle}
-          type="subway"
-          routeCode={`subway:${dir.upKey}`}
-          next={data?.[dir.upKey]?.depart_at ?? null}
-          afterNext={null}
-          isFavorite={isFavorite}
-          onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
-          onClick={() => onCardClick({ type: 'subway', routeCode: stationGroup, title: `${stationGroup}역 ${dir.subtitle}` })}
-          loading={loading}
-          lineColor={dir.color}
-        />,
-        <ScheduleSection
-          key={`${stationGroup}:${dir.downKey}`}
-          title={`${stationGroup} ${dir.downLabel}`}
-          subtitle={dir.subtitle}
-          type="subway"
-          routeCode={`subway:${dir.downKey}`}
-          next={data?.[dir.downKey]?.depart_at ?? null}
-          afterNext={null}
-          isFavorite={isFavorite}
-          onToggleFav={() => onToggleFav(`subway:${stationGroup}`)}
-          onClick={() => onCardClick({ type: 'subway', routeCode: stationGroup, title: `${stationGroup}역 ${dir.subtitle}` })}
-          loading={loading}
-          lineColor={dir.color}
-        />,
+        ...[
+          { key: dir.upKey, label: dir.upLabel },
+          { key: dir.downKey, label: dir.downLabel },
+        ].map(({ key, label }) => {
+          const depart = data?.[key]?.depart_at ?? null
+          const mins = depart ? timeStrToMinutes(depart, now) : null
+          const favCode = `subway:${stationGroup}:${key}`
+          return (
+            <ScheduleSection
+              key={`${stationGroup}:${key}`}
+              title={`${stationGroup} ${label}`}
+              subtitle={dir.subtitle}
+              type="subway"
+              routeCode={favCode}
+              next={depart}
+              afterNext={null}
+              minutesUntil={mins != null && mins >= 0 ? mins : null}
+              isFavorite={isFav(favCode)}
+              onToggleFav={() => onToggleFav(favCode)}
+              onClick={() => onCardClick({ type: 'subway', routeCode: stationGroup, subwayKey: key, accentColor: dir.color, title: `${stationGroup}역 ${dir.subtitle} ${label}` })}
+              loading={loading}
+              lineColor={dir.color}
+            />
+          )
+        }),
       ])}
     </>
   )
@@ -157,16 +212,46 @@ function SubwaySection({ stationGroup, isFavorite, onToggleFav, onCardClick }) {
 // ─── shuttle section ─────────────────────────────────────────────────────────
 function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
   const label = direction === 0 ? '등교' : '하교'
-  // useShuttleSchedule: { data: { directions: [{direction, times:[{depart_at,note}]}] } }
   const { data, loading } = useShuttleSchedule(direction)
 
-  // 해당 direction 의 times 배열에서 현재 시각 이후 항목 추출
   const now = new Date()
   const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const dirData = data?.directions?.find((d) => d.direction === direction)
-  const futureTimes = (dirData?.times ?? [])
-    .map((t) => (typeof t === 'string' ? t : t?.depart_at ?? ''))
-    .filter((t) => t >= nowStr)
+
+  // note 판별: 수시운행 / 회차편은 정확한 시간 대신 상태 라벨로 표시
+  const rawEntries = (dirData?.times ?? []).map((t) =>
+    typeof t === 'string' ? { depart_at: t, note: null } : { depart_at: t?.depart_at ?? '', note: t?.note ?? null }
+  )
+  const futureEntries = rawEntries.filter((e) => (e.depart_at ?? '').slice(0, 5) >= nowStr)
+
+  // 수시운행 구간 판단
+  const hasPastFrequent = rawEntries.some((e) => e.note === '수시운행' && (e.depart_at ?? '').slice(0, 5) <= nowStr)
+  const inFrequent = hasPastFrequent && futureEntries[0]?.note === '수시운행'
+
+  const firstEntry = futureEntries[0]
+  const firstIsReturn = firstEntry?.note?.startsWith?.('회차편') ?? false
+
+  let nextDisplay = firstEntry ? firstEntry.depart_at.slice(0, 5) : null
+  let firstMins = nextDisplay ? timeStrToMinutes(nextDisplay, now) : null
+  if (inFrequent) {
+    // 수시운행 종료 시각 = 현재 이후 첫 비(非)수시운행 편의 depart_at
+    const endEntry = futureEntries.find((e) => e.note !== '수시운행')
+    const endAt = endEntry?.depart_at?.slice(0, 5)
+    nextDisplay = endAt ? `${endAt}까지 수시운행` : '수시운행 중'
+    firstMins = null
+  } else if (firstIsReturn) {
+    const departAt = firstEntry?.depart_at?.slice(0, 5)
+    nextDisplay = departAt
+      ? `${departAt}에 출발하는 ${label}버스 회차편 탑승`
+      : '회차편 탑승'
+    firstMins = null
+  }
+
+  const extra = futureEntries.slice(1, 4).map((e) => {
+    if (e.note === '수시운행') return '수시운행'
+    if (e.note?.startsWith?.('회차편')) return '회차편 탑승'
+    return e.depart_at.slice(0, 5)
+  })
 
   return (
     <ScheduleSection
@@ -174,8 +259,10 @@ function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
       subtitle="한국공학대학교"
       type="shuttle"
       routeCode={`셔틀${label}`}
-      next={futureTimes[0] ? futureTimes[0].slice(0, 5) : null}
-      afterNext={futureTimes[1] ? futureTimes[1].slice(0, 5) : null}
+      next={nextDisplay}
+      afterNext={null}
+      minutesUntil={firstMins != null && firstMins >= 0 ? firstMins : null}
+      extraTimes={extra}
       isFavorite={isFavorite}
       onToggleFav={() => onToggleFav(`shuttle:${label}`)}
       onClick={() => onCardClick({ type: 'shuttle', routeCode: `셔틀${label}`, direction, title: `셔틀버스 ${label}` })}
@@ -188,7 +275,9 @@ function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
 export default function SchedulePage() {
   const [mode, setMode] = useState('bus')
   const [favOnly, setFavOnly] = useState(false)
-  const [query, setQuery] = useState('')
+  const [busGroup, setBusGroup] = useState('정왕역행')
+  const [subwayGroup, setSubwayGroup] = useState('정왕')
+  const [shuttleGroup, setShuttleGroup] = useState('등교')
   const [selectedDetail, setSelectedDetail] = useState(null)
 
   const favorites = useAppStore((s) => s.favorites)
@@ -202,12 +291,6 @@ export default function SchedulePage() {
     toggleFavoriteRoute(code)
   }
 
-  // Filter helper for query
-  function matchesQuery(label) {
-    if (!query) return true
-    return label.toLowerCase().includes(query.toLowerCase())
-  }
-
   function handleCardClick(detail) {
     setSelectedDetail(detail)
   }
@@ -216,105 +299,140 @@ export default function SchedulePage() {
     setSelectedDetail(null)
   }
 
+  const groups =
+    mode === 'bus' ? BUS_GROUPS : mode === 'subway' ? SUBWAY_GROUPS : SHUTTLE_GROUPS
+  const activeGroupId =
+    mode === 'bus' ? busGroup : mode === 'subway' ? subwayGroup : shuttleGroup
+  const setActiveGroup =
+    mode === 'bus' ? setBusGroup : mode === 'subway' ? setSubwayGroup : setShuttleGroup
+
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 animate-fade-in-up">
+      <PageHeader title="시간표" subtitle="노선별 전체 시간표" />
       {/* controls */}
-      <div className="px-4 pt-5 pb-2 flex flex-col gap-2 flex-shrink-0 bg-slate-50 dark:bg-slate-900">
+      <div className="px-4 pt-2 pb-2 flex flex-col gap-2 flex-shrink-0 bg-slate-50 dark:bg-slate-900">
         {/* mode + fav toggle row */}
         <div className="flex items-center gap-2">
-          {/* mode pills */}
           <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-full p-1">
-            {MODES.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                onClick={() => setMode(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all pressable ${
-                  mode === id
-                    ? 'bg-navy text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                }`}
-              >
-                <Icon size={13} />
-                {label}
-              </button>
-            ))}
+            {MODES.map(({ id, label, Icon }) => {
+              const isActive = mode === id
+              return (
+                <button
+                  key={id}
+                  onClick={() => setMode(id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all pressable ${
+                    isActive
+                      ? 'shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+                  style={isActive ? { background: '#1b3a6e', color: '#FFFFFF' } : undefined}
+                >
+                  <Icon size={13} color={isActive ? '#FFFFFF' : undefined} />
+                  {label}
+                </button>
+              )
+            })}
           </div>
-          {/* fav toggle */}
           <button
             onClick={() => setFavOnly((v) => !v)}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all pressable ml-auto ${
               favOnly
-                ? 'bg-coral text-white shadow-sm'
+                ? 'shadow-sm'
                 : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
             }`}
+            style={favOnly ? { background: '#FF385C', color: '#FFFFFF' } : undefined}
           >
             <Star size={12} fill={favOnly ? 'currentColor' : 'none'} />
             즐겨찾기만
           </button>
         </div>
-        {/* search */}
-        <ScheduleSearch value={query} onChange={setQuery} />
+
+        {/* group pill selector (셔틀은 등·하교 둘 다 보여주므로 셀렉터 숨김) */}
+        {mode !== 'shuttle' && (
+        <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
+          {groups.map((g) => {
+            const isActive = activeGroupId === g.id
+            return (
+              <button
+                key={g.id}
+                onClick={() => setActiveGroup(g.id)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all pressable flex-shrink-0 ${
+                  isActive
+                    ? 'shadow-sm'
+                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+                }`}
+                style={isActive ? { background: '#1b3a6e', color: '#FFFFFF' } : undefined}
+              >
+                {g.label}
+              </button>
+            )
+          })}
+        </div>
+        )}
       </div>
 
       {/* content */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6 flex flex-col gap-4">
-        {mode === 'bus' && BUS_SECTIONS.map(({ group, routes }) => {
-          const visible = routes.filter(
-            (r) => matchesQuery(r) && (!favOnly || isFav(r))
-          )
-          if (visible.length === 0) return null
-          return (
-            <div key={group}>
-              <p className="text-xs font-bold text-slate-400 px-1 mb-2 uppercase tracking-wider">
-                {group}
+      <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6 flex flex-col gap-2">
+        {mode === 'bus' && (() => {
+          const group = BUS_GROUPS.find((g) => g.id === busGroup)
+          const routes = (group?.routes ?? []).filter((r) => !favOnly || isFav(r))
+          if (routes.length === 0) {
+            return (
+              <p className="py-8 text-center text-sm text-slate-400">
+                {favOnly ? '즐겨찾기된 버스가 없어요' : '해당 그룹의 버스가 없어요'}
               </p>
-              <div className="flex flex-col gap-2">
-                {visible.map((routeCode) => (
-                  <BusRouteSection
-                    key={routeCode}
-                    routeCode={routeCode}
-                    isFavorite={isFav(routeCode)}
-                    onToggleFav={handleToggleFav}
-                    onCardClick={handleCardClick}
-                  />
-                ))}
-              </div>
-            </div>
+            )
+          }
+          return routes.map((routeCode) => (
+            <BusRouteSection
+              key={routeCode}
+              routeCode={routeCode}
+              isFavorite={isFav(routeCode)}
+              onToggleFav={handleToggleFav}
+              onCardClick={handleCardClick}
+            />
+          ))
+        })()}
+
+        {mode === 'subway' && (() => {
+          const stationKeys = (SUBWAY_DIRECTIONS[subwayGroup] ?? []).flatMap((d) => [d.upKey, d.downKey])
+          const anyFav = stationKeys.some((k) => isFav(`subway:${subwayGroup}:${k}`))
+          if (favOnly && !anyFav) {
+            return (
+              <p className="py-8 text-center text-sm text-slate-400">
+                즐겨찾기된 지하철 방향이 없어요
+              </p>
+            )
+          }
+          return (
+            <SubwaySection
+              stationGroup={subwayGroup}
+              isFav={isFav}
+              onToggleFav={handleToggleFav}
+              onCardClick={handleCardClick}
+            />
           )
-        })}
+        })()}
 
-        {mode === 'subway' && SUBWAY_SECTIONS.filter(
-          ({ group }) => matchesQuery(group) && (!favOnly || isFav(`subway:${group}`))
-        ).map(({ group }) => (
-          <SubwaySection
-            key={group}
-            stationGroup={group}
-            isFavorite={isFav(`subway:${group}`)}
-            onToggleFav={handleToggleFav}
-            onCardClick={handleCardClick}
-          />
-        ))}
-
-        {mode === 'shuttle' && SHUTTLE_SECTIONS.filter(
-          ({ group }) => matchesQuery(group) && (!favOnly || isFav(`shuttle:${group}`))
-        ).map(({ group, direction }) => (
-          <ShuttleSection
-            key={group}
-            direction={direction}
-            isFavorite={isFav(`shuttle:${group}`)}
-            onToggleFav={handleToggleFav}
-            onCardClick={handleCardClick}
-          />
-        ))}
-
-        {/* empty state when fav filter yields nothing */}
-        {favOnly && (
-          <div className="py-4 text-center text-sm text-slate-400">
-            {mode === 'bus' && BUS_SECTIONS.every(({ routes }) => !routes.some(isFav)) && '즐겨찾기된 버스가 없어요'}
-            {mode === 'subway' && SUBWAY_SECTIONS.every(({ group }) => !isFav(`subway:${group}`)) && '즐겨찾기된 지하철 역이 없어요'}
-            {mode === 'shuttle' && SHUTTLE_SECTIONS.every(({ group }) => !isFav(`shuttle:${group}`)) && '즐겨찾기된 셔틀이 없어요'}
-          </div>
-        )}
+        {mode === 'shuttle' && (() => {
+          const visible = SHUTTLE_GROUPS.filter((g) => !favOnly || isFav(`shuttle:${g.label}`))
+          if (visible.length === 0) {
+            return (
+              <p className="py-8 text-center text-sm text-slate-400">
+                즐겨찾기된 셔틀이 없어요
+              </p>
+            )
+          }
+          return visible.map((g) => (
+            <ShuttleSection
+              key={g.id}
+              direction={g.direction}
+              isFavorite={isFav(`shuttle:${g.label}`)}
+              onToggleFav={handleToggleFav}
+              onCardClick={handleCardClick}
+            />
+          ))
+        })()}
       </div>
 
       {/* detail modal */}
@@ -324,6 +442,8 @@ export default function SchedulePage() {
         type={selectedDetail?.type}
         routeCode={selectedDetail?.routeCode}
         direction={selectedDetail?.direction}
+        subwayKey={selectedDetail?.subwayKey}
+        accentColor={selectedDetail?.accentColor}
         title={selectedDetail?.title ?? ''}
       />
     </div>

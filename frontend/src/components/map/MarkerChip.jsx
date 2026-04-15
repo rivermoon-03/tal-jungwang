@@ -36,28 +36,10 @@ function resolveColor(routeCode, routeColor) {
  */
 export default function MarkerChip({ routeCode, routeColor, stationName, liveMinutes, showLive = false }) {
   const color = resolveColor(routeCode, routeColor)
+  const hasLive = showLive && liveMinutes != null
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* 라이브 배지 (즐겨찾기 전용, showLive=true일 때만) */}
-      {showLive && liveMinutes != null && (
-        <div
-          style={{
-            background: '#FF385C',
-            color: '#fff',
-            fontSize: '10px',
-            fontWeight: 700,
-            borderRadius: '99px',
-            padding: '1px 6px',
-            marginBottom: '2px',
-            boxShadow: '0 2px 6px rgba(255,56,92,0.35)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {liveMinutes}분
-        </div>
-      )}
-
       {/* Pill 본체 */}
       <div
         style={{
@@ -71,7 +53,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           cursor: 'pointer',
           userSelect: 'none',
           whiteSpace: 'nowrap',
-          maxWidth: '160px',
+          maxWidth: '180px',
         }}
       >
         {/* 노선 색 원 */}
@@ -93,7 +75,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           {(routeCode ?? '').slice(0, 3)}
         </span>
 
-        {/* 정류장명 */}
+        {/* 정류장명 + 남은 시간 */}
         <span
           style={{
             fontSize: '11px',
@@ -104,6 +86,12 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           }}
         >
           {stationName}
+          {hasLive && (
+            <>
+              <span style={{ color: '#cbd5e1', margin: '0 4px' }}>·</span>
+              <span style={{ color: '#FF385C' }}>{liveMinutes}분</span>
+            </>
+          )}
         </span>
       </div>
     </div>
@@ -115,7 +103,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
  * @param {{ routeCode: string, routeColor?: string, stationName: string, liveMinutes?: number|null, showLive?: boolean, onClick?: () => void }} options
  * @returns {HTMLElement}
  */
-export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, onClick }) {
+export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick }) {
   const color = resolveColor(routeCode, routeColor)
 
   const wrapper = document.createElement('div')
@@ -127,23 +115,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'cursor:pointer',
   ].join(';')
 
-  // 라이브 배지
-  if (showLive && liveMinutes != null) {
-    const badge = document.createElement('div')
-    badge.style.cssText = [
-      'background:#FF385C',
-      'color:#fff',
-      'font-size:10px',
-      'font-weight:700',
-      'border-radius:99px',
-      'padding:1px 6px',
-      'margin-bottom:2px',
-      'box-shadow:0 2px 6px rgba(255,56,92,0.35)',
-      'white-space:nowrap',
-    ].join(';')
-    badge.textContent = `${liveMinutes}분`
-    wrapper.appendChild(badge)
-  }
+  const hasLive = showLive && liveMinutes != null
 
   // Pill 본체
   const pill = document.createElement('div')
@@ -157,7 +129,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'box-shadow:0 4px 14px rgba(0,0,0,0.1)',
     'user-select:none',
     'white-space:nowrap',
-    'max-width:160px',
+    'max-width:180px',
   ].join(';')
 
   // 노선 색 원
@@ -178,7 +150,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
   dot.textContent = (routeCode ?? '').slice(0, 3)
   pill.appendChild(dot)
 
-  // 정류장명
+  // 정류장명 + 남은 시간
   const label = document.createElement('span')
   label.style.cssText = [
     'font-size:11px',
@@ -187,7 +159,14 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'overflow:hidden',
     'text-overflow:ellipsis',
   ].join(';')
-  label.textContent = stationName
+  if (hasLive) {
+    const inaccTag = inaccurate
+      ? `<span style="margin-left:4px;font-size:9px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 4px">부정확</span>`
+      : ''
+    label.innerHTML = `${stationName}<span style="color:#cbd5e1;margin:0 4px">·</span><span style="color:#FF385C">${liveMinutes}분</span>${inaccTag}`
+  } else {
+    label.textContent = stationName
+  }
   pill.appendChild(label)
 
   wrapper.appendChild(pill)

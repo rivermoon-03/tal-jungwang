@@ -5,7 +5,7 @@
  *   station   — { id, name, type: 'bus'|'subway'|'shuttle', walkMinutes, walkMeters, boardingStatus: 'green'|'yellow'|'red'|null }
  *   arrivals  — [{ routeCode, routeColor, direction, minutes }] (최대 3개)
  *   onClose   — () => void
- *   onNavigate— () => void  (길찾기 버튼)
+ *   onNavigate— () => void  (걸어가기 버튼)
  *   onDetail  — () => void  (상세 보기 버튼)
  *
  * 드래그: Framer Motion 없음 → pointerdown 기반 단순 상태 토글 (half ↔ full).
@@ -210,7 +210,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
             onClick={onNavigate}
           >
             <Navigation size={15} />
-            길찾기
+            걸어가기
           </button>
           <button
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-[#ebebeb] dark:border-[#3a3e48] text-[#0f172a] dark:text-[#f1f5f9] text-[14px] font-semibold bg-white dark:bg-[#272a33]"
