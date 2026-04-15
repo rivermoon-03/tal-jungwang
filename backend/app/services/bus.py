@@ -37,6 +37,7 @@ async def get_stations(db: AsyncSession) -> list[dict]:
         {
             "station_id": s.id,
             "name": s.name,
+            "sub_name": s.sub_name,
             "lat": float(s.lat),
             "lng": float(s.lng),
             "routes": [
@@ -223,10 +224,12 @@ async def get_arrivals(
 async def get_timetable_by_route_number(
     db: AsyncSession, route_number: str, d: date, *, stop_id: int | None = None
 ) -> dict | None:
-    """route_number(예: "3400") 문자열로 조회. ID를 모를 때 사용."""
-    stmt = select(BusRoute).where(BusRoute.route_number == route_number)
+    """route_number(예: "3400") 문자열로 조회. ID를 모를 때 사용.
+    양방향 분리 이후 같은 route_number에 여러 row가 있을 수 있어 첫 번째 row만 사용.
+    방향별 조회는 /bus/routes?category=... 로 route_id 받아 /bus/timetable/{route_id} 사용 권장."""
+    stmt = select(BusRoute).where(BusRoute.route_number == route_number).order_by(BusRoute.id)
     result = await db.execute(stmt)
-    route = result.scalar_one_or_none()
+    route = result.scalars().first()
     if not route:
         return None
     return await get_timetable(db, route.id, d, stop_id=stop_id)

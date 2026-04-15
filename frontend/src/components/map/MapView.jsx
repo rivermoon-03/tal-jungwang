@@ -45,15 +45,15 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const { data: busArrivalsData }       = useBusArrivals(224000639)
   const { data: stationsData }          = useBusStations()
 
-  // 정류장 이름 → stop_id 해석
+  // 정류장 이름 → stop_id 해석 (순수 지명으로 정규화된 name 사용)
   const stopIds = useMemo(() => {
     const stations = stationsData ?? []
     const byName = (name) => stations.find((s) => s.name === name)?.station_id ?? null
     return {
-      sihwa:   byName('시화 (3400 시종착)'),
-      emart:   byName('이마트 (6502·시흥1번 정류장)'),
-      sadang:  byName('사당역 14번 출구'),
-      gangnam: byName('강남역 3400 정류장'),
+      sihwa:   byName('시화'),
+      emart:   byName('이마트'),
+      sadang:  byName('사당역'),
+      gangnam: byName('강남역'),
     }
   }, [stationsData])
 

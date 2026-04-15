@@ -9,15 +9,65 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import get_redis
 from app.core.database import get_db
 from app.core.limiter import limiter
-from app.models.bus import BusRoute
+from app.models.bus import BusRoute, BusStop, BusStopRoute
 from app.schemas.common import ApiResponse
-from app.schemas.bus import BusArrivalsResponse, BusStationResponse, BusTimetableResponse
+from app.schemas.bus import (
+    BusArrivalsResponse,
+    BusRouteStop,
+    BusRouteSummary,
+    BusStationResponse,
+    BusTimetableResponse,
+)
 from app.services.bus import get_arrivals, get_stations, get_timetable, get_timetable_by_route_number
 from app.services.external.gbis import fetch_bus_locations
 
 router = APIRouter(prefix="/api/v1/bus", tags=["bus"])
 
 _LOCATIONS_CACHE_TTL = 30  # 초 — 버스 폴링 간격과 동일
+
+
+@router.get("/routes")
+async def bus_routes(
+    category: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """노선 목록. category(정왕역행/서울행/학교행/기타) 필터 가능. 각 노선의 stops 포함."""
+    stmt = select(BusRoute).order_by(BusRoute.route_number, BusRoute.direction_name)
+    if category:
+        stmt = stmt.where(BusRoute.category == category)
+    routes = (await db.execute(stmt)).scalars().all()
+
+    if not routes:
+        return ApiResponse[list[BusRouteSummary]].ok([])
+
+    route_ids = [r.id for r in routes]
+    stop_rows = (
+        await db.execute(
+            select(BusStopRoute.bus_route_id, BusStop.id, BusStop.name, BusStop.sub_name)
+            .join(BusStop, BusStop.id == BusStopRoute.bus_stop_id)
+            .where(BusStopRoute.bus_route_id.in_(route_ids))
+        )
+    ).all()
+    stops_by_route: dict[int, list[BusRouteStop]] = {}
+    for route_id, stop_id, name, sub_name in stop_rows:
+        stops_by_route.setdefault(route_id, []).append(
+            BusRouteStop(stop_id=stop_id, name=name, sub_name=sub_name)
+        )
+
+    data = [
+        BusRouteSummary(
+            route_id=r.id,
+            route_number=r.route_number,
+            route_name=r.route_name,
+            direction_name=r.direction_name,
+            category=r.category,
+            is_realtime=r.is_realtime,
+            gbis_route_id=r.gbis_route_id,
+            stops=stops_by_route.get(r.id, []),
+        )
+        for r in routes
+    ]
+    return ApiResponse[list[BusRouteSummary]].ok(data)
 
 
 @router.get("/stations")

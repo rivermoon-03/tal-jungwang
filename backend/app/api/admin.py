@@ -520,6 +520,7 @@ def _route_to_out(route: BusRouteModel, stop_count: int = 0, tt_count: int = 0) 
         route_number=route.route_number,
         route_name=route.route_name,
         direction_name=route.direction_name,
+        category=route.category,
         is_realtime=route.is_realtime,
         gbis_route_id=route.gbis_route_id,
         stop_count=stop_count,
@@ -531,6 +532,7 @@ def _stop_to_out(stop: BusStopModel) -> BusStopOut:
     return BusStopOut(
         id=stop.id,
         name=stop.name,
+        sub_name=stop.sub_name,
         gbis_station_id=stop.gbis_station_id,
         lat=float(stop.lat),
         lng=float(stop.lng),
@@ -546,6 +548,7 @@ def _stop_to_out(stop: BusStopModel) -> BusStopOut:
 async def admin_list_bus_routes(
     is_realtime: bool | None = None,
     q: str | None = None,
+    category: str | None = None,
     db: AsyncSession = Depends(get_db),
     _user: str = Depends(verify_token),
 ):
@@ -554,6 +557,8 @@ async def admin_list_bus_routes(
         stmt = stmt.where(BusRouteModel.is_realtime == is_realtime)
     if q:
         stmt = stmt.where(BusRouteModel.route_number.ilike(f"%{q}%"))
+    if category:
+        stmt = stmt.where(BusRouteModel.category == category)
     routes = (await db.execute(stmt)).scalars().all()
 
     if not routes:
