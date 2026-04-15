@@ -6,7 +6,7 @@ import BusPanel from './BusPanel'
 import ShuttlePanel from './ShuttlePanel'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { useShuttleNext } from '../../hooks/useShuttle'
-import { useBusTimetableByRoute, useBusArrivals } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
 
 const SUBWAY_STATION_LINES = {
   정왕:    [{ upKey: 'up',         downKey: 'down',       line: '수인분당선' },
@@ -79,8 +79,26 @@ export default function SummaryCard({ onNextArrivalChange }) {
   const routes = BUS_GROUP_ROUTES[selectedBusGroup] ?? ['시흥33']
   const route1 = routes[0] ?? null
   const route2 = routes[1] ?? null
-  const { data: busData1 } = useBusTimetableByRoute(route1)
-  const { data: busData2 } = useBusTimetableByRoute(route2)
+
+  // 3400/6502는 그룹에 따라 출발 정류장이 달라짐 (서울행=시화/이마트, 학교행=강남/사당)
+  const { data: stationsData } = useBusStations()
+  const resolveStopId = (group, route) => {
+    if (!stationsData) return null
+    const find = (name) => stationsData.find((s) => s.name === name)?.station_id ?? null
+    if (group === '버스 - 서울행') {
+      if (route === '3400') return find('시화 (3400 시종착)')
+      if (route === '6502') return find('이마트 (6502·시흥1번 정류장)')
+    }
+    if (group === '버스 - 학교행') {
+      if (route === '3400') return find('강남역 3400 정류장')
+      if (route === '6502') return find('사당역 14번 출구')
+    }
+    return null
+  }
+  const stopId1 = resolveStopId(selectedBusGroup, route1)
+  const stopId2 = resolveStopId(selectedBusGroup, route2)
+  const { data: busData1 } = useBusTimetableByRoute(route1, { stopId: stopId1 ?? undefined })
+  const { data: busData2 } = useBusTimetableByRoute(route2, { stopId: stopId2 ?? undefined })
   const { data: realtimeData } = useBusArrivals(
     selectedBusGroup === '정왕역행' ? HANKUK_STOP_ID : null,
   )
@@ -164,12 +182,17 @@ export default function SummaryCard({ onNextArrivalChange }) {
       if (segs.length > 0) {
         const fastest = Math.min(...allMins)
         const subRoutes = segs.map((s) => s.split(' ')[0])
+        const groupPrefix =
+          selectedBusGroup === '버스 - 서울행' ? '서울행'
+          : selectedBusGroup === '버스 - 학교행' ? '학교행'
+          : null
+        const withPrefix = (parts) => groupPrefix ? [groupPrefix, ...parts] : parts
         onNextArrivalChange({
           mode: 'bus',
           minutes: fastest,
           route: routes[0],
-          pillLabel: segs.join(' · '),
-          subLabel: subRoutes.join(' · '),
+          pillLabel: withPrefix(segs).join(' · '),
+          subLabel: withPrefix(subRoutes).join(' · '),
         })
         return
       }

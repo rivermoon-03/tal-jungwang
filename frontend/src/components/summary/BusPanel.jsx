@@ -1,5 +1,6 @@
 import useAppStore from '../../stores/useAppStore'
-import { useBusTimetableByRoute, useBusArrivals } from '../../hooks/useBus'
+import { useMemo } from 'react'
+import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
@@ -40,6 +41,22 @@ export default function BusPanel() {
   // 정왕역 그룹(20-1, 시흥33)용 실시간 도착 정보 — 30초마다 갱신
   const realtimeArrivals = useBusArrivals(HANKUK_STOP_ID)
 
+  // 3400/6502는 그룹별로 다른 정류장 시간표를 봐야 함 (서울행=시화/이마트, 학교행=강남/사당)
+  const { data: stationsData } = useBusStations()
+  const stopIdFor = useMemo(() => {
+    const find = (name) => stationsData?.find((s) => s.name === name)?.station_id ?? null
+    return {
+      '버스 - 서울행': {
+        '3400': find('시화 (3400 시종착)'),
+        '6502': find('이마트 (6502·시흥1번 정류장)'),
+      },
+      '버스 - 학교행': {
+        '3400': find('강남역 3400 정류장'),
+        '6502': find('사당역 14번 출구'),
+      },
+    }
+  }, [stationsData])
+
   return (
     <div className="space-y-3">
       {/* 그룹 pill 탭 */}
@@ -66,14 +83,19 @@ export default function BusPanel() {
       {/* 노선별 카드 */}
       <div className="space-y-2">
         {routes.map((route) => (
-          <BusRouteRow key={route} route={route} realtimeArrivals={realtimeArrivals} />
+          <BusRouteRow
+            key={`${selectedBusGroup}-${route}`}
+            route={route}
+            realtimeArrivals={realtimeArrivals}
+            stopId={stopIdFor[selectedBusGroup]?.[route] ?? null}
+          />
         ))}
       </div>
     </div>
   )
 }
 
-function BusRouteRow({ route, realtimeArrivals }) {
+function BusRouteRow({ route, realtimeArrivals, stopId = null }) {
   const isRealtime = route === '20-1' || route === '시흥33'
 
   // 실시간 데이터에서 이 노선 항목만 추출 (route_no 기준)
@@ -84,7 +106,7 @@ function BusRouteRow({ route, realtimeArrivals }) {
 
   // 실시간 데이터가 없을 때 시간표로 폴백 (서비스 시간 외, 오류 등)
   const useFallback = !isRealtime || (!realtimeArrivals.loading && !hasLiveData)
-  const timetable = useBusTimetableByRoute(useFallback ? route : null)
+  const timetable = useBusTimetableByRoute(useFallback ? route : null, { stopId: stopId ?? undefined })
 
   // 로딩: 실시간 노선은 실시간 훅, 비실시간은 시간표 훅
   const loading = isRealtime ? realtimeArrivals.loading : timetable.loading
