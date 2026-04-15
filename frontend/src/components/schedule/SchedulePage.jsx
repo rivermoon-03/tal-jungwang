@@ -18,21 +18,18 @@ import { useSubwayNext } from '../../hooks/useSubway'
 // 각 route는 { code, stopName? } — stopName이 있으면 해당 정류장의 방면별 시간표 조회
 const BUS_GROUPS = [
   {
-    id: '정왕역행',
-    label: '정왕역행',
-    routes: [{ code: '20-1' }, { code: '시흥33' }],
-  },
-  {
-    id: '버스 - 서울행',
-    label: '버스 - 서울행',
+    id: '하교',
+    label: '하교',
     routes: [
+      { code: '20-1' },
+      { code: '시흥33' },
       { code: '3400', stopName: '시화',   destLabel: '강남행',   originLabel: '시화',   mapLat: 37.342546, mapLng: 126.735365 },
       { code: '6502', stopName: '이마트', destLabel: '사당행',   originLabel: '이마트', mapLat: 37.345999, mapLng: 126.737995 },
     ],
   },
   {
-    id: '버스 - 학교행',
-    label: '버스 - 학교행',
+    id: '등교',
+    label: '등교',
     routes: [
       { code: '3400', stopName: '강남역', destLabel: '학교행',   originLabel: '강남역', mapLat: 37.498427, mapLng: 127.029829 },
       { code: '6502', stopName: '사당역', destLabel: '이마트행', originLabel: '사당역', mapLat: 37.476654, mapLng: 126.982610 },
@@ -327,7 +324,7 @@ function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
 export default function SchedulePage() {
   const [mode, setMode] = useState('bus')
   const [favOnly, setFavOnly] = useState(false)
-  const [busGroup, setBusGroup] = useState('정왕역행')
+  const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
   const [shuttleGroup, setShuttleGroup] = useState('등교')
   const [selectedDetail, setSelectedDetail] = useState(null)
