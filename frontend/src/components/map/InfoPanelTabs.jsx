@@ -1,6 +1,6 @@
 import { toMin, getBoardingStatus } from '../../utils/boardingStatus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
-import { useBusTimetableByRoute } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useTaxiToStation } from '../../hooks/useRoute'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 
@@ -233,16 +233,25 @@ function JeongwangTab({ subwayData, busJeongwangData, walkTimes, timetableData, 
 }
 
 function SeoulTab({ onNavigate }) {
+  const { data: routes, loading } = useBusRoutesByCategory('하교')
   const clickable = onNavigate ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+
+  // 시간표 기반(비실시간) 노선 번호만, 중복 제거
+  const routeNumbers = routes
+    ? [...new Set(routes.filter((r) => !r.is_realtime).map((r) => r.route_number))]
+    : []
+
+  if (loading) {
+    return <p className="text-xs text-slate-400">불러오는 중...</p>
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <div className={clickable} onClick={onNavigate ? () => onNavigate('bus') : undefined}>
-        <TimetableRouteCard routeNumber="3400" />
-      </div>
-      <div className={clickable} onClick={onNavigate ? () => onNavigate('bus') : undefined}>
-        <TimetableRouteCard routeNumber="6502" />
-      </div>
-      {/* TODO: 시흥1 (서해선 신천역 방면) — 카테고리 미정, 추후 추가 */}
+      {routeNumbers.map((no) => (
+        <div key={no} className={clickable} onClick={onNavigate ? () => onNavigate('bus') : undefined}>
+          <TimetableRouteCard routeNumber={no} />
+        </div>
+      ))}
     </div>
   )
 }
