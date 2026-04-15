@@ -152,35 +152,46 @@ export function useDynamicCopy({ now = new Date(), weather = null, nextArrival =
   const hour = now.getHours()
   const mins = nextArrival?.minutes ?? null
 
-  // 첫차 전 (01–07) · 막차 직전 (23–01) 전용 메시지
-  const isFirstTrain = hour >= 1 && hour < 7
-  const isLastTrain = hour >= 23 || hour < 1
+  // 막차 직전: 23:00~23:59 에 다음 도착이 120분 이내인 경우만 "막차 N분 전"
+  // 자정(00:xx)~새벽(06:xx)은 이미 막차가 끝난 "첫차 대기" 구간
+  const isLastTrain = hour >= 23 && mins != null && mins <= 120
+  const isDeepNight = hour < 7  // 00:00~06:59 — 자정 포함
 
-  if (isFirstTrain) {
-    if (hour < 5) {
-      return { warn, hero: { big: '🌙 막차 끝났어요', sub: '첫차는 07:00부터' } }
-    }
-    const minsUntil07 = (7 * 60) - (now.getHours() * 60 + now.getMinutes())
-    return {
-      warn,
-      hero: {
-        big: '첫차 07:00 · 곧 운행 시작',
-        sub:
-          minsUntil07 <= 30
-            ? '잠시 후 운행이 시작돼요'
-            : minsUntil07 <= 90
-              ? '한 시간 내로 시작돼요'
-              : `07:00까지 ${Math.round(minsUntil07 / 60)}시간 남음`,
-      },
-    }
-  }
-
-  if (isLastTrain && mins != null) {
+  if (isLastTrain) {
     return {
       warn,
       hero: {
         big: `막차 ${mins}분 전 🌙`,
         sub: nextArrival?.headLabel ?? nextArrival?.subLabel ?? '오늘 마지막 차량',
+      },
+    }
+  }
+
+  if (isDeepNight) {
+    const firstLabel = nextArrival?.firstTrainLabel ?? null
+    if (hour < 5) {
+      return { warn, hero: { big: '🌙 막차 끝났어요', sub: firstLabel ?? '첫차 시간표를 확인하세요' } }
+    }
+    // 5 <= hour < 7: 첫차 임박 구간
+    // firstTrainLabel에서 시각 추출 시도 (예: "첫차는 07:20부터" → "07:20")
+    const firstTimeMatch = firstLabel?.match(/(\d{2}:\d{2})/)
+    const firstTimeStr = firstTimeMatch?.[1] ?? '07:00'
+    const [fh, fm] = firstTimeStr.split(':').map(Number)
+    const firstDate = new Date(now)
+    firstDate.setHours(fh, fm, 0, 0)
+    // 이미 지났으면 내일로
+    if (firstDate <= now) firstDate.setDate(firstDate.getDate() + 1)
+    const minsUntilFirst = Math.round((firstDate - now) / 60000)
+    return {
+      warn,
+      hero: {
+        big: `첫차 ${firstTimeStr} · 곧 운행 시작`,
+        sub:
+          minsUntilFirst <= 30
+            ? '잠시 후 운행이 시작돼요'
+            : minsUntilFirst <= 90
+              ? '한 시간 내로 시작돼요'
+              : firstLabel ?? `${firstTimeStr}까지 ${Math.round(minsUntilFirst / 60)}시간 남음`,
       },
     }
   }

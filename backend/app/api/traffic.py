@@ -59,9 +59,25 @@ SPEED_THRESHOLDS = [
     (0,  "정체"),    # < 8 km/h
 ]
 
+# 도로별 보정 임계값 (큰 도로임에도 구조적으로 속도가 낮은 구간)
+# 형식: [(threshold, congestion_level, label), ...]  내림차순
+_ROAD_THRESHOLDS: dict[str, list[tuple[int, int, str]]] = {
+    "마유로": [
+        (17, 1, "원활"),   # >= 17 km/h → 원활
+        (10, 2, "서행"),   # 10~17 km/h → 서행
+        (0,  4, "정체"),   # < 10 km/h → 정체
+    ],
+}
 
-def _classify_speed(speed: float) -> tuple[int, str]:
+
+def _classify_speed(speed: float, road_name: str = "") -> tuple[int, str]:
     """속도 기반 혼잡도 판별. (congestion_level, label) 반환."""
+    thresholds = _ROAD_THRESHOLDS.get(road_name)
+    if thresholds:
+        for threshold, level, label in thresholds:
+            if speed >= threshold:
+                return level, label
+        return 4, "정체"
     for threshold, label in SPEED_THRESHOLDS:
         if speed >= threshold:
             level = {38: 1, 18: 2, 8: 3, 0: 4}[threshold]
@@ -117,7 +133,7 @@ async def get_traffic():
     roads: list[RoadTraffic] = []
     for (name, direction), totals in merged.items():
         speed = round(totals["distance"] / totals["time"] * 3.6, 1) if totals["time"] > 0 else 0
-        congestion, label = _classify_speed(speed)
+        congestion, label = _classify_speed(speed, name)
         roads.append(RoadTraffic(
             road_name=name,
             direction=direction,

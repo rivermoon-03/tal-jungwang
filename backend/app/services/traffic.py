@@ -37,8 +37,23 @@ SPEED_THRESHOLDS = [
     (0,  4),  # 정체
 ]
 
+# 도로별 보정 임계값 (큰 도로임에도 구조적으로 속도가 낮은 구간)
+_ROAD_THRESHOLDS: dict[str, list[tuple[int, int]]] = {
+    "마유로": [
+        (17, 1),   # >= 17 km/h → 원활
+        (10, 2),   # 10~17 km/h → 서행
+        (0,  4),   # < 10 km/h → 정체
+    ],
+}
 
-def _speed_to_congestion(speed: float) -> int:
+
+def _speed_to_congestion(speed: float, road_name: str = "") -> int:
+    thresholds = _ROAD_THRESHOLDS.get(road_name)
+    if thresholds:
+        for threshold, level in thresholds:
+            if speed >= threshold:
+                return level
+        return 4
     for threshold, level in SPEED_THRESHOLDS:
         if speed >= threshold:
             return level
@@ -64,7 +79,7 @@ async def persist_traffic_segments(
                 speed=speed,
                 duration_seconds=totals["time"],
                 distance_meters=totals["distance"],
-                congestion=_speed_to_congestion(speed),
+                congestion=_speed_to_congestion(speed, road_name),
                 collected_at=now,
             ))
             count += 1
