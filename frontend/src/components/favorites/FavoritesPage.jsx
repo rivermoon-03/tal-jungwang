@@ -25,10 +25,10 @@ function useBusMinutesByFavKey() {
   // 3400/6502 정류장별 시간표
   const { data: stationsData } = useBusStations()
   const byName = (name) => stationsData?.find((s) => s.name === name)?.station_id ?? null
-  const sihwa   = byName('시화 (3400 시종착)')
-  const emart   = byName('이마트 (6502·시흥1번 정류장)')
-  const gangnam = byName('강남역 3400 정류장')
-  const sadang  = byName('사당역 14번 출구')
+  const sihwa   = byName('시화')
+  const emart   = byName('이마트')
+  const gangnam = byName('강남역')
+  const sadang  = byName('사당역')
 
   const r3400Seoul  = useBusTimetableByRoute('3400', { stopId: sihwa   ?? undefined, requireStopId: true })
   const r3400School = useBusTimetableByRoute('3400', { stopId: gangnam ?? undefined, requireStopId: true })
@@ -111,10 +111,10 @@ function useFavoriteItems(favorites) {
   const stopIdByFavKey = useMemo(() => {
     const byName = (name) => stationsData?.find((s) => s.name === name)?.station_id ?? null
     return {
-      '버스 - 서울행:3400': byName('시화 (3400 시종착)'),
-      '버스 - 서울행:6502': byName('이마트 (6502·시흥1번 정류장)'),
-      '버스 - 학교행:3400': byName('강남역 3400 정류장'),
-      '버스 - 학교행:6502': byName('사당역 14번 출구'),
+      '버스 - 서울행:3400': byName('시화'),
+      '버스 - 서울행:6502': byName('이마트'),
+      '버스 - 학교행:3400': byName('강남역'),
+      '버스 - 학교행:6502': byName('사당역'),
     }
   }, [stationsData])
 

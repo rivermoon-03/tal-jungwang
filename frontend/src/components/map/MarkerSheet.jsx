@@ -224,8 +224,13 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
 
                     {/* 남은 시간 */}
                     <span
-                      className="flex-shrink-0 text-[13px] font-bold"
-                      style={{ color: arr.minutes <= 3 ? '#ef4444' : arr.minutes <= 7 ? '#f59e0b' : '#1b3a6e' }}
+                      className={`flex-shrink-0 text-[13px] font-bold ${
+                        arr.minutes <= 3
+                          ? 'text-[#ef4444]'
+                          : arr.minutes <= 7
+                            ? 'text-[#f59e0b]'
+                            : 'text-[#1b3a6e] dark:text-[#f1f5f9]'
+                      }`}
                     >
                       {arr.minutes != null ? `${arr.minutes}분` : '—'}
                     </span>

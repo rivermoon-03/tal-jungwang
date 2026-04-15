@@ -51,6 +51,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
                 inaccurate:  station.liveInaccurate ?? false,
                 badgeText:   station.badgeText,
                 extraPillText: station.extraPillText ?? null,
+                subLabel:    station.subLabel ?? null,
                 onClick: () => onTap?.(station),
               }))
         : createMarkerDotElement({
@@ -107,6 +108,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
                   inaccurate:  item.station.liveInaccurate ?? false,
                   badgeText:   item.station.badgeText,
                   extraPillText: item.station.extraPillText ?? null,
+                  subLabel:    item.station.subLabel ?? null,
                   onClick: () => onTap?.(item.station),
                 }))
           : createMarkerDotElement({

@@ -146,9 +146,15 @@ export default function SummaryCard({ onNextArrivalChange }) {
       if (upMins   != null) segs.push(`등교 ${upMins}분`)
       if (downMins != null) segs.push(`하교 ${downMins}분`)
       if (segs.length > 0) {
-        const fastest = [upMins, downMins].filter((v) => v != null).sort((a, b) => a - b)[0]
+        // ShuttlePanel과 동일한 규칙: 07–14시=등교, 그 외=하교.
+        // 활성 방향 분이 있으면 우선, 없으면 반대 방향으로 폴백.
+        const hour = new Date().getHours()
+        const activeDir = hour >= 7 && hour < 14 ? '등교' : '하교'
+        const activeMins = activeDir === '등교' ? upMins : downMins
+        const fallbackMins = activeDir === '등교' ? downMins : upMins
+        const fastest = activeMins ?? fallbackMins
         const fastestDirection =
-          upMins != null && (downMins == null || upMins <= downMins) ? '등교' : '하교'
+          activeMins != null ? activeDir : (activeDir === '등교' ? '하교' : '등교')
         const subSegs = []
         if (upMins   != null) subSegs.push('등교')
         if (downMins != null) subSegs.push('하교')

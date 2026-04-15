@@ -1,4 +1,4 @@
-const CACHE = 'transit-hub-v2'
+const CACHE = 'transit-hub-v3'
 const PRECACHE = ['/', '/index.html']
 
 // 해시되지 않은 루트 정적 파일 — 배포할 때마다 내용이 바뀔 수 있으므로
@@ -32,6 +32,23 @@ self.addEventListener('fetch', (e) => {
 
   // GET 이외 메서드(POST 등 API 호출)는 그대로 통과
   if (e.request.method !== 'GET') return
+
+  // /api/v1/map/markers — StaleWhileRevalidate (마커는 거의 안 변함)
+  if (url.pathname === '/api/v1/map/markers') {
+    e.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        const cached = await cache.match(e.request)
+        const network = fetch(e.request).then((res) => {
+          if (res.status === 200) cache.put(e.request, res.clone())
+          return res
+        }).catch(() => cached ?? new Response(JSON.stringify({ success: false }), {
+          status: 503, headers: { 'Content-Type': 'application/json' },
+        }))
+        return cached ?? network
+      })
+    )
+    return
+  }
 
   // /api/* — 네트워크 우선, 실패 시 503
   if (url.pathname.startsWith('/api/')) {
