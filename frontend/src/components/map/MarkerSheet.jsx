@@ -29,6 +29,18 @@ function resolveColor(routeCode, routeColor) {
   return ROUTE_COLOR_MAP[routeCode] ?? '#1b3a6e'
 }
 
+function groupArrivalsByRoute(arrivals) {
+  const map = new Map()
+  for (const a of arrivals) {
+    if (!map.has(a.routeCode)) {
+      map.set(a.routeCode, { ...a, allMinutes: [a.minutes] })
+    } else {
+      map.get(a.routeCode).allMinutes.push(a.minutes)
+    }
+  }
+  return Array.from(map.values())
+}
+
 export default function MarkerSheet({ station, arrivals = [], onClose, onNavigate, onDetail, directionControl = null }) {
   const [expanded, setExpanded] = useState(false)
   const [visible, setVisible] = useState(false)
@@ -205,35 +217,40 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {arrivals.map((arr, i) => {
-                const color = resolveColor(arr.routeCode, arr.routeColor)
+              {groupArrivalsByRoute(arrivals).map((group) => {
+                const color = resolveColor(group.routeCode, group.routeColor)
                 return (
-                  <li key={i} className="flex items-center gap-3">
+                  <li key={group.routeCode} className="flex items-center gap-3">
                     {/* 노선 색 원 */}
                     <span
                       className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-[10px] font-bold"
                       style={{ background: color }}
                     >
-                      {(arr.routeCode ?? '').slice(0, 3)}
+                      {(group.routeCode ?? '').slice(0, 3)}
                     </span>
 
                     {/* 방향 */}
                     <span className="flex-1 text-[13px] text-[#0f172a] dark:text-[#f1f5f9] truncate">
-                      {arr.direction ?? ''}
+                      {group.direction ?? ''}
                     </span>
 
-                    {/* 남은 시간 */}
-                    <span
-                      className={`flex-shrink-0 text-[13px] font-bold ${
-                        arr.minutes <= 3
-                          ? 'text-[#ef4444]'
-                          : arr.minutes <= 7
-                            ? 'text-[#f59e0b]'
-                            : 'text-[#1b3a6e] dark:text-[#f1f5f9]'
-                      }`}
-                    >
-                      {arr.minutes != null ? `${arr.minutes}분` : '—'}
-                    </span>
+                    {/* 남은 시간 (최대 3개) */}
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      {group.allMinutes.slice(0, 3).map((min, i) => (
+                        <span
+                          key={i}
+                          className={`text-[13px] font-bold tabular-nums ${
+                            min <= 3
+                              ? 'text-[#ef4444]'
+                              : min <= 7
+                                ? 'text-[#f59e0b]'
+                                : 'text-[#1b3a6e] dark:text-[#f1f5f9]'
+                          }`}
+                        >
+                          {min != null ? `${min}분` : '—'}
+                        </span>
+                      ))}
+                    </div>
                   </li>
                 )
               })}

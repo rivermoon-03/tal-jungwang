@@ -37,6 +37,7 @@ class BusArrival(BaseModel):
     route_id: int
     route_no: str
     destination: str | None = None
+    category: str | None = None  # "등교" | "하교" | "기타"
     arrival_type: str  # "realtime" | "timetable"
     depart_at: str | None = None  # "HH:MM" (timetable)
     arrive_in_seconds: int | None = None
