@@ -14,15 +14,27 @@ import PageHeader from '../layout/PageHeader'
 import ScheduleDetailModal from '../schedule/ScheduleDetailModal'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
-import { useBusTimetableByRoute } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
 
-// 버스 노선별 다음 출발까지 남은 분
-function useBusMinutesByRoute() {
-  const r201    = useBusTimetableByRoute('20-1')
-  const r33     = useBusTimetableByRoute('시흥33')
-  const r1      = useBusTimetableByRoute('시흥1')
-  const r3400   = useBusTimetableByRoute('3400')
-  const r6502   = useBusTimetableByRoute('6502')
+// 버스 노선별 다음 출발까지 남은 분 (favKey → minutes)
+function useBusMinutesByFavKey() {
+  // 실시간 (GBIS) — 20-1, 시흥33 (한국공대), 시흥1 (이마트)
+  const realtimeHanguk = useBusArrivals('224000639')
+  const realtimeEmart  = useBusArrivals('224000513')
+
+  // 3400/6502 정류장별 시간표
+  const { data: stationsData } = useBusStations()
+  const byName = (name) => stationsData?.find((s) => s.name === name)?.station_id ?? null
+  const sihwa   = byName('시화 (3400 시종착)')
+  const emart   = byName('이마트 (6502·시흥1번 정류장)')
+  const gangnam = byName('강남역 3400 정류장')
+  const sadang  = byName('사당역 14번 출구')
+
+  const r3400Seoul  = useBusTimetableByRoute('3400', { stopId: sihwa   ?? undefined })
+  const r3400School = useBusTimetableByRoute('3400', { stopId: gangnam ?? undefined })
+  const r6502Seoul  = useBusTimetableByRoute('6502', { stopId: emart   ?? undefined })
+  const r6502School = useBusTimetableByRoute('6502', { stopId: sadang  ?? undefined })
+
   return useMemo(() => {
     const now = new Date()
     const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
@@ -35,23 +47,34 @@ function useBusMinutesByRoute() {
       d.setHours(h, m, 0, 0)
       return Math.max(0, Math.round((d - new Date()) / 60000))
     }
-    return {
-      '20-1':   firstFutureMin(r201.data?.times),
-      '시흥33': firstFutureMin(r33.data?.times),
-      '시흥1':  firstFutureMin(r1.data?.times),
-      '3400':   firstFutureMin(r3400.data?.times),
-      '6502':   firstFutureMin(r6502.data?.times),
+    function realtimeMin(arrivals, routeNo) {
+      const list = arrivals?.arrivals
+      if (!list?.length) return null
+      const a = list.find((x) => x.route_no === routeNo)
+      if (!a || a.arrive_in_seconds == null) return null
+      return Math.max(0, Math.round(a.arrive_in_seconds / 60))
     }
-  }, [r201.data, r33.data, r1.data, r3400.data, r6502.data])
+    return {
+      '20-1':                realtimeMin(realtimeHanguk.data, '20-1'),
+      '시흥33':              realtimeMin(realtimeHanguk.data, '시흥33'),
+      '시흥1':               realtimeMin(realtimeEmart.data,  '시흥1'),
+      '버스 - 서울행:3400':  firstFutureMin(r3400Seoul.data?.times),
+      '버스 - 서울행:6502':  firstFutureMin(r6502Seoul.data?.times),
+      '버스 - 학교행:3400':  firstFutureMin(r3400School.data?.times),
+      '버스 - 학교행:6502':  firstFutureMin(r6502School.data?.times),
+    }
+  }, [realtimeHanguk.data, realtimeEmart.data, r3400Seoul.data, r6502Seoul.data, r3400School.data, r6502School.data])
 }
 
-// 노선 코드 → 정류장 ID 매핑 (GBIS 기반)
+// favKey → 표시 메타
 const ROUTE_STATION_MAP = {
-  '20-1':   { stationId: '224000639', stationName: '한국공학대학교', type: 'bus' },
-  '시흥33': { stationId: '224000639', stationName: '한국공학대학교', type: 'bus' },
-  '시흥1':  { stationId: '224000513', stationName: '이마트',          type: 'bus' },
-  '3400':   { stationId: '224000639', stationName: '한국공학대학교', type: 'bus', endpoints: '한국공대 - 터미널' },
-  '6502':   { stationId: '224000513', stationName: '이마트',          type: 'bus' }, // 시종점: 이마트
+  '20-1':   { stationId: '224000639', stationName: '한국공학대학교', type: 'bus', routeCode: '20-1' },
+  '시흥33': { stationId: '224000639', stationName: '한국공학대학교', type: 'bus', routeCode: '시흥33' },
+  '시흥1':  { stationId: '224000513', stationName: '이마트',          type: 'bus', routeCode: '시흥1' },
+  '버스 - 서울행:3400':  { stationName: '시화',   type: 'bus', routeCode: '3400', endpoints: '서울행' },
+  '버스 - 서울행:6502':  { stationName: '이마트', type: 'bus', routeCode: '6502', endpoints: '서울행' },
+  '버스 - 학교행:3400':  { stationName: '강남역', type: 'bus', routeCode: '3400', endpoints: '학교행' },
+  '버스 - 학교행:6502':  { stationName: '사당역', type: 'bus', routeCode: '6502', endpoints: '학교행' },
 }
 
 // subway direction key → 노선명 + 행선지 라벨 + 노선색
@@ -76,12 +99,13 @@ function getBoardingStatus(arrivalMin, walkMin) {
 }
 
 function useFavoriteItems(favorites) {
-  // 셔틀 다음 열차
-  const { data: shuttleNextAll } = useShuttleNext()
+  // 셔틀 다음 열차 — 방향별
+  const { data: shuttleUp }   = useShuttleNext(0) // 등교
+  const { data: shuttleDown } = useShuttleNext(1) // 하교
   // 지하철 다음 열차
   const { data: subwayNext } = useSubwayNext()
-  // 버스: 노선별 다음 출발까지 남은 분
-  const busMinsByRoute = useBusMinutesByRoute()
+  // 버스: favKey별 다음 출발까지 남은 분 (실시간 + 시간표)
+  const busMinsByRoute = useBusMinutesByFavKey()
 
   const items = useMemo(() => {
     const result = []
@@ -130,15 +154,18 @@ function useFavoriteItems(favorites) {
       if (typeof routeCode === 'string' && routeCode.startsWith('shuttle:')) {
         const label = routeCode.split(':')[1] ?? '등교'
         const direction = label === '하교' ? 1 : 0
-        const next = shuttleNextAll?.entries?.[0]
+        const next = direction === 0 ? shuttleUp : shuttleDown
+        const mins = next?.arrive_in_seconds != null
+          ? Math.max(0, Math.round(next.arrive_in_seconds / 60))
+          : null
         result.push({
           id: `route:${routeCode}`,
           type: 'shuttle',
           routeCode: `셔틀 ${label}`,
           stationName: '한국공학대학교',
-          minutes: next?.minutesLeft ?? null,
+          minutes: mins,
           walkMin: 3,
-          status: getBoardingStatus(next?.minutesLeft ?? null, 3),
+          status: getBoardingStatus(mins, 3),
           detail: {
             type: 'shuttle',
             routeCode: `셔틀${label}`,
@@ -152,10 +179,12 @@ function useFavoriteItems(favorites) {
       const meta = ROUTE_STATION_MAP[routeCode]
       if (!meta) continue
       const mins = busMinsByRoute?.[routeCode] ?? null
+      const isSeoulBus = routeCode.startsWith('버스 - ')
+      const busNo = isSeoulBus ? routeCode.split(':')[1] : meta.routeCode
       result.push({
         id: `route:${routeCode}`,
         type: 'bus',
-        routeCode,
+        routeCode: meta.routeCode,
         stationName: meta.stationName,
         stationId: meta.stationId,
         destination: meta.endpoints ?? null,
@@ -164,14 +193,15 @@ function useFavoriteItems(favorites) {
         status: getBoardingStatus(mins, 5),
         detail: {
           type: 'bus',
-          routeCode,
-          title: `${routeCode}번 버스`,
+          routeCode: busNo,
+          accentColor: (busNo === '3400' || busNo === '6502') ? '#DC2626' : undefined,
+          title: isSeoulBus ? `${busNo} · ${meta.endpoints}` : `${busNo}번 버스`,
         },
       })
     }
 
     return result
-  }, [favorites.routes, shuttleNextAll, subwayNext, busMinsByRoute])
+  }, [favorites.routes, shuttleUp, shuttleDown, subwayNext, busMinsByRoute])
 
   return items
 }
