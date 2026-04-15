@@ -103,7 +103,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
  * @param {{ routeCode: string, routeColor?: string, stationName: string, liveMinutes?: number|null, showLive?: boolean, onClick?: () => void }} options
  * @returns {HTMLElement}
  */
-export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick, badgeText, extraPillText = null }) {
+export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick, badgeText, extraPillText = null, subLabel = null }) {
   const color = resolveColor(routeCode, routeColor)
 
   const wrapper = document.createElement('div')
@@ -180,7 +180,18 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'overflow:hidden',
     'text-overflow:ellipsis',
   ].join(';')
-  if (hasLive) {
+  if (subLabel) {
+    // subLabel이 있으면 라이브 시간 대신 표시 (다중 노선 허브 등)
+    label.textContent = stationName
+    const sep = document.createElement('span')
+    sep.style.cssText = 'color:#cbd5e1;margin:0 4px'
+    sep.textContent = '·'
+    label.appendChild(sep)
+    const tail = document.createElement('span')
+    tail.style.color = '#1b3a6e'
+    tail.textContent = subLabel
+    label.appendChild(tail)
+  } else if (hasLive) {
     label.textContent = stationName
     const sep = document.createElement('span')
     sep.style.cssText = 'color:#cbd5e1;margin:0 4px'

@@ -1,13 +1,23 @@
 from pydantic import BaseModel
 
 
+class MapMarkerRouteEntry(BaseModel):
+    route_number: str
+    route_color: str | None = None
+    badge_text: str | None = None
+    outbound_stop_id: int | None = None
+    inbound_stop_id: int | None = None
+    ui_meta: dict = {}
+
+
 class MapMarker(BaseModel):
-    id: str
-    type: str  # "bus_station" | "shuttle_stop" | "subway_station"
+    key: str                        # marker_key — frontend 식별자
+    type: str                       # bus | bus_seoul | shuttle | subway | seohae
     name: str
     lat: float
     lng: float
-    extra: dict | None = None
+    ui_meta: dict = {}
+    routes: list[MapMarkerRouteEntry] = []
 
 
 class MapMarkersResponse(BaseModel):

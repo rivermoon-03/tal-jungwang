@@ -26,16 +26,16 @@ const BUS_GROUPS = [
     id: '버스 - 서울행',
     label: '버스 - 서울행',
     routes: [
-      { code: '3400', stopName: '시화 (3400 시종착)',             destLabel: '강남행',   originLabel: '시화',   mapLat: 37.342546, mapLng: 126.735365 },
-      { code: '6502', stopName: '이마트 (6502·시흥1번 정류장)',   destLabel: '사당행',   originLabel: '이마트', mapLat: 37.345999, mapLng: 126.737995 },
+      { code: '3400', stopName: '시화',   destLabel: '강남행',   originLabel: '시화',   mapLat: 37.342546, mapLng: 126.735365 },
+      { code: '6502', stopName: '이마트', destLabel: '사당행',   originLabel: '이마트', mapLat: 37.345999, mapLng: 126.737995 },
     ],
   },
   {
     id: '버스 - 학교행',
     label: '버스 - 학교행',
     routes: [
-      { code: '3400', stopName: '강남역 3400 정류장',             destLabel: '학교행',   originLabel: '강남역', mapLat: 37.498427, mapLng: 127.029829 },
-      { code: '6502', stopName: '사당역 14번 출구',               destLabel: '이마트행', originLabel: '사당역', mapLat: 37.476654, mapLng: 126.982610 },
+      { code: '3400', stopName: '강남역', destLabel: '학교행',   originLabel: '강남역', mapLat: 37.498427, mapLng: 127.029829 },
+      { code: '6502', stopName: '사당역', destLabel: '이마트행', originLabel: '사당역', mapLat: 37.476654, mapLng: 126.982610 },
     ],
   },
   {
@@ -294,7 +294,7 @@ function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
   } else if (firstIsReturn) {
     const departAt = firstEntry?.depart_at?.slice(0, 5)
     nextDisplay = departAt
-      ? `${departAt}에 출발하는 ${label}버스 회차편 탑승`
+      ? `${departAt}에 출발하는 하교버스 회차편 탑승`
       : '회차편 탑승'
     firstMins = null
   }

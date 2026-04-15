@@ -79,9 +79,8 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
         {mins != null && (
           <span
             className={`text-xs font-semibold tabular-nums ${
-              isNext ? 'text-coral' : 'text-slate-500 dark:text-slate-400'
+              isNext ? 'text-coral dark:text-[#ff7a95]' : 'text-slate-500 dark:text-slate-400'
             }`}
-            style={isNext ? { color: accentColor } : undefined}
           >
             {fmtDelta(mins)}
           </span>
@@ -284,7 +283,7 @@ function ShuttleContent({ direction, accentColor }) {
               : '수시운행'
           } else if (isReturn) {
             displayTime = i === 0
-              ? `${time}에 출발하는 ${dirLabel}버스 회차편 탑승`
+              ? `${time}에 출발하는 하교버스 회차편 탑승`
               : '회차편 탑승'
           }
           return (
