@@ -6,11 +6,11 @@ import ErrorState from '../common/ErrorState'
 import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
 
 // BusRoute.category 값과 1:1 매칭. DB에서 직접 받아 그룹 구성.
-const BUS_CATEGORIES = ['정왕역행', '버스 - 서울행', '버스 - 학교행', '기타']
+// DB 카테고리: '하교'(정왕역·서울 방향), '등교'(학교 방향), '기타'
+const BUS_CATEGORIES = ['하교', '등교', '기타']
 const CATEGORY_DB_VALUE = {
-  '정왕역행': '정왕역행',
-  '버스 - 서울행': '서울행',
-  '버스 - 학교행': '학교행',
+  '하교': '하교',
+  '등교': '등교',
   '기타': '기타',
 }
 

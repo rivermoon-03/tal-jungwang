@@ -16,10 +16,9 @@ const SUBWAY_STATION_LINES = {
 }
 
 const BUS_GROUP_ROUTES = {
-  '정왕역행':      ['20-1', '시흥33'],
-  '버스 - 서울행': ['3400', '6502'],
-  '버스 - 학교행': ['3400', '6502'],
-  '기타':         ['시흥1'],
+  '하교': ['3400', '6502', '3401'],
+  '등교': ['3400', '6502', '3401'],
+  '기타': ['시흥1'],
 }
 const HANKUK_STOP_ID = '224000639'
 
@@ -85,13 +84,15 @@ export default function SummaryCard({ onNextArrivalChange }) {
   const resolveStopId = (group, route) => {
     if (!stationsData) return null
     const find = (name) => stationsData.find((s) => s.name === name)?.station_id ?? null
-    if (group === '버스 - 서울행') {
+    if (group === '하교') {
       if (route === '3400') return find('시화')
       if (route === '6502') return find('이마트')
+      if (route === '3401') return find('이마트')
     }
-    if (group === '버스 - 학교행') {
+    if (group === '등교') {
       if (route === '3400') return find('강남역')
       if (route === '6502') return find('사당역')
+      if (route === '3401') return find('석수역')
     }
     return null
   }
@@ -100,7 +101,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
   const { data: busData1 } = useBusTimetableByRoute(route1, { stopId: stopId1 ?? undefined })
   const { data: busData2 } = useBusTimetableByRoute(route2, { stopId: stopId2 ?? undefined })
   const { data: realtimeData } = useBusArrivals(
-    selectedBusGroup === '정왕역행' ? HANKUK_STOP_ID : null,
+    selectedBusGroup === '하교' ? HANKUK_STOP_ID : null,
   )
 
   useEffect(() => {
@@ -171,7 +172,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
     }
 
     if (selectedMode === 'bus') {
-      const isRealtime = selectedBusGroup === '정왕역행'
+      const isRealtime = selectedBusGroup === '하교'
       const busDataMap = { [route1]: busData1, [route2]: busData2 }
       const segs = []
       const allMins = []
@@ -189,8 +190,8 @@ export default function SummaryCard({ onNextArrivalChange }) {
         const fastest = Math.min(...allMins)
         const subRoutes = segs.map((s) => s.split(' ')[0])
         const groupPrefix =
-          selectedBusGroup === '버스 - 서울행' ? '서울행'
-          : selectedBusGroup === '버스 - 학교행' ? '학교행'
+          selectedBusGroup === '하교' ? '하교'
+          : selectedBusGroup === '등교' ? '등교'
           : null
         const withPrefix = (parts) => groupPrefix ? [groupPrefix, ...parts] : parts
         onNextArrivalChange({

@@ -1,6 +1,6 @@
 import { toMin, getBoardingStatus } from '../../utils/boardingStatus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
-import { useBusTimetableByRoute, useBusRoutesByCategory } from '../../hooks/useBus'
+import { useBusTimetableByRoute } from '../../hooks/useBus'
 import { useTaxiToStation } from '../../hooks/useRoute'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 
@@ -232,16 +232,15 @@ function JeongwangTab({ subwayData, busJeongwangData, walkTimes, timetableData, 
   )
 }
 
-function SeoulTab({ onNavigate }) {
-  const { data: routes, loading } = useBusRoutesByCategory('하교')
+function SeoulTab({ busSeoulData, onNavigate }) {
   const clickable = onNavigate ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
 
-  // 시간표 기반(비실시간) 노선 번호만, 중복 제거
-  const routeNumbers = routes
-    ? [...new Set(routes.filter((r) => !r.is_realtime).map((r) => r.route_number))]
+  // 이마트 정류장 arrivals에서 timetable 타입 노선 번호만 추출 (순서 유지, 중복 제거)
+  const routeNumbers = busSeoulData?.arrivals
+    ? [...new Set(busSeoulData.arrivals.filter((a) => a.arrival_type === 'timetable').map((a) => a.route_no))]
     : []
 
-  if (loading) {
+  if (!busSeoulData) {
     return <p className="text-xs text-slate-400">불러오는 중...</p>
   }
 
@@ -360,7 +359,7 @@ const TAB_MAIN_MAP = {
   shuttle:   'transit',
 }
 
-export default function InfoPanelTabs({ tab, setTab, subwayData, busJeongwangData, walkTimes, timetableData, onNavigate }) {
+export default function InfoPanelTabs({ tab, setTab, subwayData, busJeongwangData, busSeoulData, walkTimes, timetableData, onNavigate }) {
   return (
     <div className="flex flex-col gap-2">
       {/* 탭 토글 */}
@@ -387,7 +386,7 @@ export default function InfoPanelTabs({ tab, setTab, subwayData, busJeongwangDat
         )}
         {tab === 'choji'   && <ChojiTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
         {tab === 'siheung' && <SiheungTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
-        {tab === 'seoul'   && <SeoulTab onNavigate={onNavigate} />}
+        {tab === 'seoul'   && <SeoulTab busSeoulData={busSeoulData} onNavigate={onNavigate} />}
         {tab === 'shuttle' && <ShuttleSection onNavigate={onNavigate} />}
       </div>
 

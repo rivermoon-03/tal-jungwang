@@ -378,6 +378,7 @@ export default function InfoPanelMobile({
           setTab={setTab}
           subwayData={subwayData}
           busJeongwangData={busJeongwangData}
+          busSeoulData={busSeoulData}
           walkTimes={walkTimes}
           timetableData={timetableData}
           onNavigate={(mainTab) => { close(); setActiveTab(mainTab) }}
