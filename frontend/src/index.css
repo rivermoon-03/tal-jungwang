@@ -204,3 +204,12 @@ body {
 .animate-toast-slide-up {
   animation: toastSlideUp 0.3s var(--ease-ios) both;
 }
+
+/* ── 스크롤바 숨김 ───────────────────────────── */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

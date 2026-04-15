@@ -372,13 +372,15 @@ export default function InfoPanelTabs({ tab, setTab, subwayData, busJeongwangDat
       </div>
 
       {/* 탭 콘텐츠 */}
-      {tab === 'jeongwang' && (
-        <JeongwangTab subwayData={subwayData} busJeongwangData={busJeongwangData} walkTimes={walkTimes} timetableData={timetableData} onNavigate={onNavigate} />
-      )}
-      {tab === 'choji'   && <ChojiTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
-      {tab === 'siheung' && <SiheungTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
-      {tab === 'seoul'   && <SeoulTab onNavigate={onNavigate} />}
-      {tab === 'shuttle' && <ShuttleSection onNavigate={onNavigate} />}
+      <div key={tab} className="animate-fade-in">
+        {tab === 'jeongwang' && (
+          <JeongwangTab subwayData={subwayData} busJeongwangData={busJeongwangData} walkTimes={walkTimes} timetableData={timetableData} onNavigate={onNavigate} />
+        )}
+        {tab === 'choji'   && <ChojiTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
+        {tab === 'siheung' && <SiheungTab subwayData={subwayData} timetableData={timetableData} onNavigate={onNavigate} />}
+        {tab === 'seoul'   && <SeoulTab onNavigate={onNavigate} />}
+        {tab === 'shuttle' && <ShuttleSection onNavigate={onNavigate} />}
+      </div>
 
       {/* 전체 시간표 이동 */}
       {onNavigate && (

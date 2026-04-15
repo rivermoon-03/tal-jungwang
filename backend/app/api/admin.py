@@ -14,6 +14,15 @@ from app.core.database import get_db
 from app.core.limiter import limiter
 from app.models.shuttle import SchedulePeriod, ShuttleRoute, ShuttleTimetableEntry
 from app.schemas.admin import (
+    BusRouteCreate,
+    BusRouteOut,
+    BusRouteUpdate,
+    BusStopCreate,
+    BusStopOut,
+    BusStopRouteCreate,
+    BusStopUpdate,
+    BusTimetableEntryOut,
+    BusTimetableUpload,
     LoginRequest,
     LoginResponse,
     ScheduleCreate,
@@ -491,3 +500,442 @@ async def admin_update_info(
     await db.refresh(info)
     await invalidate_info()
     return ApiResponse.ok(info)
+
+
+# ── Bus 관리 (AI/스크립트에서도 사용 가능) ───────────────────
+from sqlalchemy import and_, func
+from sqlalchemy.orm import selectinload
+
+from app.models.bus import (
+    BusRoute as BusRouteModel,
+    BusStop as BusStopModel,
+    BusStopRoute as BusStopRouteModel,
+    BusTimetableEntry as BusTimetableEntryModel,
+)
+
+
+def _route_to_out(route: BusRouteModel, stop_count: int = 0, tt_count: int = 0) -> BusRouteOut:
+    return BusRouteOut(
+        id=route.id,
+        route_number=route.route_number,
+        route_name=route.route_name,
+        direction_name=route.direction_name,
+        is_realtime=route.is_realtime,
+        gbis_route_id=route.gbis_route_id,
+        stop_count=stop_count,
+        timetable_count=tt_count,
+    )
+
+
+def _stop_to_out(stop: BusStopModel) -> BusStopOut:
+    return BusStopOut(
+        id=stop.id,
+        name=stop.name,
+        gbis_station_id=stop.gbis_station_id,
+        lat=float(stop.lat),
+        lng=float(stop.lng),
+    )
+
+
+@router.get(
+    "/bus/routes",
+    response_model=ApiResponse[list[BusRouteOut]],
+    summary="버스 노선 목록 조회",
+    description="필터: is_realtime(true/false), q(route_number 부분일치). stop_count/timetable_count 포함.",
+)
+async def admin_list_bus_routes(
+    is_realtime: bool | None = None,
+    q: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    stmt = select(BusRouteModel).order_by(BusRouteModel.route_number)
+    if is_realtime is not None:
+        stmt = stmt.where(BusRouteModel.is_realtime == is_realtime)
+    if q:
+        stmt = stmt.where(BusRouteModel.route_number.ilike(f"%{q}%"))
+    routes = (await db.execute(stmt)).scalars().all()
+
+    if not routes:
+        return ApiResponse.ok([])
+
+    route_ids = [r.id for r in routes]
+    stop_counts = dict(
+        (
+            await db.execute(
+                select(BusStopRouteModel.bus_route_id, func.count())
+                .where(BusStopRouteModel.bus_route_id.in_(route_ids))
+                .group_by(BusStopRouteModel.bus_route_id)
+            )
+        ).all()
+    )
+    tt_counts = dict(
+        (
+            await db.execute(
+                select(BusTimetableEntryModel.route_id, func.count())
+                .where(BusTimetableEntryModel.route_id.in_(route_ids))
+                .group_by(BusTimetableEntryModel.route_id)
+            )
+        ).all()
+    )
+
+    data = [_route_to_out(r, stop_counts.get(r.id, 0), tt_counts.get(r.id, 0)) for r in routes]
+    return ApiResponse.ok(data)
+
+
+@router.get("/bus/routes/{route_id}", response_model=ApiResponse[BusRouteOut])
+async def admin_get_bus_route(
+    route_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    route = await db.get(BusRouteModel, route_id)
+    if not route:
+        return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
+    stop_count = (
+        await db.execute(
+            select(func.count()).where(BusStopRouteModel.bus_route_id == route_id)
+        )
+    ).scalar_one()
+    tt_count = (
+        await db.execute(
+            select(func.count()).where(BusTimetableEntryModel.route_id == route_id)
+        )
+    ).scalar_one()
+    return ApiResponse.ok(_route_to_out(route, stop_count, tt_count))
+
+
+@router.post("/bus/routes", response_model=ApiResponse[BusRouteOut])
+async def admin_create_bus_route(
+    body: BusRouteCreate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    existing = (
+        await db.execute(
+            select(BusRouteModel).where(BusRouteModel.route_number == body.route_number)
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return ApiResponse.fail(
+            "ROUTE_DUPLICATE",
+            f"route_number '{body.route_number}' 이미 존재 (id={existing.id})",
+        )
+    route = BusRouteModel(**body.model_dump())
+    db.add(route)
+    await db.commit()
+    await db.refresh(route)
+    return ApiResponse.ok(_route_to_out(route))
+
+
+@router.patch("/bus/routes/{route_id}", response_model=ApiResponse[BusRouteOut])
+async def admin_update_bus_route(
+    route_id: int,
+    body: BusRouteUpdate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    route = await db.get(BusRouteModel, route_id)
+    if not route:
+        return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(route, k, v)
+    await db.commit()
+    await db.refresh(route)
+    return ApiResponse.ok(_route_to_out(route))
+
+
+@router.delete("/bus/routes/{route_id}", response_model=ApiResponse[dict])
+async def admin_delete_bus_route(
+    route_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    route = await db.get(BusRouteModel, route_id)
+    if not route:
+        return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
+    await db.delete(route)
+    await db.commit()
+    return ApiResponse.ok({"deleted": route_id})
+
+
+@router.get(
+    "/bus/stops",
+    response_model=ApiResponse[list[BusStopOut]],
+    summary="버스 정류장 목록 조회",
+    description="필터: q(name 부분일치), route_id(해당 노선에 연결된 정류장만).",
+)
+async def admin_list_bus_stops(
+    q: str | None = None,
+    route_id: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    stmt = select(BusStopModel).order_by(BusStopModel.name)
+    if q:
+        stmt = stmt.where(BusStopModel.name.ilike(f"%{q}%"))
+    if route_id is not None:
+        stmt = stmt.join(
+            BusStopRouteModel, BusStopRouteModel.bus_stop_id == BusStopModel.id
+        ).where(BusStopRouteModel.bus_route_id == route_id)
+    stops = (await db.execute(stmt)).scalars().all()
+    return ApiResponse.ok([_stop_to_out(s) for s in stops])
+
+
+@router.post("/bus/stops", response_model=ApiResponse[BusStopOut])
+async def admin_create_bus_stop(
+    body: BusStopCreate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    if body.gbis_station_id:
+        existing = (
+            await db.execute(
+                select(BusStopModel).where(BusStopModel.gbis_station_id == body.gbis_station_id)
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return ApiResponse.fail(
+                "STOP_DUPLICATE",
+                f"gbis_station_id '{body.gbis_station_id}' 이미 존재 (id={existing.id})",
+            )
+    stop = BusStopModel(**body.model_dump())
+    db.add(stop)
+    await db.commit()
+    await db.refresh(stop)
+    return ApiResponse.ok(_stop_to_out(stop))
+
+
+@router.patch("/bus/stops/{stop_id}", response_model=ApiResponse[BusStopOut])
+async def admin_update_bus_stop(
+    stop_id: int,
+    body: BusStopUpdate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    stop = await db.get(BusStopModel, stop_id)
+    if not stop:
+        return ApiResponse.fail("STOP_NOT_FOUND", "해당 정류장이 존재하지 않습니다.")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(stop, k, v)
+    await db.commit()
+    await db.refresh(stop)
+    return ApiResponse.ok(_stop_to_out(stop))
+
+
+@router.delete("/bus/stops/{stop_id}", response_model=ApiResponse[dict])
+async def admin_delete_bus_stop(
+    stop_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    stop = await db.get(BusStopModel, stop_id)
+    if not stop:
+        return ApiResponse.fail("STOP_NOT_FOUND", "해당 정류장이 존재하지 않습니다.")
+    await db.delete(stop)
+    await db.commit()
+    return ApiResponse.ok({"deleted": stop_id})
+
+
+@router.post(
+    "/bus/stop-routes",
+    response_model=ApiResponse[dict],
+    summary="정류장↔노선 연결",
+)
+async def admin_create_stop_route(
+    body: BusStopRouteCreate,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    stop = await db.get(BusStopModel, body.bus_stop_id)
+    route = await db.get(BusRouteModel, body.bus_route_id)
+    if not stop:
+        return ApiResponse.fail("STOP_NOT_FOUND", "해당 정류장이 존재하지 않습니다.")
+    if not route:
+        return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
+    existing = (
+        await db.execute(
+            select(BusStopRouteModel).where(
+                and_(
+                    BusStopRouteModel.bus_stop_id == body.bus_stop_id,
+                    BusStopRouteModel.bus_route_id == body.bus_route_id,
+                )
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return ApiResponse.ok({"bus_stop_id": body.bus_stop_id, "bus_route_id": body.bus_route_id, "created": False})
+    db.add(BusStopRouteModel(bus_stop_id=body.bus_stop_id, bus_route_id=body.bus_route_id))
+    await db.commit()
+    return ApiResponse.ok({"bus_stop_id": body.bus_stop_id, "bus_route_id": body.bus_route_id, "created": True})
+
+
+@router.delete(
+    "/bus/stop-routes",
+    response_model=ApiResponse[dict],
+    summary="정류장↔노선 연결 해제",
+)
+async def admin_delete_stop_route(
+    bus_stop_id: int,
+    bus_route_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    result = await db.execute(
+        delete(BusStopRouteModel).where(
+            and_(
+                BusStopRouteModel.bus_stop_id == bus_stop_id,
+                BusStopRouteModel.bus_route_id == bus_route_id,
+            )
+        )
+    )
+    await db.commit()
+    return ApiResponse.ok({"deleted": result.rowcount})
+
+
+@router.get(
+    "/bus/routes/{route_id}/timetable",
+    response_model=ApiResponse[list[BusTimetableEntryOut]],
+    summary="버스 시간표 조회",
+    description="필터: stop_id, day_type",
+)
+async def admin_list_bus_timetable(
+    route_id: int,
+    stop_id: int | None = None,
+    day_type: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    route = await db.get(BusRouteModel, route_id)
+    if not route:
+        return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
+    stmt = (
+        select(BusTimetableEntryModel, BusStopModel.name)
+        .join(BusStopModel, BusStopModel.id == BusTimetableEntryModel.stop_id)
+        .where(BusTimetableEntryModel.route_id == route_id)
+        .order_by(BusTimetableEntryModel.day_type, BusStopModel.name, BusTimetableEntryModel.departure_time)
+    )
+    if stop_id is not None:
+        stmt = stmt.where(BusTimetableEntryModel.stop_id == stop_id)
+    if day_type is not None:
+        stmt = stmt.where(BusTimetableEntryModel.day_type == day_type)
+    rows = (await db.execute(stmt)).all()
+    data = [
+        BusTimetableEntryOut(
+            id=e.id,
+            route_id=e.route_id,
+            stop_id=e.stop_id,
+            stop_name=stop_name,
+            day_type=e.day_type,
+            departure_time=e.departure_time.strftime("%H:%M"),
+            note=e.note,
+        )
+        for (e, stop_name) in rows
+    ]
+    return ApiResponse.ok(data)
+
+
+@router.post(
+    "/bus/routes/{route_id}/timetable",
+    response_model=ApiResponse[dict],
+    summary="버스 시간표 업로드",
+    description=(
+        "mode=replace: 각 entry의 (stop,day_type) 조합에 해당하는 기존 항목 전부 삭제 후 삽입. "
+        "mode=append: 기존 유지하고 추가만. "
+        "entries[].stop_id 또는 stop_name 중 하나 필수 (stop_name은 정확 일치)."
+    ),
+)
+async def admin_upload_bus_timetable(
+    route_id: int,
+    body: BusTimetableUpload,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    route = await db.get(BusRouteModel, route_id)
+    if not route:
+        return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
+
+    # stop resolve
+    resolved: list[tuple[int, str, list[str], str | None]] = []  # (stop_id, day_type, times, note)
+    for entry in body.entries:
+        stop_id = entry.stop_id
+        if stop_id is None:
+            if not entry.stop_name:
+                return ApiResponse.fail("STOP_REQUIRED", "stop_id 또는 stop_name 중 하나가 필요합니다.")
+            stop = (
+                await db.execute(
+                    select(BusStopModel).where(BusStopModel.name == entry.stop_name)
+                )
+            ).scalar_one_or_none()
+            if not stop:
+                return ApiResponse.fail(
+                    "STOP_NOT_FOUND", f"정류장 이름으로 찾을 수 없음: '{entry.stop_name}'"
+                )
+            stop_id = stop.id
+        else:
+            stop = await db.get(BusStopModel, stop_id)
+            if not stop:
+                return ApiResponse.fail("STOP_NOT_FOUND", f"stop_id={stop_id} 정류장을 찾을 수 없음")
+        resolved.append((stop_id, entry.day_type, entry.times, entry.note))
+
+    deleted_count = 0
+    if body.mode == "replace":
+        for stop_id, day_type, _times, _note in resolved:
+            r = await db.execute(
+                delete(BusTimetableEntryModel).where(
+                    and_(
+                        BusTimetableEntryModel.route_id == route_id,
+                        BusTimetableEntryModel.stop_id == stop_id,
+                        BusTimetableEntryModel.day_type == day_type,
+                    )
+                )
+            )
+            deleted_count += r.rowcount or 0
+
+    inserted = 0
+    for stop_id, day_type, times_list, note in resolved:
+        for t in times_list:
+            db.add(
+                BusTimetableEntryModel(
+                    route_id=route_id,
+                    stop_id=stop_id,
+                    day_type=day_type,
+                    departure_time=time(int(t[:2]), int(t[3:5])),
+                    note=note,
+                )
+            )
+            inserted += 1
+
+    await db.commit()
+    return ApiResponse.ok({
+        "route_id": route_id,
+        "mode": body.mode,
+        "deleted": deleted_count,
+        "inserted": inserted,
+    })
+
+
+@router.delete(
+    "/bus/routes/{route_id}/timetable",
+    response_model=ApiResponse[dict],
+    summary="버스 시간표 삭제",
+    description="필터: stop_id, day_type. 필터 없으면 해당 노선의 모든 시간표 삭제.",
+)
+async def admin_delete_bus_timetable(
+    route_id: int,
+    stop_id: int | None = None,
+    day_type: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    _user: str = Depends(verify_token),
+):
+    route = await db.get(BusRouteModel, route_id)
+    if not route:
+        return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
+    conditions = [BusTimetableEntryModel.route_id == route_id]
+    if stop_id is not None:
+        conditions.append(BusTimetableEntryModel.stop_id == stop_id)
+    if day_type is not None:
+        conditions.append(BusTimetableEntryModel.day_type == day_type)
+    result = await db.execute(delete(BusTimetableEntryModel).where(and_(*conditions)))
+    await db.commit()
+    return ApiResponse.ok({"deleted": result.rowcount})

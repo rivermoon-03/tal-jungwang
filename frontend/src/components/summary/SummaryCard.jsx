@@ -204,7 +204,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
   // ── 접힘 pill ──────────────────────────────────────────────────────
   if (cardCollapsed) {
     return (
-      <div className="px-3 pb-2 pt-2 flex justify-start">
+      <div className="px-3 pb-2 pt-2 flex justify-start animate-fade-in">
         <button
           onClick={toggleCard}
           aria-label="교통수단 카드 펼치기"
@@ -225,7 +225,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
 
   // ── 펼침 ──────────────────────────────────────────────────────────
   return (
-    <div className="mx-3 mt-2 mb-3 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md rounded-[24px] shadow-xl overflow-hidden border border-white/60 dark:border-border-dark/60">
+    <div className="mx-3 mt-2 mb-3 bg-white/95 dark:bg-surface-dark/95 backdrop-blur-md rounded-[24px] shadow-xl overflow-hidden border border-white/60 dark:border-border-dark/60 animate-fade-in-up">
       {/* 카드 헤더 — 교통수단 + 접기 버튼만 */}
       <div
         className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
@@ -262,7 +262,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
       </div>
 
       {/* 선택된 모드 패널 */}
-      <div className="px-4 pb-4">
+      <div key={selectedMode} className="px-4 pb-4 animate-fade-in">
         {selectedMode === 'subway' && <SubwayPanel />}
         {selectedMode === 'bus'    && <BusPanel />}
         {selectedMode === 'shuttle' && <ShuttlePanel />}

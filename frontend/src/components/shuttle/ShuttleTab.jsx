@@ -93,20 +93,22 @@ export default function ShuttleTab() {
         </div>
       )}
 
-      <ShuttleCountdown
-        nextShuttle={nextShuttle}
-        direction={dirLabel(activeDir)}
-        inFrequentWindow={inFrequentWindow}
-        inFrequentReturnWindow={inFrequentReturnWindow}
-      />
+      <div key={activeDir} className="flex-1 flex flex-col overflow-hidden animate-fade-in">
+        <ShuttleCountdown
+          nextShuttle={nextShuttle}
+          direction={dirLabel(activeDir)}
+          inFrequentWindow={inFrequentWindow}
+          inFrequentReturnWindow={inFrequentReturnWindow}
+        />
 
-      {schedLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-base text-slate-400">불러오는 중...</p>
-        </div>
-      ) : (
-        <ShuttleTimetable times={timeObjs} />
-      )}
+        {schedLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-base text-slate-400">불러오는 중...</p>
+          </div>
+        ) : (
+          <ShuttleTimetable times={timeObjs} />
+        )}
+      </div>
     </div>
   )
 }
