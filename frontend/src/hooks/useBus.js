@@ -4,6 +4,11 @@ export function useBusStations() {
   return useApi('/bus/stations')
 }
 
+export function useBusRoutesByCategory(category) {
+  const q = category ? `?category=${encodeURIComponent(category)}` : ''
+  return useApi(`/bus/routes${q}`, { enabled: category != null })
+}
+
 export function useBusArrivals(stationId) {
   const { data, loading, error, fetchedAt, refetch } = useApi(`/bus/arrivals/${stationId}`, {
     interval: 30_000,

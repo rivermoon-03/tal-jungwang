@@ -99,10 +99,14 @@ class TimetableUpload(BaseModel):
 # AI/스크립트에서도 사용 가능하도록 명확한 필드명과 검증을 유지한다.
 
 
+ROUTE_CATEGORIES = ("정왕역행", "서울행", "학교행", "기타")
+
+
 class BusRouteCreate(BaseModel):
     route_number: str = Field(..., min_length=1, max_length=20, description="노선 번호. 예: '3400', '시흥33'")
-    route_name: str | None = Field(None, max_length=100, description="노선 설명")
-    direction_name: str | None = Field(None, max_length=50, description="방향 이름. 예: '강남→시화'")
+    route_name: str | None = Field(None, max_length=100, description="노선 별칭. 예: '시화↔강남'")
+    direction_name: str | None = Field(None, max_length=50, description="방향/그룹키. 예: '서울행', '학교행'")
+    category: str | None = Field(None, max_length=20, description=f"프론트 그룹 카테고리 ∈ {ROUTE_CATEGORIES}")
     is_realtime: bool = Field(False, description="True=GBIS 실시간, False=시간표 기반")
     gbis_route_id: str | None = Field(None, max_length=20, description="GBIS 노선 ID (실시간일 때 필수)")
 
@@ -111,6 +115,7 @@ class BusRouteUpdate(BaseModel):
     route_number: str | None = Field(None, min_length=1, max_length=20)
     route_name: str | None = None
     direction_name: str | None = None
+    category: str | None = Field(None, max_length=20)
     is_realtime: bool | None = None
     gbis_route_id: str | None = None
 
@@ -120,6 +125,7 @@ class BusRouteOut(BaseModel):
     route_number: str
     route_name: str | None
     direction_name: str | None
+    category: str | None
     is_realtime: bool
     gbis_route_id: str | None
     stop_count: int = 0
@@ -129,7 +135,8 @@ class BusRouteOut(BaseModel):
 
 
 class BusStopCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
+    name: str = Field(..., min_length=1, max_length=100, description="순수 지명. 노선번호 포함 금지")
+    sub_name: str | None = Field(None, max_length=100, description="출구/부가정보. 예: '14번 출구'")
     gbis_station_id: str | None = Field(None, max_length=20)
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
@@ -137,6 +144,7 @@ class BusStopCreate(BaseModel):
 
 class BusStopUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=100)
+    sub_name: str | None = Field(None, max_length=100)
     gbis_station_id: str | None = None
     lat: float | None = Field(None, ge=-90, le=90)
     lng: float | None = Field(None, ge=-180, le=180)
@@ -145,6 +153,7 @@ class BusStopUpdate(BaseModel):
 class BusStopOut(BaseModel):
     id: int
     name: str
+    sub_name: str | None
     gbis_station_id: str | None
     lat: float
     lng: float

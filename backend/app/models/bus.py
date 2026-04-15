@@ -12,6 +12,7 @@ class BusStop(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    sub_name: Mapped[str | None] = mapped_column(String(100))
     gbis_station_id: Mapped[str | None] = mapped_column(String(20), unique=True)
     lat: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
     lng: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
@@ -29,6 +30,7 @@ class BusRoute(Base):
     route_number: Mapped[str] = mapped_column(String(20), nullable=False)
     route_name: Mapped[str | None] = mapped_column(String(100))
     direction_name: Mapped[str | None] = mapped_column(String(50))
+    category: Mapped[str] = mapped_column(String(20), nullable=False)
     is_realtime: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     gbis_route_id: Mapped[str | None] = mapped_column(String(20), unique=True)
 

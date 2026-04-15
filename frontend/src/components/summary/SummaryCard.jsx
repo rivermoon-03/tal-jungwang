@@ -80,18 +80,18 @@ export default function SummaryCard({ onNextArrivalChange }) {
   const route1 = routes[0] ?? null
   const route2 = routes[1] ?? null
 
-  // 3400/6502는 그룹에 따라 출발 정류장이 달라짐 (서울행=시화/이마트, 학교행=강남/사당)
+  // 양방향 분리 이후 route_number만으로는 구분 불가 — 정규화된 순수 지명으로 stop 조회
   const { data: stationsData } = useBusStations()
   const resolveStopId = (group, route) => {
     if (!stationsData) return null
     const find = (name) => stationsData.find((s) => s.name === name)?.station_id ?? null
     if (group === '버스 - 서울행') {
-      if (route === '3400') return find('시화 (3400 시종착)')
-      if (route === '6502') return find('이마트 (6502·시흥1번 정류장)')
+      if (route === '3400') return find('시화')
+      if (route === '6502') return find('이마트')
     }
     if (group === '버스 - 학교행') {
-      if (route === '3400') return find('강남역 3400 정류장')
-      if (route === '6502') return find('사당역 14번 출구')
+      if (route === '3400') return find('강남역')
+      if (route === '6502') return find('사당역')
     }
     return null
   }

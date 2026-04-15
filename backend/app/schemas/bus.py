@@ -10,9 +10,27 @@ class BusStationRoute(BaseModel):
 class BusStationResponse(BaseModel):
     station_id: int
     name: str
+    sub_name: str | None = None
     lat: float
     lng: float
     routes: list[BusStationRoute]
+
+
+class BusRouteStop(BaseModel):
+    stop_id: int
+    name: str
+    sub_name: str | None = None
+
+
+class BusRouteSummary(BaseModel):
+    route_id: int
+    route_number: str
+    route_name: str | None = None
+    direction_name: str | None = None
+    category: str | None = None
+    is_realtime: bool
+    gbis_route_id: str | None = None
+    stops: list[BusRouteStop] = []
 
 
 class BusArrival(BaseModel):
