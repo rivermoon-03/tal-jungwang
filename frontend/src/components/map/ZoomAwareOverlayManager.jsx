@@ -24,7 +24,7 @@ import { createMarkerChipElement, createSubwayMultiChipElement } from './MarkerC
 import { createMarkerDotElement } from './MarkerDot'
 
 // 줌 임계값: 이 값 이하이면 Chip 표시
-const CHIP_ZOOM_THRESHOLD = 5
+const CHIP_ZOOM_THRESHOLD = 6
 
 export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
   // overlayRefs: [{ overlay: CustomOverlay, station, mode: 'chip'|'dot' }]
@@ -50,6 +50,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
                 showLive:    station.showLive ?? false,
                 inaccurate:  station.liveInaccurate ?? false,
                 badgeText:   station.badgeText,
+                extraPillText: station.extraPillText ?? null,
                 onClick: () => onTap?.(station),
               }))
         : createMarkerDotElement({
@@ -105,6 +106,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
                   showLive:    item.station.showLive ?? false,
                   inaccurate:  item.station.liveInaccurate ?? false,
                   badgeText:   item.station.badgeText,
+                  extraPillText: item.station.extraPillText ?? null,
                   onClick: () => onTap?.(item.station),
                 }))
           : createMarkerDotElement({

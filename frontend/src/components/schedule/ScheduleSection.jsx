@@ -12,7 +12,7 @@
  *   loading       boolean
  *   lineColor     string | null  (hex override for the dot, e.g. '#F5A623')
  */
-import { Star } from 'lucide-react'
+import { Star, MapPin } from 'lucide-react'
 import Skeleton from '../common/Skeleton'
 
 const TYPE_COLOR = {
@@ -35,6 +35,7 @@ export default function ScheduleSection({
   subtitle,
   type = 'bus',
   routeCode,
+  destLabel = null,
   next,
   afterNext,
   isFavorite = false,
@@ -48,6 +49,8 @@ export default function ScheduleSection({
   minutesUntil = null,
   extraTimes = null,
   testBadge = false,
+  footer = null,
+  onShowMap = null,
 }) {
   const dotColor = lineColor ?? ROUTE_COLOR[routeCode] ?? TYPE_COLOR[type] ?? '#64748B'
   // 버스 카드는 노선번호를 컬러 pill 배경으로 강조, 그 외(지하철/셔틀)는 작은 점 유지
@@ -90,18 +93,35 @@ export default function ScheduleSection({
             )}
           </div>
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleFav?.() }}
-          aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-          className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90 flex-shrink-0"
-          style={{ transition: 'transform 0.1s cubic-bezier(0.34,1.56,0.64,1)' }}
-        >
-          <Star
-            size={18}
-            fill={isFavorite ? '#FF385C' : 'none'}
-            className={isFavorite ? 'text-coral' : 'text-slate-300 dark:text-slate-600'}
-          />
-        </button>
+        {destLabel && (
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0 self-center">
+            {destLabel}
+          </span>
+        )}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          {onShowMap && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onShowMap(e) }}
+              aria-label="지도에서 보기"
+              title="지도에서 보기"
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90"
+            >
+              <MapPin size={18} className="text-slate-400 dark:text-slate-500" />
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFav?.() }}
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90"
+            style={{ transition: 'transform 0.1s cubic-bezier(0.34,1.56,0.64,1)' }}
+          >
+            <Star
+              size={18}
+              fill={isFavorite ? '#FF385C' : 'none'}
+              className={isFavorite ? 'text-coral' : 'text-slate-300 dark:text-slate-600'}
+            />
+          </button>
+        </div>
       </div>
 
       {/* arrival times */}
@@ -158,6 +178,8 @@ export default function ScheduleSection({
           )}
         </div>
       </div>
+
+      {footer}
 
       {/* 추가 시간 (셔틀) */}
       {!disabled && !loading && Array.isArray(extraTimes) && extraTimes.length > 0 && (

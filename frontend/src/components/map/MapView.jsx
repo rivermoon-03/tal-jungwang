@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Navigation, School } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
-import SeohaeStopOverlay from './SeohaeStopOverlay'
 import TaxiCard from './TaxiCard'
 import DriveRoutePolyline from './DriveRoutePolyline'
 import WalkRoutePolyline from './WalkRoutePolyline'
@@ -14,7 +13,7 @@ import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
 import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
 import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
-import { useSubwayNext } from '../../hooks/useSubway'
+import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
 
 // 한국공학대학교 정문 좌표
@@ -42,6 +41,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const { data: shuttleToSchoolSched }  = useShuttleSchedule(0)
   const { data: shuttleFromSchoolSched } = useShuttleSchedule(1)
   const { data: subwayNextData }        = useSubwayNext()
+  const { data: seohaeTimetable }       = useSubwayTimetable()
   const { data: busArrivalsData }       = useBusArrivals(224000639)
   const { data: stationsData }          = useBusStations()
 
@@ -109,6 +109,31 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const bus3400InMinutes  = useMemo(() => minsUntilNextTimetable(timetable3400In),  [timetable3400In])
   const bus6502OutMinutes = useMemo(() => minsUntilNextTimetable(timetable6502Out), [timetable6502Out])
   const bus6502InMinutes  = useMemo(() => minsUntilNextTimetable(timetable6502In),  [timetable6502In])
+
+  const nextMinFromTrains = (trains) => {
+    if (!trains?.length) return null
+    const now = new Date()
+    const nowMin = now.getHours() * 60 + now.getMinutes()
+    const next = trains.find((t) => {
+      const [hh, mm] = String(t.depart_at).split(':').map(Number)
+      return hh * 60 + mm > nowMin
+    })
+    if (!next) return null
+    const [hh, mm] = String(next.depart_at).split(':').map(Number)
+    return Math.max(0, hh * 60 + mm - nowMin)
+  }
+  const chojiMinutes = useMemo(() => {
+    const up = nextMinFromTrains(seohaeTimetable?.choji_up)
+    const dn = nextMinFromTrains(seohaeTimetable?.choji_dn)
+    const vals = [up, dn].filter((v) => v != null)
+    return vals.length ? Math.min(...vals) : null
+  }, [seohaeTimetable])
+  const siheungMinutes = useMemo(() => {
+    const up = nextMinFromTrains(seohaeTimetable?.siheung_up)
+    const dn = nextMinFromTrains(seohaeTimetable?.siheung_dn)
+    const vals = [up, dn].filter((v) => v != null)
+    return vals.length ? Math.min(...vals) : null
+  }, [seohaeTimetable])
 
   // MANAGED_STATIONS with live data injected
   const managedStations = useMemo(() => [
@@ -237,6 +262,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       routeCode: '6502',
       routeColor: '#DC2626',
       badgeText: 'G',
+      extraPillText: '3400도 탑승 가능',
       liveMinutes: bus6502InMinutes,
       showLive: true,
       outboundStopId: stopIds.sadang,
@@ -249,7 +275,33 @@ export default function MapView({ onMarkerClick, selectedId }) {
       outboundActiveSide: 'left',
       inboundActiveSide:  'right',
     },
-  ], [shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, busLiveMinutes, bus3400OutMinutes, bus3400InMinutes, bus6502OutMinutes, bus6502InMinutes, subwayNextData, stopIds])
+    {
+      id: 'choji_station',
+      name: '초지역',
+      type: 'seohae',
+      tabId: 'choji',
+      lat: 37.319819,
+      lng: 126.80775,
+      routeCode: '서해선',
+      routeColor: '#75bf43',
+      badgeText: '서',
+      liveMinutes: chojiMinutes,
+      showLive: true,
+    },
+    {
+      id: 'siheung_station',
+      name: '시흥시청역',
+      type: 'seohae',
+      tabId: 'siheung',
+      lat: 37.381656,
+      lng: 126.805878,
+      routeCode: '서해선',
+      routeColor: '#75bf43',
+      badgeText: '서',
+      liveMinutes: siheungMinutes,
+      showLive: true,
+    },
+  ], [shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, busLiveMinutes, bus3400OutMinutes, bus3400InMinutes, bus6502OutMinutes, bus6502InMinutes, subwayNextData, stopIds, chojiMinutes, siheungMinutes])
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
@@ -333,6 +385,37 @@ export default function MapView({ onMarkerClick, selectedId }) {
       return upcoming
     }
 
+    if (sheetStation.type === 'seohae') {
+      const result = []
+      const now = new Date()
+      const nowMin = now.getHours() * 60 + now.getMinutes()
+      const upKey = sheetStation.tabId === 'choji' ? 'choji_up' : 'siheung_up'
+      const dnKey = sheetStation.tabId === 'choji' ? 'choji_dn' : 'siheung_dn'
+      const pickNext = (trains) => {
+        if (!trains?.length) return null
+        const next = trains.find((t) => {
+          const [hh, mm] = String(t.depart_at).split(':').map(Number)
+          return hh * 60 + mm > nowMin
+        })
+        if (!next) return null
+        const [hh, mm] = String(next.depart_at).split(':').map(Number)
+        return { min: Math.max(0, hh * 60 + mm - nowMin), dest: next.destination ?? null }
+      }
+      const up = pickNext(seohaeTimetable?.[upKey])
+      const dn = pickNext(seohaeTimetable?.[dnKey])
+      if (up) result.push({
+        routeCode: '서해선', routeColor: '#75bf43',
+        direction: `상행 · ${up.dest ?? '소사'} 방면`,
+        minutes: up.min,
+      })
+      if (dn) result.push({
+        routeCode: '서해선', routeColor: '#75bf43',
+        direction: `하행 · ${dn.dest ?? '원시'} 방면`,
+        minutes: dn.min,
+      })
+      return result
+    }
+
     if (sheetStation.type === 'subway') {
       const result = []
       if (subwayNextData?.up) {
@@ -371,7 +454,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, sheetDirection, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, stopIds])
+  }, [sheetStation, sheetDirection, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, stopIds, seohaeTimetable])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
@@ -413,12 +496,12 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
   }, [activeTab])
 
-  // 독 버튼에서 요청한 pan 처리
+  // 독 버튼/지도에서 보기 요청 pan — mapInstance 준비 이후 반드시 실행
   useEffect(() => {
-    if (!mapPanTarget || !mapRef.current) return
-    panTo(mapPanTarget.lat, mapPanTarget.lng)
+    if (!mapPanTarget || !mapInstance) return
+    mapInstance.panTo(new window.kakao.maps.LatLng(mapPanTarget.lat, mapPanTarget.lng))
     setMapPanTarget(null)
-  }, [mapPanTarget])
+  }, [mapPanTarget, mapInstance, setMapPanTarget])
 
   // SDK 로드 effect
   useEffect(() => {
@@ -623,14 +706,26 @@ export default function MapView({ onMarkerClick, selectedId }) {
               }
             }}
             onDetail={() => {
-              const tabId =
-                sheetStation.type === 'shuttle'   ? 'shuttle' :
-                sheetStation.type === 'subway'    ? 'jeongwang' :
-                sheetStation.type === 'bus'       ? 'jeongwang' :
-                sheetStation.type === 'bus_seoul' ? 'seoul' :
-                null
-              if (tabId) useAppStore.getState().setOpenInfoTab(tabId)
+              const hint =
+                sheetStation.type === 'shuttle'
+                  ? { mode: 'shuttle' }
+                  : sheetStation.type === 'subway'
+                  ? { mode: 'subway', group: '정왕' }
+                  : sheetStation.type === 'bus'
+                  ? { mode: 'bus', group: '정왕역행' }
+                  : sheetStation.type === 'bus_seoul'
+                  ? { mode: 'bus', group: '버스 - 서울행', routeCode: sheetStation.route }
+                  : sheetStation.type === 'seohae'
+                  ? { mode: 'subway', group: sheetStation.tabId === 'choji' ? '초지' : '시흥시청' }
+                  : null
               setSheetStation(null)
+              if (hint) {
+                useAppStore.getState().setScheduleHint(hint)
+                if (window.location.pathname !== '/schedule') {
+                  window.history.pushState({}, '', '/schedule')
+                  window.dispatchEvent(new PopStateEvent('popstate'))
+                }
+              }
             }}
           />
         )}
@@ -640,7 +735,6 @@ export default function MapView({ onMarkerClick, selectedId }) {
       {mapInstance && (
         <>
           <UserLocationMarker map={mapInstance} />
-          <SeohaeStopOverlay map={mapInstance} />
           <DriveRoutePolyline map={mapInstance} />
           <WalkRoutePolyline map={mapInstance} />
           <RestaurantOverlay map={mapInstance} />

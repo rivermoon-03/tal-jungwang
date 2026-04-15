@@ -103,7 +103,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
  * @param {{ routeCode: string, routeColor?: string, stationName: string, liveMinutes?: number|null, showLive?: boolean, onClick?: () => void }} options
  * @returns {HTMLElement}
  */
-export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick, badgeText }) {
+export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick, badgeText, extraPillText = null }) {
   const color = resolveColor(routeCode, routeColor)
 
   const wrapper = document.createElement('div')
@@ -116,6 +116,27 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
   ].join(';')
 
   const hasLive = showLive && liveMinutes != null
+
+  // 보조 pill (메인 pill 위에 작게 표시)
+  if (extraPillText) {
+    const extra = document.createElement('div')
+    extra.style.cssText = [
+      'display:inline-flex',
+      'align-items:center',
+      'gap:4px',
+      'background:#DC2626',
+      'color:#fff',
+      'font-size:9px',
+      'font-weight:700',
+      'border-radius:10px',
+      'padding:2px 7px',
+      'box-shadow:0 2px 6px rgba(0,0,0,0.15)',
+      'margin-bottom:3px',
+      'white-space:nowrap',
+    ].join(';')
+    extra.textContent = extraPillText
+    wrapper.appendChild(extra)
+  }
 
   // Pill 본체
   const pill = document.createElement('div')

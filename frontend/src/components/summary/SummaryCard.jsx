@@ -16,9 +16,10 @@ const SUBWAY_STATION_LINES = {
 }
 
 const BUS_GROUP_ROUTES = {
-  '정왕역': ['20-1', '시흥33'],
-  '서울':   ['3400', '6502'],
-  '기타':   ['시흥1'],
+  '정왕역행':      ['20-1', '시흥33'],
+  '버스 - 서울행': ['3400', '6502'],
+  '버스 - 학교행': ['3400', '6502'],
+  '기타':         ['시흥1'],
 }
 const HANKUK_STOP_ID = '224000639'
 
@@ -81,7 +82,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
   const { data: busData1 } = useBusTimetableByRoute(route1)
   const { data: busData2 } = useBusTimetableByRoute(route2)
   const { data: realtimeData } = useBusArrivals(
-    selectedBusGroup === '정왕역' ? HANKUK_STOP_ID : null,
+    selectedBusGroup === '정왕역행' ? HANKUK_STOP_ID : null,
   )
 
   useEffect(() => {
@@ -128,6 +129,8 @@ export default function SummaryCard({ onNextArrivalChange }) {
       if (downMins != null) segs.push(`하교 ${downMins}분`)
       if (segs.length > 0) {
         const fastest = [upMins, downMins].filter((v) => v != null).sort((a, b) => a - b)[0]
+        const fastestDirection =
+          upMins != null && (downMins == null || upMins <= downMins) ? '등교' : '하교'
         const subSegs = []
         if (upMins   != null) subSegs.push('등교')
         if (downMins != null) subSegs.push('하교')
@@ -135,6 +138,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
           mode: 'shuttle',
           minutes: fastest,
           route: '셔틀',
+          direction: fastestDirection,
           pillLabel: `셔틀 ${segs.join(' · ')}`,
           subLabel: `셔틀 ${subSegs.join(' · ')}`,
         })
@@ -143,7 +147,7 @@ export default function SummaryCard({ onNextArrivalChange }) {
     }
 
     if (selectedMode === 'bus') {
-      const isRealtime = selectedBusGroup === '정왕역'
+      const isRealtime = selectedBusGroup === '정왕역행'
       const busDataMap = { [route1]: busData1, [route2]: busData2 }
       const segs = []
       const allMins = []

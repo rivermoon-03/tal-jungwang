@@ -20,10 +20,10 @@ const STATION_LINES = {
     { label: '4호선 상행',    upKey: 'line4_up',    downKey: 'line4_down', color: '#1B5FAD' },
   ],
   초지: [
-    { label: '서해선 상행',   upKey: 'choji_up',   downKey: 'choji_dn',   color: '#1B5FAD' },
+    { label: '서해선 상행',   upKey: 'choji_up',   downKey: 'choji_dn',   color: '#75bf43' },
   ],
   시흥시청: [
-    { label: '서해선 상행',   upKey: 'siheung_up', downKey: 'siheung_dn', color: '#1B5FAD' },
+    { label: '서해선 상행',   upKey: 'siheung_up', downKey: 'siheung_dn', color: '#75bf43' },
   ],
 }
 
