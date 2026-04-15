@@ -31,7 +31,7 @@ async def bus_routes(
     category: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """노선 목록. category(정왕역행/서울행/학교행/기타) 필터 가능. 각 노선의 stops 포함."""
+    """노선 목록. category(등교/하교/기타) 필터 가능. 각 노선의 stops 포함."""
     stmt = select(BusRoute).order_by(BusRoute.route_number, BusRoute.direction_name)
     if category:
         stmt = stmt.where(BusRoute.category == category)

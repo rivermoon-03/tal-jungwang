@@ -4,6 +4,26 @@ import { getBoardingStatus } from '../../utils/boardingStatus'
 
 const MOCK_WALK_SECONDS = 180
 
+const ROUTE_COLORS = {
+  '6502':  '#E02020',
+  '3400':  '#E02020',
+  '시흥33': '#33B5A5',
+  '시흥1':  '#33B5A5',
+  '20-1':  '#5096E6',
+}
+function getRouteColor(routeNo) {
+  return ROUTE_COLORS[routeNo] ?? '#334155'
+}
+
+function groupByRoute(arrivals) {
+  const map = new Map()
+  for (const a of arrivals) {
+    if (!map.has(a.route_no)) map.set(a.route_no, [])
+    map.get(a.route_no).push(a)
+  }
+  return Array.from(map.values())
+}
+
 export default function StationCard({ stationId, onClose }) {
   const { data, loading } = useBusArrivals(stationId)
 
@@ -26,42 +46,57 @@ export default function StationCard({ stationId, onClose }) {
     )
   }
 
+  const groups = groupByRoute(data.arrivals)
+
   return (
     <div className="bg-white border-t border-slate-200 shadow-lg">
       <div className="flex items-center justify-between px-5 py-3">
-        <div>
-          <p className="text-base font-bold text-slate-900">{data.station_name}</p>
-        </div>
+        <p className="text-base font-bold text-slate-900">{data.station_name}</p>
         <button onClick={onClose} aria-label="닫기" className="text-slate-400 hover:text-slate-600 p-1">
           <X size={20} />
         </button>
       </div>
 
       <div className="divide-y divide-slate-100">
-        {data.arrivals.slice(0, 4).map((arrival, i) => {
-          const arrivalKey = `${arrival.route_no}-${i}`
-          if (arrival.arrival_type === 'timetable') {
+        {groups.slice(0, 4).map((group) => {
+          const first = group[0]
+          const color = getRouteColor(first.route_no)
+          const shown = group.slice(0, 3)
+
+          if (first.arrival_type === 'timetable') {
             return (
-              <div key={arrivalKey} className="flex items-center gap-3 px-5 py-3">
-                <span className="min-w-[48px] text-center text-sm font-bold text-white bg-slate-500 px-2.5 py-1 rounded">
-                  {arrival.route_no}
+              <div key={first.route_no} className="flex items-center gap-3 px-5 py-3">
+                <span className="min-w-[48px] text-center text-sm font-bold text-white px-2.5 py-1 rounded" style={{ backgroundColor: color }}>
+                  {first.route_no}
                 </span>
-                <span className="flex-1 text-sm text-slate-500">{arrival.destination}</span>
-                <span className="text-sm text-slate-600">{arrival.depart_at} 출발</span>
-                <span className="text-xs px-2 py-1 rounded" style={{ background: '#f1f5f9', color: '#475569' }}>시간표</span>
+                <span className="flex-1 text-sm text-slate-500 truncate">{first.destination}</span>
+                <div className="flex gap-3 items-center">
+                  {shown.map((a, i) => (
+                    <span key={i} className="text-sm font-semibold text-slate-700 tabular-nums whitespace-nowrap">
+                      {a.depart_at}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-xs px-2 py-1 rounded shrink-0" style={{ background: '#f1f5f9', color: '#475569' }}>시간표</span>
               </div>
             )
           }
-          const status = getBoardingStatus(arrival.arrive_in_seconds ?? 0, MOCK_WALK_SECONDS)
-          const min = Math.floor((arrival.arrive_in_seconds ?? 0) / 60)
+
+          const status = getBoardingStatus(first.arrive_in_seconds ?? 0, MOCK_WALK_SECONDS)
           return (
-            <div key={arrivalKey} className="flex items-center gap-3 px-5 py-3">
-              <span className="min-w-[48px] text-center text-sm font-bold text-white bg-navy px-2.5 py-1 rounded whitespace-nowrap">
-                {arrival.route_no}
+            <div key={first.route_no} className="flex items-center gap-3 px-5 py-3">
+              <span className="min-w-[48px] text-center text-sm font-bold text-white px-2.5 py-1 rounded whitespace-nowrap" style={{ backgroundColor: color }}>
+                {first.route_no}
               </span>
-              <span className="flex-1 text-sm text-slate-500">{arrival.destination}</span>
-              <span className="text-lg font-bold tabular-nums text-slate-900">{min}분</span>
-              <span className="text-xs px-2 py-1 rounded font-semibold whitespace-nowrap"
+              <span className="flex-1 text-sm text-slate-500 truncate">{first.destination}</span>
+              <div className="flex gap-3 items-center">
+                {shown.map((a, i) => (
+                  <span key={i} className="text-base font-bold tabular-nums text-slate-900 whitespace-nowrap">
+                    {Math.floor((a.arrive_in_seconds ?? 0) / 60) === 0 ? '곧' : `${Math.floor((a.arrive_in_seconds ?? 0) / 60)}분`}
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs px-2 py-1 rounded font-semibold whitespace-nowrap shrink-0"
                 style={{ background: status.bg, color: status.color }}>
                 {status.label}
               </span>
