@@ -4,21 +4,45 @@
  * - 각 모드별 그룹 pill selector
  * - ⭐ 즐겨찾기만 toggle
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TrainFront, Bus, TramFront, Star } from 'lucide-react'
 import ScheduleSection from './ScheduleSection'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
 import useAppStore from '../../stores/useAppStore'
-import { useBusTimetableByRoute, useBusArrivals } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 
 // ─── static section definitions ────────────────────────────────────────────
+// 각 route는 { code, stopName? } — stopName이 있으면 해당 정류장의 방면별 시간표 조회
 const BUS_GROUPS = [
-  { id: '정왕역행', label: '정왕역행', routes: ['20-1', '시흥33'] },
-  { id: '서울행',   label: '서울행',   routes: ['3400', '6502'] },
-  { id: '기타',     label: '기타',     routes: ['시흥1'] },
+  {
+    id: '정왕역행',
+    label: '정왕역행',
+    routes: [{ code: '20-1' }, { code: '시흥33' }],
+  },
+  {
+    id: '버스 - 서울행',
+    label: '버스 - 서울행',
+    routes: [
+      { code: '3400', stopName: '시화 (3400 시종착)',             destLabel: '강남행',   originLabel: '시화',   mapLat: 37.342546, mapLng: 126.735365 },
+      { code: '6502', stopName: '이마트 (6502·시흥1번 정류장)',   destLabel: '사당행',   originLabel: '이마트', mapLat: 37.345999, mapLng: 126.737995 },
+    ],
+  },
+  {
+    id: '버스 - 학교행',
+    label: '버스 - 학교행',
+    routes: [
+      { code: '3400', stopName: '강남역 3400 정류장',             destLabel: '학교행',   originLabel: '강남역', mapLat: 37.498427, mapLng: 127.029829 },
+      { code: '6502', stopName: '사당역 14번 출구',               destLabel: '이마트행', originLabel: '사당역', mapLat: 37.476654, mapLng: 126.982610 },
+    ],
+  },
+  {
+    id: '기타',
+    label: '기타',
+    routes: [{ code: '시흥1' }],
+  },
 ]
 
 const SUBWAY_GROUPS = [
@@ -59,11 +83,27 @@ function timeStrToMinutes(timeStr, now) {
 }
 
 // ─── per-route bus section ───────────────────────────────────────────────────
-function BusRouteSection({ routeCode, isFavorite, onToggleFav, onCardClick }) {
+function BusRouteSection({ routeCode, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isFavorite, onToggleFav, onCardClick }) {
+  const titleText = destLabel
+    ? (originLabel ? `${destLabel} · ${originLabel} 출발` : destLabel)
+    : routeCode
+  const setMapPanTarget = useAppStore((s) => s.setMapPanTarget)
+  const handleShowOnMap = (e) => {
+    e.stopPropagation()
+    if (mapLat == null || mapLng == null) return
+    setMapPanTarget({ lat: mapLat, lng: mapLng })
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
+  const onShowMap = (mapLat != null && mapLng != null) ? handleShowOnMap : null
+
   const isRealtimeOnly = REALTIME_ONLY_ROUTES.has(routeCode)
   const stationId = isRealtimeOnly ? REALTIME_ROUTE_STATION[routeCode] : null
   const { data: timetableData, loading: timetableLoading } = useBusTimetableByRoute(
-    isRealtimeOnly ? null : routeCode
+    isRealtimeOnly ? null : routeCode,
+    stopId ? { stopId } : undefined,
   )
   const { data: arrivalsData, loading: arrivalsLoading } = useBusArrivals(stationId)
 
@@ -86,19 +126,22 @@ function BusRouteSection({ routeCode, isFavorite, onToggleFav, onCardClick }) {
     else if (firstMin <= 0) nextLabel = '곧 도착'
     else nextLabel = `${firstMin}분 뒤`
 
+    const favKey = favCode ?? routeCode
     return (
       <ScheduleSection
-        title={routeCode}
+        title={titleText}
         subtitle={first?.destination ? `실시간 · ${first.destination}행` : '실시간'}
         type="bus"
         routeCode={routeCode}
+        destLabel={null}
         next={nextLabel}
         afterNext={secondMin != null ? (secondMin <= 0 ? '곧 도착' : `${secondMin}분 뒤`) : null}
         minutesUntil={null}
         isFavorite={isFavorite}
-        onToggleFav={() => onToggleFav(routeCode)}
+        onToggleFav={() => onToggleFav(favKey)}
         loading={arrivalsLoading && matches.length === 0}
         testBadge
+        onShowMap={onShowMap}
       />
     )
   }
@@ -121,19 +164,28 @@ function BusRouteSection({ routeCode, isFavorite, onToggleFav, onCardClick }) {
   const nextStr = toStr(future[0]) ?? '—'
   const mins = !future[0] ? null : Math.max(0, Math.round((future[0] - now) / 60000))
 
+  const favKey = favCode ?? routeCode
   return (
     <ScheduleSection
-      title={routeCode}
-      subtitle="버스"
+      title={titleText}
+      subtitle={destLabel ? null : '버스'}
       type="bus"
       routeCode={routeCode}
+      destLabel={null}
       next={nextStr}
       afterNext={toStr(future[1])}
       minutesUntil={mins}
       isFavorite={isFavorite}
-      onToggleFav={() => onToggleFav(routeCode)}
-      onClick={() => onCardClick({ type: 'bus', routeCode, title: `${routeCode}번 버스` })}
+      onToggleFav={() => onToggleFav(favKey)}
+      onClick={() => onCardClick({
+        type: 'bus',
+        routeCode,
+        stopId,
+        title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
+        accentColor: (routeCode === '3400' || routeCode === '6502') ? '#DC2626' : undefined,
+      })}
       loading={timetableLoading}
+      onShowMap={onShowMap}
     />
   )
 }
@@ -282,6 +334,26 @@ export default function SchedulePage() {
 
   const favorites = useAppStore((s) => s.favorites)
   const toggleFavoriteRoute = useAppStore((s) => s.toggleFavoriteRoute)
+  const scheduleHint = useAppStore((s) => s.scheduleHint)
+  const setScheduleHint = useAppStore((s) => s.setScheduleHint)
+
+  // 정류장명 → station_id 해석 (버스 방면별 시간표 조회에 사용)
+  const { data: stationsData } = useBusStations()
+  const stationNameToId = (stationsData ?? []).reduce((acc, s) => {
+    acc[s.name] = s.station_id
+    return acc
+  }, {})
+
+  useEffect(() => {
+    if (!scheduleHint) return
+    if (scheduleHint.mode) setMode(scheduleHint.mode)
+    if (scheduleHint.group) {
+      if (scheduleHint.mode === 'bus') setBusGroup(scheduleHint.group)
+      else if (scheduleHint.mode === 'subway') setSubwayGroup(scheduleHint.group)
+      else if (scheduleHint.mode === 'shuttle') setShuttleGroup(scheduleHint.group)
+    }
+    setScheduleHint(null)
+  }, [scheduleHint, setScheduleHint])
 
   function isFav(code) {
     return favorites.routes?.includes(code) ?? false
@@ -375,19 +447,36 @@ export default function SchedulePage() {
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6 flex flex-col gap-2">
         {mode === 'bus' && (() => {
           const group = BUS_GROUPS.find((g) => g.id === busGroup)
-          const routes = (group?.routes ?? []).filter((r) => !favOnly || isFav(r))
-          if (routes.length === 0) {
+          const rawRoutes = group?.routes ?? []
+          // 즐겨찾기 key는 방향 구분을 위해 group.id와 조합
+          const entries = rawRoutes.map((r) => ({
+            ...r,
+            favCode: r.stopName ? `${group.id}:${r.code}` : r.code,
+            stopId: r.stopName ? (stationNameToId[r.stopName] ?? null) : null,
+            destLabel: r.destLabel ?? null,
+            originLabel: r.originLabel ?? null,
+            mapLat: r.mapLat ?? null,
+            mapLng: r.mapLng ?? null,
+          }))
+          const visible = entries.filter((e) => !favOnly || isFav(e.favCode))
+          if (visible.length === 0) {
             return (
               <p className="py-8 text-center text-sm text-slate-400">
                 {favOnly ? '즐겨찾기된 버스가 없어요' : '해당 그룹의 버스가 없어요'}
               </p>
             )
           }
-          return routes.map((routeCode) => (
+          return visible.map((e) => (
             <BusRouteSection
-              key={routeCode}
-              routeCode={routeCode}
-              isFavorite={isFav(routeCode)}
+              key={e.favCode}
+              routeCode={e.code}
+              stopId={e.stopId}
+              favCode={e.favCode}
+              destLabel={e.destLabel}
+              originLabel={e.originLabel}
+              mapLat={e.mapLat}
+              mapLng={e.mapLng}
+              isFavorite={isFav(e.favCode)}
               onToggleFav={handleToggleFav}
               onCardClick={handleCardClick}
             />

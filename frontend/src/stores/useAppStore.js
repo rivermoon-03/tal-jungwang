@@ -25,6 +25,9 @@ const useAppStore = create(
       setMapPanTarget: (target) => set({ mapPanTarget: target }),
       openInfoTab: null,
       setOpenInfoTab: (tab) => set({ openInfoTab: tab }),
+      // 마커 시트의 "상세 보기" 버튼이 /schedule 진입 시 초기 모드·그룹을 지정
+      scheduleHint: null, // { mode, group?, routeCode? } | null
+      setScheduleHint: (hint) => set({ scheduleHint: hint }),
       taxiOpen: false,
       setTaxiOpen: (v) => set({ taxiOpen: v }),
       toggleTaxiOpen: () => set((s) => ({ taxiOpen: !s.taxiOpen })),
@@ -45,7 +48,7 @@ const useAppStore = create(
       selectedSubwayStation: '정왕', // '정왕' | '초지' | '시흥시청'
       setSubwayStation: (station) => set({ selectedSubwayStation: station }),
 
-      selectedBusGroup: '정왕역',    // '정왕역' | '서울' | '기타'
+      selectedBusGroup: '정왕역행',  // '정왕역행' | '버스 - 서울행' | '버스 - 학교행' | '기타'
       setBusGroup: (group) => set({ selectedBusGroup: group }),
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
@@ -82,6 +85,20 @@ const useAppStore = create(
     }),
     {
       name: 'tal-jungwang',
+      version: 2,
+      migrate: (state, fromVersion) => {
+        if (!state) return state
+        // v1 → v2: 버스 그룹 4분할 (정왕역→정왕역행, 서울→버스 - 서울행)
+        if (fromVersion < 2 && state.selectedBusGroup) {
+          const map = {
+            '정왕역': '정왕역행',
+            '서울':   '버스 - 서울행',
+            '서울행': '버스 - 서울행',
+          }
+          state.selectedBusGroup = map[state.selectedBusGroup] ?? state.selectedBusGroup
+        }
+        return state
+      },
       storage: createJSONStorage(() => {
         // 시크릿 모드 / localStorage 실패 시 in-memory 폴백
         try {

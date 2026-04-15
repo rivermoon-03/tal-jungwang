@@ -76,7 +76,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
 
   if (!station) return null
 
-  const sheetHeight = expanded ? '90vh' : '42vh'
+  const sheetHeight = expanded ? '90vh' : directionControl ? '54vh' : '42vh'
   const translateY = visible ? '0%' : '100%'
 
   return (
