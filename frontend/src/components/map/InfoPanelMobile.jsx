@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, Info, Car, Moon, Sun, X } from 'lucide-react'
+import { ChevronLeft, Info, Moon, Sun, X } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import InfoPanelTabs from './InfoPanelTabs'
 import { toMin } from '../../utils/boardingStatus'
@@ -261,10 +261,6 @@ export default function InfoPanelMobile({
   const setActiveTab    = useAppStore((s) => s.setActiveTab)
   const darkMode        = useAppStore((s) => s.darkMode)
   const toggleDarkMode  = useAppStore((s) => s.toggleDarkMode)
-  const taxiOpen        = useAppStore((s) => s.taxiOpen)
-  const toggleTaxiOpen  = useAppStore((s) => s.toggleTaxiOpen)
-  const setTaxiOpen     = useAppStore((s) => s.setTaxiOpen)
-  const setDriveRouteCoords = useAppStore((s) => s.setDriveRouteCoords)
 
   useEffect(() => {
     setSheetOpen(open)
@@ -303,17 +299,6 @@ export default function InfoPanelMobile({
             <Info size={18} />
           </button>
         )}
-        <button
-          aria-label="학교에서 가는 시간"
-          onClick={toggleTaxiOpen}
-          className={`w-10 h-10 rounded-full backdrop-blur-md shadow-lg border-2 flex items-center justify-center pressable transition-colors ${
-            taxiOpen
-              ? 'bg-emerald-500 border-emerald-500 text-white'
-              : 'bg-white/90 dark:bg-slate-700/90 border-emerald-400 text-emerald-500'
-          }`}
-        >
-          <Car size={18} strokeWidth={2} />
-        </button>
         <button
           aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
           onClick={toggleDarkMode}

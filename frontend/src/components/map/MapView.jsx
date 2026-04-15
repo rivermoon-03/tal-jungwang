@@ -15,7 +15,7 @@ import MarkerSheet from './MarkerSheet'
 import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
 import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
-import { useBusArrivals } from '../../hooks/useBus'
+import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
 
 // 한국공학대학교 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
@@ -43,6 +43,24 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const { data: shuttleFromSchoolSched } = useShuttleSchedule(1)
   const { data: subwayNextData }        = useSubwayNext()
   const { data: busArrivalsData }       = useBusArrivals(224000639)
+  const { data: stationsData }          = useBusStations()
+
+  // 정류장 이름 → stop_id 해석
+  const stopIds = useMemo(() => {
+    const stations = stationsData ?? []
+    const byName = (name) => stations.find((s) => s.name === name)?.station_id ?? null
+    return {
+      sihwa:   byName('시화 (3400 시종착)'),
+      emart:   byName('이마트 (6502·시흥1번 정류장)'),
+      sadang:  byName('사당역 14번 출구'),
+      gangnam: byName('강남역 3400 정류장'),
+    }
+  }, [stationsData])
+
+  const { data: timetable3400Out } = useBusTimetableByRoute('3400', { stopId: stopIds.sihwa })
+  const { data: timetable3400In  } = useBusTimetableByRoute('3400', { stopId: stopIds.gangnam })
+  const { data: timetable6502Out } = useBusTimetableByRoute('6502', { stopId: stopIds.emart })
+  const { data: timetable6502In  } = useBusTimetableByRoute('6502', { stopId: stopIds.sadang })
 
   // liveMinutes 계산
   const shuttleToSchoolMins = useMemo(() => {
@@ -72,6 +90,25 @@ export default function MapView({ onMarkerClick, selectedId }) {
     if (!secs.length) return null
     return Math.max(0, Math.round(Math.min(...secs) / 60))
   }, [busArrivalsData])
+
+  const minsUntilNextTimetable = (timetable) => {
+    const times = timetable?.times ?? []
+    if (!times.length) return null
+    const now = new Date()
+    const nowMin = now.getHours() * 60 + now.getMinutes()
+    for (const t of times) {
+      const [hh, mm] = String(t).split(':').map(Number)
+      if (Number.isNaN(hh) || Number.isNaN(mm)) continue
+      const diff = hh * 60 + mm - nowMin
+      if (diff >= 0) return diff
+    }
+    return null
+  }
+
+  const bus3400OutMinutes = useMemo(() => minsUntilNextTimetable(timetable3400Out), [timetable3400Out])
+  const bus3400InMinutes  = useMemo(() => minsUntilNextTimetable(timetable3400In),  [timetable3400In])
+  const bus6502OutMinutes = useMemo(() => minsUntilNextTimetable(timetable6502Out), [timetable6502Out])
+  const bus6502InMinutes  = useMemo(() => minsUntilNextTimetable(timetable6502In),  [timetable6502In])
 
   // MANAGED_STATIONS with live data injected
   const managedStations = useMemo(() => [
@@ -109,6 +146,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
       routeColor: '#F5A623',
       liveMinutes: subwayLiveMinutes,
       showLive: true,
+      chipVariant: 'subwayMulti',
+      subwayData: subwayNextData ?? null,
     },
     {
       id: 'tec_bus_stop',
@@ -122,10 +161,99 @@ export default function MapView({ onMarkerClick, selectedId }) {
       showLive: true,
       liveInaccurate: true,
     },
-  ], [shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, busLiveMinutes])
+    {
+      id: 'bus_3400_stop',
+      name: '3400',
+      type: 'bus_seoul',
+      route: '3400',
+      lat: 37.342546,
+      lng: 126.735365,
+      routeCode: '3400',
+      routeColor: '#DC2626',
+      badgeText: 'G',
+      liveMinutes: bus3400OutMinutes,
+      showLive: true,
+      outboundStopId: stopIds.sihwa,
+      inboundStopId:  stopIds.gangnam,
+      outboundSegment: '서울행',
+      inboundSegment:  '정왕행',
+      outboundDirLabel: '학교 → 강남행',
+      inboundDirLabel:  '강남 → 학교행',
+      spineLeft: '시화', spineRight: '강남',
+      outboundActiveSide: 'right',
+      inboundActiveSide:  'left',
+    },
+    {
+      id: 'bus_6502_stop',
+      name: '6502',
+      type: 'bus_seoul',
+      route: '6502',
+      lat: 37.345999,
+      lng: 126.737995,
+      routeCode: '6502',
+      routeColor: '#DC2626',
+      badgeText: 'G',
+      liveMinutes: bus6502OutMinutes,
+      showLive: true,
+      outboundStopId: stopIds.emart,
+      inboundStopId:  stopIds.sadang,
+      outboundSegment: '서울행',
+      inboundSegment:  '정왕행',
+      outboundDirLabel: '이마트 → 사당행',
+      inboundDirLabel:  '사당 → 이마트행',
+      spineLeft: '이마트', spineRight: '사당',
+      outboundActiveSide: 'right',
+      inboundActiveSide:  'left',
+    },
+    {
+      id: 'bus_3400_gangnam',
+      name: '3400',
+      type: 'bus_seoul',
+      route: '3400',
+      lat: 37.498427,
+      lng: 127.029829,
+      routeCode: '3400',
+      routeColor: '#DC2626',
+      badgeText: 'G',
+      liveMinutes: bus3400InMinutes,
+      showLive: true,
+      outboundStopId: stopIds.gangnam,
+      inboundStopId:  stopIds.sihwa,
+      outboundSegment: '정왕행',
+      inboundSegment:  '서울행',
+      outboundDirLabel: '강남 → 학교행',
+      inboundDirLabel:  '학교 → 강남행',
+      spineLeft: '시화', spineRight: '강남',
+      outboundActiveSide: 'left',
+      inboundActiveSide:  'right',
+    },
+    {
+      id: 'bus_6502_sadang',
+      name: '6502',
+      type: 'bus_seoul',
+      route: '6502',
+      lat: 37.476654,
+      lng: 126.982610,
+      routeCode: '6502',
+      routeColor: '#DC2626',
+      badgeText: 'G',
+      liveMinutes: bus6502InMinutes,
+      showLive: true,
+      outboundStopId: stopIds.sadang,
+      inboundStopId:  stopIds.emart,
+      outboundSegment: '정왕행',
+      inboundSegment:  '서울행',
+      outboundDirLabel: '사당 → 이마트행',
+      inboundDirLabel:  '이마트 → 사당행',
+      spineLeft: '이마트', spineRight: '사당',
+      outboundActiveSide: 'left',
+      inboundActiveSide:  'right',
+    },
+  ], [shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, busLiveMinutes, bus3400OutMinutes, bus3400InMinutes, bus6502OutMinutes, bus6502InMinutes, subwayNextData, stopIds])
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
+  const [sheetDirection, setSheetDirection] = useState('outbound')
 
   // MarkerSheet arrivals 계산
   const sheetArrivals = useMemo(() => {
@@ -139,6 +267,45 @@ export default function MapView({ onMarkerClick, selectedId }) {
         direction:  a.destination ?? '',
         minutes:    a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null,
       }))
+    }
+
+    if (sheetStation.type === 'bus_seoul') {
+      const isOutbound = sheetDirection === 'outbound'
+      const wantStopId = isOutbound ? sheetStation.outboundStopId : sheetStation.inboundStopId
+      const label      = isOutbound ? sheetStation.outboundDirLabel : sheetStation.inboundDirLabel
+
+      const pickTimetable = () => {
+        if (sheetStation.route === '3400') {
+          if (wantStopId === stopIds.sihwa)   return timetable3400Out
+          if (wantStopId === stopIds.gangnam) return timetable3400In
+        } else if (sheetStation.route === '6502') {
+          if (wantStopId === stopIds.emart)  return timetable6502Out
+          if (wantStopId === stopIds.sadang) return timetable6502In
+        }
+        return null
+      }
+      const timetable = pickTimetable()
+      const times = timetable?.times ?? []
+      const notes = timetable?.notes ?? []
+      const now = new Date()
+      const nowMin = now.getHours() * 60 + now.getMinutes()
+      const upcoming = []
+      for (let i = 0; i < times.length; i++) {
+        const t = times[i]
+        const [hh, mm] = String(t).split(':').map(Number)
+        if (Number.isNaN(hh) || Number.isNaN(mm)) continue
+        const diff = hh * 60 + mm - nowMin
+        if (diff < 0) continue
+        const note = notes[i]
+        upcoming.push({
+          routeCode:  'G',
+          routeColor: '#DC2626',
+          direction:  note ? `${sheetStation.route} · ${label} · ${note}` : `${sheetStation.route} · ${label}`,
+          minutes:    diff,
+        })
+        if (upcoming.length >= 3) break
+      }
+      return upcoming
     }
 
     if (sheetStation.type === 'shuttle') {
@@ -204,13 +371,14 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData])
+  }, [sheetStation, sheetDirection, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, stopIds])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
 
   const handleMarkerTap = useCallback((station) => {
     setSheetStation(station)
+    setSheetDirection('outbound')
     onMarkerClick?.(station.id)
   }, [onMarkerClick])
 
@@ -412,6 +580,20 @@ export default function MapView({ onMarkerClick, selectedId }) {
           <MarkerSheet
             station={sheetStation}
             arrivals={sheetArrivals}
+            directionControl={sheetStation.type === 'bus_seoul' ? {
+              direction: sheetDirection,
+              onChange:  setSheetDirection,
+              leftLabel:  sheetStation.spineLeft,
+              rightLabel: sheetStation.spineRight,
+              activeSide: sheetDirection === 'outbound' ? sheetStation.outboundActiveSide : sheetStation.inboundActiveSide,
+              outboundLabel: sheetStation.outboundSegment,
+              inboundLabel:  sheetStation.inboundSegment,
+              placeholder: sheetArrivals.length === 0
+                ? (sheetStation.route === '3400' && sheetDirection === 'inbound'
+                    ? '주말·공휴일 강남 출발 시간표 자료 없음'
+                    : '도착 정보가 없습니다')
+                : null,
+            } : null}
             onClose={() => setSheetStation(null)}
             onNavigate={async () => {
               const destLat = sheetStation.lat
@@ -441,7 +623,13 @@ export default function MapView({ onMarkerClick, selectedId }) {
               }
             }}
             onDetail={() => {
-              useAppStore.getState().setOpenInfoTab(sheetStation.id)
+              const tabId =
+                sheetStation.type === 'shuttle'   ? 'shuttle' :
+                sheetStation.type === 'subway'    ? 'jeongwang' :
+                sheetStation.type === 'bus'       ? 'jeongwang' :
+                sheetStation.type === 'bus_seoul' ? 'seoul' :
+                null
+              if (tabId) useAppStore.getState().setOpenInfoTab(tabId)
               setSheetStation(null)
             }}
           />

@@ -21,8 +21,11 @@ _STATION_LAT = 37.351618
 _TAXI_CACHE_KEY = "route:taxi_to_station"
 _TAXI_CACHE_TTL = 300  # 5분
 
-_WALKING_CACHE_TTL = 21600  # 6시간 (도보 경로는 교통 상황 무관)
+_WALKING_CACHE_TTL = 86400  # 24시간 (도보 경로는 교통 상황 무관)
 _DRIVING_CACHE_TTL = 300   # 5분 (자동차는 교통 상황 반영)
+
+# 도보 경로 캐시 키 해상도 — 50m grid로 스냅하여 GPS 미세 변동에도 hit되도록
+_WALK_SNAP_STEP = 0.0005  # 위도 1° ≈ 111km → 0.0005° ≈ 55m
 
 # 수도권 남서부 bounding box — 익명 호출자가 임의 좌표로 외부 API 쿼터 고갈하는 것 방지
 _BBOX_LAT_MIN, _BBOX_LAT_MAX = 37.0, 37.8
@@ -53,6 +56,21 @@ def _coord_cache_key(prefix: str, origin_lat: float, origin_lng: float,
         f"{prefix}:"
         f"{origin_lat:.4f},{origin_lng:.4f}"
         f":{dest_lat:.4f},{dest_lng:.4f}"
+    )
+
+
+def _snap(v: float, step: float = _WALK_SNAP_STEP) -> float:
+    """좌표를 step 단위 grid로 스냅."""
+    return round(v / step) * step
+
+
+def _walk_cache_key(origin_lat: float, origin_lng: float,
+                    dest_lat: float, dest_lng: float) -> str:
+    """도보 캐시 키 — 50m grid로 스냅하여 GPS 미세 변동 무시."""
+    return (
+        "route:walking:"
+        f"{_snap(origin_lat):.5f},{_snap(origin_lng):.5f}"
+        f":{_snap(dest_lat):.5f},{_snap(dest_lng):.5f}"
     )
 
 
@@ -95,7 +113,7 @@ async def walking_route(request: Request, req: RouteRequest):
     _require_in_bbox(origin_lat, origin_lng)
     _require_in_bbox(dest_lat, dest_lng)
 
-    cache_key = _coord_cache_key("route:walking", origin_lat, origin_lng, dest_lat, dest_lng)
+    cache_key = _walk_cache_key(origin_lat, origin_lng, dest_lat, dest_lng)
 
     try:
         redis = await get_redis()

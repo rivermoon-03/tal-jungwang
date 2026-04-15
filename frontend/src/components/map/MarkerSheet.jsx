@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MapPin, Star, StarOff, X, Navigation, Info } from 'lucide-react'
 import { ROUTE_COLOR_MAP } from './MarkerChip'
 import useAppStore from '../../stores/useAppStore'
+import RouteSpine from './RouteSpine'
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 const STATUS_DOT = {
@@ -28,7 +29,7 @@ function resolveColor(routeCode, routeColor) {
   return ROUTE_COLOR_MAP[routeCode] ?? '#1b3a6e'
 }
 
-export default function MarkerSheet({ station, arrivals = [], onClose, onNavigate, onDetail }) {
+export default function MarkerSheet({ station, arrivals = [], onClose, onNavigate, onDetail, directionControl = null }) {
   const [expanded, setExpanded] = useState(false)
   const [visible, setVisible] = useState(false)
   const sheetRef = useRef(null)
@@ -163,11 +164,44 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
           </div>
         </div>
 
+        {/* 방향 토글 + RouteSpine (bus_seoul 전용) */}
+        {directionControl && (
+          <div className="px-5 pt-3 pb-1 flex-shrink-0 border-b border-[#ebebeb] dark:border-[#3a3e48]">
+            <RouteSpine
+              leftLabel={directionControl.leftLabel}
+              rightLabel={directionControl.rightLabel}
+              activeSide={directionControl.activeSide}
+            />
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-700 mt-1">
+              {[
+                { key: 'outbound', label: directionControl.outboundLabel },
+                { key: 'inbound',  label: directionControl.inboundLabel },
+              ].map((seg) => {
+                const active = directionControl.direction === seg.key
+                return (
+                  <button
+                    key={seg.key}
+                    onClick={() => directionControl.onChange(seg.key)}
+                    className="py-2 rounded-lg text-[12px] font-semibold transition-colors"
+                    style={{
+                      background: active ? '#fff' : 'transparent',
+                      color: active ? '#FF385C' : '#64748b',
+                      boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    }}
+                  >
+                    {seg.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 도착 리스트 */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {arrivals.length === 0 ? (
             <p className="text-[13px] text-[#717171] dark:text-[#94a3b8] text-center py-4">
-              도착 정보가 없습니다
+              {directionControl?.placeholder ?? '도착 정보가 없습니다'}
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
