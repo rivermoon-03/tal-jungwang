@@ -18,10 +18,11 @@ export function useBusTimetable(routeId) {
   })
 }
 
-export function useBusTimetableByRoute(routeNumber, { stopId } = {}) {
+export function useBusTimetableByRoute(routeNumber, { stopId, requireStopId = false } = {}) {
   const q = stopId != null ? `?stop_id=${stopId}` : ''
-  return useApi(routeNumber != null ? `/bus/timetable-by-route/${routeNumber}${q}` : null, {
+  const ready = routeNumber != null && (!requireStopId || stopId != null)
+  return useApi(ready ? `/bus/timetable-by-route/${routeNumber}${q}` : null, {
     interval: 60_000,
-    enabled: routeNumber != null,
+    enabled: ready,
   })
 }

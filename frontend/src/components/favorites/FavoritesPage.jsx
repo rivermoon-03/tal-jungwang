@@ -30,10 +30,10 @@ function useBusMinutesByFavKey() {
   const gangnam = byName('강남역 3400 정류장')
   const sadang  = byName('사당역 14번 출구')
 
-  const r3400Seoul  = useBusTimetableByRoute('3400', { stopId: sihwa   ?? undefined })
-  const r3400School = useBusTimetableByRoute('3400', { stopId: gangnam ?? undefined })
-  const r6502Seoul  = useBusTimetableByRoute('6502', { stopId: emart   ?? undefined })
-  const r6502School = useBusTimetableByRoute('6502', { stopId: sadang  ?? undefined })
+  const r3400Seoul  = useBusTimetableByRoute('3400', { stopId: sihwa   ?? undefined, requireStopId: true })
+  const r3400School = useBusTimetableByRoute('3400', { stopId: gangnam ?? undefined, requireStopId: true })
+  const r6502Seoul  = useBusTimetableByRoute('6502', { stopId: emart   ?? undefined, requireStopId: true })
+  const r6502School = useBusTimetableByRoute('6502', { stopId: sadang  ?? undefined, requireStopId: true })
 
   return useMemo(() => {
     const now = new Date()
