@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations } from '../../hooks/useBus'
-import { useBusTimetableByRoute } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import InfoPanelMobile from './InfoPanelMobile'
 import InfoPanelPC from './InfoPanelPC'
@@ -209,8 +208,12 @@ export default function InfoPanel() {
     () => stations?.find((s) => s.routes?.some((r) => r.route_number === '시흥33'))?.station_id ?? null,
     [stations]
   )
+  const iemartStationId = useMemo(
+    () => stations?.find((s) => s.name === '이마트')?.station_id ?? null,
+    [stations]
+  )
   const { data: busJeongwangData, fetchedAt: busJeongwangFetchedAt } = useBusArrivals(jeongwangStationId)
-  const { data: busSeoulData }     = useBusArrivals(SEOUL_STATION_ID)
+  const { data: busSeoulData }     = useBusArrivals(iemartStationId)
 
   const adjustedBusJeongwangData = useMemo(() => {
     if (!busJeongwangData?.arrivals || !busJeongwangFetchedAt) return busJeongwangData
@@ -228,15 +231,11 @@ export default function InfoPanel() {
     }
   }, [busJeongwangData, busJeongwangFetchedAt])
   const { data: shuttleSchedule }  = useShuttleSchedule()
-  const { data: timetable3400 }    = useBusTimetableByRoute('3400')
-  const { data: timetable6502 }    = useBusTimetableByRoute('6502')
 
   const shuttleDirections = computeShuttleDirections(shuttleSchedule)
 
   // ── 탭 배지 계산 ──────────────────────────────────────────
   useEffect(() => {
-    const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
-
     const shuttleBadge = shuttleDirections.some(
       (d) => d.diffSec != null && d.diffSec <= 300
     )
@@ -247,10 +246,14 @@ export default function InfoPanel() {
 
     setTabBadges({ transit: shuttleBadge || busBadge, subway: false })
   }, [shuttleDirections, adjustedBusJeongwangData, timetableData, setTabBadges])
-  const seoulNextDepartures = [
-    { route: '3400', time: getNextFromTimetable(timetable3400) },
-    { route: '6502', time: getNextFromTimetable(timetable6502) },
-  ]
+
+  // 이마트 정류장 arrivals에서 서울행 버스 다음 출발 시간 동적 구성
+  const seoulNextDepartures = useMemo(() => {
+    if (!busSeoulData?.arrivals) return []
+    return busSeoulData.arrivals
+      .filter((a) => a.arrival_type === 'timetable')
+      .map((a) => ({ route: a.route_no, time: a.depart_at }))
+  }, [busSeoulData])
 
   const props = {
     tab, setTab,

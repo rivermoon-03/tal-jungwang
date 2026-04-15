@@ -48,7 +48,7 @@ const useAppStore = create(
       selectedSubwayStation: '정왕', // '정왕' | '초지' | '시흥시청'
       setSubwayStation: (station) => set({ selectedSubwayStation: station }),
 
-      selectedBusGroup: '정왕역행',  // '정왕역행' | '버스 - 서울행' | '버스 - 학교행' | '기타'
+      selectedBusGroup: '하교',  // '하교' | '등교' | '기타'
       setBusGroup: (group) => set({ selectedBusGroup: group }),
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ const useAppStore = create(
     }),
     {
       name: 'tal-jungwang',
-      version: 2,
+      version: 3,
       migrate: (state, fromVersion) => {
         if (!state) return state
         // v1 → v2: 버스 그룹 4분할 (정왕역→정왕역행, 서울→버스 - 서울행)
@@ -94,6 +94,15 @@ const useAppStore = create(
             '정왕역': '정왕역행',
             '서울':   '버스 - 서울행',
             '서울행': '버스 - 서울행',
+          }
+          state.selectedBusGroup = map[state.selectedBusGroup] ?? state.selectedBusGroup
+        }
+        // v2 → v3: 버스 그룹 3분할 (등교/하교/기타)
+        if (fromVersion < 3 && state.selectedBusGroup) {
+          const map = {
+            '정왕역행':      '하교',
+            '버스 - 서울행': '하교',
+            '버스 - 학교행': '등교',
           }
           state.selectedBusGroup = map[state.selectedBusGroup] ?? state.selectedBusGroup
         }

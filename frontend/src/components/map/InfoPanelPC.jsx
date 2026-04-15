@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Info, ChevronUp } from 'lucide-react'
 import InfoPanelTabs from './InfoPanelTabs'
 
-export default function InfoPanelPC({ tab, setTab, subwayData, busJeongwangData, walkTimes, timetableData, onInfoClick, isFirstVisit }) {
+export default function InfoPanelPC({ tab, setTab, subwayData, busJeongwangData, busSeoulData, walkTimes, timetableData, onInfoClick, isFirstVisit }) {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
@@ -38,6 +38,7 @@ export default function InfoPanelPC({ tab, setTab, subwayData, busJeongwangData,
             setTab={setTab}
             subwayData={subwayData}
             busJeongwangData={busJeongwangData}
+            busSeoulData={busSeoulData}
             walkTimes={walkTimes}
             timetableData={timetableData}
           />
