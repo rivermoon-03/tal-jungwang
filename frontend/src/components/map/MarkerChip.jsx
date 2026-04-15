@@ -34,7 +34,7 @@ function resolveColor(routeCode, routeColor) {
  * React 컴포넌트 버전.
  * @param {{ routeCode: string, routeColor?: string, stationName: string, liveMinutes?: number|null, showLive?: boolean }} props
  */
-export default function MarkerChip({ routeCode, routeColor, stationName, liveMinutes, showLive = false }) {
+export default function MarkerChip({ routeCode, routeColor, stationName, liveMinutes, showLive = false, badgeText }) {
   const color = resolveColor(routeCode, routeColor)
   const hasLive = showLive && liveMinutes != null
 
@@ -72,7 +72,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
             flexShrink: 0,
           }}
         >
-          {(routeCode ?? '').slice(0, 3)}
+          {badgeText ?? (routeCode ?? '').slice(0, 3)}
         </span>
 
         {/* 정류장명 + 남은 시간 */}
@@ -103,7 +103,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
  * @param {{ routeCode: string, routeColor?: string, stationName: string, liveMinutes?: number|null, showLive?: boolean, onClick?: () => void }} options
  * @returns {HTMLElement}
  */
-export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick }) {
+export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick, badgeText }) {
   const color = resolveColor(routeCode, routeColor)
 
   const wrapper = document.createElement('div')
@@ -147,7 +147,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'font-weight:700',
     'flex-shrink:0',
   ].join(';')
-  dot.textContent = (routeCode ?? '').slice(0, 3)
+  dot.textContent = badgeText ?? (routeCode ?? '').slice(0, 3)
   pill.appendChild(dot)
 
   // 정류장명 + 남은 시간
@@ -186,5 +186,72 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     wrapper.addEventListener('click', onClick)
   }
 
+  return wrapper
+}
+
+/**
+ * 정왕역 전용 — 수인분당선·4호선 상/하행 2x2 그리드 오버레이.
+ * @param {{ subwayData: { up, down, line4_up, line4_down }|null, onClick?: () => void }} opts
+ */
+export function createSubwayMultiChipElement({ subwayData, onClick }) {
+  const wrapper = document.createElement('div')
+  wrapper.style.cssText = 'position:relative;display:inline-flex;cursor:pointer'
+
+  const pill = document.createElement('div')
+  pill.style.cssText = [
+    'display:grid',
+    'grid-template-columns:auto auto',
+    'gap:4px 8px',
+    'background:#fff',
+    'border-radius:14px',
+    'padding:6px 10px',
+    'box-shadow:0 4px 14px rgba(0,0,0,0.1)',
+    'user-select:none',
+    'white-space:nowrap',
+  ].join(';')
+
+  const LINES = [
+    { key: 'up',        label: '수인', color: '#F5A623', arrow: '↑' },
+    { key: 'line4_up',  label: '4호선', color: '#1B5FAD', arrow: '↑' },
+    { key: 'down',      label: '수인', color: '#F5A623', arrow: '↓' },
+    { key: 'line4_down',label: '4호선', color: '#1B5FAD', arrow: '↓' },
+  ]
+
+  for (const line of LINES) {
+    const entry = subwayData?.[line.key]
+    const minutes = entry?.arrive_in_seconds != null
+      ? Math.max(0, Math.round(entry.arrive_in_seconds / 60))
+      : null
+
+    const cell = document.createElement('span')
+    cell.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#1b3a6e'
+
+    const badge = document.createElement('span')
+    badge.style.cssText = [
+      'display:inline-flex',
+      'align-items:center',
+      'justify-content:center',
+      'min-width:22px',
+      'height:16px',
+      'padding:0 5px',
+      'border-radius:8px',
+      `background:${line.color}`,
+      'color:#fff',
+      'font-size:9px',
+      'font-weight:700',
+    ].join(';')
+    badge.textContent = `${line.label}${line.arrow}`
+    cell.appendChild(badge)
+
+    const mins = document.createElement('span')
+    mins.style.color = minutes != null ? '#FF385C' : '#94a3b8'
+    mins.textContent = minutes != null ? `${minutes}분` : '—'
+    cell.appendChild(mins)
+
+    pill.appendChild(cell)
+  }
+
+  wrapper.appendChild(pill)
+  if (onClick) wrapper.addEventListener('click', onClick)
   return wrapper
 }

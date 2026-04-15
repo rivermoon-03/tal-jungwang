@@ -221,7 +221,7 @@ async def get_arrivals(
 
 
 async def get_timetable_by_route_number(
-    db: AsyncSession, route_number: str, d: date
+    db: AsyncSession, route_number: str, d: date, *, stop_id: int | None = None
 ) -> dict | None:
     """route_number(예: "3400") 문자열로 조회. ID를 모를 때 사용."""
     stmt = select(BusRoute).where(BusRoute.route_number == route_number)
@@ -229,14 +229,14 @@ async def get_timetable_by_route_number(
     route = result.scalar_one_or_none()
     if not route:
         return None
-    return await get_timetable(db, route.id, d)
+    return await get_timetable(db, route.id, d, stop_id=stop_id)
 
 
 async def get_timetable(
-    db: AsyncSession, route_id: int, d: date
+    db: AsyncSession, route_id: int, d: date, *, stop_id: int | None = None
 ) -> dict | None:
     day = _day_type(d)
-    cache_key = f"bus:timetable:{route_id}:{day}"
+    cache_key = f"bus:timetable:{route_id}:{day}:{stop_id if stop_id is not None else 'all'}"
     cached = await get_cached_json(cache_key)
     if cached is not None:
         return cached
@@ -255,14 +255,24 @@ async def get_timetable(
         )
         .order_by(BusTimetableEntry.departure_time)
     )
+    if stop_id is not None:
+        stmt = stmt.where(BusTimetableEntry.stop_id == stop_id)
     result = await db.execute(stmt)
     entries = result.scalars().all()
+
+    stop_name: str | None = None
+    if stop_id is not None:
+        stop = await db.get(BusStop, stop_id)
+        stop_name = stop.name if stop else None
 
     data = {
         "route_id": route.id,
         "route_name": route.route_name or route.route_number,
         "schedule_type": day,
+        "stop_id": stop_id,
+        "stop_name": stop_name,
         "times": [e.departure_time.strftime("%H:%M") for e in entries],
+        "notes": [e.note for e in entries],
     }
     await set_cached_json(cache_key, data, ttl=86400)
     return data

@@ -49,13 +49,14 @@ async def bus_timetable_by_route_number(
     request: Request,
     route_number: str,
     date_str: str | None = Query(None, alias="date"),
+    stop_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         d = date.fromisoformat(date_str) if date_str else date.today()
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
-    result = await get_timetable_by_route_number(db, route_number, d)
+    result = await get_timetable_by_route_number(db, route_number, d, stop_id=stop_id)
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
     return ApiResponse[BusTimetableResponse].ok(result)

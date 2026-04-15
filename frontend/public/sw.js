@@ -1,5 +1,14 @@
-const CACHE = 'transit-hub-v1'
+const CACHE = 'transit-hub-v2'
 const PRECACHE = ['/', '/index.html']
+
+// 해시되지 않은 루트 정적 파일 — 배포할 때마다 내용이 바뀔 수 있으므로
+// 캐시 우선이면 옛 매니페스트/아이콘이 고착됨. 네트워크 우선으로 처리한다.
+const NETWORK_FIRST_PATHS = new Set([
+  '/manifest.json',
+  '/favicon.svg',
+  '/icons.svg',
+  '/sw.js',
+])
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)))
@@ -52,8 +61,26 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // 정적 에셋 — 캐시 우선, 없으면 네트워크 후 캐시 저장
-  // (해시된 파일명은 불변이므로 캐시 우선 안전)
+  // manifest/favicon/icons 등 해시 없는 정적 파일 — 네트워크 우선
+  // (배포마다 내용이 바뀔 수 있어 캐시-우선이면 옛 버전이 고착됨)
+  const isUnhashedStatic =
+    NETWORK_FIRST_PATHS.has(url.pathname) || url.pathname.startsWith('/icons/')
+  if (isUnhashedStatic) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          if (res.status === 200) {
+            const clone = res.clone()
+            caches.open(CACHE).then((c) => c.put(e.request, clone))
+          }
+          return res
+        })
+        .catch(() => caches.match(e.request))
+    )
+    return
+  }
+
+  // 해시된 정적 에셋(/assets/*) — 캐시 우선, 없으면 네트워크 후 캐시 저장
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached

@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { createMarkerChipElement } from './MarkerChip'
+import { createMarkerChipElement, createSubwayMultiChipElement } from './MarkerChip'
 import { createMarkerDotElement } from './MarkerDot'
 
 // 줌 임계값: 이 값 이하이면 Chip 표시
@@ -37,15 +37,21 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
     function makeOverlay(station, mode) {
       const pos = new window.kakao.maps.LatLng(station.lat, station.lng)
       const content = mode === 'chip'
-        ? createMarkerChipElement({
-            routeCode:   station.routeCode,
-            routeColor:  station.routeColor,
-            stationName: station.name,
-            liveMinutes: station.liveMinutes ?? null,
-            showLive:    station.showLive ?? false,
-            inaccurate:  station.liveInaccurate ?? false,
-            onClick: () => onTap?.(station),
-          })
+        ? (station.chipVariant === 'subwayMulti'
+            ? createSubwayMultiChipElement({
+                subwayData: station.subwayData,
+                onClick: () => onTap?.(station),
+              })
+            : createMarkerChipElement({
+                routeCode:   station.routeCode,
+                routeColor:  station.routeColor,
+                stationName: station.name,
+                liveMinutes: station.liveMinutes ?? null,
+                showLive:    station.showLive ?? false,
+                inaccurate:  station.liveInaccurate ?? false,
+                badgeText:   station.badgeText,
+                onClick: () => onTap?.(station),
+              }))
         : createMarkerDotElement({
             type:        station.type,
             customColor: station.routeColor,
@@ -86,15 +92,21 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
         item.overlay.setMap(null)
 
         const newContent = newMode === 'chip'
-          ? createMarkerChipElement({
-              routeCode:   item.station.routeCode,
-              routeColor:  item.station.routeColor,
-              stationName: item.station.name,
-              liveMinutes: item.station.liveMinutes ?? null,
-              showLive:    item.station.showLive ?? false,
-              inaccurate:  item.station.liveInaccurate ?? false,
-              onClick: () => onTap?.(item.station),
-            })
+          ? (item.station.chipVariant === 'subwayMulti'
+              ? createSubwayMultiChipElement({
+                  subwayData: item.station.subwayData,
+                  onClick: () => onTap?.(item.station),
+                })
+              : createMarkerChipElement({
+                  routeCode:   item.station.routeCode,
+                  routeColor:  item.station.routeColor,
+                  stationName: item.station.name,
+                  liveMinutes: item.station.liveMinutes ?? null,
+                  showLive:    item.station.showLive ?? false,
+                  inaccurate:  item.station.liveInaccurate ?? false,
+                  badgeText:   item.station.badgeText,
+                  onClick: () => onTap?.(item.station),
+                }))
           : createMarkerDotElement({
               type:        item.station.type,
               customColor: item.station.routeColor,

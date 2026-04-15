@@ -36,4 +36,7 @@ class BusTimetableResponse(BaseModel):
     route_id: int
     route_name: str
     schedule_type: str  # "weekday" | "saturday" | "sunday"
+    stop_id: int | None = None
+    stop_name: str | None = None
     times: list[str]  # ["07:00", "07:30", ...]
+    notes: list[str | None] = []
