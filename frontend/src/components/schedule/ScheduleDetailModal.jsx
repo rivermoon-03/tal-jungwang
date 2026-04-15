@@ -102,8 +102,8 @@ function PastRow({ time }) {
 
 // ─── per-type content ───────────────────────────────────────────────────
 
-function BusContent({ routeCode, accentColor }) {
-  const { data, loading, error } = useBusTimetableByRoute(routeCode)
+function BusContent({ routeCode, stopId = null, accentColor }) {
+  const { data, loading, error } = useBusTimetableByRoute(routeCode, stopId != null ? { stopId } : undefined)
   const nextRef = useRef(null)
   const now = new Date()
   const nowStr = toHHMM(now)
@@ -332,7 +332,7 @@ function EmptyMsg({ text }) {
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#FF385C' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, direction, subwayKey, title, accentColor }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, stopId = null, direction, subwayKey, title, accentColor }) {
   const sheetRef = useRef(null)
   const [dragY, setDragY] = useState(0)
   const startY = useRef(null)
@@ -457,7 +457,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, di
           className="flex-1 overflow-y-auto px-4 pt-2"
           style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
         >
-          {type === 'bus' && <BusContent routeCode={routeCode} accentColor={color} />}
+          {type === 'bus' && <BusContent routeCode={routeCode} stopId={stopId} accentColor={color} />}
           {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
           {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
         </div>
