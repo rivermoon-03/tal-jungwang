@@ -530,6 +530,7 @@ export default function SchedulePage() {
         onClose={handleModalClose}
         type={selectedDetail?.type}
         routeCode={selectedDetail?.routeCode}
+        stopId={selectedDetail?.stopId ?? null}
         direction={selectedDetail?.direction}
         subwayKey={selectedDetail?.subwayKey}
         accentColor={selectedDetail?.accentColor}

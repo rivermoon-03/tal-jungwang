@@ -106,6 +106,17 @@ function useFavoriteItems(favorites) {
   const { data: subwayNext } = useSubwayNext()
   // 버스: favKey별 다음 출발까지 남은 분 (실시간 + 시간표)
   const busMinsByRoute = useBusMinutesByFavKey()
+  // 3400/6502 그룹별 정류장 id (모달에 정확한 시간표 전달용)
+  const { data: stationsData } = useBusStations()
+  const stopIdByFavKey = useMemo(() => {
+    const byName = (name) => stationsData?.find((s) => s.name === name)?.station_id ?? null
+    return {
+      '버스 - 서울행:3400': byName('시화 (3400 시종착)'),
+      '버스 - 서울행:6502': byName('이마트 (6502·시흥1번 정류장)'),
+      '버스 - 학교행:3400': byName('강남역 3400 정류장'),
+      '버스 - 학교행:6502': byName('사당역 14번 출구'),
+    }
+  }, [stationsData])
 
   const items = useMemo(() => {
     const result = []
@@ -194,6 +205,7 @@ function useFavoriteItems(favorites) {
         detail: {
           type: 'bus',
           routeCode: busNo,
+          stopId: stopIdByFavKey?.[routeCode] ?? null,
           accentColor: (busNo === '3400' || busNo === '6502') ? '#DC2626' : undefined,
           title: isSeoulBus ? `${busNo} · ${meta.endpoints}` : `${busNo}번 버스`,
         },
@@ -201,7 +213,7 @@ function useFavoriteItems(favorites) {
     }
 
     return result
-  }, [favorites.routes, shuttleUp, shuttleDown, subwayNext, busMinsByRoute])
+  }, [favorites.routes, shuttleUp, shuttleDown, subwayNext, busMinsByRoute, stopIdByFavKey])
 
   return items
 }
@@ -255,6 +267,7 @@ export default function FavoritesPage({ onGoSchedule }) {
         onClose={() => setSelectedDetail(null)}
         type={selectedDetail?.type}
         routeCode={selectedDetail?.routeCode}
+        stopId={selectedDetail?.stopId ?? null}
         direction={selectedDetail?.direction}
         subwayKey={selectedDetail?.subwayKey}
         accentColor={selectedDetail?.accentColor}
