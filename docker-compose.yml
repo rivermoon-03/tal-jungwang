@@ -48,21 +48,6 @@ services:
       - ./backend:/app   # 핫 리로드용
     restart: unless-stopped
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    env_file: backend/.env   # PGADMIN_DEFAULT_EMAIL / PGADMIN_DEFAULT_PASSWORD
-    environment:
-      PGADMIN_LISTEN_PORT: 5050
-    ports:
-      - "127.0.0.1:5050:5050"   # 로컬 전용
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./infra/pgadmin-servers.json:/pgadmin4/servers.json
-    restart: unless-stopped
-
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -88,6 +73,5 @@ services:
 
 volumes:
   postgres_data:
-  pgadmin_data:
   prometheus_data:
   grafana_data:

@@ -1,8 +1,7 @@
 """TMAP 보행자 경로안내 API 클라이언트."""
 
-import httpx
-
 from app.core.config import settings
+from app.core.http_client import get_http_client
 
 PEDESTRIAN_URL = "https://apis.openapi.sk.com/tmap/routes/pedestrian"
 
@@ -27,13 +26,13 @@ async def fetch_walking_route(
         "searchOption": "0",
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(
-            f"{PEDESTRIAN_URL}?version=1",
-            headers=headers,
-            json=body,
-        )
-        resp.raise_for_status()
+    client = await get_http_client()
+    resp = await client.post(
+        f"{PEDESTRIAN_URL}?version=1",
+        headers=headers,
+        json=body,
+    )
+    resp.raise_for_status()
 
     data = resp.json()
     features = data.get("features", [])
@@ -79,13 +78,13 @@ async def fetch_driving_traffic(
         "searchOption": "0",
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(
-            f"{DRIVING_URL}?version=1",
-            headers=headers,
-            json=body,
-        )
-        resp.raise_for_status()
+    client = await get_http_client()
+    resp = await client.post(
+        f"{DRIVING_URL}?version=1",
+        headers=headers,
+        json=body,
+    )
+    resp.raise_for_status()
 
     data = resp.json()
     features = data.get("features", [])

@@ -256,7 +256,26 @@ function SubwaySection({ stationGroup, isFav, onToggleFav, onCardClick }) {
 // ─── shuttle section ─────────────────────────────────────────────────────────
 function ShuttleSection({ direction, isFavorite, onToggleFav, onCardClick }) {
   const label = direction === 0 ? '등교' : '하교'
-  const { data, loading } = useShuttleSchedule(direction)
+  const { data, loading, error } = useShuttleSchedule(direction)
+
+  const noSchedule = !loading && (error || !data || (data.directions ?? []).length === 0)
+  if (noSchedule) {
+    return (
+      <ScheduleSection
+        title={`셔틀 ${label}`}
+        subtitle="한국공학대학교"
+        type="shuttle"
+        routeCode={`셔틀${label}`}
+        next={null}
+        afterNext={null}
+        isFavorite={isFavorite}
+        onToggleFav={() => onToggleFav(`shuttle:${label}`)}
+        loading={false}
+        disabled
+        disabledLabel="주말·공휴일 미운행 — 시간표 추후 업데이트 예정"
+      />
+    )
+  }
 
   const now = new Date()
   const dirData = data?.directions?.find((d) => d.direction === direction)

@@ -9,9 +9,8 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import httpx
-
 from app.core.config import settings
+from app.core.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -95,14 +94,12 @@ async def fetch_ultra_srt_ncst(nx: int = DEFAULT_NX, ny: int = DEFAULT_NY) -> li
     url = f"{BASE_URL}/getUltraSrtNcst"
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
+        client = await get_http_client()
+        resp = await client.get(url, params=params, timeout=10)
+        resp.raise_for_status()
         return _parse_items(resp.json())
-    except httpx.HTTPError as exc:
-        logger.warning("KMA 초단기실황 HTTP 오류: %s", exc)
     except Exception as exc:
-        logger.warning("KMA 초단기실황 파싱 오류: %s", exc)
+        logger.warning("KMA 초단기실황 오류: %s", exc)
     return []
 
 
@@ -126,12 +123,10 @@ async def fetch_village_fcst(
     url = f"{BASE_URL}/getVilageFcst"
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
+        client = await get_http_client()
+        resp = await client.get(url, params=params, timeout=10)
+        resp.raise_for_status()
         return _parse_items(resp.json())
-    except httpx.HTTPError as exc:
-        logger.warning("KMA 단기예보 HTTP 오류: %s", exc)
     except Exception as exc:
-        logger.warning("KMA 단기예보 파싱 오류: %s", exc)
+        logger.warning("KMA 단기예보 오류: %s", exc)
     return []

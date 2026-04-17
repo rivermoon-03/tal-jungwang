@@ -92,6 +92,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     const arrivals = busArrivalsData?.arrivals ?? []
     if (!arrivals.length) return null
     const secs = arrivals
+      .filter((a) => a.arrival_type === 'realtime')
       .map((a) => a.arrive_in_seconds)
       .filter((s) => s != null)
     if (!secs.length) return null
@@ -248,7 +249,9 @@ export default function MapView({ onMarkerClick, selectedId }) {
         routeCode:  a.route_no,
         routeColor: null,
         direction:  a.destination ?? '',
-        minutes:    a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null,
+        minutes:    a.arrival_type === 'timetable'
+          ? (a.is_tomorrow ? `내일 ${a.depart_at}` : a.depart_at)
+          : (a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null),
       }))
     }
 

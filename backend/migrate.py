@@ -1,12 +1,14 @@
 """컨테이너 시작 시 Alembic 마이그레이션 실행 후 uvicorn 기동."""
 import os
 import sys
+import time
 
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 
 SEP = "=" * 42
 
@@ -17,6 +19,23 @@ def get_db_url() -> str:
         f"@{os.environ.get('DB_HOST', 'localhost')}:{os.environ.get('DB_PORT', '5432')}"
         f"/{os.environ['DB_NAME']}"
     )
+
+
+def wait_for_db(url: str, retries: int = 15, delay: float = 2.0) -> None:
+    """postgres가 완전히 준비될 때까지 최대 retries × delay 초 동안 대기."""
+    engine = create_engine(url)
+    for attempt in range(1, retries + 1):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            engine.dispose()
+            return
+        except OperationalError as e:
+            if attempt == retries:
+                engine.dispose()
+                raise
+            print(f"  DB 연결 대기 중... ({attempt}/{retries}) — {e.__class__.__name__}")
+            time.sleep(delay)
 
 
 def main():
@@ -33,6 +52,9 @@ def main():
     # 전체 revision 수
     all_revs = list(script.walk_revisions())
     total = len(all_revs)
+
+    # DB가 준비될 때까지 대기 (Docker 네트워크 DNS가 늦게 올라올 때 대응)
+    wait_for_db(get_db_url())
 
     # 현재 DB revision
     engine = create_engine(get_db_url())

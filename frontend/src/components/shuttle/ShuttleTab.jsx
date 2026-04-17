@@ -45,9 +45,10 @@ function isInsideFrequentReturnWindow(timeObjs) {
 export default function ShuttleTab() {
   const [activeDir, setActiveDir] = useState(null)
   const [tick, setTick] = useState(0)
-  const { data: schedule, loading: schedLoading } = useShuttleSchedule()
+  const { data: schedule, loading: schedLoading, error: schedError } = useShuttleSchedule()
 
   const directions = schedule?.directions ?? []
+  const noSchedule = !schedLoading && (schedError || directions.length === 0)
 
   useEffect(() => {
     if (!activeDir && directions.length > 0) {
@@ -93,22 +94,33 @@ export default function ShuttleTab() {
         </div>
       )}
 
-      <div key={activeDir} className="flex-1 flex flex-col overflow-hidden animate-fade-in">
-        <ShuttleCountdown
-          nextShuttle={nextShuttle}
-          direction={dirLabel(activeDir)}
-          inFrequentWindow={inFrequentWindow}
-          inFrequentReturnWindow={inFrequentReturnWindow}
-        />
+      {noSchedule ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6 text-center">
+          <p className="text-base font-semibold text-slate-500 dark:text-slate-400">
+            주말·공휴일에는 셔틀이 운행하지 않습니다
+          </p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">
+            시간표는 추후 업데이트 예정입니다
+          </p>
+        </div>
+      ) : (
+        <div key={activeDir} className="flex-1 flex flex-col overflow-hidden animate-fade-in">
+          <ShuttleCountdown
+            nextShuttle={nextShuttle}
+            direction={dirLabel(activeDir)}
+            inFrequentWindow={inFrequentWindow}
+            inFrequentReturnWindow={inFrequentReturnWindow}
+          />
 
-        {schedLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-base text-slate-400">불러오는 중...</p>
-          </div>
-        ) : (
-          <ShuttleTimetable times={timeObjs} />
-        )}
-      </div>
+          {schedLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-base text-slate-400">불러오는 중...</p>
+            </div>
+          ) : (
+            <ShuttleTimetable times={timeObjs} />
+          )}
+        </div>
+      )}
     </div>
   )
 }

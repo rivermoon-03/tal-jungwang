@@ -1,8 +1,7 @@
 """경기도 버스도착정보 / 버스위치정보 v2 API 클라이언트."""
 
-import httpx
-
 from app.core.config import settings
+from app.core.http_client import get_http_client
 
 ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2"
 LOCATION_URL = "https://apis.data.go.kr/6410000/buslocationservice/v2/getBusLocationListv2"
@@ -26,9 +25,9 @@ def _as_list(body: dict, key: str) -> list[dict]:
 async def fetch_arrivals(station_id: str) -> list[dict]:
     """정류소의 실시간 버스 도착 정보 조회."""
     params = _common_params(stationId=station_id)
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(ARRIVAL_URL, params=params)
-        resp.raise_for_status()
+    client = await get_http_client()
+    resp = await client.get(ARRIVAL_URL, params=params)
+    resp.raise_for_status()
 
     body = _parse_body(resp.json())
     if not body:
@@ -57,9 +56,9 @@ async def fetch_bus_locations(route_id: str) -> list[dict]:
     v2 API는 좌표를 제공하지 않고 stationId/stationSeq만 반환한다.
     """
     params = _common_params(routeId=route_id)
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(LOCATION_URL, params=params)
-        resp.raise_for_status()
+    client = await get_http_client()
+    resp = await client.get(LOCATION_URL, params=params)
+    resp.raise_for_status()
 
     body = _parse_body(resp.json())
     if not body:
