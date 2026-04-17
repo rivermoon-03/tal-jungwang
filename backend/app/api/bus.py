@@ -103,7 +103,7 @@ async def bus_timetable_by_route_number(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        d = date.fromisoformat(date_str) if date_str else date.today()
+        d = date.fromisoformat(date_str) if date_str else datetime.now(ZoneInfo("Asia/Seoul")).date()
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
     result = await get_timetable_by_route_number(db, route_number, d, stop_id=stop_id)
@@ -121,7 +121,7 @@ async def bus_timetable(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        d = date.fromisoformat(date_str) if date_str else date.today()
+        d = date.fromisoformat(date_str) if date_str else datetime.now(ZoneInfo("Asia/Seoul")).date()
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
     result = await get_timetable(db, route_id, d)

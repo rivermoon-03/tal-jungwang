@@ -24,7 +24,7 @@ async def shuttle_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        d = date.fromisoformat(date_str) if date_str else date.today()
+        d = date.fromisoformat(date_str) if date_str else datetime.now(KST).date()
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
     result = await get_schedule(db, d, direction)
