@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -15,6 +16,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.cache import close_redis
 from app.core.config import settings
+from app.core.http_client import close_http_client
 from app.core.limiter import limiter
 from app.core.scheduler import start_scheduler, stop_scheduler
 
@@ -42,30 +44,30 @@ def _is_private(ip: str) -> bool:
 async def lifespan(app: FastAPI):
     import asyncio
     from app.services.bus_collector import poll_and_collect
+    from app.services.map_markers import get_markers
+    from app.services.shuttle import get_schedule
     from app.services.subway import needs_refresh, refresh_timetable
     from app.services.weather import refresh_weather_cache
     from app.core.database import AsyncSessionLocal
+    from datetime import date
 
     start_scheduler()
 
     async def _initial_tasks():
         await asyncio.sleep(3)  # DB/Redis 연결 안정화 대기
 
-        # 날씨 캐시 초기 로드 (서버 기동 직후 바로 받아둔다)
         try:
             await refresh_weather_cache()
             logger.info("초기 날씨 캐시 로드 완료")
         except Exception:
             logger.exception("초기 날씨 캐시 로드 실패")
 
-        # 버스 도착정보 초기 폴링
         try:
             await poll_and_collect()
             logger.info("초기 버스 폴링 완료")
         except Exception:
             logger.exception("초기 버스 폴링 실패")
 
-        # 지하철 시간표 — DB가 비어있을 때만 TAGO API에서 로드
         try:
             async with AsyncSessionLocal() as db:
                 if await needs_refresh(db):
@@ -76,11 +78,27 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.exception("초기 지하철 시간표 로드 실패")
 
+        # 셔틀·마커 캐시 워밍업 (cache-aside 항목, 첫 사용자 cold miss 방지)
+        try:
+            async with AsyncSessionLocal() as db:
+                await get_schedule(db, date.today(), None)
+                logger.info("초기 셔틀 시간표 캐시 완료")
+        except Exception:
+            logger.exception("초기 셔틀 캐시 로드 실패")
+
+        try:
+            async with AsyncSessionLocal() as db:
+                await get_markers(db)
+                logger.info("초기 지도 마커 캐시 완료")
+        except Exception:
+            logger.exception("초기 마커 캐시 로드 실패")
+
     asyncio.create_task(_initial_tasks())
 
     yield
     stop_scheduler()
     await close_redis()
+    await close_http_client()
 
 
 app = FastAPI(
@@ -92,6 +110,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS.split(","),

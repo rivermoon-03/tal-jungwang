@@ -2,9 +2,8 @@
 
 import logging
 
-import httpx
-
 from app.core.config import settings
+from app.core.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +24,9 @@ async def fetch_driving_route(
         "priority": priority,
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(DIRECTIONS_URL, headers=headers, params=params)
-        resp.raise_for_status()
+    client = await get_http_client()
+    resp = await client.get(DIRECTIONS_URL, headers=headers, params=params)
+    resp.raise_for_status()
 
     data = resp.json()
     routes = data.get("routes", [])
@@ -75,10 +74,10 @@ async def fetch_walking_route(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(WALKING_URL, headers=headers, params=params)
-            resp.raise_for_status()
-    except httpx.HTTPError as e:
+        client = await get_http_client()
+        resp = await client.get(WALKING_URL, headers=headers, params=params)
+        resp.raise_for_status()
+    except Exception as e:
         logger.warning("[kakao walking] HTTP 오류: %s", e)
         return {"duration_seconds": 0, "distance_meters": 0, "coordinates": []}
 

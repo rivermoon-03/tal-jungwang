@@ -1,6 +1,9 @@
 # 로컬 어드민 (커밋 제외)
 manage/
 
+# Git worktrees
+.worktrees/
+
 # 비밀 환경변수
 .env
 **/.env
