@@ -1,4 +1,4 @@
-const CACHE = 'transit-hub-v3'
+const CACHE = 'transit-hub-v4'
 const PRECACHE = ['/', '/index.html']
 
 // 해시되지 않은 루트 정적 파일 — 배포할 때마다 내용이 바뀔 수 있으므로

@@ -44,7 +44,7 @@ export default function PWAInstallBanner() {
         role="banner"
         aria-label="앱 설치 배너"
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 text-white"
-        style={{ backgroundColor: '#FF385C', minHeight: '44px' }}
+        style={{ backgroundColor: '#102c4c', minHeight: '44px' }}
       >
         <button
           onClick={handleInstall}
@@ -114,7 +114,7 @@ export default function PWAInstallBanner() {
               <li className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#FF385C' }}
+                  style={{ backgroundColor: '#102c4c' }}
                 >
                   1
                 </span>
@@ -131,7 +131,7 @@ export default function PWAInstallBanner() {
               <li className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#FF385C' }}
+                  style={{ backgroundColor: '#102c4c' }}
                 >
                   2
                 </span>
@@ -142,7 +142,7 @@ export default function PWAInstallBanner() {
               <li className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#FF385C' }}
+                  style={{ backgroundColor: '#102c4c' }}
                 >
                   3
                 </span>
@@ -155,7 +155,7 @@ export default function PWAInstallBanner() {
             <button
               onClick={handleIOSModalClose}
               className="mt-5 w-full py-3 rounded-xl font-semibold text-white text-sm"
-              style={{ backgroundColor: '#FF385C' }}
+              style={{ backgroundColor: '#102c4c' }}
             >
               확인
             </button>

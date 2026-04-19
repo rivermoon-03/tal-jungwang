@@ -103,7 +103,7 @@ export function AboutModal({ onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl px-7 py-6 flex flex-col gap-4 max-w-sm w-full"
+        className="bg-white dark:bg-surface-dark rounded-2xl shadow-2xl px-7 py-6 flex flex-col gap-4 max-w-sm w-full"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center gap-1">
@@ -118,7 +118,7 @@ export function AboutModal({ onClose }) {
           <br />
           <span className="text-slate-400">(수인분당 제대로 오는 꼬라지를 본 적이 없어요.)</span>
         </p>
-        <p className="text-[12px] text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-700 pt-3">
+        <p className="text-[12px] text-slate-400 leading-relaxed border-t border-slate-100 dark:border-border-dark pt-3">
           아직 테스트 버전입니다. 실시간 버스 기능은 믿지 말아주세요.
         </p>
         <button

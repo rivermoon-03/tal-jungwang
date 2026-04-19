@@ -3,7 +3,7 @@
  * 교통수단 타입별 색상:
  *   bus    → navy  (#1b3a6e)
  *   subway → suinbundang yellow (#F5A623)
- *   shuttle→ coral (#FF385C)
+ *   shuttle→ navy  (#1b3a6e)
  *
  * 두 가지 형태로 export:
  *   1. React 컴포넌트 (JSX)
@@ -15,7 +15,7 @@ import React from 'react'
 export const TYPE_COLOR_MAP = {
   bus:     '#1b3a6e',   // navy
   subway:  '#F5A623',   // suinbundang yellow
-  shuttle: '#FF385C',   // coral
+  shuttle: '#1b3a6e',   // shuttle navy (Q9.1)
 }
 
 const DOT_SIZE = 14  // px

@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 const useAppStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       // ── 기존 필드 (유지) ─────────────────────────────────────────────
       activeTab: 'main',
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -36,12 +36,6 @@ const useAppStore = create(
       themeMode: 'system',          // 'light' | 'dark' | 'system'
       setThemeMode: (mode) => set({ themeMode: mode }),
 
-      headerCollapsed: false,
-      toggleHeader: () => set((s) => ({ headerCollapsed: !s.headerCollapsed })),
-
-      cardCollapsed: false,
-      toggleCard: () => set((s) => ({ cardCollapsed: !s.cardCollapsed })),
-
       selectedMode: 'bus',          // 'subway' | 'bus' | 'shuttle'
       setSelectedMode: (mode) => set({ selectedMode: mode }),
 
@@ -50,6 +44,14 @@ const useAppStore = create(
 
       selectedBusGroup: '하교',  // '하교' | '등교' | '기타'
       setBusGroup: (group) => set({ selectedBusGroup: group }),
+
+      // ── 2단 스냅 (지도 40% ↔ 대시보드 60%) ────────────────────────────
+      snapMode: 'default',           // 'default' | 'dashboard' | 'map'
+      setSnapMode: (m) => set({ snapMode: m }),
+      toggleSnap: () =>
+        set((s) => ({
+          snapMode: s.snapMode === 'dashboard' ? 'default' : 'dashboard',
+        })),
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
       favorites: { routes: [], stations: [] },
@@ -85,10 +87,10 @@ const useAppStore = create(
     }),
     {
       name: 'tal-jungwang',
-      version: 3,
+      version: 4,
       migrate: (state, fromVersion) => {
         if (!state) return state
-        // v1 → v2: 버스 그룹 4분할 (정왕역→정왕역행, 서울→버스 - 서울행)
+        // v1 → v2: 버스 그룹 4분할
         if (fromVersion < 2 && state.selectedBusGroup) {
           const map = {
             '정왕역': '정왕역행',
@@ -105,6 +107,13 @@ const useAppStore = create(
             '버스 - 학교행': '등교',
           }
           state.selectedBusGroup = map[state.selectedBusGroup] ?? state.selectedBusGroup
+        }
+        // v3 → v4: 2단 스냅 snapMode 도입 + 레거시 collapsed 제거
+        if (fromVersion < 4) {
+          const valid = new Set(['default', 'dashboard', 'map'])
+          if (!valid.has(state.snapMode)) state.snapMode = 'default'
+          delete state.headerCollapsed
+          delete state.cardCollapsed
         }
         return state
       },
@@ -126,8 +135,6 @@ const useAppStore = create(
       partialize: (state) => ({
         themeMode: state.themeMode,
         favorites: state.favorites,
-        headerCollapsed: state.headerCollapsed,
-        cardCollapsed: state.cardCollapsed,
         selectedMode: state.selectedMode,
         selectedSubwayStation: state.selectedSubwayStation,
         selectedBusGroup: state.selectedBusGroup,

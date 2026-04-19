@@ -51,7 +51,7 @@ function isLastTrain(trains) {
 
 function LastBadge() {
   return (
-    <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
+    <span className="text-micro font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
       막차
     </span>
   )

@@ -109,8 +109,8 @@ export default function ShuttleCard({ onOpenSheet }) {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+    <div className="bg-white dark:bg-surface-dark rounded-2xl overflow-hidden border border-slate-200 dark:border-border-dark shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-border-dark">
         <div className="flex items-center gap-2">
           <Bus size={16} strokeWidth={2} className="text-navy dark:text-blue-400" />
           <span className="text-sm font-bold text-navy dark:text-blue-300">셔틀버스</span>

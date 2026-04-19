@@ -40,7 +40,7 @@ export default function PCNavbar() {
   }
 
   return (
-    <header className="flex items-center gap-4 bg-white/95 dark:bg-[#1e2128]/95 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 px-6 h-14 shrink-0 shadow-sm">
+    <header className="flex items-center gap-4 bg-white/95 dark:bg-[#1e2128]/95 backdrop-blur-md border-b border-slate-200/60 dark:border-border-dark/60 px-6 h-14 shrink-0 shadow-sm">
       {/* 로고 */}
       <span className="font-a2z text-xl font-black text-slate-900 dark:text-white mr-2 select-none">
         탈정왕
@@ -58,7 +58,7 @@ export default function PCNavbar() {
               aria-current={active ? 'page' : undefined}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors
                 ${active
-                  ? 'bg-[#FF385C]/10 text-[#FF385C]'
+                  ? 'bg-accent/10 text-accent dark:bg-accent-dark/10 dark:text-accent-dark'
                   : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100'
                 }`}
             >
@@ -76,7 +76,7 @@ export default function PCNavbar() {
         aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
         onClick={toggleDarkMode}
         className="w-9 h-9 rounded-full flex items-center justify-center transition-all
-          bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+          bg-slate-100 dark:bg-surface-dark hover:bg-slate-200 dark:hover:bg-slate-700"
       >
         {darkMode
           ? <Sun  size={16} strokeWidth={2} className="text-yellow-500" />

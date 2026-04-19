@@ -17,7 +17,7 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
   }, [nextIndex])
 
   return (
-    <ul className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 pb-28 md:pb-0">
+    <ul className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-28 md:pb-0">
       {entries.map((train, i) => {
         const isPast = timeToMinutes(train.depart_at) <= nowMin
         const isNext = i === nextIndex
@@ -44,12 +44,12 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
             <span className="flex-1 text-base text-slate-500 dark:text-slate-400 ml-3">{train.destination}행</span>
             <div className="flex items-center gap-1.5">
               {isLast && (
-                <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
+                <span className="text-micro font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
                   막차
                 </span>
               )}
               {isFirst && (
-                <span className="text-[10px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-full leading-none">
+                <span className="text-micro font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-full leading-none">
                   첫차
                 </span>
               )}

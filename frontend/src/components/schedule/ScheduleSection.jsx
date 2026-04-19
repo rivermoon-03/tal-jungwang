@@ -1,5 +1,5 @@
 /**
- * ScheduleSection — card showing route/station with next + after-next times + ⭐ toggle.
+ * ScheduleSection — card showing route/station with next + after-next times + favorite (Star) toggle.
  * Props:
  *   title         string  (노선명 or 역명)
  *   subtitle      string  (그룹 설명 등 optional)
@@ -18,7 +18,7 @@ import Skeleton from '../common/Skeleton'
 const TYPE_COLOR = {
   bus: '#3B82F6',
   subway: '#EAB308',
-  shuttle: '#FF385C',
+  shuttle: '#1b3a6e',
 }
 
 // 경기 시내버스(파랑) / 마을버스(초록) / 광역버스(빨강) 원칙을 따르는 노선별 색상
@@ -59,7 +59,7 @@ export default function ScheduleSection({
 
   return (
     <div
-      className={`bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card px-4 py-4 transition-all duration-150 ${
+      className={`bg-white dark:bg-surface-dark rounded-[18px] border border-slate-100 dark:border-border-dark shadow-card px-4 py-4 transition-all duration-150 ${
         disabled ? 'opacity-50' : ''
       } ${
         onClick && !disabled
@@ -118,8 +118,8 @@ export default function ScheduleSection({
           >
             <Star
               size={18}
-              fill={isFavorite ? '#FF385C' : 'none'}
-              className={isFavorite ? 'text-coral' : 'text-slate-300 dark:text-slate-600'}
+              fill={isFavorite ? '#102c4c' : 'none'}
+              className={isFavorite ? 'text-accent dark:text-accent-dark' : 'text-slate-300 dark:text-slate-600'}
             />
           </button>
         </div>
@@ -166,7 +166,7 @@ export default function ScheduleSection({
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {!disabled && !loading && testBadge && (
             <span
-              className="text-[10px] px-2 py-0.5 rounded-lg font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 whitespace-nowrap cursor-default select-none"
+              className="text-micro px-2 py-0.5 rounded-lg font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 whitespace-nowrap cursor-default select-none"
               title="실험 중인 기능입니다. 정확성이 떨어지니 주의하세요"
             >
               테스트-부정확
@@ -184,7 +184,7 @@ export default function ScheduleSection({
 
       {/* 추가 시간 (셔틀) */}
       {!disabled && !loading && Array.isArray(extraTimes) && extraTimes.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-wrap gap-x-3 gap-y-1">
+        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-border-dark flex flex-wrap gap-x-3 gap-y-1">
           {extraTimes.map((t, i) => (
             <span key={`${t}-${i}`} className="text-xs text-slate-500 dark:text-slate-400 font-medium">
               {t}

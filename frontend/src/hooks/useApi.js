@@ -4,9 +4,17 @@ const BASE = '/api/v1'
 
 export async function apiFetch(path, options) {
   const res = await fetch(`${BASE}${path}`, options)
-  if (!res.ok) throw new Error(`API ${res.status}`)
+  if (!res.ok) {
+    const httpErr = new Error(`API ${res.status}`)
+    httpErr.status = res.status
+    throw httpErr
+  }
   const json = await res.json()
-  if (!json.success) throw new Error(json.error?.message ?? 'API error')
+  if (!json.success) {
+    const apiErr = new Error(json.error?.message ?? 'API error')
+    apiErr.code = json.error?.code ?? null
+    throw apiErr
+  }
   return json.data
 }
 

@@ -33,7 +33,7 @@ export default function TransitTab() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
       <div className="flex items-center gap-2 bg-navy text-white px-5 py-4">
         <Bus size={20} strokeWidth={2} />
         <h2 className="text-lg font-bold">교통</h2>

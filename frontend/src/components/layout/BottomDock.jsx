@@ -16,8 +16,9 @@ function getActiveId(pathname) {
 }
 
 /**
- * BottomDock — 플로팅 필 스타일 하단 4탭 독 (라벨 없음)
- * React Router 없이 window.location 기반으로 active 탭 감지
+ * BottomDock — 플랫한 하단 고정 4탭 독 (아이콘 + 라벨 22/11px)
+ * 높이 60px + safe-area-inset-bottom, 상단 1px 경계선.
+ * React Router 없이 window.location 기반으로 active 탭 감지.
  */
 export default function BottomDock() {
   const pathname = window.location.pathname
@@ -32,43 +33,32 @@ export default function BottomDock() {
   }
 
   return (
-    <div
-      className="fixed left-1/2 -translate-x-1/2 z-50 md:hidden"
-      style={{ bottom: 'max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))' }}
+    <nav
       role="navigation"
       aria-label="하단 탭 메뉴"
+      className="fixed left-0 right-0 bottom-0 z-50 md:hidden flex items-stretch bg-white dark:bg-bg-dark border-t border-gray-200 dark:border-border-dark"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <nav
-        className="flex items-center gap-1 bg-white/95 dark:bg-[#1e2128]/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60 px-2 py-2 rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.14)]"
-      >
-        {TABS.map(({ id, label, Icon, href }) => {
-          const active = activeId === id
-          return (
-            <a
-              key={id}
-              href={href}
-              onClick={(e) => handleNav(e, href)}
-              aria-label={label}
-              aria-current={active ? 'page' : undefined}
-              className="flex items-center justify-center min-w-[44px] min-h-[44px] active:scale-95"
-              style={{ transition: 'transform 0.1s ease' }}
-            >
-              {active ? (
-                <span
-                  className="flex items-center justify-center w-10 h-10 rounded-full shadow-md"
-                  style={{ background: '#FF385C' }}
-                >
-                  <Icon size={22} strokeWidth={2.4} color="#FFFFFF" aria-hidden="true" />
-                </span>
-              ) : (
-                <span className="flex items-center justify-center w-10 h-10 text-zinc-500 dark:text-zinc-300">
-                  <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
-                </span>
-              )}
-            </a>
-          )
-        })}
-      </nav>
-    </div>
+      {TABS.map(({ id, label, Icon, href }) => {
+        const active = activeId === id
+        const colorClass = active
+          ? 'text-accent dark:text-accent-dark'
+          : 'text-mute'
+        return (
+          <a
+            key={id}
+            href={href}
+            onClick={(e) => handleNav(e, href)}
+            aria-label={label}
+            aria-current={active ? 'page' : undefined}
+            className={`flex-1 min-h-[60px] flex flex-col items-center justify-center gap-1 pressable ${colorClass}`}
+            style={{ transition: 'transform var(--dur-press) var(--ease-ios)' }}
+          >
+            <Icon size={22} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" />
+            <span className="text-micro">{label}</span>
+          </a>
+        )
+      })}
+    </nav>
   )
 }

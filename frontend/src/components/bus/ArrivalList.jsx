@@ -33,7 +33,7 @@ function groupByCategory(arrivals) {
 export default function ArrivalList({ arrivals, onTimetableClick }) {
   if (!arrivals || arrivals.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-900">
+      <div className="flex-1 flex items-center justify-center bg-white dark:bg-bg-dark">
         <p className="text-base text-slate-400">도착 정보가 없습니다.</p>
       </div>
     )

@@ -19,7 +19,7 @@ function Toggle({ on, onToggle, label }) {
       aria-label={label}
       onClick={onToggle}
       className="flex-shrink-0 relative w-12 h-7 rounded-full transition-colors duration-200 focus:outline-none"
-      style={{ background: on ? '#FF385C' : '#CBD5E1' }}
+      style={{ background: on ? '#102c4c' : '#CBD5E1' }}
     >
       <span
         className="absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-all duration-200"
@@ -50,7 +50,7 @@ export default function NotificationSettings() {
   return (
     <div className="flex flex-col gap-4">
       {/* master toggle */}
-      <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card overflow-hidden">
+      <div className="bg-white dark:bg-surface-dark rounded-[18px] border border-slate-100 dark:border-border-dark shadow-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
             <span className="text-slate-500 dark:text-slate-400">
@@ -71,7 +71,7 @@ export default function NotificationSettings() {
 
       {/* lead time */}
       {notifPrefs.enabled && (
-        <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card p-4">
+        <div className="bg-white dark:bg-surface-dark rounded-[18px] border border-slate-100 dark:border-border-dark shadow-card p-4">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3">출발 몇 분 전에 알림 받을까요?</p>
           <div className="grid grid-cols-4 gap-2">
             {LEAD_OPTIONS.map((min) => {
@@ -82,7 +82,7 @@ export default function NotificationSettings() {
                   onClick={() => setLeadMin(min)}
                   className={`py-2.5 rounded-[12px] text-sm font-bold transition-all pressable ${
                     active
-                      ? 'bg-coral text-white shadow-sm'
+                      ? 'bg-accent dark:bg-accent-dark text-white dark:text-ink shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
@@ -95,7 +95,7 @@ export default function NotificationSettings() {
       )}
 
       {/* info block */}
-      <div className="bg-slate-100 dark:bg-slate-800/60 rounded-[14px] px-4 py-3 flex flex-col gap-1">
+      <div className="bg-slate-100 dark:bg-surface-dark/60 rounded-[14px] px-4 py-3 flex flex-col gap-1">
         <p className="text-xs font-bold text-slate-600 dark:text-slate-400">알림 지원 대상</p>
         <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
           즐겨찾기한 <strong className="text-slate-700 dark:text-slate-300">광역버스(3400, 6502) · 시흥1 · 셔틀 · 지하철</strong>만 알림이 옵니다.

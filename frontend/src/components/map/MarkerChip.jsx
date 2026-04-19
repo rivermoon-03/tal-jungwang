@@ -15,11 +15,11 @@ export const ROUTE_COLOR_MAP = {
   '수인분당': '#F5A623',
   '4호선':  '#1B5FAD',
   '서해선': '#75bf43',
-  '셔틀':   '#FF385C',  // coral
+  '셔틀':   '#1b3a6e',  // shuttle navy
   '지하철': '#F5A623',
-  'bus':    '#1b3a6e',   // navy
+  'bus':    '#1b3a6e',
   'subway': '#F5A623',
-  'shuttle':'#FF385C',
+  'shuttle':'#1b3a6e',
 }
 
 /** 기본 fallback 색 */
@@ -89,7 +89,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           {hasLive && (
             <>
               <span style={{ color: '#cbd5e1', margin: '0 4px' }}>·</span>
-              <span style={{ color: '#FF385C' }}>{liveMinutes}분</span>
+              <span style={{ color: '#102c4c' }}>{liveMinutes}분</span>
             </>
           )}
         </span>
@@ -198,7 +198,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     sep.textContent = '·'
     label.appendChild(sep)
     const mins = document.createElement('span')
-    mins.style.color = '#FF385C'
+    mins.style.color = '#102c4c'
     mins.textContent = `${liveMinutes}분`
     label.appendChild(mins)
     if (inaccurate) {
@@ -276,7 +276,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
     cell.appendChild(badge)
 
     const mins = document.createElement('span')
-    mins.style.color = minutes != null ? '#FF385C' : '#94a3b8'
+    mins.style.color = minutes != null ? '#102c4c' : '#94a3b8'
     mins.textContent = minutes != null ? `${minutes}분` : '—'
     cell.appendChild(mins)
 

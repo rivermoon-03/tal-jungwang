@@ -129,7 +129,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {/* 정류장명 + 탑승 상태 */}
             <div className="flex items-center gap-2">
-              <MapPin size={15} className="text-coral flex-shrink-0" />
+              <MapPin size={15} className="text-accent dark:text-accent-dark flex-shrink-0" />
               <span className="text-[15px] font-bold text-[#0f172a] dark:text-[#f1f5f9] truncate">
                 {station.name}
               </span>
@@ -161,7 +161,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
               aria-label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
             >
               {isFav
-                ? <Star size={18} className="text-coral fill-coral" />
+                ? <Star size={18} className="text-accent fill-accent dark:text-accent-dark dark:fill-accent-dark" />
                 : <StarOff size={18} className="text-slate-400" />
               }
             </button>
@@ -197,7 +197,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                     className="py-2 rounded-lg text-[12px] font-semibold transition-colors"
                     style={{
                       background: active ? '#fff' : 'transparent',
-                      color: active ? '#FF385C' : '#64748b',
+                      color: active ? '#102c4c' : '#64748b',
                       boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
                     }}
                   >
@@ -223,7 +223,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                   <li key={group.routeCode} className="flex items-center gap-3">
                     {/* 노선 색 원 */}
                     <span
-                      className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-[10px] font-bold"
+                      className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-micro font-bold"
                       style={{ background: color }}
                     >
                       {(group.routeCode ?? '').split(':')[0].slice(0, 3)}

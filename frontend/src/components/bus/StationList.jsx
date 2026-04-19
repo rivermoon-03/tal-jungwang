@@ -1,6 +1,6 @@
 export default function StationList({ stations, selectedId, onSelect }) {
   return (
-    <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+    <div className="bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark">
       {stations.map((station) => {
         const isSelected = station.station_id === selectedId
         return (
@@ -8,7 +8,7 @@ export default function StationList({ stations, selectedId, onSelect }) {
             key={station.station_id}
             onClick={() => onSelect(station.station_id)}
             className={`flex w-full items-center justify-between px-5 py-3
-              border-b border-slate-100 dark:border-slate-700 text-left border-l-4 min-h-[48px]
+              border-b border-slate-100 dark:border-border-dark text-left border-l-4 min-h-[48px]
               ${isSelected
                 ? 'bg-blue-50 dark:bg-blue-950/30 border-l-navy pl-4'
                 : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700'}`}

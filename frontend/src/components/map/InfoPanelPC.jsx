@@ -6,9 +6,9 @@ export default function InfoPanelPC({ tab, setTab, subwayData, busJeongwangData,
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div className="absolute top-3 left-3 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-xl z-10 pointer-events-auto overflow-hidden">
+    <div className="absolute top-3 left-3 w-80 bg-white dark:bg-surface-dark rounded-2xl shadow-xl z-10 pointer-events-auto overflow-hidden">
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-border-dark">
         <span className="text-sm font-bold text-slate-600 dark:text-slate-300">교통 정보</span>
         <div className="flex items-center gap-1.5">
           {isFirstVisit && (

@@ -78,7 +78,7 @@ export default function ShuttleTab() {
       </div>
 
       {directions.length > 0 && (
-        <div className="flex bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark">
           {directions.map(({ direction }) => (
             <button
               key={direction}

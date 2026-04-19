@@ -61,9 +61,9 @@ export default function BusTimetableDetail({ routeId, routeNo, onBack }) {
           <p className="text-base text-slate-400">시간표 정보가 없습니다.</p>
         </div>
       ) : (
-        <ul className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 pb-16 md:pb-0">
+        <ul className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-16 md:pb-0">
           {nextIndex === -1 && (
-            <li className="px-5 py-4 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <li className="px-5 py-4 bg-slate-50 dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark">
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">오늘 운행이 끝났습니다</p>
               <p className="text-xs text-slate-400 mt-0.5">내일 첫차: {times[0]}</p>
             </li>

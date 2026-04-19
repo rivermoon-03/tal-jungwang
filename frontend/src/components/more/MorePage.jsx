@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { Megaphone, Moon, Bell, Info } from 'lucide-react'
 import MoreRow from './MoreRow'
+import NoticeHighlights from './NoticeHighlights'
 import PageHeader from '../layout/PageHeader'
 import DarkModePage from './DarkModePage'
 import NotificationsPage from './NotificationsPage'
@@ -34,11 +35,14 @@ export default function MorePage() {
   const version = infoData?.version ?? APP_VERSION
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 animate-fade-in-up">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up">
       <PageHeader title="더보기" subtitle="설정 · 공지 · 정보" />
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6">
+        {/* 최근 공지 하이라이트 (최신 2개) */}
+        <NoticeHighlights count={2} onOpen={() => setSubPage('notices')} />
+
         {/* card wrapper */}
-        <div className="rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card overflow-hidden">
+        <div className="rounded-[18px] border border-slate-100 dark:border-border-dark shadow-card overflow-hidden">
           {/* 1. 공지사항 */}
           <MoreRow
             icon={<Megaphone size={18} />}

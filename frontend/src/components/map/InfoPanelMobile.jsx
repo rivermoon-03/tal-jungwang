@@ -229,7 +229,7 @@ function ShuttlePill({ shuttleDirections, walkSec, active, onClick, collapsed })
         <span className={`text-[15px] font-extrabold ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>셔틀</span>
       </div>
       <div className={`pl-[16px] text-[12px] font-semibold ${active ? 'text-white/85' : 'text-slate-600'}`}>
-        <p className="text-[10px] mb-0.5">{mode === 1 ? '하교' : '등교'}</p>
+        <p className="text-micro mb-0.5">{mode === 1 ? '하교' : '등교'}</p>
         <p className={`font-bold text-[13px] ${active ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
           {fmtTarget(target)}
         </p>
@@ -361,7 +361,7 @@ export default function InfoPanelMobile({
 
       {/* 하단 시트 — 슬라이드 업 */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-[70] bg-white dark:bg-slate-900 rounded-t-2xl shadow-xl p-5 pb-8 pointer-events-auto transition-transform duration-300 ease-out ${
+        className={`fixed bottom-0 left-0 right-0 z-[70] bg-white dark:bg-bg-dark rounded-t-2xl shadow-xl p-5 pb-8 pointer-events-auto transition-transform duration-300 ease-out ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
       >

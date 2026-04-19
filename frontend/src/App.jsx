@@ -1,22 +1,19 @@
 import { useEffect, useState } from 'react'
 import useAppStore from './stores/useAppStore'
 import { useTheme } from './hooks/useTheme'
-import MobileTabBar from './components/layout/MobileTabBar'
 import PCNavbar from './components/layout/PCNavbar'
 import MainTab from './components/map/MainTab'
 import SubwayTab from './components/subway/SubwayTab'
 import TransitTab from './components/transit/TransitTab'
 import MoreTab from './components/more/MoreTab'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
-import HeroTitleBar from './components/layout/HeroTitleBar'
-import SummaryCard from './components/summary/SummaryCard'
+import MainShell from './components/layout/MainShell'
 import BottomDock from './components/layout/BottomDock'
 import FavoritesPage from './pages/FavoritesPage'
 import SchedulePage from './pages/SchedulePage'
 import MorePage from './pages/MorePage'
 import { useNotices } from './hooks/useMore'
 
-// ── 해시 → 탭 매핑 (기존 호환) ──────────────────────────────────────────
 const VALID_HASH_TABS = ['main', 'transit', 'subway', 'more']
 
 function hashToTab(hash) {
@@ -24,37 +21,30 @@ function hashToTab(hash) {
   return VALID_HASH_TABS.includes(id) ? id : 'main'
 }
 
-// ── pathname → 페이지 매핑 ───────────────────────────────────────────────
 function pathnameToPage(pathname) {
   if (pathname.startsWith('/favorites')) return 'favorites'
   if (pathname.startsWith('/schedule'))  return 'schedule'
   if (pathname.startsWith('/more'))      return 'more-page'
-  return null // null = 해시 라우팅으로 처리
+  return null
 }
 
 export default function App() {
   const activeTab     = useAppStore((s) => s.activeTab)
   const setActiveTab  = useAppStore((s) => s.setActiveTab)
-  const headerCollapsed = useAppStore((s) => s.headerCollapsed)
   const setTabBadges  = useAppStore((s) => s.setTabBadges)
 
-  // 테마 훅 — 다크모드 클래스 + theme-color 동기화
-  useTheme({ headerCollapsed })
+  useTheme()
 
   const { data: notices } = useNotices()
 
-  // pathname 기반 페이지 (BottomDock의 새 라우트)
   const [currentPage, setCurrentPage] = useState(
     () => pathnameToPage(window.location.pathname)
   )
-
-  const [nextArrival, setNextArrival] = useState(null)
 
   useEffect(() => {
     setTabBadges({ more: Array.isArray(notices) && notices.length > 0 })
   }, [notices, setTabBadges])
 
-  // 기존 해시 라우팅 초기화
   useEffect(() => {
     const page = pathnameToPage(window.location.pathname)
     setCurrentPage(page)
@@ -74,7 +64,6 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [setActiveTab])
 
-  // 해시 라우팅 동기화 (pathname 페이지가 없을 때만)
   useEffect(() => {
     if (currentPage) return
     const current = hashToTab(window.location.hash)
@@ -83,12 +72,9 @@ export default function App() {
     }
   }, [activeTab, currentPage])
 
-  const isMainRoute = !currentPage
-
-  // ── pathname 기반 페이지 렌더링 ─────────────────────────────────────
   if (currentPage === 'favorites') {
     return (
-      <div className="flex flex-col h-dvh bg-[#fafafa] dark:bg-bg-soft transition-colors duration-300">
+      <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
         <PWAInstallBanner />
         <div className="hidden md:block">
           <PCNavbar />
@@ -103,7 +89,7 @@ export default function App() {
 
   if (currentPage === 'schedule') {
     return (
-      <div className="flex flex-col h-dvh bg-[#fafafa] dark:bg-bg-soft transition-colors duration-300">
+      <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
         <PWAInstallBanner />
         <div className="hidden md:block">
           <PCNavbar />
@@ -118,7 +104,7 @@ export default function App() {
 
   if (currentPage === 'more-page') {
     return (
-      <div className="flex flex-col h-dvh bg-[#fafafa] dark:bg-bg-soft transition-colors duration-300">
+      <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
         <PWAInstallBanner />
         <div className="hidden md:block">
           <PCNavbar />
@@ -131,30 +117,23 @@ export default function App() {
     )
   }
 
-  // ── 기존 해시 라우팅 레이아웃 ───────────────────────────────────────
   return (
-    <div className="flex flex-col h-dvh bg-[#fafafa] dark:bg-bg-soft transition-colors duration-300">
-      {/* PWA 설치 배너 — 최상단 고정 */}
+    <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
       <PWAInstallBanner />
 
-      {/* PC 네비게이션 */}
       <div className="hidden md:block">
         <PCNavbar />
       </div>
 
       <main className="flex-1 overflow-hidden min-h-0 relative">
-        <div className={`h-full ${activeTab === 'main' ? '' : 'hidden'}`}>
+        {/* 모바일: 2단 스냅 MainShell (activeTab=main 전용) */}
+        {activeTab === 'main' && <MainShell />}
+
+        {/* PC: 기존 MainTab 유지 (md:block) */}
+        <div className={`hidden md:block h-full ${activeTab === 'main' ? '' : 'md:hidden'}`}>
           <MainTab />
-          {/* Hero + Summary — 지도 위 플로팅 오버레이 (모바일 전용) */}
-          {isMainRoute && (
-            <div className="md:hidden absolute inset-x-0 top-0 z-30 pointer-events-none">
-              <div className="pointer-events-auto">
-                <HeroTitleBar nextArrival={nextArrival} />
-                <SummaryCard onNextArrivalChange={setNextArrival} />
-              </div>
-            </div>
-          )}
         </div>
+
         {activeTab === 'transit' && (
           <div key="transit" className="h-full overflow-hidden animate-fade-in">
             <TransitTab />
@@ -172,15 +151,7 @@ export default function App() {
         )}
       </main>
 
-      {/* 하단 독 (모바일) — 새 4탭 구조 */}
       <BottomDock />
-
-      {/* 기존 MobileTabBar (숨김 처리 — BottomDock으로 대체됨) */}
-      {/* 하위 호환 유지가 필요하다면 아래 주석 해제
-      <div className="md:hidden">
-        <MobileTabBar />
-      </div>
-      */}
     </div>
   )
 }

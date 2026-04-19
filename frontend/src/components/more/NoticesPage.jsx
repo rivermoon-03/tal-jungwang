@@ -16,9 +16,9 @@ export default function NoticesPage({ onBack }) {
   const notices = Array.isArray(data) ? data : []
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
       {/* 헤더 */}
-      <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-white dark:bg-surface-dark border-b border-slate-100 dark:border-border-dark flex-shrink-0">
         <button
           onClick={onBack}
           aria-label="뒤로"
@@ -49,10 +49,10 @@ export default function NoticesPage({ onBack }) {
           {notices.map((n) => (
             <article
               key={n.id}
-              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-card px-4 py-4"
+              className="bg-white dark:bg-surface-dark rounded-2xl border border-slate-100 dark:border-border-dark shadow-card px-4 py-4"
             >
               <div className="flex items-start gap-2 mb-1.5">
-                <Megaphone size={16} className="text-coral flex-shrink-0 mt-0.5" />
+                <Megaphone size={16} className="text-accent dark:text-accent-dark flex-shrink-0 mt-0.5" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   {n.title}
                 </h2>

@@ -60,7 +60,7 @@ export default function ShuttleTimetable({ times }) {
   }, [nextIndex])
 
   return (
-    <ul className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 pb-28 md:pb-0">
+    <ul className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-28 md:pb-0">
       {displayList.map((item, i) => {
         const isNext = i === nextIndex
 

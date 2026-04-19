@@ -348,7 +348,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
         upcoming.push({
           routeCode:  isFrom ? '하교' : '등교',
-          routeColor: '#FF385C',
+          routeColor: '#1b3a6e',
           direction:  note ? `${timeStr} · ${note}` : timeStr,
           minutes:    Math.max(0, diffMin),
         })
@@ -357,7 +357,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
         const timeStrings = times.map(t => (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5))
         upcoming.push({
           routeCode:  isFrom ? '하교' : '등교',
-          routeColor: '#FF385C',
+          routeColor: '#1b3a6e',
           direction:  isFrom ? '하교 셔틀' : '등교 셔틀',
           minutes:    getFirstBusLabel(timeStrings, now),
         })
@@ -484,6 +484,18 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
   }, [activeTab])
 
+  // 컨테이너 크기 변화 감지 → 카카오맵 relayout.
+  // 모바일 스냅(지도↔대시보드)이 바뀔 때 CSS transition이 끝날 때까지 사이즈가
+  // 여러 프레임에 걸쳐 변하므로 ResizeObserver가 그때마다 relayout을 호출해준다.
+  useEffect(() => {
+    if (!mapInstance || !containerRef.current || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      mapInstance.relayout()
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [mapInstance])
+
   // 독 버튼/지도에서 보기 요청 pan — mapInstance 준비 이후 반드시 실행
   useEffect(() => {
     if (!mapPanTarget || !mapInstance) return
@@ -555,7 +567,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
   if (!kakaoKey) {
     return (
-      <div className="flex-1 relative bg-slate-200 dark:bg-slate-800 overflow-hidden select-none">
+      <div className="flex-1 relative w-full h-full min-h-0 bg-slate-200 dark:bg-surface-dark overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-slate-400 text-base font-medium">카카오맵 (API 키 설정 후 활성화)</p>
         </div>
@@ -565,7 +577,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
   if (!sdkReady) {
     return (
-      <div className="flex-1 relative bg-slate-200 dark:bg-slate-800 overflow-hidden select-none">
+      <div className="flex-1 relative w-full h-full min-h-0 bg-slate-200 dark:bg-surface-dark overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-slate-400 text-base font-medium">지도를 불러오는 중...</p>
         </div>
@@ -585,7 +597,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
         │  └────────────────────────────────────────────────────────┘  │
         └──────────────────────────────────────────────────────────────┘
       */}
-      <div className="flex-1 relative" style={{ minHeight: 300 }}>
+      <div className="flex-1 relative w-full h-full min-h-0">
 
         {/* 카카오맵 SDK 전용 컨테이너 — CSS에서 canvas에만 필터 적용 (마커 div 제외) */}
         <div
@@ -594,9 +606,9 @@ export default function MapView({ onMarkerClick, selectedId }) {
           className="absolute inset-0 bg-slate-200"
         />
 
-        {/* 우하단 플로팅 버튼 (§2.8): 내 위치, 학교로 */}
+        {/* 우상단 플로팅 버튼: 내 위치, 학교로 */}
         {mapInstance && (
-          <div className="absolute bottom-6 right-4 flex flex-col gap-2 z-[50]">
+          <div className="absolute top-4 right-4 flex flex-col gap-2 z-[50]">
             {/* 내 위치 FAB */}
             <button
               className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
@@ -604,7 +616,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
               aria-label="내 위치"
               title="내 위치"
             >
-              <Navigation size={17} className="text-coral" />
+              <Navigation size={17} className="text-accent dark:text-accent-dark" />
             </button>
             {/* 학교로 FAB */}
             <button
