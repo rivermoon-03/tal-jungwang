@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Megaphone, Bell, Info, MessageSquare, Moon, Sun, MoreHorizontal, ChevronDown } from 'lucide-react'
+import { Megaphone, Bell, Info, MessageSquare, Moon, Sun, MoreHorizontal, ChevronDown, ExternalLink } from 'lucide-react'
 import { useNotices, useLinks, useAppInfo } from '../../hooks/useMore'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useShuttleNotification } from '../../hooks/useShuttleNotification'
 import useAppStore from '../../stores/useAppStore'
 import { AboutModal } from '../map/InfoPanel'
+import NoticeHighlights from './NoticeHighlights'
 
 function SectionLabel({ children }) {
   return (
@@ -16,14 +17,14 @@ function SectionLabel({ children }) {
 
 function Card({ children }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div className="bg-white dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-border-dark shadow-sm">
       {children}
     </div>
   )
 }
 
 function Row({ icon, label, sub, right, onClick, href }) {
-  const cls = 'block w-full text-left border-b border-slate-100 dark:border-slate-700 last:border-b-0 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100 first:rounded-t-2xl last:rounded-b-2xl overflow-hidden'
+  const cls = 'block w-full text-left border-b border-slate-100 dark:border-border-dark last:border-b-0 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100 first:rounded-t-2xl last:rounded-b-2xl overflow-hidden'
   const inner = (
     <div className="flex items-center gap-3 px-4 py-3.5">
       <span className="w-7 flex items-center justify-center flex-shrink-0 text-slate-500 dark:text-slate-400">{icon}</span>
@@ -43,7 +44,7 @@ function NoticeRow({ notice }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="border-b border-slate-100 dark:border-slate-700 last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl overflow-hidden">
+    <div className="border-b border-slate-100 dark:border-border-dark last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         className="block w-full text-left px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 active:bg-slate-100 transition-colors"
@@ -97,12 +98,15 @@ export default function MoreTab() {
   const [aboutOpen, setAboutOpen] = useState(false)
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
     <div className="flex items-center gap-2 bg-navy text-white px-5 py-4 flex-shrink-0">
       <MoreHorizontal size={20} strokeWidth={2} />
       <h2 className="text-lg font-bold">더보기</h2>
     </div>
     <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 md:pb-6 gap-1 flex flex-col">
+
+      {/* 최근 공지 하이라이트 */}
+      <NoticeHighlights count={2} />
 
       <SectionLabel>공지사항</SectionLabel>
       <Card>
@@ -135,7 +139,7 @@ export default function MoreTab() {
               icon={lnk.icon}
               label={lnk.label}
               href={lnk.url}
-              right={<span className="text-slate-300 dark:text-slate-500 ml-2 text-base">↗</span>}
+              right={<ExternalLink size={14} className="text-slate-300 dark:text-slate-500 ml-2 flex-shrink-0" />}
             />
           ))
         )}
@@ -154,7 +158,7 @@ export default function MoreTab() {
             icon={<MessageSquare size={18} />}
             label="피드백 보내기"
             href={infoData.feedback_url}
-            right={<span className="text-slate-300 dark:text-slate-500 text-base">↗</span>}
+            right={<ExternalLink size={14} className="text-slate-300 dark:text-slate-500 flex-shrink-0" />}
           />
         )}
       </Card>

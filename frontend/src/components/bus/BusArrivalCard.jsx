@@ -69,7 +69,7 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
                 : <RealtimeChip arrival={a} />
               }
               {shown.length > 1 && (
-                <span className="text-[10px] text-slate-400 tabular-nums">{i + 1}번</span>
+                <span className="text-micro text-slate-400 tabular-nums">{i + 1}번</span>
               )}
             </span>
           ))}
@@ -106,7 +106,7 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
   if (isTimetable) {
     return (
       <button
-        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-800 text-left pressable"
+        className="w-full rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark text-left pressable"
         onClick={() => onTimetableClick(first.route_id, first.route_no)}
       >
         {inner}
@@ -115,7 +115,7 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-800">
+    <div className="rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark">
       {inner}
     </div>
   )

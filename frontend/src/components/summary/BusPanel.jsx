@@ -3,11 +3,11 @@ import { useMemo } from 'react'
 import { useBusRoutesByCategory, useBusArrivals, useBusTimetable } from '../../hooks/useBus'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
+import ArrivalRow from '../dashboard/ArrivalRow'
 import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
 
 // BusRoute.category 값과 1:1 매칭. DB에서 직접 받아 그룹 구성.
 // DB 카테고리: '하교'(정왕역·서울 방향), '등교'(학교 방향), '기타'
-const BUS_CATEGORIES = ['하교', '등교', '기타']
 const CATEGORY_DB_VALUE = {
   '하교': '하교',
   '등교': '등교',
@@ -24,12 +24,13 @@ const ROUTE_INLINE_BG = {
   '3401':  '#E02020',
 }
 
+const DEFAULT_ROUTE_COLOR = '#64748B'
+
 export default function BusPanel() {
   const selectedBusGroup = useAppStore((s) => s.selectedBusGroup)
-  const setBusGroup       = useAppStore((s) => s.setBusGroup)
-  const category          = CATEGORY_DB_VALUE[selectedBusGroup] ?? null
-  const routesQuery       = useBusRoutesByCategory(category)
-  const routes            = routesQuery.data ?? []
+  const category         = CATEGORY_DB_VALUE[selectedBusGroup] ?? null
+  const routesQuery      = useBusRoutesByCategory(category)
+  const routes           = routesQuery.data ?? []
 
   // 실시간 노선은 공통 GBIS 정류장(정왕역행 그룹)에서 묶음 조회.
   const realtimeStationId = useMemo(() => {
@@ -43,45 +44,21 @@ export default function BusPanel() {
   )
 
   return (
-    <div className="space-y-3">
-      {/* 그룹 pill 탭 */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-        {BUS_CATEGORIES.map((g) => {
-          const isActive = selectedBusGroup === g
-          return (
-            <button
-              key={g}
-              onClick={() => setBusGroup(g)}
-              className={`whitespace-nowrap shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors
-                ${isActive
-                  ? 'shadow-sm'
-                  : 'bg-transparent border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-coral/60'
-                }`}
-              style={isActive ? { background: '#FF385C', color: '#FFFFFF' } : undefined}
-            >
-              {g}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* 노선 카드 */}
-      <div className="space-y-2">
-        {routesQuery.loading && <Skeleton height="3rem" rounded="rounded-xl" />}
-        {routesQuery.error && !routesQuery.loading && (
-          <ErrorState message="노선 정보 오류" onRetry={routesQuery.refetch} className="py-4" />
-        )}
-        {!routesQuery.loading && routes.length === 0 && (
-          <div className="text-xs text-gray-400 py-6 text-center">노선이 없습니다</div>
-        )}
-        {routes.map((route) => (
-          <BusRouteRow
-            key={route.route_id}
-            route={route}
-            realtimeArrivals={realtimeArrivals}
-          />
-        ))}
-      </div>
+    <div className="space-y-2">
+      {routesQuery.loading && <Skeleton height="3rem" rounded="rounded-xl" />}
+      {routesQuery.error && !routesQuery.loading && (
+        <ErrorState message="노선 정보 오류" onRetry={routesQuery.refetch} className="py-4" />
+      )}
+      {!routesQuery.loading && routes.length === 0 && (
+        <div className="text-caption text-mute py-6 text-center">노선이 없습니다</div>
+      )}
+      {routes.map((route) => (
+        <BusRouteRow
+          key={route.route_id}
+          route={route}
+          realtimeArrivals={realtimeArrivals}
+        />
+      ))}
     </div>
   )
 }
@@ -112,50 +89,41 @@ function BusRouteRow({ route, realtimeArrivals }) {
   if (hasError) return <ErrorState message={`${route_number} 정보 오류`} onRetry={refetch} className="py-4" />
 
   const arrivals = hasLiveData ? liveEntries : extractNext(timetable.data, 2)
+  const nextEntry = arrivals[0] ?? null
+  const minutes = arrivalToMinutes(nextEntry)
 
   // 출발지: 이 route의 첫 번째 stop (이미 방향별로 분리된 route라 origin이 명확)
   const originStop = stops[0]
   const originLabel = originStop
     ? (originStop.sub_name ? `${originStop.name} ${originStop.sub_name}` : originStop.name)
     : null
-  const sharedDestination = originLabel ?? (route.direction_name || null)
+  const direction = originLabel ?? route.direction_name ?? ''
+  const stopId = originStop?.stop_id ?? null
+
+  const rightAddon = is_realtime && hasLiveData ? (
+    <span className="text-micro font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+      테스트-부정확
+    </span>
+  ) : null
+
+  const handleClick = () => {
+    const url = stopId != null
+      ? `/schedule?route=${encodeURIComponent(route_number)}&stop=${encodeURIComponent(stopId)}`
+      : `/schedule?route=${encodeURIComponent(route_number)}`
+    window.history.pushState({}, '', url)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
 
   return (
-    <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/40 rounded-xl px-3 py-2.5">
-      <span
-        className="text-[11px] font-black text-white px-2 py-1 rounded-lg shrink-0 min-w-[44px] text-center"
-        style={{ background: ROUTE_INLINE_BG[route_number] ?? '#64748B' }}
-      >
-        {route_number}
-      </span>
-
-      {is_realtime && hasLiveData && (
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 shrink-0">
-          테스트-부정확
-        </span>
-      )}
-
-      {arrivals.length === 0 ? (
-        <span className="text-xs text-gray-400 flex-1">운행 정보 없음</span>
-      ) : (
-        <div className="flex items-baseline gap-3 flex-1 min-w-0">
-          {arrivals.map((a, i) => (
-            <span
-              key={i}
-              className="text-sm font-black text-gray-900 dark:text-gray-50 tabular-nums whitespace-nowrap"
-            >
-              {formatArrivalEntry(a)}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {sharedDestination && (
-        <span className="text-[10px] text-gray-400 truncate max-w-[84px] text-right shrink-0">
-          {sharedDestination}
-        </span>
-      )}
-    </div>
+    <ArrivalRow
+      routeColor={ROUTE_INLINE_BG[route_number] ?? DEFAULT_ROUTE_COLOR}
+      routeNumber={route_number}
+      direction={direction}
+      minutes={minutes}
+      isUrgent={minutes != null && minutes <= 3}
+      onClick={handleClick}
+      rightAddon={rightAddon}
+    />
   )
 }
 
@@ -182,15 +150,24 @@ function extractNext(data, n = 2) {
   return []
 }
 
-function formatArrivalEntry(a) {
-  if (a.arrive_in_seconds != null) {
-    const label = formatArrival(a.arrive_in_seconds)
-    if (label) return label
+/**
+ * Arrival entry를 "남은 분" 정수로 변환.
+ *   - arrive_in_seconds가 있으면 1분 단위 올림
+ *   - depart_at("HH:MM")만 있으면 formatArrivalFromTime을 파싱하여 분 추출
+ *   - 둘 다 없으면 null → ArrivalRow가 "운행 정보 없음" 표시
+ */
+function arrivalToMinutes(entry) {
+  if (!entry) return null
+  if (entry.arrive_in_seconds != null) {
+    const label = formatArrival(entry.arrive_in_seconds)
+    const m = label && label.match(/^(\d+)/)
+    if (m) return Number(m[1])
+    return Math.max(0, Math.ceil(entry.arrive_in_seconds / 60))
   }
-  if (a.depart_at) {
-    const label = formatArrivalFromTime(a.depart_at)
-    if (label) return label
-    return a.depart_at
+  if (entry.depart_at) {
+    const label = formatArrivalFromTime(entry.depart_at)
+    const m = label && label.match(/^(\d+)/)
+    if (m) return Number(m[1])
   }
-  return '–'
+  return null
 }

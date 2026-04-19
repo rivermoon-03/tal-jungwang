@@ -34,8 +34,8 @@ export default function BusCard({ setTimetableRoute }) {
     : '--:--'
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+    <div className="bg-white dark:bg-surface-dark rounded-2xl overflow-hidden border border-slate-200 dark:border-border-dark shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-border-dark">
         <div className="flex items-center gap-2">
           <BusFront size={16} strokeWidth={2} className="text-navy dark:text-blue-400" />
           <span className="text-sm font-bold text-navy dark:text-blue-300">공공버스</span>
@@ -47,7 +47,7 @@ export default function BusCard({ setTimetableRoute }) {
       </div>
 
       {!stationsLoading && stations.length > 0 && (
-        <div className="flex gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-700 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-2 px-4 py-3 border-b border-slate-100 dark:border-border-dark overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {stations.map((s) => (
             <button
               key={s.station_id}

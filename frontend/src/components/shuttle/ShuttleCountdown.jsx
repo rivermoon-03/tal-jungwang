@@ -13,7 +13,7 @@ export default function ShuttleCountdown({ nextShuttle, direction, inFrequentWin
 
   if (!nextShuttle) {
     return (
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-5">
+      <div className="bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark px-5 py-5">
         <p className="text-base text-slate-500 dark:text-slate-400">오늘 남은 셔틀이 없습니다.</p>
       </div>
     )
@@ -21,7 +21,7 @@ export default function ShuttleCountdown({ nextShuttle, direction, inFrequentWin
 
   if (isFrequent) {
     return (
-      <div className="flex items-center justify-between bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
+      <div className="flex items-center justify-between bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark px-5 py-4">
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">다음 셔틀까지</p>
           <p className="text-4xl font-bold leading-none text-navy dark:text-blue-400">수시운행</p>
@@ -36,7 +36,7 @@ export default function ShuttleCountdown({ nextShuttle, direction, inFrequentWin
 
   if (inFrequentReturnWindow) {
     return (
-      <div className="flex items-center justify-between bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
+      <div className="flex items-center justify-between bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark px-5 py-4">
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">다음 셔틀까지</p>
           <p className="text-4xl font-bold leading-none text-navy dark:text-blue-400">수시 회차 중</p>
@@ -64,7 +64,7 @@ export default function ShuttleCountdown({ nextShuttle, direction, inFrequentWin
         : `${mm}:${ss}`
 
     return (
-      <div className="flex items-center justify-between bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
+      <div className="flex items-center justify-between bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark px-5 py-4">
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">회차편 도착까지</p>
           <p className={`time-num text-4xl font-bold leading-none ${isExpired ? 'text-accent' : isUrgent ? 'text-accent' : 'text-navy dark:text-blue-400'}`}>
@@ -96,7 +96,7 @@ export default function ShuttleCountdown({ nextShuttle, direction, inFrequentWin
   const departLabel    = isUpcomingFrequent ? `수시운행 ${departAt}~` : `${departAt} 출발`
 
   return (
-    <div className="flex items-center justify-between bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
+    <div className="flex items-center justify-between bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark px-5 py-4">
       <div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{countdownLabel}</p>
         <p className={`time-num text-4xl font-bold leading-none ${isExpired ? 'text-accent' : isUrgent ? 'text-accent' : 'text-navy dark:text-blue-400'}`}>

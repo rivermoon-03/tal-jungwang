@@ -8,9 +8,9 @@ import DarkModeSegment from './DarkModeSegment'
 
 export default function DarkModePage({ onBack }) {
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
       {/* header — NoticesPage와 통일된 스타일 */}
-      <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-white dark:bg-surface-dark border-b border-slate-100 dark:border-border-dark flex-shrink-0">
         <button
           onClick={onBack}
           aria-label="뒤로"
@@ -32,7 +32,7 @@ export default function DarkModePage({ onBack }) {
         </div>
 
         {/* segment control */}
-        <div className="bg-white dark:bg-slate-800 rounded-[18px] border border-slate-100 dark:border-slate-700 shadow-card p-4">
+        <div className="bg-white dark:bg-surface-dark rounded-[18px] border border-slate-100 dark:border-border-dark shadow-card p-4">
           <DarkModeSegment />
         </div>
 
@@ -45,7 +45,7 @@ export default function DarkModePage({ onBack }) {
           ].map(({ title, desc }) => (
             <div
               key={title}
-              className="flex gap-3 bg-white dark:bg-slate-800 rounded-[14px] border border-slate-100 dark:border-slate-700 px-4 py-3"
+              className="flex gap-3 bg-white dark:bg-surface-dark rounded-[14px] border border-slate-100 dark:border-border-dark px-4 py-3"
             >
               <p className="text-xs font-bold text-slate-600 dark:text-slate-400 w-12 flex-shrink-0">{title}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{desc}</p>

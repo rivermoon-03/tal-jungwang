@@ -1,11 +1,11 @@
 /**
  * SchedulePage — 시간표 탭
- * - Mode pill: 지하철 · 버스 · 셔틀
- * - 각 모드별 그룹 pill selector
- * - ⭐ 즐겨찾기만 toggle
+ * - 상단 mode pill: 버스 · 지하철 · 셔틀 (바로 전환)
+ * - 각 모드별 그룹 pill selector (지하철: 정왕/초지/시흥시청, 버스: 하교/등교/기타)
+ * - 즐겨찾기만 toggle (Star 아이콘)
  */
 import { useState, useEffect } from 'react'
-import { TrainFront, Bus, TramFront, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 import ScheduleSection from './ScheduleSection'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
@@ -14,6 +14,27 @@ import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesBy
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
+
+// ─── url query helpers ─────────────────────────────────────────────────────
+function readQuery() {
+  if (typeof window === 'undefined') return { type: null, route: null, stop: null }
+  const params = new URLSearchParams(window.location.search)
+  return {
+    type:  params.get('type'),
+    route: params.get('route'),
+    stop:  params.get('stop'),
+  }
+}
+
+function navigateSchedule({ type = null, route = null, stop = null } = {}) {
+  const params = new URLSearchParams()
+  if (type)  params.set('type',  type)
+  if (route) params.set('route', route)
+  if (stop)  params.set('stop',  stop)
+  const qs = params.toString()
+  const url = qs ? `/schedule?${qs}` : '/schedule'
+  window.history.replaceState({}, '', url)
+}
 
 // ─── static section definitions ────────────────────────────────────────────
 const BUS_GROUP_IDS = [
@@ -33,12 +54,16 @@ const SHUTTLE_GROUPS = [
   { id: '하교', label: '하교', direction: 1 },
 ]
 
-// ─── mode pill config ────────────────────────────────────────────────────────
+// ─── mode label config ───────────────────────────────────────────────────────
 const MODES = [
-  { id: 'subway',  label: '지하철', Icon: TrainFront },
-  { id: 'bus',     label: '버스',   Icon: Bus },
-  { id: 'shuttle', label: '셔틀',   Icon: TramFront },
+  { id: 'bus',     label: '버스'   },
+  { id: 'subway',  label: '지하철' },
+  { id: 'shuttle', label: '셔틀'   },
 ]
+
+function isValidMode(v) {
+  return v === 'bus' || v === 'subway' || v === 'shuttle'
+}
 
 // 실시간 노선의 조회 대상 정류장 (GBIS stationId) — is_realtime=true 고정값
 const REALTIME_STATION_ID = '224000639' // 한국공학대학교
@@ -359,7 +384,7 @@ function BusGroupContent({ busGroup, favOnly, isFav, onToggleFav, onCardClick })
     return (
       <>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+          <div key={i} className="h-20 bg-slate-100 dark:bg-surface-dark rounded-xl animate-pulse" />
         ))}
       </>
     )
@@ -414,119 +439,146 @@ function BusGroupContent({ busGroup, favOnly, isFav, onToggleFav, onCardClick })
 }
 
 // ─── main component ──────────────────────────────────────────────────────────
+// 단일 뷰: 상단 pill(버스·지하철·셔틀)로 바로 전환. 디렉토리 단계 없음.
+//   /schedule                         → selectedMode(Zustand, persisted) 기준
+//   /schedule?type=bus|subway|shuttle → 해당 모드로 진입 (외부 링크 호환)
 export default function SchedulePage() {
-  const [mode, setMode] = useState('bus')
+  const [query, setQuery] = useState(readQuery)
+
+  useEffect(() => {
+    const sync = () => setQuery(readQuery())
+    window.addEventListener('popstate', sync)
+    return () => window.removeEventListener('popstate', sync)
+  }, [])
+
+  const storedMode = useAppStore((s) => s.selectedMode)
+  const setStoredMode = useAppStore((s) => s.setSelectedMode)
+  const scheduleHint = useAppStore((s) => s.scheduleHint)
+  const setScheduleHint = useAppStore((s) => s.setScheduleHint)
+  const favorites = useAppStore((s) => s.favorites)
+  const toggleFavoriteRoute = useAppStore((s) => s.toggleFavoriteRoute)
+
+  const initialMode = isValidMode(query.type)
+    ? query.type
+    : (isValidMode(storedMode) ? storedMode : 'bus')
+
+  const [mode, setMode] = useState(initialMode)
   const [favOnly, setFavOnly] = useState(false)
   const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
-  const [shuttleGroup, setShuttleGroup] = useState('등교')
+  const [, setShuttleGroup] = useState('등교')
   const [selectedDetail, setSelectedDetail] = useState(null)
 
-  const favorites = useAppStore((s) => s.favorites)
-  const toggleFavoriteRoute = useAppStore((s) => s.toggleFavoriteRoute)
-  const scheduleHint = useAppStore((s) => s.scheduleHint)
-  const setScheduleHint = useAppStore((s) => s.setScheduleHint)
+  // URL type이 popstate로 바뀌면 mode 동기화
+  useEffect(() => {
+    if (isValidMode(query.type) && query.type !== mode) {
+      setMode(query.type)
+    }
+  }, [query.type]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 지도 오버레이 등에서 scheduleHint로 진입 모드·그룹 지정
   useEffect(() => {
     if (!scheduleHint) return
-    if (scheduleHint.mode) setMode(scheduleHint.mode)
+    if (isValidMode(scheduleHint.mode)) {
+      setMode(scheduleHint.mode)
+      setStoredMode(scheduleHint.mode)
+    }
     if (scheduleHint.group) {
       if (scheduleHint.mode === 'bus') setBusGroup(scheduleHint.group)
       else if (scheduleHint.mode === 'subway') setSubwayGroup(scheduleHint.group)
       else if (scheduleHint.mode === 'shuttle') setShuttleGroup(scheduleHint.group)
     }
     setScheduleHint(null)
-  }, [scheduleHint, setScheduleHint])
+  }, [scheduleHint, setScheduleHint, setStoredMode])
+
+  function handleModeChange(next) {
+    if (next === mode) return
+    setMode(next)
+    setStoredMode(next)
+    navigateSchedule({ type: next })
+  }
 
   function isFav(code) {
     return favorites.routes?.includes(code) ?? false
   }
-
-  function handleToggleFav(code) {
-    toggleFavoriteRoute(code)
-  }
-
-  function handleCardClick(detail) {
-    setSelectedDetail(detail)
-  }
-
-  function handleModalClose() {
-    setSelectedDetail(null)
-  }
+  const handleToggleFav = (code) => toggleFavoriteRoute(code)
+  const handleCardClick = (detail) => setSelectedDetail(detail)
+  const handleModalClose = () => setSelectedDetail(null)
 
   const groups =
-    mode === 'bus' ? BUS_GROUP_IDS : mode === 'subway' ? SUBWAY_GROUPS : SHUTTLE_GROUPS
+    mode === 'bus' ? BUS_GROUP_IDS : mode === 'subway' ? SUBWAY_GROUPS : []
   const activeGroupId =
-    mode === 'bus' ? busGroup : mode === 'subway' ? subwayGroup : shuttleGroup
+    mode === 'bus' ? busGroup : mode === 'subway' ? subwayGroup : null
   const setActiveGroup =
-    mode === 'bus' ? setBusGroup : mode === 'subway' ? setSubwayGroup : setShuttleGroup
+    mode === 'bus' ? setBusGroup : mode === 'subway' ? setSubwayGroup : () => {}
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 animate-fade-in-up">
-      <PageHeader title="시간표" subtitle="노선별 전체 시간표" />
-      {/* controls */}
-      <div className="px-4 pt-2 pb-2 flex flex-col gap-2 flex-shrink-0 bg-slate-50 dark:bg-slate-900">
-        {/* mode + fav toggle row */}
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-full p-1">
-            {MODES.map(({ id, label, Icon }) => {
-              const isActive = mode === id
-              return (
-                <button
-                  key={id}
-                  onClick={() => setMode(id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all pressable ${
-                    isActive
-                      ? 'shadow-sm'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                  }`}
-                  style={isActive ? { background: '#1b3a6e', color: '#FFFFFF' } : undefined}
-                >
-                  <Icon size={13} color={isActive ? '#FFFFFF' : undefined} />
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
+      <PageHeader title="시간표" subtitle="노선·역·방향별 전체 시간표" />
+
+      {/* top mode pill selector (버스 · 지하철 · 셔틀) */}
+      <div className="px-4 pb-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
+          {MODES.map((m) => {
+            const isActive = mode === m.id
+            return (
+              <button
+                key={m.id}
+                onClick={() => handleModeChange(m.id)}
+                aria-pressed={isActive}
+                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all pressable flex-shrink-0 ${
+                  isActive
+                    ? 'shadow-sm'
+                    : 'bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400'
+                }`}
+                style={isActive ? { background: '#102c4c', color: '#FFFFFF' } : undefined}
+              >
+                {m.label}
+              </button>
+            )
+          })}
+          <div className="flex-1" />
           <button
             onClick={() => setFavOnly((v) => !v)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all pressable ml-auto ${
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-caption transition-colors pressable flex-shrink-0 ${
               favOnly
                 ? 'shadow-sm'
-                : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+                : 'bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400'
             }`}
-            style={favOnly ? { background: '#FF385C', color: '#FFFFFF' } : undefined}
+            style={favOnly ? { background: '#1b3a6e', color: '#FFFFFF' } : undefined}
           >
             <Star size={12} fill={favOnly ? 'currentColor' : 'none'} />
             즐겨찾기만
           </button>
         </div>
-
-        {/* group pill selector (셔틀은 등·하교 둘 다 보여주므로 셀렉터 숨김) */}
-        {mode !== 'shuttle' && (
-        <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
-          {groups.map((g) => {
-            const isActive = activeGroupId === g.id
-            return (
-              <button
-                key={g.id}
-                onClick={() => setActiveGroup(g.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all pressable flex-shrink-0 ${
-                  isActive
-                    ? 'shadow-sm'
-                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
-                }`}
-                style={isActive ? { background: '#1b3a6e', color: '#FFFFFF' } : undefined}
-              >
-                {g.label}
-              </button>
-            )
-          })}
-        </div>
-        )}
       </div>
 
-      {/* content */}
+      {/* group pill selector (셔틀은 등·하교 둘 다 보여주므로 생략) */}
+      {mode !== 'shuttle' && groups.length > 0 && (
+        <div className="px-4 pb-2 flex-shrink-0">
+          <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
+            {groups.map((g) => {
+              const isActive = activeGroupId === g.id
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => setActiveGroup(g.id)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all pressable flex-shrink-0 ${
+                    isActive
+                      ? 'shadow-sm'
+                      : 'bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400'
+                  }`}
+                  style={isActive ? { background: '#1b3a6e', color: '#FFFFFF' } : undefined}
+                >
+                  {g.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* content — 선형 리스트 */}
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6 flex flex-col gap-2">
         {mode === 'bus' && (
           <BusGroupContent
@@ -579,7 +631,7 @@ export default function SchedulePage() {
         })()}
       </div>
 
-      {/* detail modal */}
+      {/* detail modal — 공간 제약 없이 선형 리스트를 그대로 유지 */}
       <ScheduleDetailModal
         open={selectedDetail != null}
         onClose={handleModalClose}

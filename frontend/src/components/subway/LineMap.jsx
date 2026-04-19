@@ -6,7 +6,7 @@ export default function LineMap({ stations, jeongwangIndex, direction, currentSe
 
   return (
     <div className="bg-white border-b border-slate-200 px-4 py-3">
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
+      <p className="text-micro font-bold text-slate-400 uppercase tracking-wide mb-2.5">
         수인분당선 — 열차 위치 추정
       </p>
       <div className="relative h-10 flex items-center">
@@ -47,7 +47,7 @@ export default function LineMap({ stations, jeongwangIndex, direction, currentSe
                     : 'w-2.5 h-2.5 border-slate-400 bg-white'
                 }`}
               />
-              <span className={`absolute top-4 text-[9px] whitespace-nowrap
+              <span className={`absolute top-4 text-micro whitespace-nowrap
                 ${isJeongwang ? 'font-bold text-accent' : 'text-slate-400'}`}>
                 {name}
               </span>

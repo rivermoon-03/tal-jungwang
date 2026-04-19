@@ -19,7 +19,7 @@ export default function BottomSheet({ open, onClose, title, children }) {
         aria-hidden="true"
       />
       <div
-        className="relative flex flex-col bg-white dark:bg-slate-900 rounded-t-2xl shadow-2xl animate-slide-up"
+        className="relative flex flex-col bg-white dark:bg-bg-dark rounded-t-2xl shadow-2xl animate-slide-up"
         style={{ height: '65vh' }}
       >
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0">

@@ -32,12 +32,12 @@ export default function TaxiCard({ open, onClose }) {
   return (
     <div
       className={`absolute bottom-28 md:bottom-4 right-3 z-[65] w-72
-        bg-white dark:bg-slate-800 rounded-2xl shadow-2xl
+        bg-white dark:bg-surface-dark rounded-2xl shadow-2xl
         transition-transform duration-300 ease-out pointer-events-auto
         ${open ? 'translate-x-0' : 'translate-x-[calc(100%+12px)]'}`}
     >
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-border-dark">
         <p className="text-base font-extrabold text-slate-900 dark:text-slate-100">학교에서 가는 시간</p>
         <button
           aria-label="닫기"

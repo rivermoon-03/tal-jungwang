@@ -47,7 +47,7 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
       ref={rowRef}
       className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
         isNext
-          ? 'bg-coral/10 dark:bg-coral/15 border border-coral/40'
+          ? 'bg-accent/10 dark:bg-accent-dark/15 border border-accent/40 dark:border-accent-dark/40'
           : 'bg-slate-50 dark:bg-slate-700/40 border border-transparent'
       }`}
     >
@@ -56,7 +56,7 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
           isHHMM
             ? 'text-lg font-extrabold tabular-nums flex-shrink-0'
             : 'text-sm font-bold leading-snug break-keep min-w-0'
-        } ${isNext ? 'text-coral' : 'text-slate-800 dark:text-slate-100'}`}
+        } ${isNext ? 'text-accent dark:text-accent-dark' : 'text-slate-800 dark:text-slate-100'}`}
       >
         {time}
       </span>
@@ -67,19 +67,19 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
       )}
       <div className="ml-auto flex items-center gap-2 flex-shrink-0">
         {isNext && (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-coral text-white">
+          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-accent dark:bg-accent-dark text-white dark:text-ink">
             다음
           </span>
         )}
         {isLast && (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900">
+          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900">
             막차
           </span>
         )}
         {mins != null && (
           <span
             className={`text-xs font-semibold tabular-nums ${
-              isNext ? 'text-coral dark:text-[#ff7a95]' : 'text-slate-500 dark:text-slate-400'
+              isNext ? 'text-accent dark:text-accent-dark' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             {fmtDelta(mins)}
@@ -344,7 +344,7 @@ function EmptyMsg({ text }) {
 // ─── modal shell ────────────────────────────────────────────────────────
 
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
-const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#FF385C' }
+const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
 export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, direction, subwayKey, title, accentColor }) {
   const sheetRef = useRef(null)
@@ -414,7 +414,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
       <div
         ref={sheetRef}
-        className="relative z-10 w-full md:max-w-md bg-white dark:bg-slate-800 rounded-t-[28px] md:rounded-[24px] shadow-2xl flex flex-col"
+        className="relative z-10 w-full md:max-w-md bg-white dark:bg-surface-dark rounded-t-[28px] md:rounded-[24px] shadow-2xl flex flex-col"
         style={{
           maxHeight: '88dvh',
           transform: `translateY(${dragY}px)`,
@@ -439,7 +439,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
         </button>
 
         {/* header */}
-        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-slate-100 dark:border-slate-700">
+        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-slate-100 dark:border-border-dark">
           <span
             className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ background: color }}

@@ -23,8 +23,8 @@ export default function WalkRouteCard() {
 
   return (
     <div className="absolute bottom-28 md:bottom-4 left-3 z-[65] pointer-events-auto
-                    bg-white dark:bg-slate-800 rounded-2xl shadow-2xl
-                    border border-slate-100 dark:border-slate-700
+                    bg-white dark:bg-surface-dark rounded-2xl shadow-2xl
+                    border border-slate-100 dark:border-border-dark
                     px-4 py-3 flex items-center gap-3 min-w-[200px]">
       <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
         <Footprints size={18} className="text-green-600 dark:text-green-400" />

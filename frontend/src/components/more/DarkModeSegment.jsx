@@ -17,7 +17,7 @@ export default function DarkModeSegment() {
 
   return (
     <div
-      className="flex bg-slate-100 dark:bg-slate-800 rounded-full p-1 gap-1"
+      className="flex bg-slate-100 dark:bg-surface-dark rounded-full p-1 gap-1"
       role="group"
       aria-label="다크모드 설정"
     >

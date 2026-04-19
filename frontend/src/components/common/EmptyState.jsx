@@ -26,7 +26,7 @@ export default function EmptyState({ icon, title, desc, ctaLabel, onCta, classNa
         <button
           type="button"
           onClick={onCta}
-          className="mt-1 px-4 py-2 text-xs font-semibold rounded-xl bg-coral text-white active:scale-95 transition-transform"
+          className="mt-1 px-4 py-2 text-xs font-semibold rounded-xl bg-accent dark:bg-accent-dark text-white active:scale-95 transition-transform"
           style={{ transition: 'transform 0.1s var(--ease-ios)' }}
         >
           {ctaLabel}

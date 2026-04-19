@@ -8,7 +8,7 @@
  *                 도착지(화살표가 가리키는 쪽). 해당 라벨/원이 coral로 강조됨.
  */
 
-const CORAL = '#FF385C'
+const ACCENT = '#102c4c'
 const MUTED = '#cbd5e1'
 const MUTED_DARK = '#64748b'
 
@@ -20,7 +20,7 @@ export default function RouteSpine({ leftLabel, rightLabel, activeSide = 'right'
       <div className="flex items-center gap-2">
         <span
           className="flex-shrink-0 w-2.5 h-2.5 rounded-full"
-          style={{ background: arrowRight ? MUTED : CORAL }}
+          style={{ background: arrowRight ? MUTED : ACCENT }}
         />
         <div className="flex-1 relative h-5 flex items-center">
           <div
@@ -29,20 +29,20 @@ export default function RouteSpine({ leftLabel, rightLabel, activeSide = 'right'
           />
           <span
             className="relative mx-auto text-[12px] font-bold px-1.5 bg-white dark:bg-[#272a33]"
-            style={{ color: CORAL }}
+            style={{ color: ACCENT }}
           >
             {arrowRight ? '→' : '←'}
           </span>
         </div>
         <span
           className="flex-shrink-0 w-2.5 h-2.5 rounded-full"
-          style={{ background: arrowRight ? CORAL : MUTED }}
+          style={{ background: arrowRight ? ACCENT : MUTED }}
         />
       </div>
 
       <div className="flex justify-between mt-1 text-[11px] font-semibold">
-        <span style={{ color: arrowRight ? MUTED_DARK : CORAL }}>{leftLabel}</span>
-        <span style={{ color: arrowRight ? CORAL : MUTED_DARK }}>{rightLabel}</span>
+        <span style={{ color: arrowRight ? MUTED_DARK : ACCENT }}>{leftLabel}</span>
+        <span style={{ color: arrowRight ? ACCENT : MUTED_DARK }}>{rightLabel}</span>
       </div>
     </div>
   )

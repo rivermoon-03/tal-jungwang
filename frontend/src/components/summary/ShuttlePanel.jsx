@@ -1,90 +1,71 @@
-import { TramFront } from 'lucide-react'
+import { Moon } from 'lucide-react'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import Skeleton from '../common/Skeleton'
 import EmptyState from '../common/EmptyState'
 import ErrorState from '../common/ErrorState'
-import { formatArrival } from '../../utils/arrivalTime'
+import ArrivalRow from '../dashboard/ArrivalRow'
 
 /**
  * ShuttlePanel — 셔틀 모드 패널
- * 등교(direction=0) / 하교(direction=1) 양방향 카드 동시 표시
- * 현재 시간대 방향은 coral 테두리 강조
- *
- * useShuttleNext() 반환 shape (추정):
- *   data: { next: { time, minutesLeft }, afterNext: { time, minutesLeft } } | null
+ * 등교(direction=0) / 하교(direction=1) 세로 2행 ArrivalRow.
+ * 시간 기반 "현재 활성 방향" 코랄 강조는 제거 — urgent(≤3분) 좌측 바만 사용.
  */
-export default function ShuttlePanel() {
-  const now = new Date()
-  const hour = now.getHours()
-  // 07–14시: 등교가 기본, 나머지: 하교가 기본
-  const activeDirection = hour >= 7 && hour < 14 ? 0 : 1
+const SHUTTLE_COLOR = '#1b3a6e'
 
+export default function ShuttlePanel() {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <ShuttleCard direction={0} label="등교" isActive={activeDirection === 0} />
-      <ShuttleCard direction={1} label="하교" isActive={activeDirection === 1} />
+    <div className="space-y-2">
+      <ShuttleRow direction={0} label="등교" />
+      <ShuttleRow direction={1} label="하교" />
     </div>
   )
 }
 
-function ShuttleCard({ direction, label, isActive }) {
+// 백엔드가 "해당 날짜에 운행이 없음"을 의미할 때 돌려주는 오류 코드.
+// 이들은 에러가 아닌 운행 종료/미운행 Empty 상태로 표시한다.
+const NO_RUN_CODES = new Set(['NO_SHUTTLE', 'NO_SCHEDULE'])
+
+function ShuttleRow({ direction, label }) {
   const { data, loading, error, refetch } = useShuttleNext(direction)
 
-  return (
-    <div
-      className={`rounded-card p-3 bg-white dark:bg-surface-dark shadow-card border-2 transition-colors
-        ${isActive ? 'border-coral' : 'border-gray-100 dark:border-border-dark'}`}
-    >
-      {/* 헤더 */}
-      <div className="flex items-center gap-1.5 mb-2">
-        <TramFront
-          size={14}
-          className={isActive ? 'text-coral' : 'text-gray-400'}
-          aria-hidden="true"
-        />
-        <span className={`text-xs font-bold ${isActive ? 'text-coral' : 'text-gray-500 dark:text-gray-400'}`}>
-          {label}
-        </span>
-      </div>
+  if (loading) {
+    return <Skeleton height="2.75rem" rounded="rounded-xl" />
+  }
 
-      {loading ? (
-        <div className="space-y-1.5">
-          <Skeleton height="1.75rem" rounded="rounded-lg" />
-          <Skeleton height="1rem" rounded="rounded-lg" />
-        </div>
-      ) : error ? (
-        <ErrorState message="오류" onRetry={refetch} className="py-2" />
-      ) : !data?.depart_at ? (
-        <EmptyState title="🌙 오늘 운행 종료" className="py-2" />
-      ) : (
-        <div className="space-y-1">
-          <ShuttleRow entry={data} isNext />
-          {data.is_last && (
-            <p className="text-[10px] text-gray-400 mt-0.5">오늘 마지막 셔틀</p>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+  const isNoRun = error && NO_RUN_CODES.has(error.code)
 
-function ShuttleRow({ entry, isNext = false }) {
-  // 백엔드 응답: { depart_at: "HH:MM:SS", arrive_in_seconds: int, is_last: bool }
-  // arrive_in_seconds가 60분 초과이면 Date.now() drift 방지를 위해 depart_at 직접 사용
-  const minsLabel = entry.arrive_in_seconds != null && entry.arrive_in_seconds <= 3600
-    ? formatArrival(entry.arrive_in_seconds)
+  if (error && !isNoRun) {
+    return <ErrorState message={`${label} 정보 오류`} onRetry={refetch} className="py-2" />
+  }
+
+  if (isNoRun || !data?.depart_at) {
+    return (
+      <EmptyState
+        icon={<Moon size={24} strokeWidth={1.6} />}
+        title="오늘 운행 없음"
+        className="py-2"
+      />
+    )
+  }
+
+  const minutes = data.arrive_in_seconds != null
+    ? Math.max(0, Math.ceil(data.arrive_in_seconds / 60))
     : null
-  // depart_at을 "HH:MM"으로 자름
-  const timeLabel = entry.depart_at ? entry.depart_at.slice(0, 5) : '–'
+
+  const handleClick = () => {
+    const url = `/schedule?mode=shuttle&dir=${direction}`
+    window.history.pushState({}, '', url)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
 
   return (
-    <div className="flex items-baseline justify-between">
-      <span className={`font-black leading-none ${isNext ? 'text-xl text-gray-900 dark:text-gray-50' : 'text-sm text-gray-500 dark:text-gray-400'}`}>
-        {minsLabel ?? timeLabel}
-      </span>
-      {minsLabel && minsLabel !== timeLabel && (
-        <span className="text-[10px] text-gray-400 ml-1">{timeLabel}</span>
-      )}
-    </div>
+    <ArrivalRow
+      routeColor={SHUTTLE_COLOR}
+      routeNumber="셔틀"
+      direction={label}
+      minutes={minutes}
+      isUrgent={minutes != null && minutes <= 3}
+      onClick={handleClick}
+    />
   )
 }

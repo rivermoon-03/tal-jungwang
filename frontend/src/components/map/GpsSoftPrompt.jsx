@@ -97,7 +97,7 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
             <div className="flex gap-2 mt-1">
               <button
                 className="flex-1 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-60"
-                style={{ background: '#FF385C' }}
+                style={{ background: '#102c4c' }}
                 onClick={handleAllow}
                 disabled={loading}
               >

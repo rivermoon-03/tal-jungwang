@@ -5,8 +5,8 @@
  * 라이브 데이터: useBusArrivals로 정류장 도착 정보 가져옴 (shuttle/subway 다음 열차도)
  * TODO: 즐겨찾기 항목마다 개별 API 호출 대신 batch 엔드포인트 추가 시 교체
  */
-import { useMemo, useState } from 'react'
-import { Bus } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Star } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import FavoritesList from './FavoritesList'
 import EmptyState from '../common/EmptyState'
@@ -228,6 +228,13 @@ export default function FavoritesPage({ onGoSchedule }) {
 
   const [selectedDetail, setSelectedDetail] = useState(null)
 
+  // 15초마다 타임라인 리렌더 (minutes 재계산용) — 실제 fetch는 내부 훅의 interval이 담당
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 15_000)
+    return () => clearInterval(id)
+  }, [])
+
   function handleRemove(id) {
     const [type, code] = id.split(':')
     if (type === 'route') toggleFavoriteRoute(code)
@@ -239,16 +246,16 @@ export default function FavoritesPage({ onGoSchedule }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 animate-fade-in-up">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up">
       <PageHeader title="즐겨찾기" subtitle="자주 타는 노선을 한눈에" />
 
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6 flex flex-col gap-3">
         {isEmpty ? (
-          <div className="rounded-[18px] overflow-hidden shadow-card bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+          <div className="rounded-[18px] overflow-hidden shadow-card bg-white dark:bg-surface-dark border border-slate-100 dark:border-border-dark">
             <EmptyState
-              icon={<Bus size={36} />}
-              title="아직 비어있어요"
-              desc="자주 타는 노선이나 정류장을 즐겨찾기 해보세요"
+              icon={<Star size={28} strokeWidth={1.6} />}
+              title="즐겨찾는 노선이 없어요"
+              desc="노선 목록에서 별 아이콘을 탭해 추가"
               ctaLabel="시간표에서 추가"
               onCta={onGoSchedule}
             />
