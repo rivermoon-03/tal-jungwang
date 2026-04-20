@@ -3,16 +3,57 @@
  *
  * 상위 컴포넌트(FavoritesPage)가 매 15초 주기로 items를 전달한다.
  * minutes 오름차순(null은 맨 뒤) 정렬 후 공용 ArrivalRow로 렌더한다.
+ * 새 형식 버스 즐겨찾기(detail.routeId 존재)는 각 행에서 실시간/시간표를 직접 fetch한다.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MoreVertical, Trash2 } from 'lucide-react'
 import ArrivalRow from '../dashboard/ArrivalRow'
+import { useBusArrivals, useBusTimetable } from '../../hooks/useBus'
 
 function resolveDirection(item) {
   const parts = []
   if (item.destination) parts.push(item.destination)
   if (item.stationName) parts.push(item.stationName)
   return parts.length ? parts.join(' · ') : null
+}
+
+function computeBoardingStatus(arrivalMin, walkMin) {
+  if (arrivalMin == null || walkMin == null) return null
+  const diff = arrivalMin - walkMin
+  if (diff >= 3) return 'ok'
+  if (diff >= 0) return 'warn'
+  return 'bad'
+}
+
+// 새 형식 버스 즐겨찾기(detail.routeId 있음)의 다음 출발까지 남은 분.
+// 실시간 노선은 /bus/arrivals/{stopId}, 시간표 노선은 /bus/timetable/{routeId} 에서 계산.
+function useLiveBusMinutes(detail, routeNumber) {
+  const isRealtime = Boolean(detail?.isRealtime)
+  const stopId = detail?.stopId != null ? String(detail.stopId) : null
+  const routeId = detail?.routeId != null ? detail.routeId : null
+
+  const arrivals = useBusArrivals(isRealtime && stopId ? stopId : null)
+  const timetable = useBusTimetable(!isRealtime && routeId ? routeId : null)
+
+  return useMemo(() => {
+    if (isRealtime) {
+      const list = arrivals.data?.arrivals
+      if (!list?.length) return null
+      const a = list.find((x) => x.route_no === routeNumber)
+      if (!a || a.arrive_in_seconds == null) return null
+      return Math.max(0, Math.round(a.arrive_in_seconds / 60))
+    }
+    const times = timetable.data?.times
+    if (!Array.isArray(times) || !times.length) return null
+    const now = new Date()
+    const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const next = times.find((t) => t >= nowStr)
+    if (!next) return null
+    const [h, m] = next.split(':').map(Number)
+    const d = new Date()
+    d.setHours(h, m, 0, 0)
+    return Math.max(0, Math.round((d - new Date()) / 60000))
+  }, [isRealtime, arrivals.data, timetable.data, routeNumber])
 }
 
 function RowMenu({ id, onRemove, onClose }) {
@@ -32,6 +73,60 @@ function RowMenu({ id, onRemove, onClose }) {
   )
 }
 
+function FavoriteRow({ item, menuOpen, onToggleMenu, onCloseMenu, onRemove, onOpenDetail }) {
+  // 새 형식 버스 즐겨찾기(detail.routeId 존재)는 실시간/시간표를 여기서 직접 fetch.
+  // 그 외(지하철·셔틀·레거시 버스 fav)는 상위에서 계산한 item.minutes 사용.
+  const isNewFormatBus = item.type === 'bus' && item.detail?.routeId != null
+  const liveMinutes = useLiveBusMinutes(
+    isNewFormatBus ? item.detail : null,
+    isNewFormatBus ? item.routeCode : null,
+  )
+  const effectiveMinutes = isNewFormatBus ? liveMinutes : item.minutes
+  const direction = resolveDirection(item)
+  const status = isNewFormatBus
+    ? computeBoardingStatus(effectiveMinutes, item.walkMin ?? 5)
+    : item.status === '여유'
+      ? 'ok'
+      : item.status === '빠듯'
+        ? 'warn'
+        : item.status === '서두르세요'
+          ? 'bad'
+          : null
+
+  return (
+    <div className="relative">
+      <ArrivalRow
+        route={item.routeCode}
+        routeNumber={item.routeCode}
+        direction={direction}
+        minutes={effectiveMinutes}
+        lastTrain={item.lastTrain}
+        status={status}
+        onClick={onOpenDetail ? () => onOpenDetail(item.detail) : undefined}
+        rightAddon={
+          <button
+            type="button"
+            className="p-1.5 ml-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleMenu()
+            }}
+            aria-label="편집 메뉴"
+          >
+            <MoreVertical size={16} />
+          </button>
+        }
+      />
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={onCloseMenu} />
+          <RowMenu id={item.id} onRemove={onRemove} onClose={onCloseMenu} />
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function FavoritesList({ items = [], onRemove, onOpenDetail }) {
   const [openMenu, setOpenMenu] = useState(null)
 
@@ -45,43 +140,17 @@ export default function FavoritesList({ items = [], onRemove, onOpenDetail }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      {sorted.map((item) => {
-        const direction = resolveDirection(item)
-        const menuOpen = openMenu === item.id
-
-        return (
-          <div key={item.id} className="relative">
-            <ArrivalRow
-              route={item.routeCode}
-              routeNumber={item.routeCode}
-              direction={direction}
-              minutes={item.minutes}
-              lastTrain={item.lastTrain}
-              status={item.status === '여유' ? 'ok' : item.status === '빠듯' ? 'warn' : item.status === '서두르세요' ? 'bad' : null}
-              onClick={onOpenDetail ? () => onOpenDetail(item.detail) : undefined}
-              rightAddon={
-                <button
-                  type="button"
-                  className="p-1.5 ml-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpenMenu(menuOpen ? null : item.id)
-                  }}
-                  aria-label="편집 메뉴"
-                >
-                  <MoreVertical size={16} />
-                </button>
-              }
-            />
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setOpenMenu(null)} />
-                <RowMenu id={item.id} onRemove={onRemove} onClose={() => setOpenMenu(null)} />
-              </>
-            )}
-          </div>
-        )
-      })}
+      {sorted.map((item) => (
+        <FavoriteRow
+          key={item.id}
+          item={item}
+          menuOpen={openMenu === item.id}
+          onToggleMenu={() => setOpenMenu(openMenu === item.id ? null : item.id)}
+          onCloseMenu={() => setOpenMenu(null)}
+          onRemove={onRemove}
+          onOpenDetail={onOpenDetail}
+        />
+      ))}
     </div>
   )
 }

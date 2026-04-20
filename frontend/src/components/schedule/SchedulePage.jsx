@@ -643,11 +643,22 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
         isReturn: true,
       }
     }
+    // 회차편(등교): 예정 도착 시각·분은 숨기고 상태 라벨만 노출한다.
+    if (isReturn) {
+      return {
+        key: `t-${ts}-return`,
+        departStr: null,
+        mins: null,
+        orderHint: minsPositive,
+        statusLabel: '회차편 탑승',
+        isReturn: true,
+      }
+    }
     return {
       key: `t-${ts}-${e.note ?? ''}`,
       departStr: ts,
       mins: minsPositive,
-      statusLabel: isFrequent ? '수시운행' : isReturn ? '회차편 탑승' : null,
+      statusLabel: isFrequent ? '수시운행' : null,
       isReturn,
     }
   }
