@@ -17,7 +17,9 @@ function normalizeLabel(route) {
   if (route === '4호선') return '4';
   if (route === '수인분당' || route === '수인분당선') return '수인';
   if (route === '서해선') return '서해';
-  return route.replace('셔틀', '');
+  // '등교셔틀'·'하교셔틀'처럼 접미어면 떼어내고, 치환 결과가 비면 원문을 그대로 쓴다.
+  const stripped = route.replace('셔틀', '');
+  return stripped || route;
 }
 
 export default function RouteBadge({

@@ -248,7 +248,6 @@ function ShuttleContent({ direction, accentColor }) {
   const nextRef = useRef(null)
   const now = new Date()
   const nowStr = toHHMM(now)
-  const dirLabel = direction === 0 ? '등교' : '하교'
   const dirData = data?.directions?.find((d) => d.direction === direction)
   const times = dirData?.times ?? []
 
@@ -261,10 +260,44 @@ function ShuttleContent({ direction, accentColor }) {
     else past.push({ time: timeStr, note })
   }
 
-  // 첫 수시운행 블록의 종료 시각 = 이후 첫 비(非)수시운행 편의 time
-  const frequentEndAt = future[0]?.note === '수시운행'
-    ? future.find((e) => e.note !== '수시운행')?.time ?? null
-    : null
+  // 연속된 수시운행 항목을 하나의 밴드로 묶음.
+  // 회차편 중 하교 원천이 '수시운행'인 경우(note: "회차편 · 학교 수시운행 출발")는
+  // 하교 출발 시각이 정해지지 않았으므로 등교의 구체 시각을 숨기고 상태 라벨만 표시한다.
+  const displayEntries = []
+  {
+    let i = 0
+    while (i < future.length) {
+      const e = future[i]
+      if (e.note === '수시운행') {
+        let j = i
+        while (j < future.length && future[j].note === '수시운행') j++
+        // 밴드 종료: 다음 비(非)수시운행 편의 time (없으면 마지막 수시운행 시각)
+        const bandEnd = future[j]?.time ?? future[j - 1]?.time ?? null
+        displayEntries.push({
+          type: 'frequent',
+          key: `freq-${e.time}-${i}`,
+          endTime: bandEnd,
+        })
+        i = j
+      } else {
+        const isReturn = e.note?.startsWith?.('회차편') ?? false
+        const isFrequentReturn = isReturn && (e.note?.includes?.('수시운행') ?? false)
+        // "회차편 · 학교 HH:MM 출발" 에서 하교 원천 HH:MM 추출
+        const originMatch = isReturn && !isFrequentReturn ? e.note?.match?.(/(\d{2}:\d{2})/) : null
+        const originTime = originMatch ? originMatch[1] : null
+        displayEntries.push({
+          type: 'fixed',
+          key: `fx-${e.time}-${i}`,
+          time: e.time,
+          note: e.note,
+          isReturn,
+          isFrequentReturn,
+          originTime,
+        })
+        i++
+      }
+    }
+  }
 
   useEffect(() => {
     if (nextRef.current) {
@@ -284,31 +317,36 @@ function ShuttleContent({ direction, accentColor }) {
         </p>
       )}
       {past.slice(-2).map(({ time }, i) => <PastRow key={`p-${i}`} time={time} />)}
-      {future.length === 0 ? (
+      {displayEntries.length === 0 ? (
         <p className="text-sm text-slate-400 py-4 text-center">오늘 남은 셔틀이 없어요</p>
       ) : (
-        future.map(({ time, note }, i) => {
-          // 수시운행/회차편은 정확한 시간 대신 상태 라벨 표시
-          const isFrequent = note === '수시운행'
-          const isReturn = note?.startsWith?.('회차편')
-          let displayTime = time
-          if (isFrequent) {
-            displayTime = i === 0 && frequentEndAt
-              ? `${frequentEndAt}까지 수시운행`
-              : '수시운행'
-          } else if (isReturn) {
-            displayTime = i === 0
-              ? `${time}에 출발하는 하교버스 회차편 탑승`
+        displayEntries.map((entry, i) => {
+          const isNext = i === 0
+          let displayTime
+          let displayNote = null
+          if (entry.type === 'frequent') {
+            displayTime = entry.endTime ? `${entry.endTime}까지 수시운행` : '수시운행 중'
+          } else if (entry.isFrequentReturn) {
+            // 하교 수시운행 회차편 — 하교가 수시라 등교 시각도 보장되지 않으므로 구체 시각 숨김
+            displayTime = '하교 수시운행 회차편'
+            displayNote = '역 앞에 도착한 버스 탑승'
+          } else if (entry.isReturn) {
+            displayTime = entry.time
+            displayNote = entry.originTime
+              ? `학교 ${entry.originTime} 출발 회차편`
               : '회차편 탑승'
+          } else {
+            displayTime = entry.time
+            displayNote = entry.note
           }
           return (
             <TimeRow
-              key={i}
+              key={entry.key}
               time={displayTime}
-              note={isFrequent || isReturn ? null : note}
-              isNext={i === 0}
+              note={displayNote}
+              isNext={isNext}
               accentColor={accentColor}
-              rowRef={i === 0 ? nextRef : undefined}
+              rowRef={isNext ? nextRef : undefined}
             />
           )
         })

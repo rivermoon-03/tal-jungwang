@@ -621,7 +621,38 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
   const MAX_SHUTTLE_ROWS = 4
   const handleClick = () => onCardClick({ type: 'shuttle', routeCode: `셔틀${label}`, direction, favCode: `shuttle:${label}`, title: `셔틀버스 ${label}` })
 
-  // 행 descriptor 빌드: { key, departStr, mins, statusLabel, isReturn }
+  // 등교 회차편 중 원천이 '수시운행'인 경우(예: "회차편 · 학교 수시운행 출발")는
+  // 하교 측에 정해진 출발 시각이 없으므로 등교의 구체 시간(ts)·분 카운트도 보여주면 안 된다.
+  // departStr/mins를 비우고 "수시 회차편 (HH:MM 이후)" 라벨만 표시한다.
+  // 정렬은 내부 orderHint로 유지해 목록 제자리에 배치.
+  function buildRow(e) {
+    const ts = e.depart_at?.slice(0, 5) ?? null
+    const computed = ts ? timeStrToMinutes(ts, now) : null
+    const minsPositive = computed != null && computed >= 0 ? computed : null
+    const isReturn = e.note?.startsWith?.('회차편') ?? false
+    const isFrequentReturn = isReturn && (e.note?.includes('수시운행') ?? false)
+    const isFrequent = e.note === '수시운행'
+
+    if (isFrequentReturn) {
+      return {
+        key: `t-${ts}-frequent-return`,
+        departStr: null,
+        mins: null,
+        orderHint: minsPositive,
+        statusLabel: ts ? `수시 회차편 (${ts} 이후)` : '수시 회차편 대기',
+        isReturn: true,
+      }
+    }
+    return {
+      key: `t-${ts}-${e.note ?? ''}`,
+      departStr: ts,
+      mins: minsPositive,
+      statusLabel: isFrequent ? '수시운행' : isReturn ? '회차편 탑승' : null,
+      isReturn,
+    }
+  }
+
+  // 행 descriptor 빌드: { key, departStr, mins, orderHint?, statusLabel, isReturn }
   const rows = []
   if (inFrequent) {
     const endEntry = futureEntries.find((e) => e.note !== '수시운행')
@@ -635,30 +666,11 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
     // 수시운행 종료 이후 편들
     const post = futureEntries.filter((e) => e.note !== '수시운행')
     for (const e of post.slice(0, MAX_SHUTTLE_ROWS - 1)) {
-      const ts = e.depart_at?.slice(0, 5) ?? null
-      const mins = ts ? timeStrToMinutes(ts, now) : null
-      const isReturn = e.note?.startsWith?.('회차편') ?? false
-      rows.push({
-        key: `t-${ts}-${e.note ?? ''}`,
-        departStr: ts,
-        mins: mins != null && mins >= 0 ? mins : null,
-        statusLabel: isReturn ? '회차편 탑승' : null,
-        isReturn,
-      })
+      rows.push(buildRow(e))
     }
   } else {
     for (const e of futureEntries.slice(0, MAX_SHUTTLE_ROWS)) {
-      const ts = e.depart_at?.slice(0, 5) ?? null
-      const mins = ts ? timeStrToMinutes(ts, now) : null
-      const isReturn = e.note?.startsWith?.('회차편') ?? false
-      const isFrequent = e.note === '수시운행'
-      rows.push({
-        key: `t-${ts}-${e.note ?? ''}`,
-        departStr: ts,
-        mins: mins != null && mins >= 0 ? mins : null,
-        statusLabel: isFrequent ? '수시운행' : isReturn ? '회차편 탑승' : null,
-        isReturn,
-      })
+      rows.push(buildRow(e))
     }
   }
 
@@ -693,7 +705,9 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
     return (
       <>
         {rows.map((r) => {
-          const orderVal = r.mins != null ? r.mins : 1_000_000
+          const orderVal = r.mins != null
+            ? r.mins
+            : r.orderHint != null ? r.orderHint : 1_000_000
           return (
             <TimelineRow
               key={r.key}
