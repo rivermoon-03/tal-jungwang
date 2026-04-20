@@ -891,6 +891,7 @@ export default function SchedulePage() {
 
   function handleModeChange(next) {
     if (next === mode) return
+    if (next === 'shuttle') setView('list')
     setMode(next)
     setStoredMode(next)
     navigateSchedule({ type: next })
