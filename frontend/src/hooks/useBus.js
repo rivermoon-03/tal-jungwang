@@ -11,7 +11,7 @@ export function useBusRoutesByCategory(category) {
 
 export function useBusArrivals(stationId) {
   const { data, loading, error, fetchedAt, refetch } = useApi(`/bus/arrivals/${stationId}`, {
-    interval: 30_000,
+    interval: 60_000,
     enabled: stationId != null,
   })
   return { data, loading, error, fetchedAt, refetch }
@@ -27,7 +27,12 @@ export function useBusTimetableByRoute(routeNumber, { stopId, requireStopId = fa
   const q = stopId != null ? `?stop_id=${stopId}` : ''
   const ready = routeNumber != null && (!requireStopId || stopId != null)
   return useApi(ready ? `/bus/timetable-by-route/${routeNumber}${q}` : null, {
-    interval: 60_000,
     enabled: ready,
+  })
+}
+
+export function useBusHistoryPreview(routeNumber) {
+  return useApi(routeNumber ? `/bus/history-preview/${routeNumber}` : null, {
+    enabled: routeNumber != null,
   })
 }

@@ -58,6 +58,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       sadang:  byName('사당역'),
       gangnam: byName('강남역'),
       seoksu:  byName('석수역'),
+      guro:    byName('구로디지털단지역'),
     }
   }, [stationsData])
 
@@ -68,6 +69,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const { data: timetable6502In  } = useBusTimetableByRoute('6502', { stopId: stopIds.sadang,  requireStopId: true })
   const { data: timetable3401Out } = useBusTimetableByRoute('3401', { stopId: stopIds.emart,   requireStopId: true })
   const { data: timetable3401In  } = useBusTimetableByRoute('3401', { stopId: stopIds.seoksu,  requireStopId: true })
+  const { data: timetable5602Out } = useBusTimetableByRoute('5602', { stopId: stopIds.emart,   requireStopId: true })
+  const { data: timetable5602In  } = useBusTimetableByRoute('5602', { stopId: stopIds.guro,    requireStopId: true })
 
   // liveMinutes 계산
   const shuttleToSchoolMins = useMemo(() => {
@@ -121,6 +124,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const bus6502InMinutes  = useMemo(() => minsUntilNextTimetable(timetable6502In),  [timetable6502In])
   const bus3401OutMinutes = useMemo(() => minsUntilNextTimetable(timetable3401Out), [timetable3401Out])
   const bus3401InMinutes  = useMemo(() => minsUntilNextTimetable(timetable3401In),  [timetable3401In])
+  const bus5602OutMinutes = useMemo(() => minsUntilNextTimetable(timetable5602Out), [timetable5602Out])
+  const bus5602InMinutes  = useMemo(() => minsUntilNextTimetable(timetable5602In),  [timetable5602In])
 
   const nextMinFromTrains = (trains) => {
     if (!trains?.length) return null
@@ -157,11 +162,23 @@ export default function MapView({ onMarkerClick, selectedId }) {
     '3400-out': bus3400OutMinutes, '3400-in': bus3400InMinutes,
     '6502-out': bus6502OutMinutes, '6502-in': bus6502InMinutes,
     '3401-out': bus3401OutMinutes, '3401-in': bus3401InMinutes,
-  }), [bus3400OutMinutes, bus3400InMinutes, bus6502OutMinutes, bus6502InMinutes, bus3401OutMinutes, bus3401InMinutes])
+    '5602-out': bus5602OutMinutes, '5602-in': bus5602InMinutes,
+  }), [bus3400OutMinutes, bus3400InMinutes, bus6502OutMinutes, bus6502InMinutes, bus3401OutMinutes, bus3401InMinutes, bus5602OutMinutes, bus5602InMinutes])
 
   // MANAGED_STATIONS — DB(map_markers) 기반 + 라이브 데이터 주입
   const managedStations = useMemo(() => {
     const list = markersData?.markers ?? []
+
+    // Pass 1: (route_number, outbound_stop_id) → marker key (bus_seoul 간 mirror 탐색용)
+    const routeOutboundToKey = new Map()
+    for (const m of list) {
+      if (m.type !== 'bus_seoul') continue
+      for (const r of m.routes ?? []) {
+        if (r.outbound_stop_id != null)
+          routeOutboundToKey.set(`${r.route_number}:${r.outbound_stop_id}`, m.key)
+      }
+    }
+
     return list.map((m) => {
       const ui = m.ui_meta ?? {}
       const base = {
@@ -204,13 +221,29 @@ export default function MapView({ onMarkerClick, selectedId }) {
         const outMins = (m.routes ?? [])
           .map((r) => liveMinByRouteDir[`${r.route_number}-out`])
           .filter((v) => v != null)
+
+        // 로컬 허브 (bus_hub_jw_*): outbound only, 서울 마커 링크 버튼 제공
+        const isLocalHub = m.key.startsWith('bus_hub_jw_')
+
+        // 미러 마커 탐색: 각 route의 inbound_stop_id → outbound_stop이 같은 상대 마커
+        const seenRelated = new Set()
+        const relatedMarkers = []
+        for (const r of m.routes ?? []) {
+          if (r.inbound_stop_id == null) continue
+          const mirrorKey = routeOutboundToKey.get(`${r.route_number}:${r.inbound_stop_id}`)
+          if (mirrorKey && mirrorKey !== m.key && !seenRelated.has(mirrorKey)) {
+            const raw = list.find((x) => x.key === mirrorKey)
+            if (raw) { seenRelated.add(mirrorKey); relatedMarkers.push({ key: mirrorKey, name: raw.name }) }
+          }
+        }
+
         return {
           ...base,
           routeCode: primary?.route_number ?? base.routeCode,
           routeColor: primary?.route_color ?? base.routeColor,
           badgeText:  primary?.badge_text ?? base.badgeText,
-          // 다중 노선 허브 → 시간 대신 "3401, 6502" 같은 노선 목록 표시
-          subLabel: isMultiRoute ? routeNums.join(', ') : null,
+          // 다중 노선 허브 → 시간 대신 "6502 외 N대" 형식 표시
+          subLabel: isMultiRoute ? `${routeNums[0]} 외 ${routeNums.length - 1}대` : null,
           showLive: !isMultiRoute,
           liveMinutes: !isMultiRoute && outMins.length ? Math.min(...outMins) : null,
           // 방향 토글은 허브 수준 — 첫 노선의 spine 사용
@@ -228,6 +261,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
           inboundDirLabel:  pUi.inboundDirLabel,
           // 다중 노선 허브용 — sheet가 iterate
           routes: m.routes ?? [],
+          isLocalHub,
+          relatedMarkers,
         }
       }
       return base
@@ -252,6 +287,17 @@ export default function MapView({ onMarkerClick, selectedId }) {
         minutes:    a.arrival_type === 'timetable'
           ? (a.is_tomorrow ? `내일 ${a.depart_at}` : a.depart_at)
           : (a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null),
+        detail: {
+          type: 'bus',
+          routeCode:  a.route_no,
+          routeId:    null,
+          stopId:     null,
+          favCode:    `하교:${a.route_no}`,
+          mapLat:     sheetStation.lat ?? null,
+          mapLng:     sheetStation.lng ?? null,
+          isRealtime: a.arrival_type !== 'timetable',
+          title:      a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
+        },
       }))
     }
 
@@ -268,11 +314,17 @@ export default function MapView({ onMarkerClick, selectedId }) {
         } else if (r.route_number === '3401') {
           if (wantStopId === stopIds.emart)  return timetable3401Out
           if (wantStopId === stopIds.seoksu) return timetable3401In
+        } else if (r.route_number === '5602') {
+          if (wantStopId === stopIds.emart) return timetable5602Out
+          if (wantStopId === stopIds.guro)  return timetable5602In
         }
         return null
       }
       const now = new Date()
       const routes = sheetStation.routes ?? []
+      // 5602는 지선(파랑 B)이지만 DB엔 G/빨강으로 저장돼 있어 표시 단에서 덮어쓴다.
+      const badgeFor = (r) => r.route_number === '5602' ? 'B' : r.badge_text
+      const colorFor = (r) => r.route_number === '5602' ? '#2563eb' : (r.route_color ?? '#DC2626')
       const result = []
       for (const r of routes) {
         const label = (isOutbound ? r.ui_meta?.outboundDirLabel : r.ui_meta?.inboundDirLabel) ?? ''
@@ -299,21 +351,49 @@ export default function MapView({ onMarkerClick, selectedId }) {
           if (isLateNightGap) continue
 
           const note = notes[i]
+          const badge = badgeFor(r)
+          const color = colorFor(r)
           result.push({
-            routeCode:  r.badge_text ?? r.route_number,
-            routeColor: r.route_color ?? '#DC2626',
+            routeCode:  badge ? `${badge}:${r.route_number}` : r.route_number,
+            routeColor: color,
             direction:  note ? `${r.route_number} · ${label} · ${note}` : `${r.route_number} · ${label}`,
             minutes:    diffMin,
+            detail: {
+              type: 'bus',
+              routeCode:  r.route_number,
+              routeId:    r.route_id ?? null,
+              stopId:     isOutbound ? (r.outbound_stop_id ?? null) : (r.inbound_stop_id ?? null),
+              favCode:    `${isOutbound ? '등교' : '하교'}:${r.route_number}`,
+              mapLat:     sheetStation.lat ?? null,
+              mapLng:     sheetStation.lng ?? null,
+              isRealtime: false,
+              title:      `${r.route_number} · ${label}`,
+              accentColor: color,
+            },
           })
           picked += 1
           if (picked >= 3) break
         }
         if (picked === 0 && times.length > 0) {
+          const badge = badgeFor(r)
+          const color = colorFor(r)
           result.push({
-            routeCode:  r.badge_text ?? r.route_number,
-            routeColor: r.route_color ?? '#DC2626',
+            routeCode:  badge ? `${badge}:${r.route_number}` : r.route_number,
+            routeColor: color,
             direction:  `${r.route_number} · ${label}`,
             minutes:    getFirstBusLabel(times, now),
+            detail: {
+              type: 'bus',
+              routeCode:  r.route_number,
+              routeId:    r.route_id ?? null,
+              stopId:     isOutbound ? (r.outbound_stop_id ?? null) : (r.inbound_stop_id ?? null),
+              favCode:    `${isOutbound ? '등교' : '하교'}:${r.route_number}`,
+              mapLat:     sheetStation.lat ?? null,
+              mapLng:     sheetStation.lng ?? null,
+              isRealtime: false,
+              title:      `${r.route_number} · ${label}`,
+              accentColor: color,
+            },
           })
         }
       }
@@ -351,6 +431,15 @@ export default function MapView({ onMarkerClick, selectedId }) {
           routeColor: '#1b3a6e',
           direction:  note ? `${timeStr} · ${note}` : timeStr,
           minutes:    Math.max(0, diffMin),
+          detail: {
+            type: 'shuttle',
+            routeCode: `셔틀${isFrom ? '하교' : '등교'}`,
+            direction: sheetStation.direction,
+            favCode:   `shuttle:${isFrom ? '하교' : '등교'}`,
+            mapLat:    sheetStation.lat ?? null,
+            mapLng:    sheetStation.lng ?? null,
+            title:     `셔틀버스 ${isFrom ? '하교' : '등교'}`,
+          },
         })
       }
       if (upcoming.length === 0 && times.length > 0) {
@@ -360,6 +449,15 @@ export default function MapView({ onMarkerClick, selectedId }) {
           routeColor: '#1b3a6e',
           direction:  isFrom ? '하교 셔틀' : '등교 셔틀',
           minutes:    getFirstBusLabel(timeStrings, now),
+          detail: {
+            type: 'shuttle',
+            routeCode: `셔틀${isFrom ? '하교' : '등교'}`,
+            direction: sheetStation.direction,
+            favCode:   `shuttle:${isFrom ? '하교' : '등교'}`,
+            mapLat:    sheetStation.lat ?? null,
+            mapLng:    sheetStation.lng ?? null,
+            title:     `셔틀버스 ${isFrom ? '하교' : '등교'}`,
+          },
         })
       }
       return upcoming
@@ -370,6 +468,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       const now = new Date()
       const upKey = sheetStation.tabId === 'choji' ? 'choji_up' : 'siheung_up'
       const dnKey = sheetStation.tabId === 'choji' ? 'choji_dn' : 'siheung_dn'
+      const stationGroup = sheetStation.tabId === 'choji' ? '초지' : '시흥시청'
 
       // key를 routeCode에 포함시켜 상행/하행이 groupArrivalsByRoute에서 합쳐지지 않도록 함
       const addSeohae = (key, labelPrefix, defaultDest) => {
@@ -377,12 +476,23 @@ export default function MapView({ onMarkerClick, selectedId }) {
         const diffMin = next ? Math.max(0, Math.round(next.arrive_in_seconds / 60)) : null
         const _hSeohae = now.getHours()
         const isLateNightGap = next && (_hSeohae >= 23 || _hSeohae < 5) && diffMin >= 100
+        const detailPayload = {
+          type:        'subway',
+          routeCode:   stationGroup,
+          subwayKey:   key,
+          favCode:     `subway:${stationGroup}:${key}`,
+          mapLat:      sheetStation.lat ?? null,
+          mapLng:      sheetStation.lng ?? null,
+          accentColor: '#75bf43',
+          title:       `${stationGroup}역 서해선 ${labelPrefix}`,
+        }
 
         if (next && !isLateNightGap) {
           result.push({
             routeCode: `서해선:${key}`, routeColor: '#75bf43',
             direction: `${labelPrefix} · ${next.destination || defaultDest} 방면`,
             minutes: diffMin,
+            detail: detailPayload,
           })
         } else {
           const trains = seohaeTimetable?.[key] ?? []
@@ -392,6 +502,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
               routeCode: `서해선:${key}`, routeColor: '#75bf43',
               direction: `${labelPrefix} · ${trains[0]?.destination || defaultDest} 방면`,
               minutes: getFirstBusLabel(timeStrings, now),
+              detail: detailPayload,
             })
           }
         }
@@ -413,12 +524,23 @@ export default function MapView({ onMarkerClick, selectedId }) {
         const diffMin = next ? Math.max(0, Math.round(next.arrive_in_seconds / 60)) : null
         const _hSubway = now.getHours()
         const isLateNightGap = next && (_hSubway >= 23 || _hSubway < 5) && diffMin >= 100
+        const detailPayload = {
+          type:        'subway',
+          routeCode:   '정왕',
+          subwayKey:   key,
+          favCode:     `subway:정왕:${key}`,
+          mapLat:      sheetStation.lat ?? null,
+          mapLng:      sheetStation.lng ?? null,
+          accentColor: routeColor,
+          title:       `정왕역 ${routeCode} ${labelPrefix}`,
+        }
 
         if (next && !isLateNightGap) {
           result.push({
             routeCode: uniqueCode, routeColor,
             direction: `${labelPrefix} · ${next.destination || defaultDest} 방면`,
             minutes: diffMin,
+            detail: detailPayload,
           })
         } else {
           const trains = seohaeTimetable?.[key] ?? []
@@ -428,6 +550,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
               routeCode: uniqueCode, routeColor,
               direction: `${labelPrefix} · ${trains[0]?.destination || defaultDest} 방면`,
               minutes: getFirstBusLabel(timeStrings, now),
+              detail: detailPayload,
             })
           }
         }
@@ -442,14 +565,15 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, sheetDirection, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, stopIds, seohaeTimetable])
+  }, [sheetStation, sheetDirection, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
 
   const handleMarkerTap = useCallback((station) => {
     setSheetStation(station)
-    setSheetDirection('outbound')
+    const isSeoulSide = station.type === 'bus_seoul' && !station.isLocalHub
+    setSheetDirection(isSeoulSide ? 'inbound' : 'outbound')
     onMarkerClick?.(station.id)
   }, [onMarkerClick])
 
@@ -663,20 +787,13 @@ export default function MapView({ onMarkerClick, selectedId }) {
           <MarkerSheet
             station={sheetStation}
             arrivals={sheetArrivals}
-            directionControl={sheetStation.type === 'bus_seoul' ? {
-              direction: sheetDirection,
-              onChange:  setSheetDirection,
-              leftLabel:  sheetStation.spineLeft,
-              rightLabel: sheetStation.spineRight,
-              activeSide: sheetDirection === 'outbound' ? sheetStation.outboundActiveSide : sheetStation.inboundActiveSide,
-              outboundLabel: sheetStation.outboundSegment,
-              inboundLabel:  sheetStation.inboundSegment,
-              placeholder: sheetArrivals.length === 0
-                ? (sheetStation.route === '3400' && sheetDirection === 'inbound'
-                    ? '주말·공휴일 강남 출발 시간표 자료 없음'
-                    : '도착 정보가 없습니다')
-                : null,
-            } : null}
+            onArrivalClick={(detail) => useAppStore.getState().setDetailModal(detail)}
+            relatedMarkers={[]}
+            onRelatedMarker={(key) => {
+              const target = managedStations.find((s) => s.id === key)
+              if (target) { setSheetDirection('outbound'); setSheetStation(target) }
+            }}
+            directionControl={null}
             onClose={() => setSheetStation(null)}
             onNavigate={async () => {
               const destLat = sheetStation.lat

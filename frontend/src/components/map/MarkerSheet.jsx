@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { MapPin, Star, StarOff, X, Navigation, Info } from 'lucide-react'
+import { MapPin, Star, StarOff, X, Navigation, Info, ChevronRight } from 'lucide-react'
 import { ROUTE_COLOR_MAP } from './MarkerChip'
 import useAppStore from '../../stores/useAppStore'
 import RouteSpine from './RouteSpine'
@@ -41,7 +41,7 @@ function groupArrivalsByRoute(arrivals) {
   return Array.from(map.values())
 }
 
-export default function MarkerSheet({ station, arrivals = [], onClose, onNavigate, onDetail, directionControl = null }) {
+export default function MarkerSheet({ station, arrivals = [], onClose, onNavigate, onDetail, onArrivalClick, directionControl = null, relatedMarkers = [], onRelatedMarker }) {
   const [expanded, setExpanded] = useState(false)
   const [visible, setVisible] = useState(false)
   const sheetRef = useRef(null)
@@ -88,7 +88,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
 
   if (!station) return null
 
-  const sheetHeight = expanded ? '90vh' : directionControl ? '54vh' : '42vh'
+  const sheetHeight = expanded ? '90vh' : directionControl ? '54vh' : relatedMarkers.length > 0 ? '50vh' : '42vh'
   const translateY = visible ? '0%' : '100%'
 
   return (
@@ -196,8 +196,8 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                     onClick={() => directionControl.onChange(seg.key)}
                     className="py-2 rounded-lg text-[12px] font-semibold transition-colors"
                     style={{
-                      background: active ? '#fff' : 'transparent',
-                      color: active ? '#102c4c' : '#64748b',
+                      background: active ? 'var(--tj-pill-active-bg)' : 'transparent',
+                      color: active ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
                       boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
                     }}
                   >
@@ -209,6 +209,25 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
           </div>
         )}
 
+        {/* 여기로 오는 버스 (로컬 허브 전용) */}
+        {relatedMarkers.length > 0 && (
+          <div className="px-5 pt-3 pb-2 flex-shrink-0 border-b border-[#ebebeb] dark:border-[#3a3e48]">
+            <p className="text-[11px] font-medium text-[#94a3b8] mb-2">여기로 오는 버스</p>
+            <div className="flex gap-2 flex-wrap">
+              {relatedMarkers.map((rm) => (
+                <button
+                  key={rm.key}
+                  onClick={() => onRelatedMarker?.(rm.key)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[12px] font-semibold text-[#0f172a] dark:text-[#f1f5f9] active:bg-slate-200 dark:active:bg-slate-600 transition-colors"
+                >
+                  {rm.name}
+                  <ChevronRight size={12} className="text-slate-400" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 도착 리스트 */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {arrivals.length === 0 ? (
@@ -216,11 +235,12 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
               {directionControl?.placeholder ?? '도착 정보가 없습니다'}
             </p>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-1">
               {groupArrivalsByRoute(arrivals).map((group) => {
                 const color = resolveColor(group.routeCode, group.routeColor)
-                return (
-                  <li key={group.routeCode} className="flex items-center gap-3">
+                const clickable = !!(onArrivalClick && group.detail)
+                const content = (
+                  <>
                     {/* 노선 색 원 */}
                     <span
                       className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-micro font-bold"
@@ -230,7 +250,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                     </span>
 
                     {/* 방향 */}
-                    <span className="flex-1 text-[13px] text-[#0f172a] dark:text-[#f1f5f9] truncate">
+                    <span className="flex-1 text-[13px] text-[#0f172a] dark:text-[#f1f5f9] truncate text-left">
                       {group.direction ?? ''}
                     </span>
 
@@ -251,6 +271,27 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                         </span>
                       ))}
                     </div>
+                    {clickable && (
+                      <ChevronRight size={14} className="text-slate-300 dark:text-slate-500 flex-shrink-0" />
+                    )}
+                  </>
+                )
+                return (
+                  <li key={group.routeCode}>
+                    {clickable ? (
+                      <button
+                        type="button"
+                        onClick={() => onArrivalClick(group.detail)}
+                        className="w-full flex items-center gap-3 py-2 px-1 -mx-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/40 active:bg-slate-100 dark:active:bg-slate-700 transition-colors"
+                        aria-label={`${group.routeCode} 상세 시간표 보기`}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-3 py-2 px-1">
+                        {content}
+                      </div>
+                    )}
                   </li>
                 )
               })}

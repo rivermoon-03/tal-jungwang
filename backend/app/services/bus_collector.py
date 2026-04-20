@@ -25,7 +25,11 @@ _KST = ZoneInfo("Asia/Seoul")
 # 이전 폴링에서 predictTimeSec이 이 값 이하였던 차량이 사라지면 도착으로 판정
 ARRIVAL_THRESHOLD_SEC = 150
 
-CACHE_TTL = 150  # 캐시 TTL (초) — 폴링 간격(120초)보다 약간 길게
+# 이전 폴링에 없었던 차량이 이번에 이 값 이하로 처음 등장하면 도착으로 추정
+# (폴링 간격 135초 안에 등장·도착·출발이 끝나는 경우 대비)
+FIRST_SIGHT_ARRIVAL_SEC = 30
+
+CACHE_TTL = 150  # 캐시 TTL (초) — 폴링 간격(135초)보다 약간 길게
 
 
 def _day_type(dt: datetime) -> str:
@@ -145,11 +149,18 @@ async def poll_and_collect():
             prev_raw = await redis.get(prev_key)
             prev_state: dict[str, dict] = json.loads(prev_raw) if prev_raw else {}
 
-            # 이전에 있었는데 지금 없는 차량 → 도착 판정 후보
-            arrived_plates = set(prev_state.keys()) - set(current_state.keys())
-            new_arrivals = []
+            # 중복 기록 방지용 plate 집합 (10분 TTL)
+            counted_key = f"bus:counted:{station_id}"
+            counted_raw = await redis.get(counted_key)
+            counted_plates: set[str] = set(json.loads(counted_raw)) if counted_raw else set()
 
+            new_arrivals: list[BusArrivalHistory] = []
+
+            # ── 2a. 이전에 있었는데 지금 없는 차량 → 도착 판정 ──
+            arrived_plates = set(prev_state.keys()) - set(current_state.keys())
             for plate in arrived_plates:
+                if plate in counted_plates:
+                    continue
                 prev = prev_state[plate]
                 if prev.get("sec", 9999) <= ARRIVAL_THRESHOLD_SEC:
                     new_arrivals.append(BusArrivalHistory(
@@ -160,9 +171,29 @@ async def poll_and_collect():
                         day_type=_day_type(now),
                         source="detected",
                     ))
+                    counted_plates.add(plate)
                     logger.info(
                         "도착 판정: %s → %s (이전 %d초)",
                         plate, target["stop_name"], prev["sec"],
+                    )
+
+            # ── 2b. 이번 폴링에 처음 등장 + sec ≤ 30 → 도착 추정 ──
+            for plate, state in current_state.items():
+                if plate in prev_state or plate in counted_plates:
+                    continue
+                if state["sec"] <= FIRST_SIGHT_ARRIVAL_SEC:
+                    new_arrivals.append(BusArrivalHistory(
+                        route_id=state["db_route_id"],
+                        stop_id=target["stop_id"],
+                        plate_no=plate,
+                        arrived_at=now,
+                        day_type=_day_type(now),
+                        source="estimated",
+                    ))
+                    counted_plates.add(plate)
+                    logger.info(
+                        "첫등장 도착 추정: %s → %s (sec %d)",
+                        plate, target["stop_name"], state["sec"],
                     )
 
             if new_arrivals:
@@ -171,5 +202,12 @@ async def poll_and_collect():
 
             # 현재 상태를 이전 상태로 저장
             await redis.set(prev_key, json.dumps(current_state, ensure_ascii=False), ex=300)
+            # 이미 집계한 plate 목록 저장 (중복 기록 방지)
+            if counted_plates:
+                await redis.set(
+                    counted_key,
+                    json.dumps(list(counted_plates), ensure_ascii=False),
+                    ex=600,
+                )
 
     logger.info("버스 폴링 완료 (%d 정류장)", len(targets))

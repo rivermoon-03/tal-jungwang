@@ -10,6 +10,63 @@
   --dur-snap:  240ms;
   --dur-page:  260ms;
   --dur-sheet: 280ms;
+
+  /* ── 디자인 번들 (tokens.css) 통합 ─────────────────── */
+  --tj-accent:      #102c4c;
+  --tj-accent-2:    #1b3a6e;
+  --tj-accent-dark: #7aa7e3;
+  --tj-ink:         #111111;
+  --tj-mute:        #6b7280;
+  --tj-mute-2:      #9aa3af;
+  --tj-line:        #e5e8ee;
+  --tj-line-soft:   #eef1f5;
+  --tj-bg-soft:     #f6f7f9;
+
+  /* 활성 pill(SegmentTabs / StationPill) — 라이트에선 잉크 블랙, 다크에선 별도 */
+  --tj-pill-active-bg: #111111;
+  --tj-pill-active-fg: #ffffff;
+
+  /* 노선색 (단일 소스) */
+  --line-201:     #2563eb;
+  --line-33:      #0891b2;
+  --line-1:       #f97316;
+  --line-5602:    #5096e6;
+  --line-express: #dc2626;
+  --line-4:       #1B5FAD;
+  --line-suin:    #F5A623;
+  --line-seohae:  #75bf43;
+  --line-shuttle: var(--tj-accent);
+
+  /* 상태 */
+  --state-ok:   #16a34a;
+  --state-warn: #f59e0b;
+  --state-bad:  #dc2626;
+
+  /* 모양 */
+  --r-card: 18px;
+  --r-pill: 14px;
+  --sh-card: 0 4px 14px rgba(0,0,0,.06);
+}
+
+.dark {
+  --tj-ink:       #f5f5f5;
+  --tj-mute:      #94a3b8;
+  --tj-mute-2:    #6b7280;
+  --tj-line:      #222222;
+  --tj-line-soft: #1a1a1a;
+  --tj-bg-soft:   #141414;
+  /* 활성 pill 다크모드: 흰색 pill이 아닌 중간-톤 슬레이트 pill + 밝은 텍스트 */
+  --tj-pill-active-bg: #374151;
+  --tj-pill-active-fg: #f5f5f5;
+}
+
+/* ── 긴급 펄스 (디자인 번들) ──────────────────────────── */
+@keyframes tj-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.tj-urgent {
+  animation: tj-pulse 1.6s ease-in-out infinite;
 }
 
 /* ── 접근성: 모션 최소화 ──────────────────────── */

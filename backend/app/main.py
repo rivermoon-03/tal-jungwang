@@ -16,9 +16,12 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.cache import close_redis
 from app.core.config import settings
+from app.core.discord_logging import install_discord_logging
 from app.core.http_client import close_http_client
 from app.core.limiter import limiter
 from app.core.scheduler import start_scheduler, stop_scheduler
+
+install_discord_logging(settings.DISCORD_ERROR_WEBHOOK_URL)
 
 
 # ── 내부 네트워크 판별 ─────────────────────────────────────────────────────
