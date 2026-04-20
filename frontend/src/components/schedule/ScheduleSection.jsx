@@ -28,6 +28,8 @@ export default function ScheduleSection({
   footer = null,
   order = 0,
   crowded = 0,
+  endOfDay = false,
+  lastBus = false,
 }) {
   // 노선명을 RouteBadge에 그대로 전달 (지하철/셔틀/버스 모두 처리)
   const badgeRoute = routeCode || (type === 'shuttle' ? '셔틀' : title)
@@ -124,12 +126,30 @@ export default function ScheduleSection({
                   테스트
                 </span>
               )}
+              {!disabled && !loading && lastBus && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    padding: '1px 5px',
+                    borderRadius: 4,
+                    fontWeight: 700,
+                    background: 'rgba(220, 38, 38, 0.12)',
+                    color: '#dc2626',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  막차
+                </span>
+              )}
             </div>
           )}
           {/* 시간 라인 */}
           <div style={{ marginTop: 4, fontSize: 11, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', minHeight: 16 }}>
             {disabled ? (
               <span style={{ color: 'var(--tj-mute-2)' }}>{disabledLabel}</span>
+            ) : endOfDay ? (
+              <span style={{ color: 'var(--tj-mute-2)', fontWeight: 600 }}>오늘 버스가 끊겼어요</span>
             ) : realtimeOnly ? (
               <span
                 style={{
@@ -164,7 +184,7 @@ export default function ScheduleSection({
         </div>
 
         {/* 오른쪽 display 크기 분 표시 — 고정 폭으로 행간 아이콘 정렬 유지 */}
-        {!disabled && !loading && minutesUntil != null && (
+        {!disabled && !loading && endOfDay && (
           <div
             style={{
               display: 'flex',
@@ -172,7 +192,25 @@ export default function ScheduleSection({
               alignItems: 'flex-end',
               justifyContent: 'center',
               marginLeft: 8,
-              width: 72,
+              flexShrink: 0,
+              color: 'var(--tj-mute)',
+              textAlign: 'right',
+            }}
+            className="dark:text-slate-400"
+          >
+            <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.2 }}>금일</span>
+            <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.2 }}>종료</span>
+          </div>
+        )}
+        {!disabled && !loading && !endOfDay && minutesUntil != null && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              marginLeft: 8,
+              minWidth: 56,
               flexShrink: 0,
               fontVariantNumeric: 'tabular-nums',
               color: minutesUntil <= 3 ? 'var(--tj-accent)' : 'var(--tj-ink)',
@@ -183,6 +221,21 @@ export default function ScheduleSection({
               <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
                 곧 도착
               </span>
+            ) : minutesUntil >= 60 ? (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  {Math.floor(minutesUntil / 60)}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '-0.01em' }}>시간</span>
+                {minutesUntil % 60 > 0 && (
+                  <>
+                    <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginLeft: 3 }}>
+                      {minutesUntil % 60}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '-0.01em' }}>분</span>
+                  </>
+                )}
+              </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
                 <span style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}>

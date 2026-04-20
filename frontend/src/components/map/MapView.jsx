@@ -195,12 +195,17 @@ export default function MapView({ onMarkerClick, selectedId }) {
         chipVariant: ui.chipVariant,
         extraPillText: ui.extraPillText,
         tabId: ui.tabId,
+        iconType: ui.iconType,
+        subLabelSep: ui.subLabelSep,
       }
       if (m.type === 'shuttle') {
         const isReturnTrip = ui.direction === 0 && !!(shuttleToSchoolData?.note?.includes('회차편'))
-        const departTime = isReturnTrip ? (shuttleToSchoolData?.depart_at?.slice(0, 5) ?? null) : null
+        // note 예: "회차편 · 학교 21:20 출발" → HH:MM 추출
+        const noteMatch = isReturnTrip ? shuttleToSchoolData?.note?.match(/(\d{2}:\d{2})/) : null
+        const departTime = noteMatch ? noteMatch[1] : null
         return {
           ...base,
+          iconType: ui.iconType ?? 'bus',
           direction: ui.direction,
           liveMinutes: isReturnTrip ? null : (ui.direction === 0 ? shuttleToSchoolMins : shuttleFromSchoolMins),
           showLive: isReturnTrip ? false : (ui.showLive ?? false),
@@ -208,14 +213,23 @@ export default function MapView({ onMarkerClick, selectedId }) {
         }
       }
       if (m.type === 'subway') {
-        return { ...base, liveMinutes: subwayLiveMinutes, subwayData: subwayNextData }
+        return { ...base, chipVariant: ui.chipVariant ?? 'subwayMulti', liveMinutes: subwayLiveMinutes, subwayData: subwayNextData }
       }
       if (m.type === 'bus') {
-        return { ...base, liveMinutes: busLiveMinutes }
+        const busArrivalLabel = busLiveMinutes != null ? `정왕역 ${busLiveMinutes}분` : '정왕역'
+        return {
+          ...base,
+          iconType: ui.iconType ?? 'bus',
+          subLabel: ui.subLabel ?? busArrivalLabel,
+          subLabelSep: ui.subLabelSep ?? '|',
+          liveMinutes: busLiveMinutes,
+        }
       }
       if (m.type === 'seohae') {
-        const mins = base.tabId === 'choji' ? chojiMinutes : siheungMinutes
-        return { ...base, liveMinutes: mins }
+        // ui_meta.tabId가 DB에 없으면 마커 key로 추론
+        const tabId = ui.tabId ?? (m.key.includes('choji') ? 'choji' : 'siheung')
+        const mins = tabId === 'choji' ? chojiMinutes : siheungMinutes
+        return { ...base, tabId, liveMinutes: mins }
       }
       if (m.type === 'bus_seoul') {
         const primary = m.routes?.[0] ?? null
@@ -284,7 +298,17 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
     if (sheetStation.type === 'bus') {
       const arrivals = busArrivalsData?.arrivals ?? []
-      return arrivals.slice(0, 3).map((a) => ({
+      // 노선별 첫 번째 도착만 추출 (같은 노선 중복 제거), 최대 6개
+      const seenRoutes = new Set()
+      const deduped = []
+      for (const a of arrivals) {
+        if (!seenRoutes.has(a.route_no)) {
+          seenRoutes.add(a.route_no)
+          deduped.push(a)
+        }
+        if (deduped.length >= 6) break
+      }
+      return deduped.map((a) => ({
         routeCode:  a.route_no,
         routeColor: null,
         direction:  a.destination ?? '',
@@ -427,11 +451,14 @@ export default function MapView({ onMarkerClick, selectedId }) {
         if (isLateNightGap) continue
 
         const isReturnTrip = !isFrom && !!(note?.includes('회차편'))
+        // note 예: "회차편 · 학교 21:20 출발" → HH:MM 추출
+        const noteTimeMatch = isReturnTrip ? note?.match(/(\d{2}:\d{2})/) : null
+        const hagyeoTimeStr = noteTimeMatch ? noteTimeMatch[1] : timeStr
         upcoming.push({
           routeCode:  isFrom ? '하교' : '등교',
           routeColor: '#1b3a6e',
           direction:  isReturnTrip ? '회차탑승' : (note ? `${timeStr} · ${note}` : timeStr),
-          minutes:    isReturnTrip ? `하교 ${timeStr} 출발` : Math.max(0, diffMin),
+          minutes:    isReturnTrip ? `하교 ${hagyeoTimeStr} 출발` : Math.max(0, diffMin),
           detail: {
             type: 'shuttle',
             routeCode: `셔틀${isFrom ? '하교' : '등교'}`,

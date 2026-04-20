@@ -554,8 +554,10 @@ async def admin_list_bus_routes(
     _user: str = Depends(verify_token),
 ):
     stmt = select(BusRouteModel).order_by(BusRouteModel.route_number)
-    if is_realtime is not None:
-        stmt = stmt.where(BusRouteModel.is_realtime == is_realtime)
+    if is_realtime is True:
+        stmt = stmt.where(BusRouteModel.gbis_route_id.is_not(None))
+    elif is_realtime is False:
+        stmt = stmt.where(BusRouteModel.gbis_route_id.is_(None))
     if q:
         stmt = stmt.where(BusRouteModel.route_number.ilike(f"%{q}%"))
     if category:
@@ -627,7 +629,7 @@ async def admin_create_bus_route(
             "ROUTE_DUPLICATE",
             f"route_number '{body.route_number}' 이미 존재 (id={existing.id})",
         )
-    route = BusRouteModel(**body.model_dump())
+    route = BusRouteModel(**body.model_dump(exclude={"is_realtime"}))
     db.add(route)
     await db.commit()
     await db.refresh(route)
@@ -644,7 +646,7 @@ async def admin_update_bus_route(
     route = await db.get(BusRouteModel, route_id)
     if not route:
         return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    for k, v in body.model_dump(exclude_unset=True, exclude={"is_realtime"}).items():
         setattr(route, k, v)
     await db.commit()
     await db.refresh(route)

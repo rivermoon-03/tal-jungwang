@@ -11,7 +11,7 @@ export const BUS_STATIONS = {
     allowedDirections: ['하교'],
     defaultDirection: '하교',
     routes: {
-      하교: ['시흥33', '20-1'],
+      하교: ['시흥33', '20-1', '11-A'],
     },
   },
   시화터미널: {

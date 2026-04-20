@@ -11,6 +11,7 @@ import React from 'react'
 export const ROUTE_COLOR_MAP = {
   '20-1':   '#2563EB',
   '시흥33': '#0891B2',
+  '11-A':   '#0891B2',
   '시흥1':  '#F97316',
   '수인분당': '#F5A623',
   '4호선':  '#1B5FAD',
@@ -103,7 +104,9 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
  * @param {{ routeCode: string, routeColor?: string, stationName: string, liveMinutes?: number|null, showLive?: boolean, onClick?: () => void }} options
  * @returns {HTMLElement}
  */
-export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick, badgeText, extraPillText = null, subLabel = null }) {
+const BUS_ICON_SVG = '<svg style="display:block" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="15" cy="18" r="2"/></svg>'
+
+export function createMarkerChipElement({ routeCode, routeColor, stationName, liveMinutes, showLive = false, inaccurate = false, onClick, badgeText, extraPillText = null, subLabel = null, iconType = null, subLabelSep = '·' }) {
   const color = resolveColor(routeCode, routeColor)
 
   const wrapper = document.createElement('div')
@@ -168,7 +171,11 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'font-weight:700',
     'flex-shrink:0',
   ].join(';')
-  dot.textContent = badgeText ?? (routeCode ?? '').slice(0, 3)
+  if (iconType === 'bus') {
+    dot.innerHTML = BUS_ICON_SVG
+  } else {
+    dot.textContent = badgeText ?? (routeCode ?? '').slice(0, 3)
+  }
   pill.appendChild(dot)
 
   // 정류장명 + 남은 시간
@@ -185,7 +192,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     label.textContent = stationName
     const sep = document.createElement('span')
     sep.style.cssText = 'color:#cbd5e1;margin:0 4px'
-    sep.textContent = '·'
+    sep.textContent = subLabelSep
     label.appendChild(sep)
     const tail = document.createElement('span')
     tail.style.color = '#1b3a6e'

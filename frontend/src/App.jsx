@@ -9,8 +9,8 @@ import MoreTab from './components/more/MoreTab'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
 import BottomDock from './components/layout/BottomDock'
-import FavoritesPage from './pages/FavoritesPage'
 import SchedulePage from './pages/SchedulePage'
+import StatsPage from './pages/StatsPage'
 import MorePage from './pages/MorePage'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
 import { useNotices } from './hooks/useMore'
@@ -23,8 +23,8 @@ function hashToTab(hash) {
 }
 
 function pathnameToPage(pathname) {
-  if (pathname.startsWith('/favorites')) return 'favorites'
   if (pathname.startsWith('/schedule'))  return 'schedule'
+  if (pathname.startsWith('/stats'))     return 'stats'
   if (pathname.startsWith('/more'))      return 'more-page'
   return null
 }
@@ -73,24 +73,6 @@ export default function App() {
     }
   }, [activeTab, currentPage])
 
-  if (currentPage === 'favorites') {
-    return (
-      <>
-        <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
-          <PWAInstallBanner />
-          <div className="hidden md:block">
-            <PCNavbar />
-          </div>
-          <main className="flex-1 overflow-auto min-h-0">
-            <FavoritesPage />
-          </main>
-          <BottomDock />
-        </div>
-        <GlobalDetailModal />
-      </>
-    )
-  }
-
   if (currentPage === 'schedule') {
     return (
       <>
@@ -101,6 +83,24 @@ export default function App() {
           </div>
           <main className="flex-1 overflow-auto min-h-0">
             <SchedulePage />
+          </main>
+          <BottomDock />
+        </div>
+        <GlobalDetailModal />
+      </>
+    )
+  }
+
+  if (currentPage === 'stats') {
+    return (
+      <>
+        <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
+          <PWAInstallBanner />
+          <div className="hidden md:block">
+            <PCNavbar />
+          </div>
+          <main className="flex-1 overflow-auto min-h-0">
+            <StatsPage />
           </main>
           <BottomDock />
         </div>
