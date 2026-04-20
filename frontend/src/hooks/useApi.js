@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 
 const BASE = '/api/v1'
 
+// 같은 path에 대한 동시 요청은 하나로 합치고(in-flight dedup),
+// ttl 동안은 캐시된 응답을 즉시 돌려준다.
+// 여러 컴포넌트가 같은 useApi(path)를 쓰면 네트워크 요청은 1회만 발생.
+const cache = new Map()      // path -> { data, fetchedAt }
+const inflight = new Map()   // path -> Promise<data>
+
 export async function apiFetch(path, options) {
   // API 응답은 브라우저 HTTP 캐시(heuristic freshness)를 타면 안 된다.
   // 백엔드는 Redis로 캐시하고 클라이언트는 매 마운트마다 최신을 받아야 함.
@@ -20,11 +26,40 @@ export async function apiFetch(path, options) {
   return json.data
 }
 
-export function useApi(path, { interval = null, enabled = true } = {}) {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(enabled)
+function fetchDedup(path) {
+  const existing = inflight.get(path)
+  if (existing) return existing
+  const p = apiFetch(path)
+    .then((data) => {
+      cache.set(path, { data, fetchedAt: Date.now() })
+      return data
+    })
+    .finally(() => {
+      inflight.delete(path)
+    })
+  inflight.set(path, p)
+  return p
+}
+
+function readFreshCache(path, ttl) {
+  if (!ttl) return null
+  const c = cache.get(path)
+  if (!c) return null
+  if (Date.now() - c.fetchedAt >= ttl) return null
+  return c
+}
+
+export function invalidateApiCache(path) {
+  if (path) cache.delete(path)
+  else cache.clear()
+}
+
+export function useApi(path, { interval = null, enabled = true, ttl = 0 } = {}) {
+  const initial = enabled ? readFreshCache(path, ttl) : null
+  const [data, setData] = useState(initial?.data ?? null)
+  const [loading, setLoading] = useState(enabled && !initial)
   const [error, setError] = useState(null)
-  const [fetchedAt, setFetchedAt] = useState(null)
+  const [fetchedAt, setFetchedAt] = useState(initial?.fetchedAt ?? null)
 
   const fetchData = useCallback(async () => {
     if (!enabled) {
@@ -32,7 +67,7 @@ export function useApi(path, { interval = null, enabled = true } = {}) {
       return
     }
     try {
-      const result = await apiFetch(path)
+      const result = await fetchDedup(path)
       setData(result)
       setFetchedAt(Date.now())
       setError(null)
@@ -47,17 +82,28 @@ export function useApi(path, { interval = null, enabled = true } = {}) {
   // in-flight 동안 loading=true, data=null로 재설정한다.
   // (그렇지 않으면 소비자가 stale data + loading=false를 보고
   //  "데이터 없음" 분기로 오판 — 예: 시흥1 = 실시간 전용인데 시간표 폴백으로 빠짐)
+  // 단, 캐시 히트가 있으면 그 값으로 즉시 채운다.
   useEffect(() => {
-    if (enabled) {
+    if (!enabled) return
+    const c = readFreshCache(path, ttl)
+    if (c) {
+      setData(c.data)
+      setFetchedAt(c.fetchedAt)
+      setLoading(false)
+      setError(null)
+    } else {
       setData(null)
       setLoading(true)
       setError(null)
     }
-  }, [path, enabled])
+  }, [path, enabled, ttl])
 
   useEffect(() => {
-    fetchData()
-    if (!interval || !enabled) return
+    if (!enabled) return
+    // 방금 캐시로 채웠다면 재fetch 스킵(동시 마운트 시 불필요한 호출 제거).
+    if (!readFreshCache(path, ttl)) fetchData()
+
+    if (!interval) return
 
     let timerId = setInterval(fetchData, interval)
 
@@ -76,7 +122,7 @@ export function useApi(path, { interval = null, enabled = true } = {}) {
       if (timerId) clearInterval(timerId)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [fetchData, interval, enabled])
+  }, [fetchData, interval, enabled, ttl, path])
 
   return { data, loading, error, fetchedAt, refetch: fetchData }
 }
