@@ -6,6 +6,7 @@ const ROUTE_COLORS = {
   '시흥33': '#33B5A5',
   '시흥1':  '#33B5A5',
   '20-1':  '#5096E6',
+  '5602':  '#5096E6',
 }
 const DEFAULT_COLOR = '#334155'
 

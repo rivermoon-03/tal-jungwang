@@ -22,6 +22,7 @@ import ArrivalRow from '../dashboard/ArrivalRow'
 const ROUTE_COLOR = {
   // 버스 (시내=청록, 마을=주황, 광역=빨강, 20-1=파랑)
   '20-1':   '#2563EB',
+  '5602':   '#2563EB',
   '시흥33': '#0891B2',
   '시흥1':  '#F97316',
   '3400':   '#DC2626',
