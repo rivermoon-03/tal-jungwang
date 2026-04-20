@@ -5,6 +5,7 @@
 import { ChevronRight } from 'lucide-react'
 import Skeleton from '../common/Skeleton'
 import RouteBadge from '../common/RouteBadge'
+import { CrowdedBadge } from '../bus/BusArrivalCard'
 
 export default function ScheduleSection({
   title,
@@ -26,6 +27,7 @@ export default function ScheduleSection({
   testBadge = false,
   footer = null,
   order = 0,
+  crowded = 0,
 }) {
   // 노선명을 RouteBadge에 그대로 전달 (지하철/셔틀/버스 모두 처리)
   const badgeRoute = routeCode || (type === 'shuttle' ? '셔틀' : title)
@@ -187,6 +189,11 @@ export default function ScheduleSection({
                   {minutesUntil}
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '-0.02em' }}>분</span>
+              </div>
+            )}
+            {crowded > 0 && (
+              <div style={{ marginTop: 3 }}>
+                <CrowdedBadge level={crowded} />
               </div>
             )}
           </div>

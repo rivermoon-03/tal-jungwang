@@ -105,6 +105,8 @@ function BusRouteRow({ route, realtimeArrivals }) {
       : destLabel
   const stopId = originStop?.stop_id ?? null
 
+  const crowdedLevel = hasLiveData ? (liveEntries[0]?.crowded ?? 0) : 0
+
   const rightAddon = is_realtime && hasLiveData ? (
     <span className="text-micro font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
       테스트-부정확
@@ -138,6 +140,7 @@ function BusRouteRow({ route, realtimeArrivals }) {
       isUrgent={minutes != null && minutes <= 3}
       onClick={handleClick}
       rightAddon={rightAddon}
+      crowded={crowdedLevel}
     />
   )
 }

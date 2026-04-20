@@ -44,6 +44,7 @@ class BusArrival(BaseModel):
     depart_at: str | None = None  # "HH:MM" (timetable)
     arrive_in_seconds: int | None = None
     is_tomorrow: bool = False  # 오늘 시간표 소진 후 내일 첫차인 경우 True
+    crowded: int = 0  # 혼잡도 (0=정보없음, 1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
 
 
 class BusArrivalsResponse(BaseModel):
