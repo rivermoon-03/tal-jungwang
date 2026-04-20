@@ -6,6 +6,7 @@ import MainTab from './components/map/MainTab'
 import SubwayTab from './components/subway/SubwayTab'
 import TransitTab from './components/transit/TransitTab'
 import MoreTab from './components/more/MoreTab'
+import NowTab from './components/now/NowTab'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
 import BottomDock from './components/layout/BottomDock'
@@ -15,17 +16,24 @@ import MorePage from './pages/MorePage'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
 import { useNotices } from './hooks/useMore'
 
-const VALID_HASH_TABS = ['main', 'transit', 'subway', 'more']
+const VALID_HASH_TABS = ['now', 'main', 'map', 'transit', 'subway', 'more']
 
-function hashToTab(hash) {
-  const id = hash.replace(/^#\/?/, '') || 'main'
-  return VALID_HASH_TABS.includes(id) ? id : 'main'
+function hashToTab(hash, firstScreen = 'now') {
+  const id = hash.replace(/^#\/?/, '')
+  if (!id) return firstScreen === 'map' ? 'map' : 'now'
+  return VALID_HASH_TABS.includes(id) ? id : 'now'
 }
 
 function pathnameToPage(pathname) {
   if (pathname.startsWith('/schedule'))  return 'schedule'
-  if (pathname.startsWith('/stats'))     return 'stats'
+  if (pathname.startsWith('/stats'))     return 'stats'   // legacy — unreachable from dock
   if (pathname.startsWith('/more'))      return 'more-page'
+  return null
+}
+
+// Some pathnames should force a specific activeTab (e.g. /map → 지도 탭)
+function pathnameToTab(pathname) {
+  if (pathname.startsWith('/map')) return 'map'
   return null
 }
 
@@ -33,6 +41,7 @@ export default function App() {
   const activeTab     = useAppStore((s) => s.activeTab)
   const setActiveTab  = useAppStore((s) => s.setActiveTab)
   const setTabBadges  = useAppStore((s) => s.setTabBadges)
+  const firstScreen   = useAppStore((s) => s.firstScreen)
 
   useTheme()
 
@@ -50,7 +59,8 @@ export default function App() {
     const page = pathnameToPage(window.location.pathname)
     setCurrentPage(page)
     if (!page) {
-      const initial = hashToTab(window.location.hash)
+      const forced = pathnameToTab(window.location.pathname)
+      const initial = forced ?? hashToTab(window.location.hash, firstScreen)
       if (initial !== activeTab) setActiveTab(initial)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -59,19 +69,24 @@ export default function App() {
     const onPop = () => {
       const page = pathnameToPage(window.location.pathname)
       setCurrentPage(page)
-      if (!page) setActiveTab(hashToTab(window.location.hash))
+      if (!page) {
+        const forced = pathnameToTab(window.location.pathname)
+        setActiveTab(forced ?? hashToTab(window.location.hash, firstScreen))
+      }
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [setActiveTab])
+  }, [setActiveTab, firstScreen])
 
   useEffect(() => {
     if (currentPage) return
-    const current = hashToTab(window.location.hash)
+    // Skip hash-sync when pathname pins the tab (/map).
+    if (pathnameToTab(window.location.pathname)) return
+    const current = hashToTab(window.location.hash, firstScreen)
     if (current !== activeTab) {
       history.pushState(null, '', `#${activeTab}`)
     }
-  }, [activeTab, currentPage])
+  }, [activeTab, currentPage, firstScreen])
 
   if (currentPage === 'schedule') {
     return (
@@ -137,11 +152,22 @@ export default function App() {
         </div>
 
         <main className="flex-1 overflow-hidden min-h-0 relative">
-          {/* 모바일: 2단 스냅 MainShell (activeTab=main 전용) */}
-          {activeTab === 'main' && <MainShell />}
+          {/* 지금 탭 — 새 랜딩 */}
+          {activeTab === 'now' && (
+            <div key="now" className="h-full overflow-hidden animate-fade-in">
+              <NowTab />
+            </div>
+          )}
+
+          {/* 모바일: 2단 스냅 MainShell (activeTab=map 또는 레거시 main) */}
+          {(activeTab === 'map' || activeTab === 'main') && <MainShell />}
 
           {/* PC: 기존 MainTab 유지 (md:block) */}
-          <div className={`hidden md:block h-full ${activeTab === 'main' ? '' : 'md:hidden'}`}>
+          <div
+            className={`hidden md:block h-full ${
+              activeTab === 'map' || activeTab === 'main' ? '' : 'md:hidden'
+            }`}
+          >
             <MainTab />
           </div>
 
