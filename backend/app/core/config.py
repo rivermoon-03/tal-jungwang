@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     GF_SECURITY_ADMIN_PASSWORD: str = ""
     METRICS_TOKEN: str = ""
 
+    # ── Discord 웹훅 (버스 도착 수집 모니터링) ─────────────────
+    DISCORD_WEBHOOK_URL: str = ""
+
+    # ── Discord 웹훅 (서버 WARNING/ERROR 알림) ─────────────────
+    DISCORD_ERROR_WEBHOOK_URL: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @model_validator(mode="after")

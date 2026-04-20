@@ -1,82 +1,126 @@
 import useAppStore from '../../stores/useAppStore'
+import SegmentTabs from '../common/SegmentTabs.jsx'
+import {
+  BUS_STATION_LABELS,
+  BUS_DIRECTION_LABELS,
+  getAllowedDirections,
+  getDefaultDirection,
+} from './busStationConfig'
 
 /**
  * StationPills — 모드 탭 아래 정류장/역 선택 pill 행.
- *
- * Props:
- *   mode:     'bus' | 'subway' | 'shuttle'
- *   value:    현재 선택된 옵션 (문자열)
- *   onChange: (value) => void — 상위에서 커스텀 제어시 사용
- *   options:  string[] — 제공 시 기본값 무시
- *
- * mode === 'shuttle' 이면 렌더하지 않는다.
- *
- * 내부 기본 옵션:
- *   bus:    ['한국공학대', '이마트']
- *   subway: ['정왕', '초지', '시흥시청']
- *
- * 내부 결정 (출발 정류장 기준):
- *   - 버스: 한국공학대 출발 → '하교'
- *            이마트 출발    → 7~14시 '등교', 그 외 '기타' (setBusGroup)
- *   - 지하철: setSubwayStation(value) 직접 호출
+ * 버스 모드는 3개 정류장(한국공학대/시화터미널/이마트) pill + 방향(등교/하교) 탭.
+ * 지하철 모드는 기존 역 pill.
  */
-const DEFAULT_OPTIONS = {
-  bus:    ['한국공학대', '이마트'],
-  subway: ['정왕', '초지', '시흥시청'],
-}
-
-function resolveBusGroup(stationLabel) {
-  // 한국공학대 출발 버스 = '하교' (학교에서 나가는 노선)
-  if (stationLabel === '한국공학대') return '하교'
-  // 이마트 출발: 등교 시간대(7~14)면 등교, 그 외 기타
-  const hour = new Date().getHours()
-  return hour >= 7 && hour < 14 ? '등교' : '기타'
-}
+const SUBWAY_OPTIONS = ['정왕', '초지', '시흥시청']
 
 export default function StationPills({ mode, value, onChange, options }) {
-  const setBusGroup       = useAppStore((s) => s.setBusGroup)
-  const setSubwayStation  = useAppStore((s) => s.setSubwayStation)
+  const selectedBusStation    = useAppStore((s) => s.selectedBusStation)
+  const selectedBusDirection  = useAppStore((s) => s.selectedBusDirection)
+  const setBusStation         = useAppStore((s) => s.setBusStation)
+  const setBusDirection       = useAppStore((s) => s.setBusDirection)
+  const setSubwayStation      = useAppStore((s) => s.setSubwayStation)
 
   if (mode === 'shuttle') return null
 
-  const items = options ?? DEFAULT_OPTIONS[mode] ?? []
+  if (mode === 'bus') {
+    const items = options ?? BUS_STATION_LABELS
+    const stationValue = value ?? selectedBusStation
+    const allowed = getAllowedDirections(stationValue)
+
+    const handleSelectStation = (label) => {
+      setBusStation(label)
+      const nextAllowed = getAllowedDirections(label)
+      if (!nextAllowed.includes(selectedBusDirection)) {
+        setBusDirection(getDefaultDirection(label))
+      }
+      if (typeof onChange === 'function') onChange(label)
+    }
+
+    const directionTabs = BUS_DIRECTION_LABELS.map((dir) => ({
+      id: dir,
+      label: dir,
+      disabled: !allowed.includes(dir),
+    }))
+
+    return (
+      <>
+        <div
+          role="group"
+          aria-label="정류장 선택"
+          className="flex gap-1.5 px-4 pb-1.5 overflow-x-auto scrollbar-hide"
+        >
+          {items.map((label) => (
+            <StationPillButton
+              key={label}
+              label={label}
+              active={stationValue === label}
+              onClick={() => handleSelectStation(label)}
+            />
+          ))}
+        </div>
+        <div aria-label="방향 선택" className="px-4 pb-1.5">
+          <SegmentTabs
+            tabs={directionTabs}
+            active={selectedBusDirection}
+            onChange={setBusDirection}
+            size="sm"
+          />
+        </div>
+      </>
+    )
+  }
+
+  // subway
+  const items = options ?? SUBWAY_OPTIONS
   if (items.length === 0) return null
 
   const handleSelect = (label) => {
-    if (mode === 'bus') {
-      setBusGroup(resolveBusGroup(label))
-    } else if (mode === 'subway') {
-      setSubwayStation(label)
-    }
+    setSubwayStation(label)
     if (typeof onChange === 'function') onChange(label)
   }
 
   return (
     <div
       role="group"
-      aria-label="정류장 선택"
-      className="flex gap-2 px-4 pb-1.5 overflow-x-auto scrollbar-hide"
+      aria-label="역 선택"
+      className="flex gap-1.5 px-4 pb-1.5 overflow-x-auto scrollbar-hide"
     >
-      {items.map((label) => {
-        const isActive = value === label
-        return (
-          <button
-            key={label}
-            type="button"
-            onClick={() => handleSelect(label)}
-            aria-pressed={isActive}
-            className={[
-              'px-3 py-1.5 rounded-full text-caption whitespace-nowrap transition-colors duration-press pressable',
-              'border-[1.5px]',
-              isActive
-                ? 'border-ink text-ink dark:border-accent-dark dark:text-accent-dark'
-                : 'border-mute/30 text-mute dark:border-border-dark',
-            ].join(' ')}
-          >
-            {label}
-          </button>
-        )
-      })}
+      {items.map((label) => (
+        <StationPillButton
+          key={label}
+          label={label}
+          active={value === label}
+          onClick={() => handleSelect(label)}
+        />
+      ))}
     </div>
+  )
+}
+
+function StationPillButton({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="pressable whitespace-nowrap"
+      style={{
+        padding: '5px 11px',
+        borderRadius: 999,
+        border: active
+          ? '1.5px solid var(--tj-pill-active-bg)'
+          : '1.5px solid var(--tj-line)',
+        background: active ? 'var(--tj-pill-active-bg)' : 'transparent',
+        color: active ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: 1.2,
+        cursor: 'pointer',
+        transition: 'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+      }}
+    >
+      {label}
+    </button>
   )
 }

@@ -354,6 +354,7 @@ from app.schemas.more import (
     NoticeCreate, NoticeOut, NoticeUpdate,
 )
 from app.services.more import invalidate_info, invalidate_links, invalidate_notices
+from app.services.map_markers import invalidate_markers_cache
 
 
 @router.get("/notices", response_model=ApiResponse[list[NoticeOut]])
@@ -944,3 +945,9 @@ async def admin_delete_bus_timetable(
     result = await db.execute(delete(BusTimetableEntryModel).where(and_(*conditions)))
     await db.commit()
     return ApiResponse.ok({"deleted": result.rowcount})
+
+
+@router.post("/cache/markers/invalidate", response_model=ApiResponse[dict])
+async def admin_invalidate_markers_cache(_user: str = Depends(verify_token)):
+    await invalidate_markers_cache()
+    return ApiResponse.ok({"invalidated": "map:markers"})

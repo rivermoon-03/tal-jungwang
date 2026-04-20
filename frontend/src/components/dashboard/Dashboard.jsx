@@ -9,20 +9,18 @@ import ShuttlePanel from '../summary/ShuttlePanel'
  * Dashboard — 스냅 하단 영역. 모드 탭 + 정류장 pill + 활성 패널 렌더.
  *
  * 스토어에서 selectedMode만 구독한다. 패널들은 자체적으로
- * selectedBusGroup / selectedSubwayStation 등을 구독한다.
+ * selectedBusStation/selectedBusDirection / selectedSubwayStation 등을 구독한다.
  *
  * 높이는 부모(MainShell)가 제어하므로 자체적으로 overflow-auto 한다.
  */
 export default function Dashboard() {
   const selectedMode = useAppStore((s) => s.selectedMode)
-  const selectedBusGroup = useAppStore((s) => s.selectedBusGroup)
+  const selectedBusStation = useAppStore((s) => s.selectedBusStation)
   const selectedSubwayStation = useAppStore((s) => s.selectedSubwayStation)
 
-  // StationPills의 value로 전달할 라벨 (출발 정류장 기준)
-  // 버스: '하교'(한국공학대 출발) → 한국공학대, '등교'|'기타'(이마트 출발) → 이마트
   let stationValue = null
   if (selectedMode === 'bus') {
-    stationValue = selectedBusGroup === '하교' ? '한국공학대' : '이마트'
+    stationValue = selectedBusStation
   } else if (selectedMode === 'subway') {
     stationValue = selectedSubwayStation
   }

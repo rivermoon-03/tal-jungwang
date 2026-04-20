@@ -39,6 +39,16 @@ async def _weather_refresh_job():
         logger.exception("날씨 캐시 갱신 실패")
 
 
+async def _bus_report_job():
+    """버스 도착 수집 현황을 Discord 웹훅으로 6시간마다 전송."""
+    from app.services.bus_monitor import send_bus_arrival_report
+
+    try:
+        await send_bus_arrival_report(window_hours=6)
+    except Exception:
+        logger.exception("Bus arrival report failed")
+
+
 async def _bus_poll_job():
     """스케줄러에서 호출되는 버스 도착정보 폴링 작업.
 
@@ -88,17 +98,19 @@ def setup_scheduler():
 
     logger.info("Traffic collection scheduler configured")
 
-    # ── 버스 도착정보 폴링 (120초 간격, 06:00~22:59 KST 시간 체크는 job 내부) ──
-    # CronTrigger 대신 IntervalTrigger를 사용해 APScheduler 재스케줄링 문제 방지
+    # ── 버스 도착정보 폴링 (135초 간격, 06:00~22:59 KST 시간 체크는 job 내부) ──
+    # 135s: 17h × 3600/135 × 2정류장 = 907호출/일 → GBIS 일 1,000회 한도 이내
+    # (120s였을 때 1,020호출/일로 한도 초과)
     scheduler.add_job(
         _bus_poll_job,
-        IntervalTrigger(seconds=120),
+        IntervalTrigger(seconds=135),
         id="bus_arrival_poll",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
+        misfire_grace_time=60,
     )
-    logger.info("Bus arrival polling scheduler configured (every 120s, active 06:00-22:59 KST)")
+    logger.info("Bus arrival polling scheduler configured (every 135s, active 06:00-22:59 KST)")
 
     # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
     scheduler.add_job(
@@ -110,6 +122,17 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info("Weather cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)")
+
+    # ── 버스 도착 수집 리포트 (Discord 웹훅, 6시간마다 00/06/12/18 KST) ──
+    scheduler.add_job(
+        _bus_report_job,
+        CronTrigger(hour="0,6,12,18", minute=0),
+        id="bus_arrival_report",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("Bus arrival Discord report configured (00/06/12/18 KST, 6h window)")
 
 
 def start_scheduler():

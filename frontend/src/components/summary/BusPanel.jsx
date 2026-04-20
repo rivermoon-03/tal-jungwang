@@ -5,14 +5,7 @@ import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import ArrivalRow from '../dashboard/ArrivalRow'
 import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
-
-// BusRoute.category 값과 1:1 매칭. DB에서 직접 받아 그룹 구성.
-// DB 카테고리: '하교'(정왕역·서울 방향), '등교'(학교 방향), '기타'
-const CATEGORY_DB_VALUE = {
-  '하교': '하교',
-  '등교': '등교',
-  '기타': '기타',
-}
+import { getRoutesFor, getGbisStationId } from '../dashboard/busStationConfig'
 
 // 노선 번호별 배지 색상 — 디자인 시스템 단순화까지는 매핑 유지
 const ROUTE_INLINE_BG = {
@@ -28,20 +21,24 @@ const ROUTE_INLINE_BG = {
 const DEFAULT_ROUTE_COLOR = '#64748B'
 
 export default function BusPanel() {
-  const selectedBusGroup = useAppStore((s) => s.selectedBusGroup)
-  const category         = CATEGORY_DB_VALUE[selectedBusGroup] ?? null
-  const routesQuery      = useBusRoutesByCategory(category)
-  const routes           = routesQuery.data ?? []
+  const selectedBusStation   = useAppStore((s) => s.selectedBusStation)
+  const selectedBusDirection = useAppStore((s) => s.selectedBusDirection)
+  const allowedRouteNumbers  = useMemo(
+    () => new Set(getRoutesFor(selectedBusStation, selectedBusDirection)),
+    [selectedBusStation, selectedBusDirection]
+  )
+  const routesQuery = useBusRoutesByCategory(selectedBusDirection)
+  const allRoutes   = routesQuery.data ?? []
+  const routes      = useMemo(
+    () => allRoutes.filter((r) => allowedRouteNumbers.has(r.route_number)),
+    [allRoutes, allowedRouteNumbers]
+  )
 
-  // 실시간 노선은 공통 GBIS 정류장(정왕역행 그룹)에서 묶음 조회.
-  const realtimeStationId = useMemo(() => {
-    const rt = routes.find((r) => r.is_realtime && r.stops?.[0]?.stop_id != null)
-    return rt?.stops?.[0]?.stop_id ?? null
-  }, [routes])
-  // DB stop id를 gbis_station_id로 매핑해야 하지만 현재 arrivals API는 gbis_station_id(string)를 받음.
-  // 정왕역행 그룹만 is_realtime=true인 상황 — 한국공학대학교 정류장 gbis=224000639 고정.
+  // 실시간 도착은 선택 정류장의 gbis_station_id가 있을 때만 폴링.
+  const gbisStationId   = getGbisStationId(selectedBusStation)
+  const hasRealtimeRoute = routes.some((r) => r.is_realtime)
   const realtimeArrivals = useBusArrivals(
-    category === '정왕역행' && realtimeStationId ? 224000639 : null
+    hasRealtimeRoute && gbisStationId ? gbisStationId : null
   )
 
   return (
@@ -65,6 +62,8 @@ export default function BusPanel() {
 }
 
 function BusRouteRow({ route, realtimeArrivals }) {
+  const setDetailModal       = useAppStore((s) => s.setDetailModal)
+  const selectedBusDirection = useAppStore((s) => s.selectedBusDirection)
   const { route_id, route_number, is_realtime, stops = [] } = route
 
   // 실시간: 도착정보 목록에서 이 route_number만 추출 (동일 정류장 여러 노선 중)
@@ -98,7 +97,12 @@ function BusRouteRow({ route, realtimeArrivals }) {
   const originLabel = originStop
     ? (originStop.sub_name ? `${originStop.name} ${originStop.sub_name}` : originStop.name)
     : null
-  const direction = originLabel ?? route.direction_name ?? ''
+  const destLabel = route.direction_name ?? ''
+  const direction = originLabel && destLabel
+    ? `${originLabel} 출발 · ${destLabel}`
+    : originLabel
+      ? `${originLabel} 출발`
+      : destLabel
   const stopId = originStop?.stop_id ?? null
 
   const rightAddon = is_realtime && hasLiveData ? (
@@ -108,11 +112,21 @@ function BusRouteRow({ route, realtimeArrivals }) {
   ) : null
 
   const handleClick = () => {
-    const url = stopId != null
-      ? `/schedule?route=${encodeURIComponent(route_number)}&stop=${encodeURIComponent(stopId)}`
-      : `/schedule?route=${encodeURIComponent(route_number)}`
-    window.history.pushState({}, '', url)
-    window.dispatchEvent(new PopStateEvent('popstate'))
+    // 현재 페이지 위에 바로 ScheduleDetailModal을 띄운다 (네비게이션 없음).
+    setDetailModal({
+      type: 'bus',
+      routeCode: route_number,
+      routeId: route_id ?? null,
+      stopId: stopId ?? null,
+      favCode: `${selectedBusDirection}:${route_number}`,
+      mapLat: originStop?.lat ?? null,
+      mapLng: originStop?.lng ?? null,
+      isRealtime: !!is_realtime,
+      title: route.direction_name
+        ? `${route_number} · ${route.direction_name}`
+        : `${route_number}번 버스`,
+      accentColor: ['3400', '6502', '3401'].includes(route_number) ? '#DC2626' : undefined,
+    })
   }
 
   return (

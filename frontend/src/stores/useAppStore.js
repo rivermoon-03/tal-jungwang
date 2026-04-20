@@ -28,6 +28,11 @@ const useAppStore = create(
       // 마커 시트의 "상세 보기" 버튼이 /schedule 진입 시 초기 모드·그룹을 지정
       scheduleHint: null, // { mode, group?, routeCode? } | null
       setScheduleHint: (hint) => set({ scheduleHint: hint }),
+      // 페이지 이동 없이 어디서든 열 수 있는 ScheduleDetailModal 전역 상태.
+      // 대시보드 버스 행 탭 등에서 쓰인다. detail 객체는 SchedulePage의 detail과 동일 shape.
+      detailModal: null,
+      setDetailModal: (detail) => set({ detailModal: detail }),
+      closeDetailModal: () => set({ detailModal: null }),
       taxiOpen: false,
       setTaxiOpen: (v) => set({ taxiOpen: v }),
       toggleTaxiOpen: () => set((s) => ({ taxiOpen: !s.taxiOpen })),
@@ -42,8 +47,13 @@ const useAppStore = create(
       selectedSubwayStation: '정왕', // '정왕' | '초지' | '시흥시청'
       setSubwayStation: (station) => set({ selectedSubwayStation: station }),
 
-      selectedBusGroup: '하교',  // '하교' | '등교' | '기타'
-      setBusGroup: (group) => set({ selectedBusGroup: group }),
+      // 버스 정류장·방향 (각각 독립 상태)
+      // station: '한국공학대' | '시화터미널' | '이마트'
+      // direction: '등교' | '하교'  (정류장별 허용 방향은 busStationConfig에서 정의)
+      selectedBusStation: '한국공학대',
+      setBusStation: (station) => set({ selectedBusStation: station }),
+      selectedBusDirection: '하교',
+      setBusDirection: (direction) => set({ selectedBusDirection: direction }),
 
       // ── 2단 스냅 (지도 40% ↔ 대시보드 60%) ────────────────────────────
       snapMode: 'default',           // 'default' | 'dashboard' | 'map'
@@ -87,7 +97,7 @@ const useAppStore = create(
     }),
     {
       name: 'tal-jungwang',
-      version: 4,
+      version: 5,
       migrate: (state, fromVersion) => {
         if (!state) return state
         // v1 → v2: 버스 그룹 4분할
@@ -115,6 +125,17 @@ const useAppStore = create(
           delete state.headerCollapsed
           delete state.cardCollapsed
         }
+        // v4 → v5: selectedBusGroup → selectedBusStation + selectedBusDirection
+        if (fromVersion < 5) {
+          const prev = state.selectedBusGroup
+          if (prev === '등교' || prev === '기타') {
+            state.selectedBusStation = '이마트'
+          } else {
+            state.selectedBusStation = '한국공학대'
+          }
+          state.selectedBusDirection = '하교'
+          delete state.selectedBusGroup
+        }
         return state
       },
       storage: createJSONStorage(() => {
@@ -137,7 +158,8 @@ const useAppStore = create(
         favorites: state.favorites,
         selectedMode: state.selectedMode,
         selectedSubwayStation: state.selectedSubwayStation,
-        selectedBusGroup: state.selectedBusGroup,
+        selectedBusStation: state.selectedBusStation,
+        selectedBusDirection: state.selectedBusDirection,
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
         notifPrefs: state.notifPrefs,
       }),

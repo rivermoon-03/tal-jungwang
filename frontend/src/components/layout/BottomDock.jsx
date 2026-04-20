@@ -16,9 +16,8 @@ function getActiveId(pathname) {
 }
 
 /**
- * BottomDock — 플랫한 하단 고정 4탭 독 (아이콘 + 라벨 22/11px)
- * 높이 60px + safe-area-inset-bottom, 상단 1px 경계선.
- * React Router 없이 window.location 기반으로 active 탭 감지.
+ * BottomDock — 플랫한 하단 고정 4탭 독.
+ * 디자인 번들 정렬: active=ink/accent-dark, idle=mute-2, 라벨 micro(10px).
  */
 export default function BottomDock() {
   const pathname = window.location.pathname
@@ -42,8 +41,8 @@ export default function BottomDock() {
       {TABS.map(({ id, label, Icon, href }) => {
         const active = activeId === id
         const colorClass = active
-          ? 'text-accent dark:text-accent-dark'
-          : 'text-mute'
+          ? 'text-ink dark:text-accent-dark'
+          : 'text-mute-2'
         return (
           <a
             key={id}
@@ -54,8 +53,8 @@ export default function BottomDock() {
             className={`flex-1 min-h-[60px] flex flex-col items-center justify-center gap-1 pressable ${colorClass}`}
             style={{ transition: 'transform var(--dur-press) var(--ease-ios)' }}
           >
-            <Icon size={22} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" />
-            <span className="text-micro">{label}</span>
+            <Icon size={20} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" />
+            <span className="text-micro" style={{ fontWeight: 800 }}>{label}</span>
           </a>
         )
       })}

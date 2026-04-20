@@ -6,8 +6,8 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Clock } from 'lucide-react'
-import { useBusTimetable, useBusTimetableByRoute } from '../../hooks/useBus'
+import { X, Clock, Star, MapPin } from 'lucide-react'
+import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import Skeleton from '../common/Skeleton'
@@ -341,12 +341,115 @@ function EmptyMsg({ text }) {
   return <p className="text-sm text-slate-400 text-center py-4">{text}</p>
 }
 
+// ─── realtime bus history ────────────────────────────────────────────────
+
+function BusHistoryContent({ routeNumber }) {
+  const { data, loading, error } = useBusHistoryPreview(routeNumber)
+  const anchorRef = useRef(null)
+
+  const now = new Date()
+  const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  useEffect(() => {
+    if (anchorRef.current) {
+      anchorRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
+    }
+  }, [data])
+
+  if (loading) return <LoadingList />
+  if (error) return <ErrorMsg />
+
+  const columns = data?.columns ?? []
+  if (columns.length === 0 || columns.every((c) => c.times.length === 0)) {
+    return <EmptyMsg text="아직 쌓인 이력 데이터가 없어요" />
+  }
+
+  const stopName = data?.stop_name
+
+  const MAX_PAST = 2
+
+  // 컬럼별 "지금 이후 첫 번째" 인덱스 + 이전 버스 MAX_PAST개만 남기도록 슬라이스
+  const colViews = columns.map((col) => {
+    const nextIdx = col.times.findIndex((t) => t >= nowStr)
+    const sliceStart = nextIdx === -1
+      ? Math.max(0, col.times.length - MAX_PAST)
+      : Math.max(0, nextIdx - MAX_PAST)
+    return {
+      ...col,
+      times: col.times.slice(sliceStart),
+      nextIdx: nextIdx === -1 ? -1 : nextIdx - sliceStart,
+      totalCount: col.times.length,
+    }
+  })
+
+  // 스크롤 앵커: 가장 최근 컬럼의 next 위치
+  const anchorColIdx = colViews.length - 1
+  const anchorNextIdx = colViews[anchorColIdx].nextIdx
+
+  return (
+    <div>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mb-3 leading-relaxed">
+        실시간 GBIS 기반 노선 · 시간표 없음{stopName ? ` · ${stopName}` : ''}
+        <br />과거 실제 도착 기록을 날짜별로 표시합니다
+      </p>
+
+      {/* 독립 컬럼: 각 날짜가 자체 시간 순으로 쌓임. 행 정렬 없음. */}
+      <div className="flex gap-1 -mx-1 px-1">
+        {colViews.map((col, ci) => (
+          <div key={ci} className="flex-1 min-w-0">
+            {/* 헤더 */}
+            <div className="text-center py-2 border-b border-slate-200 dark:border-slate-600 mb-0.5">
+              <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                {col.label}
+              </span>
+              <span className="block text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                {col.day_label}
+              </span>
+              {col.totalCount === 0 ? (
+                <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">데이터 없음</span>
+              ) : (
+                <span className="block text-[9px] text-slate-300 dark:text-slate-600 mt-0.5">총 {col.totalCount}회</span>
+              )}
+            </div>
+
+            {/* 시간 리스트 */}
+            {col.totalCount === 0 ? (
+              <p className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">데이터 없음</p>
+            ) : (
+              col.times.map((t, i) => {
+                const isNext = i === col.nextIdx
+                const isPast = col.nextIdx !== -1 ? i < col.nextIdx : false
+                const isAnchor = ci === anchorColIdx && i === Math.max(0, anchorNextIdx - 1)
+                return (
+                  <div
+                    key={`${t}-${i}`}
+                    ref={isAnchor ? anchorRef : undefined}
+                    className={`py-0.5 text-center tabular-nums text-sm rounded-md
+                      ${isNext
+                        ? 'font-extrabold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                        : isPast
+                          ? 'text-slate-300 dark:text-slate-600'
+                          : 'font-semibold text-slate-700 dark:text-slate-200'
+                      }`}
+                  >
+                    {t}
+                  </div>
+                )
+              })
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── modal shell ────────────────────────────────────────────────────────
 
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, direction, subwayKey, title, accentColor }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null }) {
   const sheetRef = useRef(null)
   const [dragY, setDragY] = useState(0)
   const startY = useRef(null)
@@ -445,11 +548,35 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
             style={{ background: color }}
           />
           <div className="flex-1 min-w-0">
-            <p className="text-base font-black text-slate-900 dark:text-slate-100 truncate leading-tight">
+            <p className="text-display text-ink dark:text-slate-100 truncate" style={{ letterSpacing: '-0.03em' }}>
               {title}
             </p>
-            <p className="text-xs text-slate-400">{typeLabel} 시간표</p>
+            <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
           </div>
+          {onShowMap && (
+            <button
+              onClick={onShowMap}
+              aria-label="지도에서 보기"
+              title="지도에서 보기"
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
+            >
+              <MapPin size={18} className="text-slate-500 dark:text-slate-400" />
+            </button>
+          )}
+          {onToggleFav && (
+            <button
+              onClick={onToggleFav}
+              aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+              title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
+            >
+              <Star
+                size={18}
+                fill={isFavorite ? 'var(--tj-accent)' : 'none'}
+                className={isFavorite ? 'text-accent dark:text-accent-dark' : 'text-slate-400 dark:text-slate-500'}
+              />
+            </button>
+          )}
           <button
             onClick={onClose}
             aria-label="닫기"
@@ -471,7 +598,8 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           className="flex-1 overflow-y-auto px-4 pt-2"
           style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
         >
-          {type === 'bus' && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
+          {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} />}
+          {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
           {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
           {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
         </div>

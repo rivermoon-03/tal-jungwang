@@ -17,9 +17,9 @@ import Dashboard from '../dashboard/Dashboard'
  *
  * md:hidden — 모바일 전용. PC는 Phase F에서 기존 레이아웃으로 분기.
  */
-// SnapHandle의 고정 높이 (Tailwind h-4 = 16px). 이 값을 전체 높이에서 제외해서
+// SnapHandle의 고정 높이 (Tailwind h-6 = 24px). 이 값을 전체 높이에서 제외해서
 // 지도·대시보드가 나누어 갖도록 해야 핸들이 항상 화면 안에 남는다.
-const HANDLE_PX = 16
+const HANDLE_PX = 24
 
 export default function MainShell() {
   const { heights, handlers } = useSnap()
@@ -40,7 +40,6 @@ export default function MainShell() {
         // 해당만큼 내부 컨텐츠 영역을 축소한다. 핸들·대시보드가 항상 보이게.
         paddingBottom: 'calc(60px + env(safe-area-inset-bottom))',
       }}
-      {...handlers}
     >
       {/* 지도 영역 */}
       <div
@@ -50,7 +49,7 @@ export default function MainShell() {
         <MapView />
       </div>
 
-      <SnapHandle />
+      <SnapHandle {...handlers} />
 
       {/* 대시보드 영역 */}
       <div

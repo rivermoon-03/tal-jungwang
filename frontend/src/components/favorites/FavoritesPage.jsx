@@ -9,12 +9,52 @@ import { useEffect, useMemo, useState } from 'react'
 import { Star } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import FavoritesList from './FavoritesList'
+import FavoritesTimeline from './FavoritesTimeline'
 import EmptyState from '../common/EmptyState'
+import SegmentTabs from '../common/SegmentTabs'
 import PageHeader from '../layout/PageHeader'
 import ScheduleDetailModal from '../schedule/ScheduleDetailModal'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
+
+// favKey → 등교/하교 분류
+const FAV_KEY_COMMUTE = {
+  'shuttle:등교':         '등교',
+  'shuttle:하교':         '하교',
+  '20-1':                 '하교',  // 한국공대 출발
+  '시흥33':               '하교',  // 한국공대 출발
+  '시흥1':                '하교',  // 이마트 출발 (서울/신천)
+  '버스 - 학교행:3400':   '등교',
+  '버스 - 학교행:6502':   '등교',
+  '버스 - 서울행:3400':   '하교',
+  '버스 - 서울행:6502':   '하교',
+}
+
+// subway suffix → 등교/하교 (학교 방향=등교, 그 외=하교)
+const SUBWAY_DIR_COMMUTE = {
+  up:         '등교',  // 수인분당 왕십리행 — 학교 통학용
+  down:       '하교',  // 수인분당 인천행
+  line4_up:   '등교',
+  line4_down: '하교',
+  choji_up:   '등교',
+  choji_dn:   '하교',
+  siheung_up: '등교',
+  siheung_dn: '하교',
+}
+
+function classifyCommute(favKey) {
+  if (!favKey) return '하교'
+  if (FAV_KEY_COMMUTE[favKey]) return FAV_KEY_COMMUTE[favKey]
+  if (favKey.startsWith('subway:')) {
+    const parts = favKey.split(':')
+    const station = parts[1] ?? '정왕'
+    const legacyKey = station === '초지' ? 'choji_up' : station === '시흥시청' ? 'siheung_up' : 'up'
+    const dir = parts[2] ?? legacyKey
+    return SUBWAY_DIR_COMMUTE[dir] ?? '하교'
+  }
+  return '하교'
+}
 
 // 버스 노선별 다음 출발까지 남은 분 (favKey → minutes)
 function useBusMinutesByFavKey() {
@@ -151,6 +191,8 @@ function useFavoriteItems(favorites) {
           minutes: min,
           walkMin: 10,
           status: getBoardingStatus(min, 10),
+          commute: classifyCommute(routeCode),
+          lastTrain: Boolean(next?.last_train),
           detail: {
             type: 'subway',
             routeCode: station,
@@ -172,11 +214,12 @@ function useFavoriteItems(favorites) {
         result.push({
           id: `route:${routeCode}`,
           type: 'shuttle',
-          routeCode: `셔틀 ${label}`,
+          routeCode: `${label}셔틀`,
           stationName: '한국공학대학교',
           minutes: mins,
           walkMin: 3,
           status: getBoardingStatus(mins, 3),
+          commute: classifyCommute(routeCode),
           detail: {
             type: 'shuttle',
             routeCode: `셔틀${label}`,
@@ -202,6 +245,7 @@ function useFavoriteItems(favorites) {
         minutes: mins,
         walkMin: 5,
         status: getBoardingStatus(mins, 5),
+        commute: classifyCommute(routeCode),
         detail: {
           type: 'bus',
           routeCode: busNo,
@@ -224,9 +268,16 @@ export default function FavoritesPage({ onGoSchedule }) {
   const toggleFavoriteStation = useAppStore((s) => s.toggleFavoriteStation)
 
   const items = useFavoriteItems(favorites)
-  const isEmpty = items.length === 0
+  const allEmpty = items.length === 0
 
+  const [commute, setCommute] = useState('등교')
+  const [view, setView] = useState('list')
   const [selectedDetail, setSelectedDetail] = useState(null)
+
+  const filtered = useMemo(
+    () => items.filter((it) => (it.commute ?? '하교') === commute),
+    [items, commute],
+  )
 
   // 15초마다 타임라인 리렌더 (minutes 재계산용) — 실제 fetch는 내부 훅의 interval이 담당
   const [, setTick] = useState(0)
@@ -246,11 +297,25 @@ export default function FavoritesPage({ onGoSchedule }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up">
-      <PageHeader title="즐겨찾기" subtitle="자주 타는 노선을 한눈에" />
+    <div className="flex flex-col h-full bg-white dark:bg-bg-dark animate-fade-in-up">
+      <PageHeader title="즐겨찾기" subtitle="등교 / 하교 · 15초마다 갱신" />
+
+      <div className="flex items-center justify-between gap-2 px-4 pb-2">
+        <SegmentTabs
+          tabs={[{ id: '등교', label: '등교' }, { id: '하교', label: '하교' }]}
+          active={commute}
+          onChange={setCommute}
+        />
+        <SegmentTabs
+          tabs={[{ id: 'list', label: '리스트' }, { id: 'timeline', label: '타임라인' }]}
+          active={view}
+          onChange={setView}
+          size="sm"
+        />
+      </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6 flex flex-col gap-3">
-        {isEmpty ? (
+        {allEmpty ? (
           <div className="rounded-[18px] overflow-hidden shadow-card bg-white dark:bg-surface-dark border border-slate-100 dark:border-border-dark">
             <EmptyState
               icon={<Star size={28} strokeWidth={1.6} />}
@@ -260,9 +325,19 @@ export default function FavoritesPage({ onGoSchedule }) {
               onCta={onGoSchedule}
             />
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-[18px] overflow-hidden shadow-card bg-white dark:bg-surface-dark border border-slate-100 dark:border-border-dark">
+            <EmptyState
+              icon={<Star size={28} strokeWidth={1.6} />}
+              title={`${commute}용 즐겨찾기가 없어요`}
+              desc="다른 탭을 확인해 보세요"
+            />
+          </div>
+        ) : view === 'timeline' ? (
+          <FavoritesTimeline items={filtered} onOpenDetail={handleOpenDetail} />
         ) : (
           <FavoritesList
-            items={items}
+            items={filtered}
             onRemove={handleRemove}
             onOpenDetail={handleOpenDetail}
           />
@@ -278,6 +353,7 @@ export default function FavoritesPage({ onGoSchedule }) {
         direction={selectedDetail?.direction}
         subwayKey={selectedDetail?.subwayKey}
         accentColor={selectedDetail?.accentColor}
+        isRealtime={selectedDetail?.isRealtime ?? false}
         title={selectedDetail?.title ?? ''}
       />
     </div>

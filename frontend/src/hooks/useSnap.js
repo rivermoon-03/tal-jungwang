@@ -5,7 +5,7 @@ import useAppStore from '../stores/useAppStore'
  * useSnap — 2단 스냅(지도 ↔ 대시보드) 상태와 제스처 훅.
  *
  * snapMode: 'default' | 'dashboard' | 'map'
- *   - default   → map 40%, dashboard 60%
+ *   - default   → map 50%, dashboard 50%
  *   - dashboard → map  0%, dashboard 100%
  *   - map       → map 100%, dashboard  0%
  *
@@ -24,7 +24,7 @@ import useAppStore from '../stores/useAppStore'
  * (CSS 전환 duration이 0ms가 되어 즉시 전환될 뿐 로직은 동일.)
  */
 const HEIGHTS = {
-  default:   { map: 40,  dashboard: 60  },
+  default:   { map: 50,  dashboard: 50  },
   dashboard: { map:  0,  dashboard: 100 },
   map:       { map: 100, dashboard: 0   },
 }

@@ -1,4 +1,4 @@
-const CACHE = 'transit-hub-v4'
+const CACHE = 'transit-hub-v5'
 const PRECACHE = ['/', '/index.html']
 
 // 해시되지 않은 루트 정적 파일 — 배포할 때마다 내용이 바뀔 수 있으므로
@@ -33,18 +33,22 @@ self.addEventListener('fetch', (e) => {
   // GET 이외 메서드(POST 등 API 호출)는 그대로 통과
   if (e.request.method !== 'GET') return
 
-  // /api/v1/map/markers — StaleWhileRevalidate (마커는 거의 안 변함)
+  // /api/v1/map/markers — NetworkFirst(+offline fallback).
+  // 과거 StaleWhileRevalidate였지만 마커 변경 시 stale 응답이 오래 고착됨(노선 추가 반영 지연).
+  // 네트워크 우선으로 바꾸되 오프라인일 때만 캐시로 폴백한다.
   if (url.pathname === '/api/v1/map/markers') {
     e.respondWith(
       caches.open(CACHE).then(async (cache) => {
-        const cached = await cache.match(e.request)
-        const network = fetch(e.request).then((res) => {
+        try {
+          const res = await fetch(e.request)
           if (res.status === 200) cache.put(e.request, res.clone())
           return res
-        }).catch(() => cached ?? new Response(JSON.stringify({ success: false }), {
-          status: 503, headers: { 'Content-Type': 'application/json' },
-        }))
-        return cached ?? network
+        } catch {
+          const cached = await cache.match(e.request)
+          return cached ?? new Response(JSON.stringify({ success: false }), {
+            status: 503, headers: { 'Content-Type': 'application/json' },
+          })
+        }
       })
     )
     return
