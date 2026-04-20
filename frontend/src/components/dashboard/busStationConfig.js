@@ -49,3 +49,15 @@ export function getRoutesFor(station, direction) {
 export function getGbisStationId(station) {
   return BUS_STATIONS[station]?.gbisStationId ?? null
 }
+
+// 노선 번호로 실시간 도착정보를 조회해야 할 GBIS 정류장 ID를 반환.
+// 같은 노선이 여러 정류장에 속할 일은 없으므로 첫 매치를 사용한다.
+export function getGbisStationIdForRoute(routeNumber) {
+  for (const cfg of Object.values(BUS_STATIONS)) {
+    if (!cfg.gbisStationId) continue
+    for (const routes of Object.values(cfg.routes)) {
+      if (routes.includes(routeNumber)) return cfg.gbisStationId
+    }
+  }
+  return null
+}

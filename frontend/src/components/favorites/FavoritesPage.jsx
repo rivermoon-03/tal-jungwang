@@ -16,7 +16,19 @@ import PageHeader from '../layout/PageHeader'
 import ScheduleDetailModal from '../schedule/ScheduleDetailModal'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
-import { useBusTimetableByRoute, useBusArrivals, useBusStations } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusArrivals, useBusStations, useBusRoutesByCategory } from '../../hooks/useBus'
+
+// 스케줄 페이지가 생성하는 새 형식 버스 favKey: "등교:X" / "하교:X" / "기타:X"
+const BUS_CATEGORY_PREFIXES = ['등교:', '하교:', '기타:']
+function parseBusFavKey(favKey) {
+  if (typeof favKey !== 'string') return null
+  for (const p of BUS_CATEGORY_PREFIXES) {
+    if (favKey.startsWith(p)) {
+      return { category: p.slice(0, -1), routeNumber: favKey.slice(p.length) }
+    }
+  }
+  return null
+}
 
 // favKey → 등교/하교 분류
 const FAV_KEY_COMMUTE = {
@@ -29,6 +41,18 @@ const FAV_KEY_COMMUTE = {
   '버스 - 학교행:6502':   '등교',
   '버스 - 서울행:3400':   '하교',
   '버스 - 서울행:6502':   '하교',
+}
+
+// 새 형식 favKey → 기존 useBusMinutesByFavKey 결과의 레거시 키
+// (현재 분 계산이 지원되는 7개 노선). 매핑 없는 버스는 minutes=null로 표시.
+const NEW_TO_LEGACY_MIN_KEY = {
+  '하교:20-1':   '20-1',
+  '하교:시흥33': '시흥33',
+  '하교:시흥1':  '시흥1',
+  '하교:3400':   '버스 - 서울행:3400',
+  '하교:6502':   '버스 - 서울행:6502',
+  '등교:3400':   '버스 - 학교행:3400',
+  '등교:6502':   '버스 - 학교행:6502',
 }
 
 // subway suffix → 등교/하교 (학교 방향=등교, 그 외=하교)
@@ -46,6 +70,8 @@ const SUBWAY_DIR_COMMUTE = {
 function classifyCommute(favKey) {
   if (!favKey) return '하교'
   if (FAV_KEY_COMMUTE[favKey]) return FAV_KEY_COMMUTE[favKey]
+  const busParsed = parseBusFavKey(favKey)
+  if (busParsed) return busParsed.category === '등교' ? '등교' : '하교'
   if (favKey.startsWith('subway:')) {
     const parts = favKey.split(':')
     const station = parts[1] ?? '정왕'
@@ -158,6 +184,25 @@ function useFavoriteItems(favorites) {
     }
   }, [stationsData])
 
+  // 스케줄 페이지가 생성하는 새 형식 favKey("등교:X" / "하교:X" / "기타:X")를
+  // 인식하기 위해 백엔드 카테고리별 노선 데이터를 동적으로 읽는다.
+  const { data: routesDeung } = useBusRoutesByCategory('등교')
+  const { data: routesHa   }  = useBusRoutesByCategory('하교')
+  const { data: routesEt   }  = useBusRoutesByCategory('기타')
+  const busRouteMeta = useMemo(() => {
+    const m = {}
+    const add = (cat, list) => {
+      for (const r of Array.isArray(list) ? list : []) {
+        const stop = r.stops?.[0] ?? null
+        m[`${cat}:${r.route_number}`] = { route: r, stop }
+      }
+    }
+    add('등교', routesDeung)
+    add('하교', routesHa)
+    add('기타', routesEt)
+    return m
+  }, [routesDeung, routesHa, routesEt])
+
   const items = useMemo(() => {
     const result = []
 
@@ -230,6 +275,42 @@ function useFavoriteItems(favorites) {
         continue
       }
 
+      // 새 형식 버스 favKey ("등교:X" / "하교:X" / "기타:X") — 스케줄 페이지에서 추가된 항목
+      const busParsed = parseBusFavKey(routeCode)
+      if (busParsed) {
+        const lookup = busRouteMeta?.[routeCode]
+        if (!lookup) continue // 아직 카테고리 데이터가 로드되지 않았거나 노선이 존재하지 않음
+        const { route, stop } = lookup
+        const busNo = route.route_number
+        const minKey = NEW_TO_LEGACY_MIN_KEY[routeCode] ?? null
+        const mins = minKey ? (busMinsByRoute?.[minKey] ?? null) : null
+        const isAccent = busNo === '3400' || busNo === '6502' || busNo === '3401'
+        result.push({
+          id: `route:${routeCode}`,
+          type: 'bus',
+          routeCode: busNo,
+          stationName: stop?.name ?? null,
+          stationId: route.is_realtime && stop?.stop_id != null ? String(stop.stop_id) : null,
+          destination: route.direction_name ?? null,
+          minutes: mins,
+          walkMin: 5,
+          status: getBoardingStatus(mins, 5),
+          commute: classifyCommute(routeCode),
+          detail: {
+            type: 'bus',
+            routeCode: busNo,
+            routeId: route.route_id ?? null,
+            stopId: stop?.stop_id ?? null,
+            isRealtime: Boolean(route.is_realtime),
+            accentColor: isAccent ? '#DC2626' : undefined,
+            title: route.direction_name
+              ? `${busNo} · ${route.direction_name}`
+              : `${busNo}번 버스`,
+          },
+        })
+        continue
+      }
+
       const meta = ROUTE_STATION_MAP[routeCode]
       if (!meta) continue
       const mins = busMinsByRoute?.[routeCode] ?? null
@@ -257,7 +338,7 @@ function useFavoriteItems(favorites) {
     }
 
     return result
-  }, [favorites.routes, shuttleUp, shuttleDown, subwayNext, busMinsByRoute, stopIdByFavKey])
+  }, [favorites.routes, shuttleUp, shuttleDown, subwayNext, busMinsByRoute, stopIdByFavKey, busRouteMeta])
 
   return items
 }

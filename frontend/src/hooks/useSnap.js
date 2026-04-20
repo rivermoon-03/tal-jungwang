@@ -57,6 +57,9 @@ export function useSnap() {
   const onPointerDown = useCallback((e) => {
     startYRef.current = e.clientY ?? e.touches?.[0]?.clientY ?? null
     consumedRef.current = false
+    // 터치는 자동 캡처되지만 마우스는 핸들(24px) 밖으로 벗어나면 pointermove가 끊긴다.
+    // 명시적으로 캡처해서 마우스 드래그도 끝까지 추적되게 한다.
+    try { e.currentTarget?.setPointerCapture?.(e.pointerId) } catch {}
   }, [])
 
   const onPointerMove = useCallback((e) => {
@@ -76,9 +79,10 @@ export function useSnap() {
     }
   }, [setMode])
 
-  const onPointerUp = useCallback(() => {
+  const onPointerUp = useCallback((e) => {
     startYRef.current = null
     consumedRef.current = false
+    try { e?.currentTarget?.releasePointerCapture?.(e.pointerId) } catch {}
   }, [])
 
   const handlers = {
