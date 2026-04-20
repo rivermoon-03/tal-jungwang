@@ -335,12 +335,10 @@ export default function MapView({ onMarkerClick, selectedId }) {
         for (let i = 0; i < times.length; i++) {
           const [hh, mm] = String(times[i]).split(':').map(Number)
           if (Number.isNaN(hh) || Number.isNaN(mm)) continue
-          
+
           const tDate = new Date(now)
           tDate.setHours(hh, mm, 0, 0)
-          if (tDate <= now) {
-            tDate.setDate(tDate.getDate() + 1)
-          }
+          if (tDate <= now) continue // 이미 지난 시간 건너뜀 (내일로 롤오버 금지)
 
           const diffMin = Math.round((tDate - now) / 60000)
           if (diffMin > 12 * 60) continue // 12시간 이후는 제외
@@ -415,9 +413,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
         const tDate = new Date(now)
         tDate.setHours(h, m, 0, 0)
-        if (tDate <= now) {
-          tDate.setDate(tDate.getDate() + 1)
-        }
+        if (tDate <= now) continue // 이미 지난 시간 건너뜀
         const diffMin = Math.round((tDate - now) / 60000)
         if (diffMin > 12 * 60) continue
 
