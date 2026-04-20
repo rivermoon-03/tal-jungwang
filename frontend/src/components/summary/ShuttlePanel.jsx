@@ -10,7 +10,6 @@ import ArrivalRow from '../dashboard/ArrivalRow'
  * 등교(direction=0) / 하교(direction=1) 세로 2행 ArrivalRow.
  * 시간 기반 "현재 활성 방향" 코랄 강조는 제거 — urgent(≤3분) 좌측 바만 사용.
  */
-const SHUTTLE_COLOR = '#1b3a6e'
 
 export default function ShuttlePanel() {
   return (
@@ -60,9 +59,7 @@ function ShuttleRow({ direction, label }) {
 
   return (
     <ArrivalRow
-      routeColor={SHUTTLE_COLOR}
-      routeNumber="셔틀"
-      direction={label}
+      route={`${label}셔틀`}
       minutes={minutes}
       isUrgent={minutes != null && minutes <= 3}
       onClick={handleClick}
