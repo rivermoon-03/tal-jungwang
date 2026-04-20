@@ -244,12 +244,43 @@ function DirectionBlock({ label, items, totalCount, accentColor }) {
 }
 
 function ShuttleContent({ direction, accentColor }) {
-  const { data, loading, error } = useShuttleSchedule(direction)
+  // 등교 회차편의 하교 출발 시각 판정을 위해 양 방향을 한 번에 조회.
+  // (direction 쿼리를 생략하면 백엔드가 양 방향을 함께 반환 — 로딩 경합 제거)
+  const { data, loading, error } = useShuttleSchedule()
   const nextRef = useRef(null)
   const now = new Date()
   const nowStr = toHHMM(now)
   const dirData = data?.directions?.find((d) => d.direction === direction)
   const times = dirData?.times ?? []
+
+  // 하교의 수시운행 밴드를 [start, end) 구간 리스트로 산출.
+  // 등교 회차편의 하교 출발 시각이 이 구간에 속하면 "수시운행 중" 으로 분기한다.
+  const outboundFrequentBands = (() => {
+    const outboundTimes = data?.directions?.find((d) => d.direction === 1)?.times ?? []
+    const normalized = outboundTimes.map((t) => ({
+      ts: (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5),
+      note: typeof t === 'object' ? t?.note ?? null : null,
+    })).filter((e) => e.ts)
+    const bands = []
+    let i = 0
+    while (i < normalized.length) {
+      if (normalized[i].note !== '수시운행') { i++; continue }
+      const start = normalized[i].ts
+      let j = i + 1
+      while (j < normalized.length && normalized[j].note === '수시운행') j++
+      const end = normalized[j]?.ts ?? null
+      bands.push({ start, end })
+      i = j
+    }
+    return bands
+  })()
+
+  const originTimeInFrequentBand = (originTime) => {
+    if (!originTime) return false
+    return outboundFrequentBands.some((b) =>
+      originTime >= b.start && (b.end == null || originTime < b.end)
+    )
+  }
 
   const future = []
   const past = []
@@ -259,6 +290,14 @@ function ShuttleContent({ direction, accentColor }) {
     if (timeStr >= nowStr) future.push({ time: timeStr, note })
     else past.push({ time: timeStr, note })
   }
+
+  // 마지막 과거 항목이 "회차편 · 학교 수시운행 출발"이면
+  // 수시운행 버스들이 아직 회차 중인 구간 → 다음 회차편도 "수시운행 중"으로 표기
+  const lastPast = past[past.length - 1] ?? null
+  const inFrequentReturnWindow = !!(
+    lastPast?.note?.startsWith('회차편') &&
+    lastPast.note.includes('수시운행')
+  )
 
   // 연속된 수시운행 항목을 하나의 밴드로 묶음.
   // 회차편 중 하교 원천이 '수시운행'인 경우(note: "회차편 · 학교 수시운행 출발")는
@@ -332,10 +371,15 @@ function ShuttleContent({ direction, accentColor }) {
             displayNote = '역 앞에 도착한 버스 탑승'
           } else if (entry.isReturn) {
             // 회차편 도착 시각은 예정치라 숨기고, 하교 출발 시각만 부제로 노출한다.
+            // ① 첫 번째 회차편이고 수시 회차 구간 안이면 "수시운행 중"
+            // ② 그 외에도 originTime이 하교 수시운행 밴드 안이면 "수시운행 중"
             displayTime = '회차편 탑승'
-            displayNote = entry.originTime
-              ? `하교 버스가 ${entry.originTime}에 출발합니다`
-              : null
+            const isFreqNow = (isNext && inFrequentReturnWindow) || originTimeInFrequentBand(entry.originTime)
+            displayNote = isFreqNow
+              ? '하교 버스가 수시운행 중입니다'
+              : entry.originTime
+                ? `하교 버스가 ${entry.originTime}에 출발합니다`
+                : null
           } else {
             displayTime = entry.time
             displayNote = entry.note

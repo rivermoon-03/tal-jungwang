@@ -3,13 +3,14 @@
  * 디자인 번들 lib/components.jsx의 SegmentTabs를 React 컴포넌트화.
  *
  * Props:
- *   tabs      ([{ id, label, disabled? }])  — 탭 정의
- *   active    (string)             — 현재 활성 id
- *   onChange  (id => void)         — 변경 핸들러
- *   size      ('sm'|'md')          — 기본 'md'
- *   className (string)
+ *   tabs              ([{ id, label, disabled?, title? }]) — 탭 정의
+ *   active            (string)             — 현재 활성 id
+ *   onChange          (id => void)         — 변경 핸들러
+ *   onDisabledClick   (id => void)         — disabled 탭 클릭 시 호출(툴팁/토스트 등)
+ *   size              ('sm'|'md')          — 기본 'md'
+ *   className         (string)
  */
-export default function SegmentTabs({ tabs, active, onChange, size = 'md', className = '' }) {
+export default function SegmentTabs({ tabs, active, onChange, onDisabledClick, size = 'md', className = '' }) {
   const padY = size === 'sm' ? 7 : 10;
   const padX = size === 'sm' ? 12 : 16;
   const fontSize = size === 'sm' ? 12 : 13;
@@ -36,8 +37,11 @@ export default function SegmentTabs({ tabs, active, onChange, size = 'md', class
             role="tab"
             aria-selected={isActive}
             aria-disabled={isDisabled}
-            disabled={isDisabled}
-            onClick={() => { if (!isDisabled) onChange?.(t.id); }}
+            title={t.title}
+            onClick={() => {
+              if (isDisabled) onDisabledClick?.(t.id);
+              else onChange?.(t.id);
+            }}
             className={isDisabled ? '' : 'pressable'}
             style={{
               padding: `${padY}px ${padX}px`,

@@ -11,6 +11,7 @@ import PageHeader from '../layout/PageHeader'
 import SegmentTabs from '../common/SegmentTabs'
 import RouteBadge from '../common/RouteBadge'
 import Skeleton from '../common/Skeleton'
+import Toast from '../common/Toast'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
@@ -864,6 +865,7 @@ export default function SchedulePage() {
   const [subwayGroup, setSubwayGroup] = useState('정왕')
   const [, setShuttleGroup] = useState('등교')
   const [selectedDetail, setSelectedDetail] = useState(null)
+  const [toastMessage, setToastMessage] = useState(null)
 
   // URL type이 popstate로 바뀌면 mode 동기화
   useEffect(() => {
@@ -920,9 +922,13 @@ export default function SchedulePage() {
           onChange={handleModeChange}
         />
         <SegmentTabs
-          tabs={[{ id: 'list', label: '리스트' }, { id: 'timeline', label: '타임라인' }]}
+          tabs={[
+            { id: 'list', label: '리스트', disabled: mode === 'shuttle', title: mode === 'shuttle' ? '개발 중입니다' : undefined },
+            { id: 'timeline', label: '타임라인', disabled: mode === 'shuttle', title: mode === 'shuttle' ? '개발 중입니다' : undefined },
+          ]}
           active={view}
           onChange={setView}
+          onDisabledClick={() => setToastMessage('개발 중입니다')}
           size="sm"
         />
       </div>
@@ -1052,6 +1058,9 @@ export default function SchedulePage() {
             : null
         }
       />
+      {toastMessage && (
+        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+      )}
     </div>
   )
 }
