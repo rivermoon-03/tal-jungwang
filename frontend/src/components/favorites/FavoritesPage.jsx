@@ -368,7 +368,11 @@ export default function FavoritesPage({ onGoSchedule }) {
   }, [])
 
   function handleRemove(id) {
-    const [type, code] = id.split(':')
+    // id: "route:<favCode>" | "station:<code>" — favCode는 "하교:20-1"처럼 콜론 포함 가능
+    const idx = id.indexOf(':')
+    if (idx === -1) return
+    const type = id.slice(0, idx)
+    const code = id.slice(idx + 1)
     if (type === 'route') toggleFavoriteRoute(code)
     else toggleFavoriteStation(code)
   }

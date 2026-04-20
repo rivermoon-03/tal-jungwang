@@ -282,7 +282,7 @@ function ShuttleContent({ direction, accentColor }) {
       } else {
         const isReturn = e.note?.startsWith?.('회차편') ?? false
         const isFrequentReturn = isReturn && (e.note?.includes?.('수시운행') ?? false)
-        // "회차편 · 학교 HH:MM 출발" 에서 하교 원천 HH:MM 추출
+        // "회차편 · 학교 HH:MM 출발" 에서 하교 출발 시각 추출 (회차편 부제로 사용)
         const originMatch = isReturn && !isFrequentReturn ? e.note?.match?.(/(\d{2}:\d{2})/) : null
         const originTime = originMatch ? originMatch[1] : null
         displayEntries.push({
@@ -331,10 +331,11 @@ function ShuttleContent({ direction, accentColor }) {
             displayTime = '하교 수시운행 회차편'
             displayNote = '역 앞에 도착한 버스 탑승'
           } else if (entry.isReturn) {
-            displayTime = entry.time
+            // 회차편 도착 시각은 예정치라 숨기고, 하교 출발 시각만 부제로 노출한다.
+            displayTime = '회차편 탑승'
             displayNote = entry.originTime
-              ? `학교 ${entry.originTime} 출발 회차편`
-              : '회차편 탑승'
+              ? `하교 버스가 ${entry.originTime}에 출발합니다`
+              : null
           } else {
             displayTime = entry.time
             displayNote = entry.note
