@@ -119,56 +119,66 @@ export default function ArrivalRow({
         )}
       </div>
 
-      <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-        {hasFirst ? (
-          <>
-            <div
-              className={urgent ? 'tj-urgent' : ''}
-              style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: 2,
-                justifyContent: 'flex-end',
-                color: urgent ? 'var(--tj-accent)' : 'var(--tj-ink)',
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  letterSpacing: '-0.03em',
-                  lineHeight: 1,
-                }}
-              >
-                {first}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: urgent ? 'var(--tj-accent)' : 'var(--tj-mute)',
-                  fontWeight: 700,
-                }}
-              >
-                분
-              </span>
-            </div>
-            {rest.length > 0 && (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          flexShrink: 0,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        <div style={{ textAlign: 'right' }}>
+          {hasFirst ? (
+            <>
               <div
+                className={urgent ? 'tj-urgent' : ''}
                 style={{
-                  fontSize: 10,
-                  color: 'var(--tj-mute-2)',
-                  marginTop: 2,
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: 2,
+                  justifyContent: 'flex-end',
+                  color: urgent ? 'var(--tj-accent)' : 'var(--tj-ink)',
                 }}
               >
-                {rest.join(' · ')}분
+                <span
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 900,
+                    letterSpacing: '-0.03em',
+                    lineHeight: 1,
+                  }}
+                >
+                  {first}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: urgent ? 'var(--tj-accent)' : 'var(--tj-mute)',
+                    fontWeight: 700,
+                  }}
+                >
+                  분
+                </span>
               </div>
-            )}
-          </>
-        ) : (
-          <span style={{ fontSize: 11, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
-        )}
+              {rest.length > 0 && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: 'var(--tj-mute-2)',
+                    marginTop: 2,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {rest.join(' · ')}분
+                </div>
+              )}
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
+          )}
+        </div>
         {rightAddon}
       </div>
     </button>

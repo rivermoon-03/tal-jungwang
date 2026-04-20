@@ -77,7 +77,9 @@ export default function MorePage() {
   if (subPage === 'notices')       return <NoticesPage      onBack={() => setSubPage(null)} />
 
   const version = infoData?.version ?? APP_VERSION
-  const recent = Array.isArray(noticesData) ? noticesData.slice(1, 4) : []
+  const allNotices = Array.isArray(noticesData) ? noticesData : []
+  const recent = allNotices.slice(0, 2)
+  const hasMoreNotices = allNotices.length > recent.length
 
   return (
     <div className="flex flex-col h-full bg-bg-soft-light dark:bg-bg-dark animate-fade-in-up">
@@ -186,6 +188,25 @@ export default function MorePage() {
                   </div>
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setSubPage('notices')}
+                className="pressable w-full"
+                style={{
+                  padding: '10px 14px',
+                  borderTop: '1px solid var(--tj-line-soft)',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: 'var(--tj-mute)',
+                  letterSpacing: '-0.01em',
+                  textAlign: 'center',
+                }}
+                aria-label="전체 공지 보기"
+              >
+                {hasMoreNotices ? '더보기' : '전체 공지 보기'} →
+              </button>
             </div>
           </>
         )}
@@ -219,7 +240,7 @@ export default function MorePage() {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tj-ink)' }} className="dark:text-slate-100">
-              Made by 소공
+              Made by moonlandingplan
             </div>
             <div style={{ fontSize: 10, color: 'var(--tj-mute)', fontWeight: 500, marginTop: 2 }}>
               한국공학대학교 · v{version}
