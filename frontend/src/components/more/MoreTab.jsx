@@ -1,11 +1,46 @@
 import { useState } from 'react'
-import { Megaphone, Bell, Info, MessageSquare, Moon, Sun, MoreHorizontal, ChevronDown, ExternalLink } from 'lucide-react'
+import { Megaphone, Bell, Info, MessageSquare, Moon, Sun, MoreHorizontal, ChevronDown, ExternalLink, Heart } from 'lucide-react'
 import { useNotices, useLinks, useAppInfo } from '../../hooks/useMore'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useShuttleNotification } from '../../hooks/useShuttleNotification'
 import useAppStore from '../../stores/useAppStore'
-import { AboutModal } from '../map/InfoPanel'
 import NoticeHighlights from './NoticeHighlights'
+
+function AboutModal({ onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm px-5"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-surface-dark rounded-2xl shadow-2xl px-7 py-6 flex flex-col gap-4 max-w-sm w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-wide text-center">
+            Made with <Heart size={13} className="inline-block text-red-400 mx-0.5" /> by 소공
+          </p>
+          <p className="text-[11px] text-slate-400">한국공대 ㅎㅇㅌ</p>
+        </div>
+        <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
+          지하철, 3400/6502, 셔틀버스 정보는 각각의 공식 시간표에서 가져왔습니다.
+          예상치 못한 일이 생기면 달라질 수 있습니다.
+          <br />
+          <span className="text-slate-400">(수인분당 제대로 오는 꼬라지를 본 적이 없어요.)</span>
+        </p>
+        <p className="text-[12px] text-slate-400 leading-relaxed border-t border-slate-100 dark:border-border-dark pt-3">
+          아직 테스트 버전입니다. 실시간 버스 기능은 믿지 말아주세요.
+        </p>
+        <button
+          onClick={onClose}
+          className="self-center px-5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+        >
+          닫기
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function SectionLabel({ children }) {
   return (

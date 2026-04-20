@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 from app.core.cache import get_redis
 from app.core.database import AsyncSessionLocal
-from app.models.bus import BusArrivalHistory, BusRoute, BusStop
+from app.models.bus import BusArrivalHistory, BusCrowdingLog, BusRoute, BusStop
 from app.services.external.gbis import fetch_arrivals
 
 from sqlalchemy import select
@@ -23,18 +23,16 @@ logger = logging.getLogger(__name__)
 _KST = ZoneInfo("Asia/Seoul")
 
 # 이전 폴링에서 predictTimeSec이 이 값 이하였던 차량이 사라지면 도착으로 판정
-ARRIVAL_THRESHOLD_SEC = 150
+ARRIVAL_THRESHOLD_SEC = 90
 
 # 이전 폴링에 없었던 차량이 이번에 이 값 이하로 처음 등장하면 도착으로 추정
-# (폴링 간격 135초 안에 등장·도착·출발이 끝나는 경우 대비)
+# (폴링 간격 45초 안에 등장·도착·출발이 끝나는 경우 대비)
 FIRST_SIGHT_ARRIVAL_SEC = 30
 
-CACHE_TTL = 150  # 캐시 TTL (초) — 폴링 간격(135초)보다 약간 길게
+CACHE_TTL = 60  # 캐시 TTL (초) — 폴링 간격(45초)보다 약간 길게
 
-# 노선번호별 최소 폴링 간격 (초). 미설정 노선은 전역 135초 주기를 따름.
-ROUTE_POLL_INTERVALS: dict[str, int] = {
-    "20-1": 240,
-}
+# 노선번호별 최소 폴링 간격 (초). 빈 dict = 전 노선 매 사이클 처리.
+ROUTE_POLL_INTERVALS: dict[str, int] = {}
 
 
 async def _is_route_due(redis, stop_id: int, route_id: int, route_number: str) -> bool:
@@ -125,6 +123,7 @@ async def poll_and_collect():
                         "depart_at": None,
                         "arrive_in_seconds": sec1,
                         "is_tomorrow": False,
+                        "crowded": item.get("crowded1", 0),
                     })
                 if sec2:
                     arrivals_for_cache.append({
@@ -136,6 +135,7 @@ async def poll_and_collect():
                         "depart_at": None,
                         "arrive_in_seconds": sec2,
                         "is_tomorrow": False,
+                        "crowded": item.get("crowded2", 0),
                     })
 
             # cached_at을 함께 저장해 서빙 시 경과 시간만큼 arrive_in_seconds를 보정
@@ -220,6 +220,32 @@ async def poll_and_collect():
 
             if new_arrivals:
                 db.add_all(new_arrivals)
+                await db.commit()
+
+            # ── 3. 혼잡도 로그 저장 ──────────────────────────────────────────
+            crowding_logs: list[BusCrowdingLog] = []
+            for item in items:
+                route = due_routes.get(item["route_id"])
+                if not route:
+                    continue
+                for crowded_key, sec_key, plate_key in [
+                    ("crowded1", "predict_time_sec1", "plate_no1"),
+                    ("crowded2", "predict_time_sec2", "plate_no2"),
+                ]:
+                    crowded = item.get(crowded_key, 0)
+                    sec = item.get(sec_key, 0) or 0
+                    plate = item.get(plate_key, "") or ""
+                    if crowded and sec and plate:
+                        crowding_logs.append(BusCrowdingLog(
+                            route_id=route.id,
+                            stop_id=target["stop_id"],
+                            plate_no=plate,
+                            crowded=crowded,
+                            arrive_in_seconds=sec,
+                            recorded_at=now,
+                        ))
+            if crowding_logs:
+                db.add_all(crowding_logs)
                 await db.commit()
 
             # 현재 상태를 이전 상태로 저장

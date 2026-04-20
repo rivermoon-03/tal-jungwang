@@ -46,6 +46,9 @@ async def fetch_arrivals(station_id: str) -> list[dict]:
             "remain_seat1": int(item.get("remainSeatCnt1", -1) or -1),
             "low_plate1": item.get("lowPlate1", 0) == 1 or item.get("lowPlate1", "0") == "1",
             "plate_no1": item.get("plateNo1", ""),
+            "plate_no2": item.get("plateNo2", ""),
+            "crowded1": int(item.get("crowded1") or 0),
+            "crowded2": int(item.get("crowded2") or 0),
         })
     return results
 

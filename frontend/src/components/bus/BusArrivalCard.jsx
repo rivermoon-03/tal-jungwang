@@ -1,5 +1,22 @@
 import { ChevronRight } from 'lucide-react'
 
+const CROWDED_META = {
+  1: { label: '여유', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
+  2: { label: '보통', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' },
+  3: { label: '혼잡', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' },
+  4: { label: '매우혼잡', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' },
+}
+
+export function CrowdedBadge({ level }) {
+  const meta = CROWDED_META[level]
+  if (!meta) return null
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${meta.cls}`}>
+      {meta.label}
+    </span>
+  )
+}
+
 const ROUTE_COLORS = {
   '6502':  '#E02020',
   '3400':  '#E02020',
@@ -64,14 +81,17 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
         </span>
         <div className="flex items-center gap-3 shrink-0">
           {shown.map((a, i) => (
-            <span key={i} className="flex flex-col items-center">
+            <span key={i} className="flex flex-col items-center gap-0.5">
               {isTimetable
                 ? <TimetableChip arrival={a} />
                 : <RealtimeChip arrival={a} />
               }
-              {shown.length > 1 && (
-                <span className="text-micro text-slate-400 tabular-nums">{i + 1}번</span>
-              )}
+              {!isTimetable && a.crowded > 0
+                ? <CrowdedBadge level={a.crowded} />
+                : shown.length > 1 && (
+                    <span className="text-micro text-slate-400 tabular-nums">{i + 1}번</span>
+                  )
+              }
             </span>
           ))}
         </div>

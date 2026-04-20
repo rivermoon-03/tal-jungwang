@@ -546,7 +546,7 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL,
     PRIMARY KEY (version_num)
 );
-INSERT INTO alembic_version (version_num) VALUES ('0004_add_seoul_stops_inbound')
+INSERT INTO alembic_version (version_num) VALUES ('0009_traffic_history')
 ON CONFLICT DO NOTHING;
 
 

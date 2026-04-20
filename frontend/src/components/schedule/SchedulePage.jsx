@@ -12,6 +12,7 @@ import SegmentTabs from '../common/SegmentTabs'
 import RouteBadge from '../common/RouteBadge'
 import Skeleton from '../common/Skeleton'
 import Toast from '../common/Toast'
+import { CrowdedBadge } from '../bus/BusArrivalCard'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
@@ -149,6 +150,7 @@ function TimelineRow({
   disabled = false,
   disabledLabel = null,
   order = 0,
+  crowded = 0,
 }) {
   const hasMin = minutes != null && Number.isFinite(minutes)
   const urgent = hasMin && minutes <= 3
@@ -261,6 +263,11 @@ function TimelineRow({
         ) : !statusLabel ? (
           <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tj-mute)', lineHeight: 1 }}>—</span>
         ) : null}
+        {crowded > 0 && (
+          <div style={{ marginTop: 3 }}>
+            <CrowdedBadge level={crowded} />
+          </div>
+        )}
       </div>
     </button>
   )
@@ -319,6 +326,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
           minutes={firstMin}
           loading={arrivalsLoading && matches.length === 0}
           order={orderVal}
+          crowded={first?.crowded ?? 0}
           onClick={() => onCardClick({
             type: 'bus',
             routeCode,
@@ -345,6 +353,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
         afterNext={secondMin != null ? (secondMin <= 0 ? '곧 도착' : `${secondMin}분 뒤`) : null}
         minutesUntil={firstMin}
         loading={arrivalsLoading && matches.length === 0}
+        crowded={first?.crowded ?? 0}
         testBadge
         onClick={() => onCardClick({
           type: 'bus',

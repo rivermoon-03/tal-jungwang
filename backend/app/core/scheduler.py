@@ -52,12 +52,12 @@ async def _bus_report_job():
 async def _bus_poll_job():
     """스케줄러에서 호출되는 버스 도착정보 폴링 작업.
 
-    운행 시간(06:00~22:59 KST)에만 GBIS API를 호출한다.
-    IntervalTrigger로 120초마다 호출되며, 시간대 밖이면 즉시 반환.
+    02:00~03:59 KST(막차 이후 첫차 이전)에는 GBIS API를 호출하지 않는다.
+    IntervalTrigger로 45초마다 호출되며, 심야 시간대엔 즉시 반환.
     """
     hour = datetime.now(_KST).hour
-    if not (6 <= hour <= 22):
-        return  # 심야 시간 제외
+    if 2 <= hour < 4:
+        return  # 02~03시 운행 없음
 
     from app.services.bus_collector import poll_and_collect
 
@@ -98,19 +98,18 @@ def setup_scheduler():
 
     logger.info("Traffic collection scheduler configured")
 
-    # ── 버스 도착정보 폴링 (135초 간격, 06:00~22:59 KST 시간 체크는 job 내부) ──
-    # 135s: 17h × 3600/135 × 2정류장 = 907호출/일 → GBIS 일 1,000회 한도 이내
-    # (120s였을 때 1,020호출/일로 한도 초과)
+    # ── 버스 도착정보 폴링 (45초 간격, 02:00~03:59 KST 제외) ──
+    # 45s: 22h(04~02시) × 3600/45 × 2정류장 = 3,520호출/일 → GBIS 일 10,000회 한도 이내
     scheduler.add_job(
         _bus_poll_job,
-        IntervalTrigger(seconds=135),
+        IntervalTrigger(seconds=45),
         id="bus_arrival_poll",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
-        misfire_grace_time=60,
+        misfire_grace_time=30,
     )
-    logger.info("Bus arrival polling scheduler configured (every 135s, active 06:00-22:59 KST)")
+    logger.info("Bus arrival polling scheduler configured (every 45s, skip 02:00-03:59 KST)")
 
     # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
     scheduler.add_job(

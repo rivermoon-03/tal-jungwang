@@ -1,4 +1,5 @@
 import RouteBadge from '../common/RouteBadge.jsx'
+import { CrowdedBadge } from '../bus/BusArrivalCard.jsx'
 
 /**
  * ArrivalRow — 도착 정보 공용 행 컴포넌트.
@@ -30,6 +31,7 @@ export default function ArrivalRow({
   status = null,
   onClick,
   rightAddon = null,
+  crowded = 0,
 }) {
   // minutes는 number 또는 number[]로 들어올 수 있음 — 정규화
   const minsArr = Array.isArray(minutes)
@@ -189,6 +191,11 @@ export default function ArrivalRow({
                   }}
                 >
                   {rest.join(' · ')}분
+                </div>
+              )}
+              {crowded > 0 && (
+                <div style={{ marginTop: 2 }}>
+                  <CrowdedBadge level={crowded} />
                 </div>
               )}
             </>

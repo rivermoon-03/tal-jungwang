@@ -69,6 +69,22 @@ class BusTimetableEntry(Base):
     )
 
 
+class BusCrowdingLog(Base):
+    __tablename__ = "bus_crowding_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("bus_routes.id", ondelete="CASCADE"), nullable=False)
+    stop_id: Mapped[int] = mapped_column(ForeignKey("bus_stops.id"), nullable=False)
+    plate_no: Mapped[str] = mapped_column(String(20), nullable=False)
+    crowded: Mapped[int] = mapped_column(nullable=False)  # 1=여유 2=보통 3=혼잡 4=매우혼잡
+    arrive_in_seconds: Mapped[int] = mapped_column(nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("idx_crowding_route_stop_at", "route_id", "stop_id", "recorded_at"),
+    )
+
+
 class BusArrivalHistory(Base):
     __tablename__ = "bus_arrival_history"
 
