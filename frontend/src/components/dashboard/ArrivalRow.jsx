@@ -14,6 +14,7 @@ import RouteBadge from '../common/RouteBadge.jsx'
  *   lastTrain      (boolean)       막차 chip 표시
  *   status         ('ok'|'warn'|'bad'|null) 작은 상태 dot
  *   onClick        (fn)
+ *   returnTrip     (boolean)       회차탑승 chip 표시
  *   rightAddon     (ReactNode)     기존 호환 (분 옆에 붙는 노드)
  *   routeColor     (string)        DEPRECATED — RouteBadge가 대체
  */
@@ -25,6 +26,7 @@ export default function ArrivalRow({
   extraMinutes = [],
   isUrgent,
   lastTrain = false,
+  returnTrip = false,
   status = null,
   onClick,
   rightAddon = null,
@@ -93,6 +95,21 @@ export default function ArrivalRow({
               }}
             >
               막차
+            </span>
+          )}
+          {returnTrip && (
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 900,
+                letterSpacing: '0.04em',
+                padding: '1px 5px',
+                borderRadius: 4,
+                background: '#b45309',
+                color: '#fff',
+              }}
+            >
+              회차탑승
             </span>
           )}
           {statusColor && (
@@ -176,7 +193,7 @@ export default function ArrivalRow({
               )}
             </>
           ) : (
-            <span style={{ fontSize: 11, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
+            !rightAddon && <span style={{ fontSize: 11, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
           )}
         </div>
         {rightAddon}

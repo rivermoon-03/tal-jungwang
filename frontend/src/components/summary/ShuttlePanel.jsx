@@ -47,9 +47,13 @@ function ShuttleRow({ direction, label }) {
     )
   }
 
-  const minutes = data.arrive_in_seconds != null
-    ? Math.max(0, Math.ceil(data.arrive_in_seconds / 60))
-    : null
+  const isReturnTrip = !!(data.note?.includes('회차편'))
+  const departTime = data.depart_at?.slice(0, 5) ?? null
+  const minutes = isReturnTrip
+    ? null
+    : data.arrive_in_seconds != null
+      ? Math.max(0, Math.ceil(data.arrive_in_seconds / 60))
+      : null
 
   const handleClick = () => {
     const url = `/schedule?mode=shuttle&dir=${direction}`
@@ -61,7 +65,20 @@ function ShuttleRow({ direction, label }) {
     <ArrivalRow
       route={`${label}셔틀`}
       minutes={minutes}
-      isUrgent={minutes != null && minutes <= 3}
+      isUrgent={!isReturnTrip && minutes != null && minutes <= 3}
+      returnTrip={isReturnTrip}
+      rightAddon={isReturnTrip && departTime
+        ? (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 11, color: '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>
+              하교 버스가
+            </div>
+            <div style={{ fontSize: 13, color: '#b45309', fontWeight: 900, whiteSpace: 'nowrap' }}>
+              {departTime} 출발
+            </div>
+          </div>
+        )
+        : null}
       onClick={handleClick}
     />
   )
