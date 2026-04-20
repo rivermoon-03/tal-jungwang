@@ -40,11 +40,11 @@ async def _weather_refresh_job():
 
 
 async def _bus_report_job():
-    """버스 도착 수집 현황을 Discord 웹훅으로 6시간마다 전송."""
+    """버스 도착 수집 현황을 Discord 웹훅으로 3시간마다 전송."""
     from app.services.bus_monitor import send_bus_arrival_report
 
     try:
-        await send_bus_arrival_report(window_hours=6)
+        await send_bus_arrival_report(window_hours=3)
     except Exception:
         logger.exception("Bus arrival report failed")
 
@@ -123,16 +123,16 @@ def setup_scheduler():
     )
     logger.info("Weather cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)")
 
-    # ── 버스 도착 수집 리포트 (Discord 웹훅, 6시간마다 00/06/12/18 KST) ──
+    # ── 버스 도착 수집 리포트 (Discord 웹훅, 3시간마다 00/03/06/09/12/15/18/21 KST) ──
     scheduler.add_job(
         _bus_report_job,
-        CronTrigger(hour="0,6,12,18", minute=0),
+        CronTrigger(hour="0,3,6,9,12,15,18,21", minute=0),
         id="bus_arrival_report",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
     )
-    logger.info("Bus arrival Discord report configured (00/06/12/18 KST, 6h window)")
+    logger.info("Bus arrival Discord report configured (every 3h, 3h window)")
 
 
 def start_scheduler():

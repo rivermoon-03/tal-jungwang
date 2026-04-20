@@ -138,6 +138,17 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 
 @app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if settings.ENVIRONMENT == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+@app.middleware("http")
 async def restrict_metrics(request: Request, call_next):
     """/metrics 접근 제어: 내부 네트워크 또는 유효한 Bearer 토큰만 허용."""
     if request.url.path == "/metrics":

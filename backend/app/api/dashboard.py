@@ -4,10 +4,11 @@ import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.dashboard import DashboardResponse
 from app.services.bus import get_arrivals
@@ -23,7 +24,9 @@ _DEFAULT_BUS_STATION_ID = 3
 
 
 @router.get("")
+@limiter.limit("30/minute")
 async def dashboard(
+    request: Request,
     station_id: int = Query(_DEFAULT_BUS_STATION_ID, description="버스 정류장 ID"),
     db: AsyncSession = Depends(get_db),
 ):

@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useApi } from '../../hooks/useApi'
 
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
 /**
  * 백엔드 /api/v1/traffic 데이터를 지도 위 도로별 원형 오버레이로 시각화한다.
  * - 테두리 색상: 초록(원활) → 노랑(서행) → 주황(지체) → 빨강(정체)
@@ -187,11 +189,11 @@ function buildMiniGraph(pts) {
 function renderTooltip(tooltip, roadName, road, updatedAt, pts) {
   const color = CONGESTION_COLOR[road.congestion] ?? '#94a3b8'
   tooltip.innerHTML = `
-    <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:3px">${roadName}</div>
-    <div style="font-size:12px;font-weight:600;color:${color};margin-bottom:2px">
-      ${road.congestion_label} · ${road.speed}km/h
+    <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:3px">${esc(roadName)}</div>
+    <div style="font-size:12px;font-weight:600;color:${esc(color)};margin-bottom:2px">
+      ${esc(road.congestion_label)} · ${esc(road.speed)}km/h
     </div>
-    <div style="font-size:11px;color:#94a3b8">${updatedAt} 기준</div>
+    <div style="font-size:11px;color:#94a3b8">${esc(updatedAt)} 기준</div>
     ${buildMiniGraph(pts)}
     <div style="
       position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);
