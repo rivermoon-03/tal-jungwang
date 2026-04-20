@@ -2,7 +2,6 @@
  * SchedulePage — 시간표 탭
  * - 상단 mode pill: 버스 · 지하철 · 셔틀 (바로 전환)
  * - 각 모드별 그룹 pill selector (지하철: 정왕/초지/시흥시청, 버스: 하교/등교/기타)
- * - 리스트 / 타임라인 뷰 토글 (Favorites 페이지와 동일한 UX)
  */
 import { useState, useEffect } from 'react'
 import ScheduleSection from './ScheduleSection'
@@ -11,7 +10,6 @@ import PageHeader from '../layout/PageHeader'
 import SegmentTabs from '../common/SegmentTabs'
 import RouteBadge from '../common/RouteBadge'
 import Skeleton from '../common/Skeleton'
-import Toast from '../common/Toast'
 import { CrowdedBadge } from '../bus/BusArrivalCard'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
@@ -22,8 +20,6 @@ import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute } from '../dashboard/busStationConfig'
 
 // ─── map marker lookup ──────────────────────────────────────────────────────
-// 위치 버튼은 GBIS 정류장 좌표가 아닌 실제 지도에 그려진 마커 좌표로 이동해야 한다.
-// (예: 3400 시화 정류장은 실제로 안산에 있지만 마커는 정왕 hub 위치에 있다.)
 function distanceMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000
   const toRad = (d) => (d * Math.PI) / 180
@@ -37,7 +33,6 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
 
 function findMarkerCoord(markers, routeNumber, stopId, stopLat, stopLng) {
   if (!markers?.length) return null
-  // 1) bus_seoul: (route_number, stop_id) 정확 매칭이 최우선 (좌표 차이 큼)
   if (stopId != null && routeNumber) {
     for (const m of markers) {
       for (const r of m.routes ?? []) {
@@ -50,7 +45,6 @@ function findMarkerCoord(markers, routeNumber, stopId, stopLat, stopLng) {
       }
     }
   }
-  // 2) 좌표 근접 매칭 (1km 이내) — 같은 hub를 공유하지만 routes에 등록되지 않은 노선용
   if (stopLat != null && stopLng != null) {
     let best = null
     let bestD = Infinity
@@ -125,167 +119,25 @@ function timeStrToMinutes(timeStr, now) {
   const d = new Date(now)
   d.setHours(h, m, 0, 0)
   const diff = Math.round((d - now) / 60000)
-  // 자정 이후 전날 막차 오인 방지: 음수이거나 12시간 이상이면 null
   if (diff < 0 || diff > 12 * 60) return null
   return diff
 }
 
-// destLabel에 '행' 접미사를 자연스럽게 붙인다
-// ('안산'→'안산행', '안산행'→'안산행', '시흥시청방면'→'시흥시청행', '강남역방면(시화출발)'→'강남역행(시화출발)')
 function withHaeng(label) {
   if (!label) return label
   if (/방면/.test(label)) return label.replace(/\s*방면/g, '행')
   return label.endsWith('행') ? label : `${label}행`
 }
 
-// ─── timeline row (FavoritesTimeline과 동일한 비주얼) ────────────────────────
-function TimelineRow({
-  routeCode,
-  direction = null,
-  minutes = null,
-  lastTrain = false,
-  statusLabel = null,
-  onClick,
-  loading = false,
-  disabled = false,
-  disabledLabel = null,
-  order = 0,
-  crowded = 0,
-}) {
-  const hasMin = minutes != null && Number.isFinite(minutes)
-  const urgent = hasMin && minutes <= 3
-  const soon = hasMin && minutes <= 0
-  const clickable = !!onClick && !disabled
-
-  return (
-    <button
-      type="button"
-      onClick={clickable ? onClick : undefined}
-      className="pressable"
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        width: '100%',
-        textAlign: 'left',
-        paddingLeft: 36,
-        paddingBottom: 16,
-        border: 'none',
-        background: 'transparent',
-        cursor: clickable ? 'pointer' : 'default',
-        opacity: disabled ? 0.6 : 1,
-        order,
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          left: 8,
-          top: 6,
-          width: 14,
-          height: 14,
-          borderRadius: 999,
-          background: urgent ? 'var(--tj-accent)' : 'var(--tj-bg-soft)',
-          border: `2.5px solid ${urgent ? 'var(--tj-accent)' : 'var(--tj-line)'}`,
-          boxShadow: '0 0 0 3px var(--tj-bg-soft)',
-        }}
-      />
-      {/* 왼쪽: 노선·방향·상태 라벨 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <RouteBadge route={routeCode} variant="chip" size="sm" />
-          {direction && (
-            <span
-              style={{
-                fontSize: 12,
-                color: 'var(--tj-ink)',
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-              className="dark:text-slate-100"
-            >
-              {direction}
-            </span>
-          )}
-          {lastTrain && (
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 900,
-                padding: '1px 5px',
-                borderRadius: 4,
-                background: 'var(--line-express)',
-                color: '#fff',
-                letterSpacing: '0.08em',
-              }}
-            >
-              막차
-            </span>
-          )}
-        </div>
-        {(disabled || statusLabel) && (
-          <div style={{ marginTop: 4, fontSize: 11, color: 'var(--tj-mute)', fontWeight: 600 }}>
-            {disabled ? (disabledLabel ?? '정보 없음') : statusLabel}
-          </div>
-        )}
-      </div>
-
-      {/* 오른쪽: display 크기 분 표시 */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-          marginLeft: 8,
-          minWidth: 60,
-          fontVariantNumeric: 'tabular-nums',
-          color: urgent ? 'var(--tj-accent)' : 'var(--tj-ink)',
-        }}
-        className={urgent ? 'tj-urgent dark:text-slate-100' : 'dark:text-slate-100'}
-      >
-        {disabled ? null : loading ? (
-          <Skeleton width="3.2rem" height="1.8rem" rounded="rounded-md" />
-        ) : soon ? (
-          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
-            곧 도착
-          </span>
-        ) : hasMin ? (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-            <span style={{ fontSize: 34, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}>
-              {minutes}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '-0.02em' }}>분</span>
-          </div>
-        ) : !statusLabel ? (
-          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tj-mute)', lineHeight: 1 }}>—</span>
-        ) : null}
-        {crowded > 0 && (
-          <div style={{ marginTop: 3 }}>
-            <CrowdedBadge level={crowded} />
-          </div>
-        )}
-      </div>
-    </button>
-  )
-}
-
 // ─── per-route bus section ───────────────────────────────────────────────────
-function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, onCardClick, view = 'list' }) {
+function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, onCardClick }) {
   const now = new Date()
-  // 하교: 목적지에 '행' 접미사 자동 추가 ('정왕역 출발 · 안산행')
   const dest = busGroup === '하교' ? withHaeng(destLabel) : destLabel
   const titleText = originLabel
     ? (dest ? `${originLabel} 출발 · ${dest}` : `${originLabel} 출발`)
     : (dest ?? routeCode)
 
-  // 실시간 노선마다 정차 정류장이 다름 (예: 시흥33/20-1 → 한국공학대, 시흥1 → 이마트)
   const stationId = isRealtime ? getGbisStationIdForRoute(routeCode) : null
-  // route_id가 있으면 /bus/timetable/{route_id}(방향 정확)를 우선 사용
-  // route_id 없으면 route_number 기반 fallback
   const { data: timetableByIdData, loading: timetableByIdLoading } = useBusTimetable(routeId ?? null)
   const { data: timetableByRouteData, loading: timetableByRouteLoading } = useBusTimetableByRoute(
     routeId == null ? routeCode : null,
@@ -311,41 +163,15 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
 
     let nextLabel
     if (firstMin == null) {
-      nextLabel = getFirstBusLabel(timetableData?.times ?? [], now)
+      nextLabel = null
     } else if (firstMin <= 0) nextLabel = '곧 도착'
     else nextLabel = `${firstMin}분 뒤`
 
     const favKey = favCode ?? routeCode
-    // 리스트: 출발지 이름순 (DOM 순서) → order=0. 타임라인: 분 단위 정렬.
-    const orderVal = view === 'timeline' ? (firstMin ?? 1_000_000) : 0
-    if (view === 'timeline') {
-      return (
-        <TimelineRow
-          routeCode={routeCode}
-          direction={titleText}
-          minutes={firstMin}
-          loading={arrivalsLoading && matches.length === 0}
-          order={orderVal}
-          crowded={first?.crowded ?? 0}
-          onClick={() => onCardClick({
-            type: 'bus',
-            routeCode,
-            routeId,
-            stopId,
-            favCode: favKey,
-            mapLat,
-            mapLng,
-            isRealtime: true,
-            title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
-            accentColor: (['3400', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
-          })}
-        />
-      )
-    }
     return (
       <ScheduleSection
         title={titleText}
-        subtitle={first?.destination ? `실시간 · ${withHaeng(first.destination)}` : '실시간'}
+        subtitle={firstMin == null ? '정보 없음' : (first?.destination ? `실시간 · ${withHaeng(first.destination)}` : '실시간')}
         type="bus"
         routeCode={routeCode}
         destLabel={null}
@@ -367,7 +193,6 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
           title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
           accentColor: (['3400', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
         })}
-        order={orderVal}
       />
     )
   }
@@ -385,10 +210,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
       tomorrow.setHours(h, m, 0, 0)
       return tomorrow
     })
-    .filter((d) => {
-      // 12시간 이내의 다가오는 버스만 '다음 버스'로 인정 (너무 먼 미래 배제)
-      return (d - now) < 12 * 60 * 60 * 1000
-    })
+    .filter((d) => (d - now) < 12 * 60 * 60 * 1000)
     .sort((a, b) => a - b)
 
   const toStr = (d) =>
@@ -396,37 +218,29 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
 
   const nextMin = !future[0] ? null : Math.round((future[0] - now) / 60000)
   const _hour = now.getHours()
-  const isLateNightGap = (_hour >= 23 || _hour < 5) && (nextMin === null || nextMin >= 100)
+  const isTomorrow = future[0] != null && future[0].getDate() !== now.getDate()
+  // 막차 지남 + 아직 자정 전(또는 새벽 5시 이후): 금일 종료
+  const isEndOfDay = isTomorrow && _hour >= 5
+  // 자정 ~ 새벽 4시: 첫차까지 카운트다운
+  const isLateNightGap = isTomorrow && _hour < 5
 
-  const nextStr = isLateNightGap ? getFirstBusLabel(allTimes, now) : (toStr(future[0]) ?? getFirstBusLabel(allTimes, now))
-  const mins = isLateNightGap ? null : nextMin
+  let nextStr, mins
+  if (isEndOfDay) {
+    nextStr = '금일 종료'
+    mins = null
+  } else if (isLateNightGap) {
+    nextStr = getFirstBusLabel(allTimes, now)
+    mins = nextMin
+  } else {
+    nextStr = toStr(future[0]) ?? getFirstBusLabel(allTimes, now)
+    mins = nextMin
+  }
+
+  // 지금 잡힌 버스가 오늘의 마지막 차인지
+  const isLastBus = !isEndOfDay && !isLateNightGap && future[0] != null &&
+    (future[1] == null || future[1].getDate() !== now.getDate())
 
   const favKey = favCode ?? routeCode
-  // 리스트: 출발지 이름순 (DOM 순서) → order=0. 타임라인: 분 단위 정렬.
-  const orderVal = view === 'timeline' ? (mins ?? 1_000_000) : 0
-  const handleClick = () => onCardClick({
-    type: 'bus',
-    routeCode,
-    routeId,
-    stopId,
-    favCode: favKey,
-    mapLat,
-    mapLng,
-    title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
-    accentColor: (['3400', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
-  })
-  if (view === 'timeline') {
-    return (
-      <TimelineRow
-        routeCode={routeCode}
-        direction={titleText}
-        minutes={mins}
-        loading={timetableLoading}
-        order={orderVal}
-        onClick={handleClick}
-      />
-    )
-  }
   return (
     <ScheduleSection
       title={titleText}
@@ -435,11 +249,22 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
       routeCode={routeCode}
       destLabel={null}
       next={nextStr}
-      afterNext={toStr(future[1])}
+      afterNext={isEndOfDay ? toStr(future[0]) : toStr(future[1])}
       minutesUntil={mins}
-      onClick={handleClick}
+      endOfDay={isEndOfDay}
+      lastBus={isLastBus}
+      onClick={() => onCardClick({
+        type: 'bus',
+        routeCode,
+        routeId,
+        stopId,
+        favCode: favKey,
+        mapLat,
+        mapLng,
+        title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
+        accentColor: (['3400', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
+      })}
       loading={timetableLoading}
-      order={orderVal}
     />
   )
 }
@@ -459,14 +284,12 @@ const SUBWAY_DIRECTIONS = {
 }
 
 // ─── subway section ──────────────────────────────────────────────────────────
-function SubwaySection({ stationGroup, onCardClick, view = 'list' }) {
+function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCodes = [] }) {
   const { data, loading } = useSubwayNext()
-  // 리스트에서 '그 다음' 시각 계산용 시간표 (캐시 12h)
   const { data: timetable } = useSubwayTimetable()
   const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
   const now = new Date()
 
-  // '그 다음' 시간: 시간표에서 현재 시각 이후 두 번째 출발편의 HH:MM
   function secondDepartStr(key) {
     const list = timetable?.[key]
     if (!Array.isArray(list) || list.length === 0) return null
@@ -487,16 +310,6 @@ function SubwaySection({ stationGroup, onCardClick, view = 'list' }) {
   }
 
   if (directions.length === 0) {
-    if (view === 'timeline') {
-      return (
-        <TimelineRow
-          routeCode={stationGroup}
-          direction="지하철"
-          disabled
-          disabledLabel="정보 준비 중"
-        />
-      )
-    }
     return (
       <ScheduleSection
         title={stationGroup}
@@ -523,24 +336,11 @@ function SubwaySection({ stationGroup, onCardClick, view = 'list' }) {
           const depart = entry?.depart_at ?? null
           const mins = depart ? timeStrToMinutes(depart, now) : null
           const validMins = mins != null && mins >= 0 ? mins : null
-          // 리스트: 자연 순서 (수인분당선 → 4호선, 상행 → 하행). 타임라인: 분 단위 정렬.
-          const orderVal = view === 'timeline' ? (validMins ?? 1_000_000) : 0
+          const secondDepart = secondDepartStr(key)
+          const isLastTrain = depart != null && timetable != null && secondDepart == null
           const favCode = `subway:${stationGroup}:${key}`
+          if (favoritesOnly && !favCodes.includes(favCode)) return null
           const handleClick = () => onCardClick({ type: 'subway', routeCode: stationGroup, subwayKey: key, favCode, accentColor: dir.color, title: `${stationGroup}역 ${dir.subtitle} ${label}` })
-          if (view === 'timeline') {
-            return (
-              <TimelineRow
-                key={`${stationGroup}:${key}`}
-                routeCode={dir.subtitle}
-                direction={`${stationGroup} ${label}`}
-                minutes={validMins}
-                lastTrain={Boolean(entry?.last_train)}
-                loading={loading}
-                order={orderVal}
-                onClick={handleClick}
-              />
-            )
-          }
           return (
             <ScheduleSection
               key={`${stationGroup}:${key}`}
@@ -549,12 +349,12 @@ function SubwaySection({ stationGroup, onCardClick, view = 'list' }) {
               type="subway"
               routeCode={dir.subtitle}
               next={depart}
-              afterNext={secondDepartStr(key)}
+              afterNext={secondDepart}
               minutesUntil={validMins}
               onClick={handleClick}
               loading={loading}
               lineColor={dir.color}
-              order={orderVal}
+              lastBus={isLastTrain}
             />
           )
         }),
@@ -564,22 +364,13 @@ function SubwaySection({ stationGroup, onCardClick, view = 'list' }) {
 }
 
 // ─── shuttle section ─────────────────────────────────────────────────────────
-function ShuttleSection({ direction, onCardClick, view = 'list' }) {
+function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCodes = [] }) {
   const label = direction === 0 ? '등교' : '하교'
+  if (favoritesOnly && !favCodes.includes(`shuttle:${label}`)) return null
   const { data, loading, error } = useShuttleSchedule(direction)
 
   const noSchedule = !loading && (error || !data || (data.directions ?? []).length === 0)
   if (noSchedule) {
-    if (view === 'timeline') {
-      return (
-        <TimelineRow
-          routeCode={`${label}셔틀`}
-          direction="한국공대"
-          disabled
-          disabledLabel="주말·공휴일 미운행"
-        />
-      )
-    }
     return (
       <ScheduleSection
         title={`셔틀 ${label}`}
@@ -598,11 +389,9 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
   const now = new Date()
   const dirData = data?.directions?.find((d) => d.direction === direction)
 
-  // note 판별: 수시운행 / 회차편은 정확한 시간 대신 상태 라벨로 표시
   const rawEntries = (dirData?.times ?? []).map((t) =>
     typeof t === 'string' ? { depart_at: t, note: null } : { depart_at: t?.depart_at ?? '', note: t?.note ?? null }
   )
-  // Date 기반 비교로 자정 이후 오인 방지 (문자열 비교 제거)
   const futureEntries = rawEntries.filter((e) => {
     const ts = (e.depart_at ?? '').slice(0, 5)
     if (!ts) return false
@@ -613,7 +402,6 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
     return d > now && (d - now) <= 12 * 60 * 60 * 1000
   })
 
-  // 수시운행 구간 판단 (Date 기반으로 이미 지난 수시운행 항목 체크)
   const hasPastFrequent = rawEntries.some((e) => {
     if (e.note !== '수시운행') return false
     const ts = (e.depart_at ?? '').slice(0, 5)
@@ -624,17 +412,11 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
     d.setHours(h, m, 0, 0)
     return d <= now
   })
-  // 수시운행 구간 안이면 그 구간을 단일 "수시운행 중" 행으로 치환
   const inFrequent = hasPastFrequent && futureEntries[0]?.note === '수시운행'
 
-  // 최대 4건 — "다음, 다다음, 다다다음, 다다다다음"
   const MAX_SHUTTLE_ROWS = 4
   const handleClick = () => onCardClick({ type: 'shuttle', routeCode: `셔틀${label}`, direction, favCode: `shuttle:${label}`, title: `셔틀버스 ${label}` })
 
-  // 등교 회차편 중 원천이 '수시운행'인 경우(예: "회차편 · 학교 수시운행 출발")는
-  // 하교 측에 정해진 출발 시각이 없으므로 등교의 구체 시간(ts)·분 카운트도 보여주면 안 된다.
-  // departStr/mins를 비우고 "수시 회차편 (HH:MM 이후)" 라벨만 표시한다.
-  // 정렬은 내부 orderHint로 유지해 목록 제자리에 배치.
   function buildRow(e) {
     const ts = e.depart_at?.slice(0, 5) ?? null
     const computed = ts ? timeStrToMinutes(ts, now) : null
@@ -648,18 +430,15 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
         key: `t-${ts}-frequent-return`,
         departStr: null,
         mins: null,
-        orderHint: minsPositive,
         statusLabel: ts ? `수시 회차편 (${ts} 이후)` : '수시 회차편 대기',
         isReturn: true,
       }
     }
-    // 회차편(등교): 예정 도착 시각·분은 숨기고 상태 라벨만 노출한다.
     if (isReturn) {
       return {
         key: `t-${ts}-return`,
         departStr: null,
         mins: null,
-        orderHint: minsPositive,
         statusLabel: '회차편 탑승',
         isReturn: true,
       }
@@ -673,7 +452,6 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
     }
   }
 
-  // 행 descriptor 빌드: { key, departStr, mins, orderHint?, statusLabel, isReturn }
   const rows = []
   if (inFrequent) {
     const endEntry = futureEntries.find((e) => e.note !== '수시운행')
@@ -684,7 +462,6 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
       mins: null,
       statusLabel: endAt ? `${endAt}까지 수시운행` : '수시운행 중',
     })
-    // 수시운행 종료 이후 편들
     const post = futureEntries.filter((e) => e.note !== '수시운행')
     for (const e of post.slice(0, MAX_SHUTTLE_ROWS - 1)) {
       rows.push(buildRow(e))
@@ -696,16 +473,6 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
   }
 
   if (rows.length === 0) {
-    if (view === 'timeline') {
-      return (
-        <TimelineRow
-          routeCode={`${label}셔틀`}
-          direction="한국공대"
-          disabled
-          disabledLabel="금일 남은 운행 없음"
-        />
-      )
-    }
     return (
       <ScheduleSection
         title={`셔틀 ${label}`}
@@ -715,45 +482,17 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
         next={null}
         afterNext={null}
         loading={false}
-        disabled
-        disabledLabel="금일 남은 운행 없음"
+        endOfDay
+        onClick={handleClick}
       />
     )
   }
 
-  // 타임라인: 다음~다다다다음까지 펼쳐서 개별 행으로 렌더
-  if (view === 'timeline') {
-    return (
-      <>
-        {rows.map((r) => {
-          const orderVal = r.mins != null
-            ? r.mins
-            : r.orderHint != null ? r.orderHint : 1_000_000
-          return (
-            <TimelineRow
-              key={r.key}
-              routeCode={`${label}셔틀`}
-              direction="한국공대"
-              minutes={r.mins}
-              statusLabel={r.statusLabel}
-              loading={loading}
-              order={orderVal}
-              onClick={handleClick}
-            />
-          )
-        })}
-      </>
-    )
-  }
-
-  // 리스트: 단일 카드로 다음 + 그 다음 + (추가시간 pills)
   const first = rows[0]
   const second = rows[1]
   const extras = rows.slice(2)
     .map((r) => r.departStr)
     .filter((s) => typeof s === 'string' && s.length > 0)
-  // 리스트: SHUTTLE_GROUPS 순서(등교 → 하교) 유지. 타임라인은 행마다 mins 기반.
-  const orderVal = view === 'timeline' ? (first?.mins ?? 1_000_000) : 0
   return (
     <ScheduleSection
       title={`셔틀 ${label}`}
@@ -766,13 +505,12 @@ function ShuttleSection({ direction, onCardClick, view = 'list' }) {
       onClick={handleClick}
       loading={loading}
       extraTimes={extras.length > 0 ? extras : null}
-      order={orderVal}
     />
   )
 }
 
 // ─── bus group content (동적 API 로드) ─────────────────────────────────────
-function BusGroupContent({ busGroup, onCardClick, view = 'list' }) {
+function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCodes = [] }) {
   const { data: routes, loading } = useBusRoutesByCategory(busGroup)
   const { data: markersData } = useMapMarkers()
   const markers = markersData?.markers ?? []
@@ -795,7 +533,6 @@ function BusGroupContent({ busGroup, onCardClick, view = 'list' }) {
     const favCode = stopName != null ? `${busGroup}:${route.route_number}` : route.route_number
     const stopLat = stop?.lat ?? null
     const stopLng = stop?.lng ?? null
-    // 위치 버튼 좌표는 GBIS 정류장이 아니라 실제 지도 마커 위치를 우선한다.
     const markerCoord = findMarkerCoord(markers, route.route_number, stop?.stop_id ?? null, stopLat, stopLng)
     return {
       code: route.route_number,
@@ -810,19 +547,20 @@ function BusGroupContent({ busGroup, onCardClick, view = 'list' }) {
     }
   })
 
-  if (entries.length === 0) {
+  const sorted = [...entries].sort((a, b) =>
+    (a.originLabel ?? '').localeCompare(b.originLabel ?? '', 'ko')
+  )
+  const displayEntries = favoritesOnly
+    ? sorted.filter((e) => favCodes.includes(e.favCode))
+    : sorted
+
+  if (displayEntries.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-slate-400">
-        해당 그룹의 버스가 없어요
+        {favoritesOnly ? '즐겨찾기한 노선이 없어요' : '해당 그룹의 버스가 없어요'}
       </p>
     )
   }
-
-  // 리스트 뷰: 출발지 이름순으로 정렬 (DOM 순서 = 표시 순서)
-  // 타임라인 뷰: API 순서 유지, BusRouteSection이 CSS order로 분 단위 정렬
-  const displayEntries = view === 'list'
-    ? [...entries].sort((a, b) => (a.originLabel ?? '').localeCompare(b.originLabel ?? '', 'ko'))
-    : entries
 
   return displayEntries.map((e) => (
     <BusRouteSection
@@ -838,15 +576,11 @@ function BusGroupContent({ busGroup, onCardClick, view = 'list' }) {
       mapLng={e.mapLng}
       isRealtime={e.isRealtime}
       onCardClick={onCardClick}
-      view={view}
     />
   ))
 }
 
 // ─── main component ──────────────────────────────────────────────────────────
-// 단일 뷰: 상단 pill(버스·지하철·셔틀)로 바로 전환. 디렉토리 단계 없음.
-//   /schedule                         → selectedMode(Zustand, persisted) 기준
-//   /schedule?type=bus|subway|shuttle → 해당 모드로 진입 (외부 링크 호환)
 export default function SchedulePage() {
   const [query, setQuery] = useState(readQuery)
 
@@ -869,21 +603,19 @@ export default function SchedulePage() {
     : (isValidMode(storedMode) ? storedMode : 'bus')
 
   const [mode, setMode] = useState(initialMode)
-  const [view, setView] = useState('list')
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const favCodes = favorites.routes ?? []
   const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
   const [, setShuttleGroup] = useState('등교')
   const [selectedDetail, setSelectedDetail] = useState(null)
-  const [toastMessage, setToastMessage] = useState(null)
 
-  // URL type이 popstate로 바뀌면 mode 동기화
   useEffect(() => {
     if (isValidMode(query.type) && query.type !== mode) {
       setMode(query.type)
     }
   }, [query.type]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 지도 오버레이 등에서 scheduleHint로 진입 모드·그룹 지정
   useEffect(() => {
     if (!scheduleHint) return
     if (isValidMode(scheduleHint.mode)) {
@@ -900,7 +632,6 @@ export default function SchedulePage() {
 
   function handleModeChange(next) {
     if (next === mode) return
-    if (next === 'shuttle') setView('list')
     setMode(next)
     setStoredMode(next)
     navigateSchedule({ type: next })
@@ -924,23 +655,34 @@ export default function SchedulePage() {
     <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
       <PageHeader title="시간표" subtitle="노선·역·방향별 전체 시간표" />
 
-      {/* top mode tabs (버스 · 지하철 · 셔틀) + 리스트/타임라인 뷰 토글 */}
+      {/* top mode tabs + 즐겨찾기 필터 */}
       <div className="px-4 pb-2 flex items-center justify-between gap-2 flex-shrink-0">
         <SegmentTabs
           tabs={MODES}
           active={mode}
           onChange={handleModeChange}
         />
-        <SegmentTabs
-          tabs={[
-            { id: 'list', label: '리스트', disabled: mode === 'shuttle', title: mode === 'shuttle' ? '개발 중입니다' : undefined },
-            { id: 'timeline', label: '타임라인', disabled: mode === 'shuttle', title: mode === 'shuttle' ? '개발 중입니다' : undefined },
-          ]}
-          active={view}
-          onChange={setView}
-          onDisabledClick={() => setToastMessage('개발 중입니다')}
-          size="sm"
-        />
+        <button
+          type="button"
+          onClick={() => setFavoritesOnly((v) => !v)}
+          aria-pressed={favoritesOnly}
+          className="pressable flex-shrink-0"
+          style={{
+            padding: '5px 11px',
+            borderRadius: 999,
+            border: favoritesOnly
+              ? '1.5px solid var(--tj-pill-active-bg)'
+              : '1.5px solid var(--tj-line)',
+            background: favoritesOnly ? 'var(--tj-pill-active-bg)' : 'transparent',
+            color: favoritesOnly ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
+            fontSize: 11,
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
+          }}
+        >
+          ★ 즐겨찾기
+        </button>
       </div>
 
       {/* group secondary pills */}
@@ -976,71 +718,37 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* content — 리스트(카드) / 타임라인(세로 라인 + 점) */}
+      {/* content */}
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6">
-        {view === 'timeline' ? (
-          <div style={{ position: 'relative', padding: '4px 4px 0', display: 'flex', flexDirection: 'column' }}>
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                left: 14,
-                top: 12,
-                bottom: 12,
-                width: 2,
-                background: 'var(--tj-line)',
-              }}
+        <div className="flex flex-col gap-2">
+          {mode === 'bus' && (
+            <BusGroupContent
+              busGroup={busGroup}
+              onCardClick={handleCardClick}
+              favoritesOnly={favoritesOnly}
+              favCodes={favCodes}
             />
-            {mode === 'bus' && (
-              <BusGroupContent
-                busGroup={busGroup}
-                onCardClick={handleCardClick}
-                view="timeline"
-              />
-            )}
-            {mode === 'subway' && (
-              <SubwaySection
-                stationGroup={subwayGroup}
-                onCardClick={handleCardClick}
-                view="timeline"
-              />
-            )}
-            {mode === 'shuttle' && SHUTTLE_GROUPS.map((g) => (
-              <ShuttleSection
-                key={g.id}
-                direction={g.direction}
-                onCardClick={handleCardClick}
-                view="timeline"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {mode === 'bus' && (
-              <BusGroupContent
-                busGroup={busGroup}
-                onCardClick={handleCardClick}
-              />
-            )}
-            {mode === 'subway' && (
-              <SubwaySection
-                stationGroup={subwayGroup}
-                onCardClick={handleCardClick}
-              />
-            )}
-            {mode === 'shuttle' && SHUTTLE_GROUPS.map((g) => (
-              <ShuttleSection
-                key={g.id}
-                direction={g.direction}
-                onCardClick={handleCardClick}
-              />
-            ))}
-          </div>
-        )}
+          )}
+          {mode === 'subway' && (
+            <SubwaySection
+              stationGroup={subwayGroup}
+              onCardClick={handleCardClick}
+              favoritesOnly={favoritesOnly}
+              favCodes={favCodes}
+            />
+          )}
+          {mode === 'shuttle' && SHUTTLE_GROUPS.map((g) => (
+            <ShuttleSection
+              key={g.id}
+              direction={g.direction}
+              onCardClick={handleCardClick}
+              favoritesOnly={favoritesOnly}
+              favCodes={favCodes}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* detail modal — 공간 제약 없이 선형 리스트를 그대로 유지.
-          즐겨찾기·지도에서 보기 버튼은 모달 헤더에서만 노출. */}
       <ScheduleDetailModal
         open={selectedDetail != null}
         onClose={handleModalClose}
@@ -1068,9 +776,6 @@ export default function SchedulePage() {
             : null
         }
       />
-      {toastMessage && (
-        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
-      )}
     </div>
   )
 }

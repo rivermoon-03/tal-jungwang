@@ -243,10 +243,10 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                   <>
                     {/* 노선 색 원 */}
                     <span
-                      className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-micro font-bold"
+                      className="flex-shrink-0 inline-flex items-center justify-center min-w-[1.75rem] h-7 rounded-full px-1 text-white text-micro font-bold"
                       style={{ background: color }}
                     >
-                      {(group.routeCode ?? '').split(':')[0].slice(0, 3)}
+                      {(group.routeCode ?? '').split(':')[0]}
                     </span>
 
                     {/* 방향 */}

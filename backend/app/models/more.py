@@ -42,6 +42,9 @@ class AppInfo(Base):
     version: Mapped[str] = mapped_column(String(20), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     feedback_url: Mapped[str | None] = mapped_column(String(500))
+    subway_last_refreshed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

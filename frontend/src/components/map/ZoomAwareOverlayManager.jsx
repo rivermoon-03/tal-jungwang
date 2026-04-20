@@ -52,6 +52,8 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
                 badgeText:   station.badgeText,
                 extraPillText: station.extraPillText ?? null,
                 subLabel:    station.subLabel ?? null,
+                iconType:    station.iconType ?? null,
+                subLabelSep: station.subLabelSep ?? '·',
                 onClick: () => onTap?.(station),
               }))
         : createMarkerDotElement({
@@ -109,6 +111,8 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
                   badgeText:   item.station.badgeText,
                   extraPillText: item.station.extraPillText ?? null,
                   subLabel:    item.station.subLabel ?? null,
+                  iconType:    item.station.iconType ?? null,
+                  subLabelSep: item.station.subLabelSep ?? '·',
                   onClick: () => onTap?.(item.station),
                 }))
           : createMarkerDotElement({

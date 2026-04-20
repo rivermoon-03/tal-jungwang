@@ -149,45 +149,32 @@ async def bus_history_preview(
     route_number: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """실시간 노선 과거 도착 이력 조회 — 모달 예측 데이터용."""
+    """실시간 노선 과거 도착 이력 조회 — 모달 예측 데이터용.
+
+    과거 28일 내 같은 요일 타입(평일/토/일) 날짜 중 이력이 있는 최근 3개를 동적으로 반환.
+    서비스 초기(이력 부족) 대응: 같은 요일 타입에서 가장 최근 3개를 선택.
+    """
     KST = ZoneInfo("Asia/Seoul")
     today = datetime.now(KST).date()
 
     wd = today.weekday()  # 0=Mon … 6=Sun
     WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
 
-    def day_label(d: date) -> str:
+    def is_same_day_type(d: date) -> bool:
+        dw = d.weekday()
+        if wd <= 4:
+            return dw <= 4
+        return dw == wd
+
+    def col_label(d: date) -> str:
         diff = (today - d).days
-        name = WEEKDAY_KR[d.weekday()] + "요일"
+        if diff == 0:
+            return "오늘"
         if diff == 1:
-            return f"어제 ({name})"
+            return "어제"
         if diff <= 7:
-            return f"저번 주 {name}"
-        return f"2주전 {name}"
-
-    # 임시방편: 평일에는 "저번 주 종합(수∪목)"과 "저번 주 금요일" 두 컬럼.
-    # 주말은 기존 로직(저번 주 같은 요일 + 2주 전) 유지.
-    target_dates: list[date] = []
-    combined_dates: list[date] = []  # 종합 컬럼에 묶을 날짜들
-    fri_date: date | None = None
-    weekend_refs: list[tuple[str, date]] = []
-
-    if wd <= 4:  # 평일
-        days_to_last_wed = (wd - 2) % 7 or 7
-        last_wed = today - timedelta(days=days_to_last_wed)
-        last_thu = last_wed + timedelta(days=1)
-        last_fri = last_wed + timedelta(days=2)
-        combined_dates = [last_wed, last_thu]
-        fri_date = last_fri
-        target_dates = [last_wed, last_thu, last_fri]
-    elif wd == 5:
-        weekend_refs = [(day_label(today - timedelta(days=14)), today - timedelta(days=14)),
-                        (day_label(today - timedelta(days=7)), today - timedelta(days=7))]
-        target_dates = [d for _, d in weekend_refs]
-    else:
-        weekend_refs = [(day_label(today - timedelta(days=14)), today - timedelta(days=14)),
-                        (day_label(today - timedelta(days=7)), today - timedelta(days=7))]
-        target_dates = [d for _, d in weekend_refs]
+            return f"저번 주 {WEEKDAY_KR[d.weekday()]}요일"
+        return f"{d.month}/{d.day} ({WEEKDAY_KR[d.weekday()]})"
 
     route_result = await db.execute(select(BusRoute).where(BusRoute.route_number == route_number))
     route = route_result.scalar_one_or_none()
@@ -195,6 +182,39 @@ async def bus_history_preview(
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
 
     arrived_kst = func.timezone("Asia/Seoul", BusArrivalHistory.arrived_at)
+
+    # 오늘 포함 28일 내 같은 요일 타입 후보 날짜 (최대 12개 스캔)
+    candidate_dates: list[date] = []
+    for i in range(0, 29):
+        d = today - timedelta(days=i)
+        if is_same_day_type(d):
+            candidate_dates.append(d)
+        if len(candidate_dates) >= 12:
+            break
+
+    # 후보 날짜에서 실제 이력이 있는 날짜만 추출 (최근 3개)
+    if candidate_dates:
+        stmt_dates = (
+            select(func.date(arrived_kst).label("arr_date"))
+            .join(BusStop, BusStop.id == BusArrivalHistory.stop_id)
+            .where(BusArrivalHistory.route_id == route.id)
+            .where(func.date(arrived_kst).in_(candidate_dates))
+            .group_by(func.date(arrived_kst))
+            .order_by(func.date(arrived_kst).desc())
+            .limit(3)
+        )
+        date_rows = (await db.execute(stmt_dates)).all()
+        target_dates = [r.arr_date for r in date_rows]
+    else:
+        target_dates = []
+
+    if not target_dates:
+        return ApiResponse.ok({
+            "route_number": route_number,
+            "stop_name": "",
+            "columns": [],
+        })
+
     stmt = (
         select(
             func.date(arrived_kst).label("arr_date"),
@@ -215,8 +235,7 @@ async def bus_history_preview(
         if stop_name is None:
             stop_name = sname
 
-    def dedupe_within(times: list[str], threshold_min: int) -> list[str]:
-        """정렬된 HH:MM 리스트에서 직전 채택 시각과의 차이가 threshold 이하면 건너뜀."""
+    def dedupe_within(times: list[str], threshold_min: int = 3) -> list[str]:
         kept: list[str] = []
         last_min: int | None = None
         for t in sorted(set(times)):
@@ -227,36 +246,18 @@ async def bus_history_preview(
                 last_min = cur
         return kept
 
-    if wd <= 4:
-        combined_times = dedupe_within(
-            [t for d in combined_dates for t in times_by_date.get(d.isoformat(), [])],
-            threshold_min=5,
-        )
-        wed, thu = combined_dates
-        columns = [
-            {
-                "label": "저번 주 종합",
-                "date": wed.isoformat(),
-                "day_label": f"{wed.month}/{wed.day}(수)·{thu.month}/{thu.day}(목)",
-                "times": combined_times,
-            },
-            {
-                "label": "저번 주 금요일",
-                "date": fri_date.isoformat(),
-                "day_label": f"{fri_date.month}/{fri_date.day}({WEEKDAY_KR[fri_date.weekday()]})",
-                "times": times_by_date.get(fri_date.isoformat(), []),
-            },
-        ]
-    else:
-        columns = [
-            {
-                "label": label,
-                "date": d.isoformat(),
-                "day_label": f"{d.month}/{d.day}({WEEKDAY_KR[d.weekday()]})",
-                "times": times_by_date.get(d.isoformat(), []),
-            }
-            for label, d in weekend_refs
-        ]
+    # 최신 날짜가 왼쪽 컬럼에 오도록 정렬 (내림차순)
+    sorted_dates = sorted(target_dates, reverse=True)
+    columns = [
+        {
+            "label": col_label(d),
+            "date": d.isoformat(),
+            "day_label": f"{d.month}/{d.day}({WEEKDAY_KR[d.weekday()]})",
+            "times": dedupe_within(times_by_date.get(d.isoformat(), [])),
+            "totalCount": len(times_by_date.get(d.isoformat(), [])),
+        }
+        for d in sorted_dates
+    ]
 
     return ApiResponse.ok({
         "route_number": route_number,

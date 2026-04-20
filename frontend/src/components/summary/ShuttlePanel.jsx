@@ -48,7 +48,9 @@ function ShuttleRow({ direction, label }) {
   }
 
   const isReturnTrip = !!(data.note?.includes('회차편'))
-  const departTime = data.depart_at?.slice(0, 5) ?? null
+  // note 예: "회차편 · 학교 21:20 출발" → HH:MM 추출
+  const noteTimeMatch = isReturnTrip ? data.note?.match(/(\d{2}:\d{2})/) : null
+  const departTime = noteTimeMatch ? noteTimeMatch[1] : (data.depart_at?.slice(0, 5) ?? null)
   const minutes = isReturnTrip
     ? null
     : data.arrive_in_seconds != null

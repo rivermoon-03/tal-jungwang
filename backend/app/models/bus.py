@@ -1,7 +1,7 @@
 from datetime import datetime, time
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -31,12 +31,19 @@ class BusRoute(Base):
     route_name: Mapped[str | None] = mapped_column(String(100))
     direction_name: Mapped[str | None] = mapped_column(String(50))
     category: Mapped[str] = mapped_column(String(20), nullable=False)
-    is_realtime: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    gbis_route_id: Mapped[str | None] = mapped_column(String(20), unique=True)
+    gbis_route_id: Mapped[str | None] = mapped_column(String(20))
+
+    @property
+    def is_realtime(self) -> bool:
+        return self.gbis_route_id is not None
 
     timetable_entries: Mapped[list["BusTimetableEntry"]] = relationship(back_populates="route")
     stops: Mapped[list["BusStop"]] = relationship(
         secondary="bus_stop_routes", back_populates="routes"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("route_number", "category", name="uq_bus_routes_number_category"),
     )
 
 
