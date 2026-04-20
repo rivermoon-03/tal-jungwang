@@ -197,10 +197,14 @@ export default function MapView({ onMarkerClick, selectedId }) {
         tabId: ui.tabId,
       }
       if (m.type === 'shuttle') {
+        const isReturnTrip = ui.direction === 0 && !!(shuttleToSchoolData?.note?.includes('회차편'))
+        const departTime = isReturnTrip ? (shuttleToSchoolData?.depart_at?.slice(0, 5) ?? null) : null
         return {
           ...base,
           direction: ui.direction,
-          liveMinutes: ui.direction === 0 ? shuttleToSchoolMins : shuttleFromSchoolMins,
+          liveMinutes: isReturnTrip ? null : (ui.direction === 0 ? shuttleToSchoolMins : shuttleFromSchoolMins),
+          showLive: isReturnTrip ? false : (ui.showLive ?? false),
+          subLabel: isReturnTrip && departTime ? `하교 ${departTime} 출발` : null,
         }
       }
       if (m.type === 'subway') {
@@ -267,7 +271,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       }
       return base
     })
-  }, [markersData, shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, liveMinByRouteDir])
+  }, [markersData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, liveMinByRouteDir])
 
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
@@ -422,11 +426,12 @@ export default function MapView({ onMarkerClick, selectedId }) {
         const isLateNightGap = (_hs >= 23 || _hs < 5) && diffMin >= 100
         if (isLateNightGap) continue
 
+        const isReturnTrip = !isFrom && !!(note?.includes('회차편'))
         upcoming.push({
           routeCode:  isFrom ? '하교' : '등교',
           routeColor: '#1b3a6e',
-          direction:  note ? `${timeStr} · ${note}` : timeStr,
-          minutes:    Math.max(0, diffMin),
+          direction:  isReturnTrip ? '회차탑승' : (note ? `${timeStr} · ${note}` : timeStr),
+          minutes:    isReturnTrip ? `하교 ${timeStr} 출발` : Math.max(0, diffMin),
           detail: {
             type: 'shuttle',
             routeCode: `셔틀${isFrom ? '하교' : '등교'}`,

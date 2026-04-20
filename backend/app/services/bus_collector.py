@@ -31,6 +31,22 @@ FIRST_SIGHT_ARRIVAL_SEC = 30
 
 CACHE_TTL = 150  # 캐시 TTL (초) — 폴링 간격(135초)보다 약간 길게
 
+# 노선번호별 최소 폴링 간격 (초). 미설정 노선은 전역 135초 주기를 따름.
+ROUTE_POLL_INTERVALS: dict[str, int] = {
+    "20-1": 240,
+}
+
+
+async def _is_route_due(redis, stop_id: int, route_id: int, route_number: str) -> bool:
+    interval = ROUTE_POLL_INTERVALS.get(route_number)
+    if not interval:
+        return True
+    key = f"bus:route_poll:{stop_id}:{route_id}"
+    if await redis.exists(key):
+        return False
+    await redis.set(key, "1", ex=interval)
+    return True
+
 
 def _day_type(dt: datetime) -> str:
     wd = dt.weekday()
@@ -81,8 +97,14 @@ async def poll_and_collect():
             gbis_id_to_route: dict[str, BusRoute] = target["routes"]
             arrivals_for_cache = []
 
+            # 이번 사이클에 실제로 처리할 노선 (간격 미달 노선 제외)
+            due_routes: dict[str, BusRoute] = {}
+            for gbis_route_id, route in gbis_id_to_route.items():
+                if await _is_route_due(redis, target["stop_id"], route.id, route.route_number):
+                    due_routes[gbis_route_id] = route
+
             for item in items:
-                route = gbis_id_to_route.get(item["route_id"])
+                route = due_routes.get(item["route_id"])
                 if not route:
                     continue
 
@@ -129,10 +151,10 @@ async def poll_and_collect():
             )
 
             # ── 2. 도착 판정 ──────────────────────────────────────────
-            # 현재 상태: {plateNo: {"route_id": gbis_route_id, "sec": predictTimeSec}}
+            # 현재 상태: due_routes 한정 (간격 미달 노선은 도착 판정도 스킵)
             current_state: dict[str, dict] = {}
             for item in items:
-                route = gbis_id_to_route.get(item["route_id"])
+                route = due_routes.get(item["route_id"])
                 if not route:
                     continue
                 plate = item.get("plate_no1", "")
