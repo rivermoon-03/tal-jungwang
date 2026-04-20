@@ -58,7 +58,7 @@ export default function ShuttleCountdown({ nextShuttle, direction, inFrequentWin
   if (isReturn) {
     const schoolTime = nextShuttle?.note?.match(/학교 (\d{2}:\d{2}) 출발/)?.[1] ?? null
     const returnDisplay = isExpired
-      ? '곧 도착'
+      ? '곧 출발'
       : hours > 0
         ? `${hours}시간 ${String(mins).padStart(2, '0')}분`
         : `${mm}:${ss}`
