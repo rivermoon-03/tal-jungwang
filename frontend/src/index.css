@@ -49,6 +49,7 @@
 }
 
 .dark {
+  --tj-accent:    #7aa7e3;
   --tj-ink:       #f5f5f5;
   --tj-mute:      #94a3b8;
   --tj-mute-2:    #6b7280;

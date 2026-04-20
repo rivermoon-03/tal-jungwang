@@ -41,7 +41,7 @@ function departLabel(next, { inFrequent, inFrequentReturn }) {
   const diffMin = toMin(next.depart_at) - nowMin
 
   if (next.note?.startsWith('회차편')) {
-    if (diffMin < 1) return { main: '곧 도착', sub: '회차편' }
+    if (diffMin < 1) return { main: '곧 출발', sub: '회차편' }
     return { main: `${diffMin}분 뒤`, sub: '회차편' }
   }
   if (diffMin < 1) return { main: '곧 출발', sub: null }
