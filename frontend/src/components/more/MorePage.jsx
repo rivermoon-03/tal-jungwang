@@ -8,12 +8,13 @@
  * Sub-pages: dark-mode, notifications, notices, info
  */
 import { useState } from 'react'
-import { Bell, Moon, Heart } from 'lucide-react'
+import { Bell, Moon, Heart, Zap } from 'lucide-react'
 import NoticeHighlights from './NoticeHighlights'
 import PageHeader from '../layout/PageHeader'
 import DarkModePage from './DarkModePage'
 import NotificationsPage from './NotificationsPage'
 import NoticesPage from './NoticesPage'
+import FirstScreenSetting from './FirstScreenSetting'
 import { useNotices, useAppInfo } from '../../hooks/useMore'
 import useAppStore from '../../stores/useAppStore'
 
@@ -67,14 +68,17 @@ export default function MorePage() {
   const { data: infoData } = useAppInfo()
   const themeMode = useAppStore((s) => s.themeMode)
   const notifPrefs = useAppStore((s) => s.notifPrefs)
+  const firstScreen = useAppStore((s) => s.firstScreen)
 
   const themeLabel = { light: '라이트', system: '자동', dark: '다크' }[themeMode] ?? '자동'
   const leadMin = notifPrefs?.leadMin ?? 10
   const alarmSub = notifPrefs?.enabled === false ? '꺼짐' : `${leadMin}분 전`
+  const firstScreenLabel = firstScreen === 'map' ? '지도' : '지금'
 
-  if (subPage === 'dark-mode')     return <DarkModePage     onBack={() => setSubPage(null)} />
-  if (subPage === 'notifications') return <NotificationsPage onBack={() => setSubPage(null)} />
-  if (subPage === 'notices')       return <NoticesPage      onBack={() => setSubPage(null)} />
+  if (subPage === 'dark-mode')     return <DarkModePage        onBack={() => setSubPage(null)} />
+  if (subPage === 'notifications') return <NotificationsPage   onBack={() => setSubPage(null)} />
+  if (subPage === 'notices')       return <NoticesPage         onBack={() => setSubPage(null)} />
+  if (subPage === 'first-screen')  return <FirstScreenSetting  onBack={() => setSubPage(null)} />
 
   const version = infoData?.version ?? APP_VERSION
   const allNotices = Array.isArray(noticesData) ? noticesData : []
@@ -121,6 +125,12 @@ export default function MorePage() {
             label="다크모드"
             sub={themeLabel}
             onClick={() => setSubPage('dark-mode')}
+          />
+          <QuickCard
+            icon={<Zap size={16} />}
+            label="첫 화면"
+            sub={firstScreenLabel}
+            onClick={() => setSubPage('first-screen')}
           />
         </div>
 

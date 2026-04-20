@@ -1,18 +1,18 @@
-import { Map, Calendar, BarChart2, MoreHorizontal } from 'lucide-react'
+import { Zap, Map, CalendarDays, MoreHorizontal } from 'lucide-react'
 
 const TABS = [
-  { id: 'map',      label: '홈',     Icon: Map,            href: '/'         },
-  { id: 'schedule', label: '시간표', Icon: Calendar,       href: '/schedule' },
-  { id: 'stats',    label: '통계',   Icon: BarChart2,      href: '/stats'    },
+  { id: 'now',      label: '지금',   Icon: Zap,            href: '/'         },
+  { id: 'map',      label: '지도',   Icon: Map,            href: '/map'      },
+  { id: 'schedule', label: '시간표', Icon: CalendarDays,   href: '/schedule' },
   { id: 'more',     label: '더보기', Icon: MoreHorizontal, href: '/more'     },
 ]
 
 function getActiveId(pathname) {
-  if (pathname === '/' || pathname === '') return 'map'
+  if (pathname === '/' || pathname === '') return 'now'
+  if (pathname.startsWith('/map'))       return 'map'
   if (pathname.startsWith('/schedule'))  return 'schedule'
-  if (pathname.startsWith('/stats'))     return 'stats'
   if (pathname.startsWith('/more'))      return 'more'
-  return 'map'
+  return 'now'
 }
 
 /**

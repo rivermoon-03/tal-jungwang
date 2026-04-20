@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_token
-from app.core.cache import get_redis
+from app.core.cache import get_cached_json, get_redis, set_cached_json
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
-from app.schemas.traffic import RoadTraffic, TrafficResponse
+from app.schemas.traffic import RoadTraffic, TrafficFlowResponse, TrafficResponse
 from app.services.external.tmap import fetch_driving_traffic
 from app.services.traffic import collect_traffic, get_history, persist_traffic_segments
+from app.services.traffic_flow import compute_flow
 
 _KST = ZoneInfo("Asia/Seoul")
 _TRAFFIC_LIVE_CACHE_KEY = "traffic:live"
@@ -230,3 +231,24 @@ async def traffic_history(
         limit=limit,
     )
     return ApiResponse.ok(rows)
+
+
+_FLOW_CACHE_TTL = 1800  # 30분 — 곡선은 히스토리 누적 속도가 느려 천천히 변함
+
+
+@router.get("/flow")
+@limiter.limit("30/minute")
+async def traffic_flow(
+    request: Request,
+    day_type: str = Query("weekday", pattern="^(weekday|weekend)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """마유로 24시간 혼잡도 곡선 (30분 버킷, 최근 60일 평균)."""
+    cache_key = f"traffic:flow:{day_type}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return ApiResponse[TrafficFlowResponse].ok(cached)
+
+    data = await compute_flow(db, road_name="마유로", day_type=day_type)
+    await set_cached_json(cache_key, data, ttl=_FLOW_CACHE_TTL)
+    return ApiResponse[TrafficFlowResponse].ok(data)
