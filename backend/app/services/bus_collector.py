@@ -73,7 +73,7 @@ async def poll_and_collect():
             try:
                 items = await fetch_arrivals(station_id)
             except Exception:
-                logger.warning("GBIS 폴링 실패 (정류장 %s)", target["stop_name"])
+                logger.warning("GBIS 폴링 실패 (정류장 %s)", target["stop_name"], exc_info=True)
                 continue
 
             # ── 1. Redis 캐시 저장 (프론트 응답용) ─────────────────────

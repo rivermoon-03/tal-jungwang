@@ -75,7 +75,8 @@ export default function ShuttleStopOverlay({ map }) {
     const bg = darkMode ? LABEL_DARK : LABEL_LIGHT
     if (sec != null && sec >= 0) {
       if (note.includes('회차편')) {
-        div.textContent = '회차 버스 탑승'
+        const departTime = nextShuttle?.depart_at?.slice(0, 5)
+        div.textContent = departTime ? `하교 ${departTime} 출발` : '회차탑승'
         div.style.color = darkMode ? '#fcd34d' : '#b45309'
         div.style.background = darkMode ? 'rgba(120,53,15,0.95)' : 'rgba(254,243,199,0.97)'
       } else {
