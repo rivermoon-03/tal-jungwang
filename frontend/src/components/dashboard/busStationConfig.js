@@ -25,7 +25,7 @@ export const BUS_STATIONS = {
       하교: '정왕역 경유',
     },
     perRouteDisplay: {
-      '3400': { origin: '시화터미널', dest: '강남행' },
+      '3400': { origin: '시화터미널', dest: '사당 경유 강남행' },
     },
     routes: {
       하교: ['시흥33', '20-1', '11-A', '3400'],
