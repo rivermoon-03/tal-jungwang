@@ -140,9 +140,18 @@ async def get_next(
         return None
 
     e = future[0]
-    depart_dt = datetime.combine(d, time.fromisoformat(e["departure_time"]))
     now_dt = datetime.combine(d, now_time)
+    depart_dt = datetime.combine(d, time.fromisoformat(e["departure_time"]))
     diff = int((depart_dt - now_dt).total_seconds())
+
+    next_depart_at: str | None = None
+    next_arrive_in_seconds: int | None = None
+    if len(future) >= 2:
+        e2 = future[1]
+        depart_dt2 = datetime.combine(d, time.fromisoformat(e2["departure_time"]))
+        next_diff = int((depart_dt2 - now_dt).total_seconds())
+        next_depart_at = e2["departure_time"][:8]
+        next_arrive_in_seconds = next_diff
 
     return {
         "direction": e["direction"],
@@ -150,4 +159,6 @@ async def get_next(
         "arrive_in_seconds": diff,
         "is_last": len(future) == 1,
         "note": e["note"],
+        "next_depart_at": next_depart_at,
+        "next_arrive_in_seconds": next_arrive_in_seconds,
     }

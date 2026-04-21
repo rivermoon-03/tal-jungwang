@@ -24,6 +24,8 @@ class SubwayNextTrain(BaseModel):
     depart_at: str  # "HH:MM"
     arrive_in_seconds: int
     destination: str
+    next_depart_at: str | None = None  # "HH:MM" — 다음 다음 열차
+    next_arrive_in_seconds: int | None = None
 
 
 class SubwayNextResponse(BaseModel):
