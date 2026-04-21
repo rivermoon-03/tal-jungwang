@@ -1,5 +1,6 @@
+import { useMemo } from 'react'
 import useAppStore from '../../stores/useAppStore'
-import { useShuttleNext } from '../../hooks/useShuttle'
+import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import DualDirectionCard from '../common/DualDirectionCard'
@@ -10,6 +11,9 @@ import DualDirectionCard from '../common/DualDirectionCard'
  * 한 카드 안에 등교 / 하교를 듀얼 컬럼으로. 캠퍼스(본캠/2캠) 선택에 따라
  *   본캠: direction 0(등교) + 1(하교)
  *   2캠 : direction 2(등교) + 3(하교)
+ *
+ * 좌측=등교 클릭 → 등교 방향 모달, 우측=하교 클릭 → 하교 방향 모달.
+ * 운행 종료 시 내일(또는 다음 운행일) 첫차 시간 표시.
  */
 
 // direction: 0=본캠 등교, 1=본캠 하교, 2=2캠 등교, 3=2캠 하교
@@ -20,14 +24,15 @@ const DIR_META = {
   3: { arrow: '↓', label: '하교', origin: '2캠',    dest: '본캠' },
 }
 
-// 회차편 원버스 출발지 — note가 "학교 HH:MM 출발"이므로 "학교"는
-// direction=0일 땐 본캠, direction=2일 땐 2캠. 그 외 direction에선
-// 현재 데이터상 회차편이 없으므로 기본값 "학교".
 const RETURN_ORIGIN = { 0: '본캠', 2: '2캠' }
 
-// 백엔드가 "해당 날짜에 운행이 없음"을 의미할 때 돌려주는 오류 코드.
-// 이들은 에러가 아닌 Empty 상태로 표시한다.
 const NO_RUN_CODES = new Set(['NO_SHUTTLE', 'NO_SCHEDULE'])
+
+function offsetDate(days) {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
 
 export default function ShuttlePanel() {
   const campus = useAppStore((s) => s.selectedShuttleCampus)
@@ -39,6 +44,30 @@ export default function ShuttlePanel() {
 
   const anyLoading = goQuery.loading || backQuery.loading
 
+  // 내일/모레 날짜 문자열 (마운트 시 한 번 계산)
+  const tom1 = useMemo(() => offsetDate(1), [])
+  const tom2 = useMemo(() => offsetDate(2), [])
+
+  const goData = normalizeData(goQuery)
+  const backData = normalizeData(backQuery)
+
+  // 운행 종료 여부 (데이터도 에러도 확정된 상태)
+  const goRunsOut = !goData && !goQuery.loading
+  const backRunsOut = !backData && !backQuery.loading
+
+  // 내일/모레 시간표 — 주말 시간표가 없는 캠퍼스는 모레까지 탐색
+  const goTom1 = useShuttleSchedule(goDir, tom1, { enabled: goRunsOut })
+  const goTom2 = useShuttleSchedule(goDir, tom2, { enabled: goRunsOut })
+  const backTom1 = useShuttleSchedule(backDir, tom1, { enabled: backRunsOut })
+  const backTom2 = useShuttleSchedule(backDir, tom2, { enabled: backRunsOut })
+
+  const goFirstTomorrow =
+    goTom1.data?.directions?.[0]?.times?.[0]?.depart_at ??
+    goTom2.data?.directions?.[0]?.times?.[0]?.depart_at ?? null
+  const backFirstTomorrow =
+    backTom1.data?.directions?.[0]?.times?.[0]?.depart_at ??
+    backTom2.data?.directions?.[0]?.times?.[0]?.depart_at ?? null
+
   if (anyLoading && !goQuery.data && !backQuery.data) {
     return (
       <div className="space-y-2">
@@ -47,10 +76,6 @@ export default function ShuttlePanel() {
     )
   }
 
-  const goData = normalizeData(goQuery)
-  const backData = normalizeData(backQuery)
-
-  // 두 방향 모두 진짜 에러(NO_RUN이 아닌)인 경우에만 ErrorState.
   const goHardError = goQuery.error && !NO_RUN_CODES.has(goQuery.error.code)
   const backHardError = backQuery.error && !NO_RUN_CODES.has(backQuery.error.code)
   if (goHardError && backHardError) {
@@ -63,19 +88,16 @@ export default function ShuttlePanel() {
     )
   }
 
-  const left = toSlot(goData, goDir)
-  const right = toSlot(backData, backDir)
+  const left = toSlot(goData, goDir, goFirstTomorrow)
+  const right = toSlot(backData, backDir, backFirstTomorrow)
 
-  const handleClick = () => {
-    // 어느 방향이 더 임박한지 기준으로 모달 대상을 고른다.
-    // 둘 다 미운행인 경우엔 기본값 등교로.
-    const target = pickPrimaryDirection(goData, backData, goDir, backDir)
-    const meta = DIR_META[target]
-    const campusTag = target >= 2 ? '2캠 ' : ''
+  function openModal(dir) {
+    const meta = DIR_META[dir]
+    const campusTag = dir >= 2 ? '2캠 ' : ''
     setDetailModal({
       type: 'shuttle',
       routeCode: `${campusTag}셔틀${meta.label}`,
-      direction: target,
+      direction: dir,
       favCode: `shuttle:${campusTag}${meta.label}`.trim(),
       title: `${campusTag}셔틀버스 ${meta.label}`,
     })
@@ -90,33 +112,24 @@ export default function ShuttlePanel() {
         sub="다음 출발"
         left={left}
         right={right}
-        onClick={handleClick}
+        onLeftClick={() => openModal(goDir)}
+        onRightClick={() => openModal(backDir)}
       />
     </div>
   )
 }
 
-/**
- * useApi 훅 결과에서 운행 데이터만 꺼낸다. NO_RUN 에러는 data 없음으로 취급.
- */
 function normalizeData(query) {
   if (query.data) return query.data
   if (query.error && NO_RUN_CODES.has(query.error.code)) return null
   return null
 }
 
-/**
- * 방향 데이터 → DirectionSlot.
- *   - note '수시운행' → frequent
- *   - note '회차편 포함' → return
- *   - 그 외 → normal
- *   - depart_at 없음 → empty
- */
-function toSlot(data, direction) {
+function toSlot(data, direction, firstTomorrow = null) {
   const meta = DIR_META[direction]
   if (!meta) return { variant: 'empty' }
   const dirText = `${meta.arrow} ${meta.label}`
-  if (!data?.depart_at) return { variant: 'empty' }
+  if (!data?.depart_at) return { variant: 'empty', dir: dirText, firstTomorrow }
 
   const isReturn = !!data.note?.includes('회차편')
   const isFrequent = data.note === '수시운행'
@@ -159,21 +172,4 @@ function toSlot(data, direction) {
     nextMinutes,
     isUrgent: minutes != null && minutes <= 3,
   }
-}
-
-/**
- * 카드 클릭 시 모달에 띄울 기본 방향 결정.
- * - 둘 다 운행 중이면 arrive_in_seconds가 더 작은 쪽(더 임박).
- * - 한쪽만 운행 중이면 그쪽.
- * - 둘 다 미운행이면 등교 방향 기본.
- */
-function pickPrimaryDirection(goData, backData, goDir, backDir) {
-  const goSec = goData?.arrive_in_seconds
-  const backSec = backData?.arrive_in_seconds
-  if (goSec != null && backSec != null) {
-    return goSec <= backSec ? goDir : backDir
-  }
-  if (goData?.depart_at) return goDir
-  if (backData?.depart_at) return backDir
-  return goDir
 }

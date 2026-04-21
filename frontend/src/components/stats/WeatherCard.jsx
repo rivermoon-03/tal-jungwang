@@ -177,6 +177,7 @@ export default function WeatherCard() {
 
     return forecastData.items
       .filter((item) => {
+        if (!item.time) return false
         const h = parseInt(item.time.slice(0, 2))
         return (item.date === todayStr || item.date === tomorrowStr) && h >= curHour - 0.5
       })

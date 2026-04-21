@@ -26,7 +26,7 @@ function DirLabel({ direction }) {
   return <span className="flex items-center justify-center gap-1"><Icon size={13} /> {label}</span>
 }
 
-export default function ShuttleSheetContent() {
+export default function ShuttleSheetContent({ initialDir = null }) {
   const { data: schedule, loading } = useShuttleSchedule()
   const directions = schedule?.directions ?? []
 
@@ -38,8 +38,10 @@ export default function ShuttleSheetContent() {
     return ordered
   }, [directions])
 
-  const [activeCampus, setActiveCampus] = useState(null)
-  const [activeDir, setActiveDir] = useState(null)
+  const [activeCampus, setActiveCampus] = useState(
+    initialDir != null ? campusOf(initialDir) : null
+  )
+  const [activeDir, setActiveDir] = useState(initialDir)
 
   const currentCampus = activeCampus ?? availableCampuses[0] ?? 'main'
   const campusDirs = directions.filter((d) => campusOf(d.direction) === currentCampus)
