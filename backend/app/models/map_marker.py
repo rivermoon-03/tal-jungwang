@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.bus import BusStop
 
 
 class MapMarker(Base):
@@ -45,3 +46,11 @@ class MapMarkerRoute(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     marker: Mapped["MapMarker"] = relationship(back_populates="routes")
+    outbound_stop: Mapped["BusStop | None"] = relationship(
+        "BusStop",
+        foreign_keys=[outbound_stop_id],
+    )
+    inbound_stop: Mapped["BusStop | None"] = relationship(
+        "BusStop",
+        foreign_keys=[inbound_stop_id],
+    )

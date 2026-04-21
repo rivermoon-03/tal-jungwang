@@ -6,6 +6,7 @@ class MapMarkerRouteEntry(BaseModel):
     route_color: str | None = None
     badge_text: str | None = None
     outbound_stop_id: int | None = None
+    outbound_stop_gbis_id: str | None = None
     inbound_stop_id: int | None = None
     ui_meta: dict = {}
 
