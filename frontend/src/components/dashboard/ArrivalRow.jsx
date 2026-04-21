@@ -43,8 +43,8 @@ export default function ArrivalRow({
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        padding: '11px 12px',
-        borderRadius: 11,
+        padding: '14px 12px',
+        borderRadius: 12,
         border: '1px solid var(--tj-line)',
         background: urgent ? '#fafafa' : 'transparent',
         boxShadow: 'none',
@@ -56,7 +56,7 @@ export default function ArrivalRow({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
             style={{
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 900,
               letterSpacing: '-0.02em',
               whiteSpace: 'nowrap',
@@ -105,9 +105,9 @@ export default function ArrivalRow({
         {direction && (
           <div
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: 'var(--tj-mute)',
-              marginTop: 2,
+              marginTop: 3,
               fontWeight: 500,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -142,7 +142,7 @@ export default function ArrivalRow({
               >
                 <span
                   style={{
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: 900,
                     letterSpacing: '-0.03em',
                     lineHeight: 1,
@@ -152,7 +152,7 @@ export default function ArrivalRow({
                 </span>
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     color: urgent ? '#dc2626' : 'var(--tj-mute)',
                     fontWeight: 700,
                   }}
@@ -163,7 +163,7 @@ export default function ArrivalRow({
               {rest.length > 0 && (
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: 'var(--tj-mute-2)',
                     marginTop: 2,
                     fontWeight: 600,
@@ -180,7 +180,7 @@ export default function ArrivalRow({
               )}
             </>
           ) : (
-            !rightAddon && <span style={{ fontSize: 11, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
+            !rightAddon && <span style={{ fontSize: 12, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
           )}
         </div>
         {rightAddon}
