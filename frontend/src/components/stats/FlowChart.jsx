@@ -9,6 +9,17 @@ const PAD_TOP = 16
 const PAD_BOTTOM = 20
 const SPEED_MAX = 50 // km/h 축 상한
 
+function filterByRange(points, curMin, rangeH) {
+  if (rangeH === 24) return points
+  const half = (rangeH / 2) * 60 // 6h→180, 12h→360
+  const lo = Math.max(0, curMin - half)
+  const hi = Math.min(1440, curMin + half)
+  return points.filter((p) => {
+    const m = p.hour * 60 + (p.minute ?? 0)
+    return m >= lo && m <= hi
+  })
+}
+
 function formatLabel(p) {
   const hh = String(p.hour).padStart(2, '0')
   const mm = String(p.minute).padStart(2, '0')
@@ -21,17 +32,29 @@ function classifySpeed(kmh) {
   return '정체'
 }
 
-export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = null }) {
+export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = null, rangeH = 24 }) {
   const wrapRef = useRef(null)
   const [hoverIdx, setHoverIdx] = useState(null)
+  const [locked, setLocked] = useState(false)
+
+  const filtered = useMemo(
+    () => filterByRange(points, nowMinutes ?? 720, rangeH),
+    [points, nowMinutes, rangeH],
+  )
 
   const geometry = useMemo(() => {
-    if (!points || points.length === 0) return null
+    if (!filtered || filtered.length === 0) return null
     const innerW = W - PAD_X * 2
     const innerH = H - PAD_TOP - PAD_BOTTOM
 
-    const coords = points.map((p) => {
-      const x = PAD_X + ((p.hour + p.minute / 60) / 24) * innerW
+    const minMin = filtered[0].hour * 60 + (filtered[0].minute ?? 0)
+    const maxMin =
+      filtered[filtered.length - 1].hour * 60 + (filtered[filtered.length - 1].minute ?? 0)
+    const spanMin = maxMin - minMin || 1
+
+    const coords = filtered.map((p) => {
+      const m = p.hour * 60 + (p.minute ?? 0)
+      const x = PAD_X + ((m - minMin) / spanMin) * innerW
       const y = PAD_TOP + (1 - Math.max(0, Math.min(1, p.speed / SPEED_MAX))) * innerH
       return { x, y }
     })
@@ -39,36 +62,64 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
     const last = coords[coords.length - 1]
     const first = coords[0]
     const areaD = `${lineD} L ${last.x},${H - PAD_BOTTOM} L ${first.x},${H - PAD_BOTTOM} Z`
-    return { coords, lineD, areaD, innerW, innerH }
-  }, [points])
+
+    const speeds = filtered.map((p) => p.speed)
+    const maxSpeed = Math.max(...speeds)
+    const minSpeed = Math.min(...speeds)
+    const maxIdx = filtered.findIndex((p) => p.speed === maxSpeed)
+    const minIdx = filtered.findIndex((p) => p.speed === minSpeed)
+
+    return { coords, lineD, areaD, innerW, innerH, minMin, spanMin, maxSpeed, minSpeed, maxIdx, minIdx }
+  }, [filtered])
 
   const nowX = useMemo(() => {
-    if (nowMinutes == null) return null
-    const innerW = W - PAD_X * 2
-    return PAD_X + (nowMinutes / 1440) * innerW
-  }, [nowMinutes])
+    if (nowMinutes == null || !geometry) return null
+    const x = PAD_X + ((nowMinutes - geometry.minMin) / geometry.spanMin) * geometry.innerW
+    // 범위 밖이면 null
+    if (x < PAD_X || x > W - PAD_X) return null
+    return x
+  }, [nowMinutes, geometry])
 
-  const handleMove = (e) => {
-    if (!geometry || !wrapRef.current) return
+  const findNearest = (e) => {
+    if (!geometry || !wrapRef.current) return null
     const rect = wrapRef.current.getBoundingClientRect()
-    const relX = ((e.clientX - rect.left) / rect.width) * W
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX
+    if (clientX == null) return null
+    const relX = ((clientX - rect.left) / rect.width) * W
     let best = 0
     let bestDist = Infinity
     for (let i = 0; i < geometry.coords.length; i++) {
       const d = Math.abs(geometry.coords[i].x - relX)
-      if (d < bestDist) {
-        bestDist = d
-        best = i
-      }
+      if (d < bestDist) { bestDist = d; best = i }
     }
-    setHoverIdx(best)
+    return best
   }
 
-  const handleLeave = () => setHoverIdx(null)
+  const handleMove = (e) => {
+    if (locked) return
+    const idx = findNearest(e)
+    if (idx !== null) setHoverIdx(idx)
+  }
+
+  const handleDown = (e) => {
+    const idx = findNearest(e)
+    if (idx === null) return
+    if (locked && hoverIdx === idx) {
+      setLocked(false)
+      setHoverIdx(null)
+    } else {
+      setLocked(true)
+      setHoverIdx(idx)
+    }
+  }
+
+  const handleLeave = () => {
+    if (!locked) setHoverIdx(null)
+  }
 
   const active =
-    hoverIdx != null && geometry && points[hoverIdx]
-      ? { ...geometry.coords[hoverIdx], point: points[hoverIdx] }
+    hoverIdx != null && geometry && filtered[hoverIdx]
+      ? { ...geometry.coords[hoverIdx], point: filtered[hoverIdx] }
       : null
 
   const pctLeft = (x) => `${(x / W) * 100}%`
@@ -80,7 +131,7 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
       className="relative w-full select-none"
       style={{ height: 160, touchAction: 'none' }}
       onPointerMove={handleMove}
-      onPointerDown={handleMove}
+      onPointerDown={handleDown}
       onPointerLeave={handleLeave}
       onPointerCancel={handleLeave}
     >
@@ -88,13 +139,17 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         className="absolute inset-0 w-full h-full"
-        aria-label="마유로 24시간 속도 곡선"
+        aria-label="마유로 속도 곡선"
       >
         <defs>
           <linearGradient id="flowArea" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={stroke} stopOpacity="0.45" />
             <stop offset="100%" stopColor={stroke} stopOpacity="0.02" />
           </linearGradient>
+          <filter id="flowGlow" x="-5%" y="-60%" width="110%" height="220%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
         </defs>
 
         {[10, 20, 30, 40].map((v) => {
@@ -126,7 +181,23 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
               strokeLinejoin="round"
               strokeOpacity="0.95"
               vectorEffect="non-scaling-stroke"
+              filter="url(#flowGlow)"
             />
+            {geometry.coords.map((c, i) => {
+              const isMax = i === geometry.maxIdx
+              const isMin = i === geometry.minIdx && i !== geometry.maxIdx
+              return (
+                <circle
+                  key={i}
+                  cx={c.x}
+                  cy={c.y}
+                  r={isMax || isMin ? 3.8 : 2.4}
+                  fill={stroke}
+                  fillOpacity={isMax || isMin ? 0.9 : 0.55}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )
+            })}
           </>
         )}
 
@@ -155,6 +226,38 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
           />
         )}
       </svg>
+
+      {geometry && geometry.maxIdx >= 0 && (
+        <div
+          className="absolute pointer-events-none font-bold tabular-nums"
+          style={{
+            left: pctLeft(geometry.coords[geometry.maxIdx].x),
+            top: pctTop(Math.max(0, geometry.coords[geometry.maxIdx].y - 16)),
+            transform: 'translateX(-50%)',
+            fontSize: 10,
+            color: stroke,
+            textShadow: '0 1px 5px rgba(0,0,0,.85)',
+          }}
+        >
+          {geometry.maxSpeed.toFixed(0)}
+        </div>
+      )}
+      {geometry && geometry.minIdx >= 0 && geometry.minIdx !== geometry.maxIdx && (
+        <div
+          className="absolute pointer-events-none font-bold tabular-nums"
+          style={{
+            left: pctLeft(geometry.coords[geometry.minIdx].x),
+            top: pctTop(Math.min(H * 0.88, geometry.coords[geometry.minIdx].y + 4)),
+            transform: 'translateX(-50%)',
+            fontSize: 10,
+            color: stroke,
+            opacity: 0.65,
+            textShadow: '0 1px 5px rgba(0,0,0,.85)',
+          }}
+        >
+          {geometry.minSpeed.toFixed(0)}
+        </div>
+      )}
 
       {active && (
         <>

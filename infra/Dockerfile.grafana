@@ -1,0 +1,4 @@
+FROM grafana/grafana:latest
+COPY grafana-datasources.railway.yml /etc/grafana/provisioning/datasources/datasources.yml
+COPY grafana-dashboard-provider.yml /etc/grafana/provisioning/dashboards/default.yml
+COPY grafana-dashboards/ /var/lib/grafana/dashboards/

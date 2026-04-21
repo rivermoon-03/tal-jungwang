@@ -41,19 +41,28 @@ const useAppStore = create(
       themeMode: 'system',          // 'light' | 'dark' | 'system'
       setThemeMode: (mode) => set({ themeMode: mode }),
 
-      selectedMode: 'bus',          // 'subway' | 'bus' | 'shuttle'
+      selectedMode: 'bus',          // 'bus' | 'subway' | 'shuttle' | 'taxi'
       setSelectedMode: (mode) => set({ selectedMode: mode }),
 
       selectedSubwayStation: '정왕', // '정왕' | '초지' | '시흥시청'
       setSubwayStation: (station) => set({ selectedSubwayStation: station }),
 
       // 버스 정류장·방향 (각각 독립 상태)
-      // station: '한국공학대' | '시화터미널' | '이마트'
+      // station: '한국공학대' | '이마트' | '시흥시청' | '서울'
       // direction: '등교' | '하교'  (정류장별 허용 방향은 busStationConfig에서 정의)
       selectedBusStation: '한국공학대',
       setBusStation: (station) => set({ selectedBusStation: station }),
       selectedBusDirection: '하교',
       setBusDirection: (direction) => set({ selectedBusDirection: direction }),
+
+      // 셔틀 캠퍼스 ('main' = 본캠 direction 0/1, 'second' = 2캠 direction 2/3)
+      selectedShuttleCampus: 'main',
+      setShuttleCampus: (campus) => set({ selectedShuttleCampus: campus }),
+
+      // 방향 수동 오버라이드. null일 때 effectiveDirection은 시간대로 자동 판정된다.
+      // in-memory 전용 (persist 제외) — 새로고침 시 해제되어 자동 모드로 복귀.
+      directionOverride: null,     // '등교' | '하교' | null
+      setDirectionOverride: (dir) => set({ directionOverride: dir }),
 
       // ── 2단 스냅 (지도 40% ↔ 대시보드 60%) ────────────────────────────
       snapMode: 'default',           // 'default' | 'dashboard' | 'map'
@@ -168,6 +177,7 @@ const useAppStore = create(
         selectedSubwayStation: state.selectedSubwayStation,
         selectedBusStation: state.selectedBusStation,
         selectedBusDirection: state.selectedBusDirection,
+        selectedShuttleCampus: state.selectedShuttleCampus,
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
         notifPrefs: state.notifPrefs,
       }),

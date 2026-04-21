@@ -20,7 +20,7 @@ function AboutModal({ onClose }) {
           <p className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-wide text-center">
             Made with <Heart size={13} className="inline-block text-red-400 mx-0.5" /> by 소공
           </p>
-          <p className="text-[11px] text-slate-400">한국공대 ㅎㅇㅌ</p>
+          <p className="text-[11px] text-slate-400">본캠 ㅎㅇㅌ</p>
         </div>
         <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
           지하철, 3400/6502, 셔틀버스 정보는 각각의 공식 시간표에서 가져왔습니다.

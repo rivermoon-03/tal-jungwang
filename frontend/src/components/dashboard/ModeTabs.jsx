@@ -9,6 +9,7 @@ const MODES = [
   { id: 'bus',     label: '버스' },
   { id: 'subway',  label: '지하철' },
   { id: 'shuttle', label: '셔틀' },
+  { id: 'taxi',    label: '택시' },
 ]
 
 export default function ModeTabs() {

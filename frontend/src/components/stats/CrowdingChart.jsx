@@ -9,9 +9,10 @@ const PAD_TOP = 16
 const PAD_BOTTOM = 20
 const CROWDED_MAX = 4
 
-export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ffffff' }) {
+export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ffffff', rangeH = 24 }) {
   const wrapRef = useRef(null)
   const [hoverKey, setHoverKey] = useState(null)
+  const [locked, setLocked] = useState(false)
 
   const byKey = useMemo(() => {
     const m = new Map()
@@ -19,14 +20,27 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
     return m
   }, [points])
 
+  const visibleIndices = useMemo(() => {
+    if (rangeH === 24) return Array.from({ length: 48 }, (_, i) => i)
+    const half = (rangeH / 2) * 60 // 분
+    const curMin = nowMinutes ?? 720
+    const lo = Math.max(0, curMin - half)
+    const hi = Math.min(1440, curMin + half)
+    return Array.from({ length: 48 }, (_, i) => i).filter((i) => {
+      const m = Math.floor(i / 2) * 60 + (i % 2) * 30
+      return m >= lo && m <= hi
+    })
+  }, [rangeH, nowMinutes])
+
   const bars = useMemo(() => {
     const innerW = W - PAD_X * 2
     const innerH = H - PAD_TOP - PAD_BOTTOM
-    const barWidth = innerW / 48
+    const count = visibleIndices.length || 1
+    const barWidth = innerW / count
     const gap = Math.max(1, barWidth * 0.12)
     const bw = barWidth - gap
 
-    return Array.from({ length: 48 }, (_, i) => {
+    return visibleIndices.map((i, visIdx) => {
       const hour = Math.floor(i / 2)
       const minute = i % 2 === 0 ? 0 : 30
       const key = `${hour}:${minute}`
@@ -36,31 +50,65 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
       const minVisible = v != null ? 0.08 : 0
       const heightRatio = v != null ? Math.max(minVisible, ratio) : 0
       const barH = heightRatio * innerH
-      const x = PAD_X + i * barWidth + gap / 2
+      const x = PAD_X + visIdx * barWidth + gap / 2
       const y = H - PAD_BOTTOM - barH
-      return { i, key, hour, minute, x, y, w: bw, h: barH, point: p }
+      return { i, visIdx, key, hour, minute, x, y, w: bw, h: barH, point: p }
     })
-  }, [byKey])
+  }, [byKey, visibleIndices])
 
   const nowX = useMemo(() => {
-    if (nowMinutes == null) return null
+    if (nowMinutes == null || visibleIndices.length === 0) return null
     const innerW = W - PAD_X * 2
-    return PAD_X + (nowMinutes / 1440) * innerW
-  }, [nowMinutes])
+    const count = visibleIndices.length
+    const loMin = Math.floor(visibleIndices[0] / 2) * 60 + (visibleIndices[0] % 2) * 30
+    const lastIdx = visibleIndices[visibleIndices.length - 1]
+    const hiMin = Math.floor(lastIdx / 2) * 60 + (lastIdx % 2) * 30
+    const span = hiMin - loMin || 1
+    const x = PAD_X + ((nowMinutes - loMin) / span) * innerW
+    if (x < PAD_X || x > W - PAD_X) return null
+    // For 24h, keep original calculation (full range)
+    if (rangeH === 24) return PAD_X + (nowMinutes / 1440) * innerW
+    return x
+  }, [nowMinutes, visibleIndices, rangeH])
+
+  const findNearestBar = (e) => {
+    if (!wrapRef.current || bars.length === 0) return null
+    const rect = wrapRef.current.getBoundingClientRect()
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX
+    if (clientX == null) return null
+    const relX = ((clientX - rect.left) / rect.width) * W
+    let best = bars[0]
+    let bestDist = Infinity
+    for (const b of bars) {
+      const d = Math.abs(b.x + b.w / 2 - relX)
+      if (d < bestDist) { bestDist = d; best = b }
+    }
+    return best
+  }
 
   const handleMove = (e) => {
-    if (!wrapRef.current) return
-    const rect = wrapRef.current.getBoundingClientRect()
-    const relX = ((e.clientX - rect.left) / rect.width) * W
-    const innerW = W - PAD_X * 2
-    const idx = Math.max(0, Math.min(47, Math.floor(((relX - PAD_X) / innerW) * 48)))
-    const hour = Math.floor(idx / 2)
-    const minute = idx % 2 === 0 ? 0 : 30
-    setHoverKey(`${hour}:${minute}`)
+    if (locked) return
+    const b = findNearestBar(e)
+    if (b) setHoverKey(b.key)
   }
-  const handleLeave = () => setHoverKey(null)
 
-  const hoverBar = hoverKey ? bars[bars.findIndex((b) => b.key === hoverKey)] : null
+  const handleDown = (e) => {
+    const b = findNearestBar(e)
+    if (!b) return
+    if (locked && hoverKey === b.key) {
+      setLocked(false)
+      setHoverKey(null)
+    } else {
+      setLocked(true)
+      setHoverKey(b.key)
+    }
+  }
+
+  const handleLeave = () => {
+    if (!locked) setHoverKey(null)
+  }
+
+  const hoverBar = hoverKey ? bars.find((b) => b.key === hoverKey) : null
   const active = hoverBar && hoverBar.point ? hoverBar : null
 
   const pctLeft = (x) => `${(x / W) * 100}%`
@@ -72,7 +120,7 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
       className="relative w-full select-none"
       style={{ height: 160, touchAction: 'none' }}
       onPointerMove={handleMove}
-      onPointerDown={handleMove}
+      onPointerDown={handleDown}
       onPointerLeave={handleLeave}
       onPointerCancel={handleLeave}
     >
@@ -80,7 +128,7 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         className="absolute inset-0 w-full h-full"
-        aria-label="노선 24시간 혼잡도"
+        aria-label="노선 혼잡도"
       >
         {/* 기준선 (혼잡도 2·3) */}
         {[2, 3].map((v) => {
@@ -124,7 +172,7 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
               y={b.y}
               width={b.w}
               height={b.h}
-              rx={Math.min(1.6, b.w / 2)}
+              rx={Math.min(2.5, b.w / 2)}
               fill={color}
               fillOpacity={isHover ? 1 : 0.92}
             />

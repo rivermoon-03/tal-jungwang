@@ -235,7 +235,7 @@ async def poll_and_collect():
                     crowded = item.get(crowded_key, 0)
                     sec = item.get(sec_key, 0) or 0
                     plate = item.get(plate_key, "") or ""
-                    if crowded and sec and plate:
+                    if crowded and sec:
                         crowding_logs.append(BusCrowdingLog(
                             route_id=route.id,
                             stop_id=target["stop_id"],

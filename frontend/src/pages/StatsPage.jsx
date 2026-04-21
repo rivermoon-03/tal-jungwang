@@ -1,6 +1,7 @@
 import PageHeader from '../components/layout/PageHeader'
 import CrowdingCard from '../components/stats/CrowdingCard'
 import TrafficFlowCard from '../components/stats/TrafficFlowCard'
+import WeatherCard from '../components/stats/WeatherCard'
 
 export default function StatsPage() {
   return (
@@ -10,8 +11,11 @@ export default function StatsPage() {
         <div className="mb-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
           데이터 수집 중인 기능입니다
         </div>
-        <TrafficFlowCard />
-        <CrowdingCard />
+        <div className="space-y-4">
+          <WeatherCard />
+          <TrafficFlowCard />
+          <CrowdingCard />
+        </div>
       </div>
     </div>
   )

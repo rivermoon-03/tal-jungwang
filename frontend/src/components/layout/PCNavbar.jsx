@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Zap, Map, CalendarDays, MoreHorizontal, Moon, Sun } from 'lucide-react'
+import { BarChart2, Map, CalendarDays, MoreHorizontal, Moon, Sun } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const TABS = [
-  { id: 'now',      label: '지금',   Icon: Zap,            href: '/'         },
-  { id: 'map',      label: '지도',   Icon: Map,            href: '/map'      },
+  { id: 'map',      label: '지도',   Icon: Map,            href: '/'         },
   { id: 'schedule', label: '시간표', Icon: CalendarDays,   href: '/schedule' },
+  { id: 'stats',    label: '통계',   Icon: BarChart2,      href: '/stats'    },
   { id: 'more',     label: '더보기', Icon: MoreHorizontal, href: '/more'     },
 ]
 
 function getActiveId(pathname) {
-  if (pathname === '/' || pathname === '') return 'now'
-  if (pathname.startsWith('/map'))       return 'map'
+  if (pathname.startsWith('/stats'))     return 'stats'
   if (pathname.startsWith('/schedule'))  return 'schedule'
   if (pathname.startsWith('/more'))      return 'more'
-  return 'now'
+  return 'map'
 }
 
 export default function PCNavbar() {

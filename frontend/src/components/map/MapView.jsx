@@ -125,9 +125,11 @@ export default function MapView({ onMarkerClick, selectedId }) {
       if (Number.isNaN(hh) || Number.isNaN(mm)) continue
       const candidate = new Date(now)
       candidate.setHours(hh, mm, 0, 0)
-      const diff = Math.round((candidate - now) / 60000)
-      // 이미 지난 시간이거나 12시간 이상 뒤는 건너뜀 (자정 이후 전날 막차 오인 방지)
-      if (diff >= 0 && diff <= 12 * 60) return diff
+      const diffMs = candidate - now
+      if (diffMs < 0) continue
+      const diff = Math.ceil(diffMs / 60000)
+      // 12시간 이상 뒤는 건너뜀 (자정 이후 전날 막차 오인 방지)
+      if (diff <= 12 * 60) return diff
     }
     return null
   }
@@ -148,15 +150,15 @@ export default function MapView({ onMarkerClick, selectedId }) {
       const [hh, mm] = String(t.depart_at).split(':').map(Number)
       const candidate = new Date(now)
       candidate.setHours(hh, mm, 0, 0)
-      const diff = Math.round((candidate - now) / 60000)
+      const diffMs = candidate - now
       // 자정 이후 전날 막차 오인 방지: 0 < diff <= 12h
-      return diff > 0 && diff <= 12 * 60
+      return diffMs > 0 && diffMs <= 12 * 60 * 60 * 1000
     })
     if (!next) return null
     const [hh, mm] = String(next.depart_at).split(':').map(Number)
     const candidate = new Date(now)
     candidate.setHours(hh, mm, 0, 0)
-    return Math.max(0, Math.round((candidate - now) / 60000))
+    return Math.max(0, Math.ceil((candidate - now) / 60000))
   }
   const chojiMinutes = useMemo(() => {
     const up = nextMinFromTrains(seohaeTimetable?.choji_up)
@@ -365,25 +367,41 @@ export default function MapView({ onMarkerClick, selectedId }) {
         }
         if (deduped.length >= 6) break
       }
-      return deduped.map((a) => ({
-        routeCode:  a.route_no,
-        routeColor: null,
-        direction:  a.destination ?? '',
-        minutes:    a.arrival_type === 'timetable'
-          ? (a.is_tomorrow ? `내일 ${a.depart_at}` : a.depart_at)
-          : (a.arrive_in_seconds != null ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60)) : null),
-        detail: {
-          type: 'bus',
+      const nowBus = new Date()
+      return deduped.map((a) => {
+        let minutes
+        if (a.arrival_type === 'timetable') {
+          if (a.is_tomorrow) {
+            minutes = `내일 ${a.depart_at}`
+          } else if (a.depart_at) {
+            const [h, m] = a.depart_at.split(':').map(Number)
+            const t = new Date(nowBus); t.setHours(h, m, 0, 0)
+            const diffSec = Math.floor((t - nowBus) / 1000)
+            minutes = diffSec < 0 ? 0 : Math.ceil(diffSec / 60)
+          } else {
+            minutes = null
+          }
+        } else {
+          minutes = a.arrive_in_seconds != null ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60)) : null
+        }
+        return {
           routeCode:  a.route_no,
-          routeId:    null,
-          stopId:     null,
-          favCode:    `하교:${a.route_no}`,
-          mapLat:     sheetStation.lat ?? null,
-          mapLng:     sheetStation.lng ?? null,
-          isRealtime: a.arrival_type !== 'timetable',
-          title:      a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
-        },
-      }))
+          routeColor: null,
+          direction:  a.destination ?? '',
+          minutes,
+          detail: {
+            type: 'bus',
+            routeCode:  a.route_no,
+            routeId:    null,
+            stopId:     null,
+            favCode:    `하교:${a.route_no}`,
+            mapLat:     sheetStation.lat ?? null,
+            mapLng:     sheetStation.lng ?? null,
+            isRealtime: a.arrival_type !== 'timetable',
+            title:      a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
+          },
+        }
+      })
     }
 
     if (sheetStation.type === 'bus_seoul') {
@@ -425,7 +443,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           tDate.setHours(hh, mm, 0, 0)
           if (tDate <= now) continue // 이미 지난 시간 건너뜀 (내일로 롤오버 금지)
 
-          const diffMin = Math.round((tDate - now) / 60000)
+          const diffMin = Math.ceil((tDate - now) / 60000)
           if (diffMin > 12 * 60) continue // 12시간 이후는 제외
 
           // 밤 11시 이후 또는 자정~새벽 5시에 100분 이상 남으면 첫차 라벨로 전환
@@ -507,7 +525,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
         const tDate = new Date(now)
         tDate.setHours(h, m, 0, 0)
         if (tDate <= now) continue // 이미 지난 시간 건너뜀
-        const diffMin = Math.round((tDate - now) / 60000)
+        const diffMin = Math.ceil((tDate - now) / 60000)
         if (diffMin > 12 * 60) continue
 
         // 밤 11시 이후 또는 자정~새벽 5시에 100분 이상 남으면 첫차 라벨로 전환
@@ -622,9 +640,21 @@ export default function MapView({ onMarkerClick, selectedId }) {
           const routeMeta = sheetStation.routes.find((r) => r.route_number === a.route_no)
           const color = colorFor(a.route_no, routeMeta?.route_color)
           const badge = badgeFor(a.route_no, routeMeta?.badge_text)
-          const mins = a.arrival_type === 'timetable'
-            ? (a.is_tomorrow ? `내일 ${a.depart_at}` : a.depart_at)
-            : (a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null)
+          let mins
+          if (a.arrival_type === 'timetable') {
+            if (a.is_tomorrow) {
+              mins = `내일 ${a.depart_at}`
+            } else if (a.depart_at) {
+              const [h, m] = a.depart_at.split(':').map(Number)
+              const t = new Date(now); t.setHours(h, m, 0, 0)
+              const diffSec = Math.floor((t - now) / 1000)
+              mins = diffSec < 0 ? 0 : Math.ceil(diffSec / 60)
+            } else {
+              mins = null
+            }
+          } else {
+            mins = a.arrive_in_seconds != null ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60)) : null
+          }
           result.push({
             routeCode:  badge ? `${badge}:${a.route_no}` : a.route_no,
             routeColor: color,

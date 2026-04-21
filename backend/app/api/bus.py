@@ -178,10 +178,11 @@ async def bus_history_preview(
             return f"저번 주 {WEEKDAY_KR[d.weekday()]}요일"
         return f"{d.month}/{d.day} ({WEEKDAY_KR[d.weekday()]})"
 
-    route_result = await db.execute(select(BusRoute).where(BusRoute.route_number == route_number))
-    route = route_result.scalar_one_or_none()
-    if not route:
+    routes_result = await db.execute(select(BusRoute).where(BusRoute.route_number == route_number))
+    routes = routes_result.scalars().all()
+    if not routes:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
+    route_ids = [r.id for r in routes]
 
     arrived_kst = func.timezone("Asia/Seoul", BusArrivalHistory.arrived_at)
 
@@ -199,7 +200,7 @@ async def bus_history_preview(
         stmt_dates = (
             select(func.date(arrived_kst).label("arr_date"))
             .join(BusStop, BusStop.id == BusArrivalHistory.stop_id)
-            .where(BusArrivalHistory.route_id == route.id)
+            .where(BusArrivalHistory.route_id.in_(route_ids))
             .where(func.date(arrived_kst).in_(candidate_dates))
             .group_by(func.date(arrived_kst))
             .order_by(func.date(arrived_kst).desc())
@@ -224,7 +225,7 @@ async def bus_history_preview(
             BusStop.name.label("stop_name"),
         )
         .join(BusStop, BusStop.id == BusArrivalHistory.stop_id)
-        .where(BusArrivalHistory.route_id == route.id)
+        .where(BusArrivalHistory.route_id.in_(route_ids))
         .where(func.date(arrived_kst).in_(target_dates))
         .order_by("arr_date", "arr_time")
     )
