@@ -596,11 +596,11 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
       role="dialog"
       aria-label={`${title} 시간표`}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
 
       <div
         ref={sheetRef}
-        className="relative z-10 w-full md:max-w-md bg-white dark:bg-surface-dark rounded-t-[28px] md:rounded-[24px] shadow-2xl flex flex-col"
+        className="relative z-10 w-full md:max-w-md bg-white dark:bg-surface-dark rounded-t-[28px] md:rounded-[24px] shadow-2xl flex flex-col animate-slide-up"
         style={{
           maxHeight: '88dvh',
           transform: `translateY(${dragY}px)`,

@@ -652,7 +652,7 @@ export default function SchedulePage() {
     mode === 'bus' ? setBusGroup : mode === 'subway' ? setSubwayGroup : () => {}
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up">
       <PageHeader title="시간표" subtitle="노선·역·방향별 전체 시간표" />
 
       {/* top mode tabs + 즐겨찾기 필터 */}
@@ -679,6 +679,8 @@ export default function SchedulePage() {
             fontWeight: 700,
             whiteSpace: 'nowrap',
             cursor: 'pointer',
+            transition:
+              'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
           }}
         >
           ★ 즐겨찾기
@@ -708,6 +710,8 @@ export default function SchedulePage() {
                     fontSize: 11,
                     fontWeight: 700,
                     cursor: 'pointer',
+                    transition:
+                      'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
                   }}
                 >
                   {g.label}
@@ -720,7 +724,7 @@ export default function SchedulePage() {
 
       {/* content */}
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6">
-        <div className="flex flex-col gap-2">
+        <div key={mode} className="flex flex-col gap-2 animate-fade-in">
           {mode === 'bus' && (
             <BusGroupContent
               busGroup={busGroup}

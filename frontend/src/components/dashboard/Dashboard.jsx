@@ -37,9 +37,15 @@ export default function Dashboard() {
       ) : null}
 
       <div className="px-4 pb-6">
-        {selectedMode === 'bus' && <BusPanel />}
-        {selectedMode === 'subway' && <SubwayPanel />}
-        {selectedMode === 'shuttle' && <ShuttlePanel />}
+        {selectedMode === 'bus' && (
+          <div key="bus" className="animate-fade-in"><BusPanel /></div>
+        )}
+        {selectedMode === 'subway' && (
+          <div key="subway" className="animate-fade-in"><SubwayPanel /></div>
+        )}
+        {selectedMode === 'shuttle' && (
+          <div key="shuttle" className="animate-fade-in"><ShuttlePanel /></div>
+        )}
       </div>
     </section>
   )

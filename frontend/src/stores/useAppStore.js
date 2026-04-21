@@ -95,26 +95,10 @@ const useAppStore = create(
           themeMode: s.themeMode === 'dark' ? 'light' : 'dark',
         })),
 
-      // ── "지금" 탭 상태 ─────────────────────────────────────────
-      // commuteMode: '등교' | '하교' | '지하철'
-      // commuteModeOverride: boolean — true면 사용자가 직접 고른 값, 시간대 자동감지 무시
-      commuteMode: '등교',
-      setCommuteMode: (mode) => set({ commuteMode: mode, commuteModeOverride: true }),
-      commuteModeOverride: false,
-      clearCommuteOverride: () => set({ commuteModeOverride: false }),
-
-      // 하교 탭에서 선택된 목적지 code (backend Destination.code)
-      selectedDestinationCode: 'jeongwang',
-      setDestinationCode: (code) => set({ selectedDestinationCode: code }),
-
-      // ── "첫 화면" 설정 ────────────────────────────────────────
-      // 'now' = 지금 탭으로 시작, 'map' = 지도 탭으로 시작
-      firstScreen: 'now',
-      setFirstScreen: (screen) => set({ firstScreen: screen }),
     }),
     {
       name: 'tal-jungwang',
-      version: 6,
+      version: 7,
       migrate: (state, fromVersion) => {
         if (!state) return state
         // v1 → v2: 버스 그룹 4분할
@@ -153,12 +137,12 @@ const useAppStore = create(
           state.selectedBusDirection = '하교'
           delete state.selectedBusGroup
         }
-        // v5 → v6: 지금 탭 도입
-        if (fromVersion < 6) {
-          if (!state.commuteMode)                state.commuteMode = '등교'
-          if (state.commuteModeOverride == null) state.commuteModeOverride = false
-          if (!state.selectedDestinationCode)    state.selectedDestinationCode = 'jeongwang'
-          if (!state.firstScreen)                state.firstScreen = 'now'
+        // v6 → v7: 지금 탭 제거. 관련 키 정리.
+        if (fromVersion < 7) {
+          delete state.commuteMode
+          delete state.commuteModeOverride
+          delete state.selectedDestinationCode
+          delete state.firstScreen
         }
         return state
       },
@@ -186,11 +170,6 @@ const useAppStore = create(
         selectedBusDirection: state.selectedBusDirection,
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
         notifPrefs: state.notifPrefs,
-        // Now tab
-        commuteMode: state.commuteMode,
-        commuteModeOverride: state.commuteModeOverride,
-        selectedDestinationCode: state.selectedDestinationCode,
-        firstScreen: state.firstScreen,
       }),
     }
   )

@@ -1,24 +1,19 @@
-import { Zap, Map, CalendarDays, MoreHorizontal } from 'lucide-react'
+import { Map, CalendarDays, BarChart3, MoreHorizontal } from 'lucide-react'
 
 const TABS = [
-  { id: 'now',      label: '지금',   Icon: Zap,            href: '/'         },
-  { id: 'map',      label: '지도',   Icon: Map,            href: '/map'      },
+  { id: 'map',      label: '지도',   Icon: Map,            href: '/'         },
   { id: 'schedule', label: '시간표', Icon: CalendarDays,   href: '/schedule' },
+  { id: 'stats',    label: '통계',   Icon: BarChart3,      href: '/stats'    },
   { id: 'more',     label: '더보기', Icon: MoreHorizontal, href: '/more'     },
 ]
 
 function getActiveId(pathname) {
-  if (pathname === '/' || pathname === '') return 'now'
-  if (pathname.startsWith('/map'))       return 'map'
   if (pathname.startsWith('/schedule'))  return 'schedule'
+  if (pathname.startsWith('/stats'))     return 'stats'
   if (pathname.startsWith('/more'))      return 'more'
-  return 'now'
+  return 'map'
 }
 
-/**
- * BottomDock — 플랫한 하단 고정 4탭 독.
- * 디자인 번들 정렬: active=ink/accent-dark, idle=mute-2, 라벨 micro(10px).
- */
 export default function BottomDock() {
   const pathname = window.location.pathname
   const activeId = getActiveId(pathname)
@@ -51,9 +46,20 @@ export default function BottomDock() {
             aria-label={label}
             aria-current={active ? 'page' : undefined}
             className={`flex-1 min-h-[60px] flex flex-col items-center justify-center gap-1 pressable ${colorClass}`}
-            style={{ transition: 'transform var(--dur-press) var(--ease-ios)' }}
+            style={{
+              transition:
+                'transform var(--dur-press) var(--ease-ios), color var(--dur-snap) var(--ease-ios)',
+            }}
           >
-            <Icon size={20} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" />
+            <Icon
+              size={20}
+              strokeWidth={active ? 2.2 : 1.9}
+              aria-hidden="true"
+              style={{
+                transform: active ? 'scale(1.08)' : 'scale(1)',
+                transition: 'transform var(--dur-snap) var(--ease-ios)',
+              }}
+            />
             <span className="text-micro" style={{ fontWeight: 800 }}>{label}</span>
           </a>
         )
