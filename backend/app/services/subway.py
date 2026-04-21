@@ -86,32 +86,53 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
     day = _day_type(d)
     entries = await _load_entries(db, day)
 
-    nexts: dict[str, dict | None] = {
-        "up": None, "down": None, "line4_up": None, "line4_down": None,
-        "choji_up": None, "choji_dn": None, "siheung_up": None, "siheung_dn": None,
-    }
+    directions = (
+        "up", "down", "line4_up", "line4_down",
+        "choji_up", "choji_dn", "siheung_up", "siheung_dn",
+    )
+    # 방향당 최대 2건(첫 번째 + 다음 다음) 모은다.
+    buckets: dict[str, list[dict]] = {k: [] for k in directions}
 
     now_str = now_time.strftime("%H:%M:%S")
+    now_dt = datetime.combine(d, now_time, tzinfo=timezone.utc)
 
     for e in entries:
         direction = e["direction"]
-        if direction not in nexts or nexts[direction] is not None:
+        if direction not in buckets:
+            continue
+        if len(buckets[direction]) >= 2:
             continue
         if e["departure_time"] <= now_str:
             continue
 
         depart_dt = datetime.combine(d, time.fromisoformat(e["departure_time"]), tzinfo=timezone.utc)
-        now_dt = datetime.combine(d, now_time, tzinfo=timezone.utc)
         diff = int((depart_dt - now_dt).total_seconds())
 
-        nexts[direction] = {
+        buckets[direction].append({
             "depart_at": e["departure_time"][:5],
             "arrive_in_seconds": diff,
             "destination": e["destination"],
-        }
+        })
 
-        if all(v is not None for v in nexts.values()):
+        # 모든 방향이 2건씩 채워지면 조기 종료
+        if all(len(v) >= 2 for v in buckets.values()):
             break
+
+    nexts: dict[str, dict | None] = {}
+    for direction in directions:
+        items = buckets[direction]
+        if not items:
+            nexts[direction] = None
+            continue
+        first = items[0]
+        second = items[1] if len(items) >= 2 else None
+        nexts[direction] = {
+            "depart_at": first["depart_at"],
+            "arrive_in_seconds": first["arrive_in_seconds"],
+            "destination": first["destination"],
+            "next_depart_at": second["depart_at"] if second else None,
+            "next_arrive_in_seconds": second["arrive_in_seconds"] if second else None,
+        }
 
     return nexts
 
