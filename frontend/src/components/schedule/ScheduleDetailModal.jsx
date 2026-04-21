@@ -99,6 +99,22 @@ function PastRow({ time }) {
   )
 }
 
+function TimeGrid({ times }) {
+  if (!times.length) return null
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {times.map((t, i) => (
+        <div
+          key={`${t}-${i}`}
+          className="text-center py-2 px-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums"
+        >
+          {t}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── per-type content ───────────────────────────────────────────────────
 
 function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
@@ -181,37 +197,40 @@ function SubwayContent({ accentColor, subwayKey }) {
     return (
       <DirectionBlock
         label={label}
+        allItems={list}
         items={items}
-        totalCount={list.length}
         accentColor={accentColor}
       />
     )
   }
 
   // 폴백: 양방향 (레거시)
-  const upItems = (data.up ?? []).filter((t) => (t.depart_at ?? '') >= nowStr)
-  const downItems = (data.down ?? []).filter((t) => (t.depart_at ?? '') >= nowStr)
+  const upList = data.up ?? []
+  const downList = data.down ?? []
+  const upItems = upList.filter((t) => (t.depart_at ?? '') >= nowStr)
+  const downItems = downList.filter((t) => (t.depart_at ?? '') >= nowStr)
 
   return (
     <div className="flex flex-col gap-5">
       <DirectionBlock
         label="상행 (왕십리 방면)"
+        allItems={upList}
         items={upItems}
-        totalCount={(data.up ?? []).length}
         accentColor={accentColor}
       />
       <DirectionBlock
         label="하행 (인천 방면)"
+        allItems={downList}
         items={downItems}
-        totalCount={(data.down ?? []).length}
         accentColor={accentColor}
       />
     </div>
   )
 }
 
-function DirectionBlock({ label, items, totalCount, accentColor }) {
+function DirectionBlock({ label, allItems = [], items, accentColor }) {
   const nextRef = useRef(null)
+  const allDone = items.length === 0
   useEffect(() => {
     if (nextRef.current) {
       nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
@@ -220,10 +239,17 @@ function DirectionBlock({ label, items, totalCount, accentColor }) {
   return (
     <div>
       <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
-        {label} · 오늘 총 {totalCount}편 중 {items.length}편 남음
+        {label} · 오늘 총 {allItems.length}편 중 {items.length}편 남음
       </p>
-      {items.length === 0 ? (
-        <p className="text-xs text-slate-400">오늘 남은 열차가 없어요</p>
+      {allDone && allItems.length > 0 && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+            금일 운행 종료
+          </span>
+        </div>
+      )}
+      {allDone ? (
+        <TimeGrid times={allItems.map((t) => t.depart_at)} />
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((t, i) => (
@@ -348,6 +374,8 @@ function ShuttleContent({ direction, accentColor }) {
   if (error) return <ErrorMsg />
   if (!times.length) return <EmptyMsg text="오늘 셔틀 정보가 없어요" />
 
+  const allDone = displayEntries.length === 0
+
   return (
     <div className="flex flex-col gap-2">
       {data?.schedule_name && (
@@ -355,11 +383,19 @@ function ShuttleContent({ direction, accentColor }) {
           {data.schedule_name} · 총 {times.length}회 · 남은 {future.length}회
         </p>
       )}
-      {past.slice(-2).map(({ time }, i) => <PastRow key={`p-${i}`} time={time} />)}
-      {displayEntries.length === 0 ? (
-        <p className="text-sm text-slate-400 py-4 text-center">오늘 남은 셔틀이 없어요</p>
+      {allDone ? (
+        <>
+          <div className="flex items-center gap-2 px-1 mb-1">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+              금일 운행 종료
+            </span>
+          </div>
+          <TimeGrid times={past.map((p) => p.time)} />
+        </>
       ) : (
-        displayEntries.map((entry, i) => {
+        <>
+          {past.slice(-2).map(({ time }, i) => <PastRow key={`p-${i}`} time={time} />)}
+          {displayEntries.map((entry, i) => {
           const isNext = i === 0
           let displayTime
           let displayNote = null
@@ -394,11 +430,13 @@ function ShuttleContent({ direction, accentColor }) {
               rowRef={isNext ? nextRef : undefined}
             />
           )
-        })
-      )}
-    </div>
-  )
+        })}
+      </>
+    )}
+  </div>
+)
 }
+
 
 // ─── shared UI ──────────────────────────────────────────────────────────
 

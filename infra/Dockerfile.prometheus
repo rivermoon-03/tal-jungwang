@@ -1,2 +1,6 @@
 FROM prom/prometheus:latest
 COPY prometheus.railway.yml /etc/prometheus/prometheus.yml
+USER root
+RUN printf '#!/bin/sh\nexec /bin/prometheus \\\n  --config.file=/etc/prometheus/prometheus.yml \\\n  --storage.tsdb.path=/prometheus \\\n  --web.listen-address=:${PORT:-9090} \\\n  --web.console.libraries=/usr/share/prometheus/console_libraries \\\n  --web.console.templates=/usr/share/prometheus/consoles\n' > /start.sh && chmod +x /start.sh
+USER nobody
+ENTRYPOINT ["/start.sh"]

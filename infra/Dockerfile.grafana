@@ -2,3 +2,7 @@ FROM grafana/grafana:latest
 COPY grafana-datasources.railway.yml /etc/grafana/provisioning/datasources/datasources.yml
 COPY grafana-dashboard-provider.yml /etc/grafana/provisioning/dashboards/default.yml
 COPY grafana-dashboards/ /var/lib/grafana/dashboards/
+USER root
+RUN printf '#!/bin/sh\nexport GF_SERVER_HTTP_PORT="${PORT:-3000}"\nexec /run.sh\n' > /start.sh && chmod +x /start.sh
+USER grafana
+ENTRYPOINT ["/start.sh"]

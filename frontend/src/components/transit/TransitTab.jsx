@@ -9,6 +9,8 @@ import useAppStore from '../../stores/useAppStore'
 
 export default function TransitTab() {
   const [shuttleSheetOpen, setShuttleSheetOpen] = useState(false)
+  const [shuttleInitDir, setShuttleInitDir] = useState(null)
+  const [shuttleSheetKey, setShuttleSheetKey] = useState(0)
   const [timetableRoute, setTimetableRoute] = useState(null)
   const setSheetOpen = useAppStore((s) => s.setSheetOpen)
 
@@ -22,7 +24,9 @@ export default function TransitTab() {
     )
   }
 
-  function openShuttleSheet() {
+  function openShuttleSheet(dir = null) {
+    setShuttleInitDir(dir)
+    setShuttleSheetKey((k) => k + 1)
     setShuttleSheetOpen(true)
     setSheetOpen(true)
   }
@@ -48,7 +52,7 @@ export default function TransitTab() {
         onClose={closeShuttleSheet}
         title="셔틀버스 시간표"
       >
-        <ShuttleSheetContent />
+        <ShuttleSheetContent key={shuttleSheetKey} initialDir={shuttleInitDir} />
       </BottomSheet>
     </div>
   )

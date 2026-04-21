@@ -5,15 +5,18 @@ import { useShuttleSchedule } from '../../hooks/useShuttle'
 // direction int → 내부 key
 // 0=본캠 등교, 1=본캠 하교, 2=2캠 등교, 3=2캠 하교
 const DIR_KEY = { 0: 'school', 1: 'station', 2: 'school2', 3: 'station2' }
+// 내부 key → direction int
+const KEY_DIR = { school: 0, station: 1, school2: 2, station2: 3 }
 
 const CAMPUS_META = {
   main:   { label: '본캠' },
   second: { label: '2캠' },
 }
 
+// 왼쪽=등교, 오른쪽=하교
 const CAMPUS_PAIRS = {
-  main:   { left: { key: 'station',  label: '정왕역 (하교)', Icon: MapPin }, right: { key: 'school',  label: '학교 (등교)',   Icon: School } },
-  second: { left: { key: 'station2', label: '하교 (2캠)',    Icon: MapPin }, right: { key: 'school2', label: '등교 (2캠)',    Icon: School } },
+  main:   { left: { key: 'school',   label: '학교 (등교)',   Icon: School }, right: { key: 'station',  label: '정왕역 (하교)', Icon: MapPin } },
+  second: { left: { key: 'school2',  label: '등교 (2캠)',    Icon: School }, right: { key: 'station2', label: '하교 (2캠)',    Icon: MapPin } },
 }
 
 const campusOf = (dir) => (dir >= 2 ? 'second' : 'main')
@@ -59,14 +62,18 @@ function departLabel(next, { inFrequent, inFrequentReturn }) {
   return { main: `${diffMin}분 뒤`, sub: null }
 }
 
-function TimeCell({ label, Icon, pair, times }) {
+function TimeCell({ label, Icon, pair, times, onClick }) {
   const [next, afterNext] = pair
   const inFrequent       = isInsideFrequentWindow(times)
   const inFrequentReturn = isInsideFrequentReturnWindow(times)
   const countdown = departLabel(next, { inFrequent, inFrequentReturn })
   const hideTime = inFrequent || inFrequentReturn
+  const firstTrip = times[0] ?? null
   return (
-    <div className="p-4 md:p-3">
+    <div
+      className="p-4 md:p-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 active:bg-slate-100 dark:active:bg-slate-800 transition-colors"
+      onClick={onClick}
+    >
       <p className="text-sm md:text-xs font-bold text-slate-400 mb-1.5 flex items-center gap-1"><Icon size={11} /> {label}</p>
       {next ? (
         <>
@@ -90,7 +97,12 @@ function TimeCell({ label, Icon, pair, times }) {
           )}
         </>
       ) : (
-        <p className="text-sm md:text-xs text-slate-400 mt-1">운행 종료</p>
+        <>
+          <p className="text-sm md:text-xs text-slate-400 mt-1">운행 종료</p>
+          {firstTrip && (
+            <p className="text-xs text-slate-400 mt-0.5">첫차 {firstTrip.depart_at}</p>
+          )}
+        </>
       )}
     </div>
   )
@@ -168,7 +180,7 @@ export default function ShuttleCard({ onOpenSheet }) {
             </div>
           )}
           <button
-            onClick={onOpenSheet}
+            onClick={() => onOpenSheet(null)}
             className="text-xs text-blue-500 font-semibold hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
           >
             전체보기 ›
@@ -180,8 +192,16 @@ export default function ShuttleCard({ onOpenSheet }) {
         <div className="py-6 text-center text-slate-400 text-sm">불러오는 중...</div>
       ) : (
         <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-700">
-          <TimeCell label={pair.left.label}  Icon={pair.left.Icon}  pair={info[pair.left.key].pair}  times={info[pair.left.key].times} />
-          <TimeCell label={pair.right.label} Icon={pair.right.Icon} pair={info[pair.right.key].pair} times={info[pair.right.key].times} />
+          <TimeCell
+            label={pair.left.label}  Icon={pair.left.Icon}
+            pair={info[pair.left.key].pair}  times={info[pair.left.key].times}
+            onClick={() => onOpenSheet(KEY_DIR[pair.left.key])}
+          />
+          <TimeCell
+            label={pair.right.label} Icon={pair.right.Icon}
+            pair={info[pair.right.key].pair} times={info[pair.right.key].times}
+            onClick={() => onOpenSheet(KEY_DIR[pair.right.key])}
+          />
         </div>
       )}
     </div>

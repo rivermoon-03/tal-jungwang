@@ -30,6 +30,8 @@ export default function DualDirectionCard({
   left,
   right,
   onClick,
+  onLeftClick,
+  onRightClick,
 }) {
   const leftEmpty = !left || left.variant === 'empty'
   const rightEmpty = !right || right.variant === 'empty'
@@ -37,8 +39,10 @@ export default function DualDirectionCard({
 
   const urgent = !!(left?.isUrgent || right?.isUrgent)
 
-  const Wrapper = onClick ? 'button' : 'div'
-  const wrapperProps = onClick
+  // split-click 모드: 좌우 각각 클릭 가능. 전체-click 모드: 카드 전체가 버튼.
+  const splitClick = !!(onLeftClick || onRightClick)
+  const Wrapper = (onClick && !splitClick) ? 'button' : 'div'
+  const wrapperProps = (onClick && !splitClick)
     ? { type: 'button', onClick, 'data-urgent': urgent ? 'true' : 'false' }
     : { 'data-urgent': urgent ? 'true' : 'false' }
 
@@ -107,8 +111,8 @@ export default function DualDirectionCard({
         )}
       </div>
 
-      {bothEmpty ? (
-        <BothEmpty />
+      {bothEmpty && !splitClick ? (
+        <BothEmpty leftSlot={left} rightSlot={right} />
       ) : (
         <div
           style={{
@@ -118,14 +122,20 @@ export default function DualDirectionCard({
             gap: 0,
           }}
         >
-          <div style={{ padding: '2px 10px 2px 0' }}>
+          <div
+            style={{ padding: '2px 10px 2px 0', ...(onLeftClick && { cursor: 'pointer' }) }}
+            onClick={onLeftClick ? (e) => { e.stopPropagation(); onLeftClick(e) } : undefined}
+          >
             <SlotRenderer slot={left} align="left" />
           </div>
           <div
             aria-hidden="true"
             style={{ background: 'var(--tj-line)', width: 1 }}
           />
-          <div style={{ padding: '2px 0 2px 10px' }}>
+          <div
+            style={{ padding: '2px 0 2px 10px', ...(onRightClick && { cursor: 'pointer' }) }}
+            onClick={onRightClick ? (e) => { e.stopPropagation(); onRightClick(e) } : undefined}
+          >
             <SlotRenderer slot={right} align="right" />
           </div>
         </div>
@@ -134,7 +144,9 @@ export default function DualDirectionCard({
   )
 }
 
-function BothEmpty() {
+function BothEmpty({ leftSlot, rightSlot }) {
+  const leftFirst = leftSlot?.firstTomorrow
+  const rightFirst = rightSlot?.firstTomorrow
   return (
     <div
       style={{
@@ -151,9 +163,17 @@ function BothEmpty() {
       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tj-mute)' }}>
         오늘 운행 없음
       </div>
-      <div style={{ fontSize: 11, color: 'var(--tj-mute-2)' }}>
-        내일 첫차 시간을 확인하세요
-      </div>
+      {(leftFirst || rightFirst) ? (
+        <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--tj-mute-2)', fontWeight: 600 }}>
+          {leftFirst && <span>{leftSlot?.dir ? `${leftSlot.dir} ` : ''}내일 첫차 {leftFirst}</span>}
+          {leftFirst && rightFirst && <span style={{ color: 'var(--tj-line)' }}>|</span>}
+          {rightFirst && <span>{rightSlot?.dir ? `${rightSlot.dir} ` : ''}내일 첫차 {rightFirst}</span>}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: 'var(--tj-mute-2)' }}>
+          내일 첫차 시간을 확인하세요
+        </div>
+      )}
     </div>
   )
 }
@@ -162,9 +182,15 @@ function SlotRenderer({ slot, align }) {
   if (!slot || slot.variant === 'empty') {
     return (
       <div style={{ textAlign: align }}>
-        <div style={{ fontSize: 11, color: 'var(--tj-mute)', fontWeight: 600 }}>
-          운행 없음
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'right' ? 'flex-end' : 'flex-start', gap: 4 }}>
+          <Moon size={13} strokeWidth={1.8} style={{ color: 'var(--tj-mute)', flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 700 }}>운행 없음</span>
         </div>
+        {slot?.firstTomorrow && (
+          <div style={{ fontSize: 12, color: 'var(--tj-mute-2)', fontWeight: 600, marginTop: 3 }}>
+            내일 첫차 {slot.firstTomorrow}
+          </div>
+        )}
       </div>
     )
   }
