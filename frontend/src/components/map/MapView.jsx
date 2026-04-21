@@ -45,6 +45,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const { data: subwayNextData }        = useSubwayNext()
   const { data: seohaeTimetable }       = useSubwayTimetable()
   const { data: busArrivalsData }       = useBusArrivals(224000639)
+  const { data: busArrivalsSiheung }    = useBusArrivals(224000586)
   const { data: stationsData }          = useBusStations()
   const { data: markersData }           = useMapMarkers()
 
@@ -229,7 +230,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
         // ui_meta.tabId가 DB에 없으면 마커 key로 추론
         const tabId = ui.tabId ?? (m.key.includes('choji') ? 'choji' : 'siheung')
         const mins = tabId === 'choji' ? chojiMinutes : siheungMinutes
-        return { ...base, tabId, liveMinutes: mins }
+        return { ...base, tabId, liveMinutes: mins, routes: m.routes ?? [] }
       }
       if (m.type === 'bus_seoul') {
         const primary = m.routes?.[0] ?? null
@@ -538,6 +539,44 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
       addSeohae(upKey, '상행', '대곡')
       addSeohae(dnKey, '하행', '원시')
+
+      // 시흥시청역: 등교 방향 버스 도착정보 병합 (routes가 연결된 경우만)
+      const hasBusRoutes = (sheetStation.routes?.length ?? 0) > 0
+      if (hasBusRoutes) {
+        // 5602는 지선(파랑 B)이지만 DB엔 G/빨강으로 저장돼 있어 표시 단에서 덮어쓴다.
+        const badgeFor = (routeNo, fallback) => routeNo === '5602' ? 'B' : fallback
+        const colorFor = (routeNo, fallback) => routeNo === '5602' ? '#2563eb' : (fallback ?? '#DC2626')
+
+        const busArrivals = busArrivalsSiheung?.arrivals ?? []
+        for (const a of busArrivals) {
+          if (a.category !== '등교') continue
+          const routeMeta = sheetStation.routes.find((r) => r.route_number === a.route_no)
+          const color = colorFor(a.route_no, routeMeta?.route_color)
+          const badge = badgeFor(a.route_no, routeMeta?.badge_text)
+          const mins = a.arrival_type === 'timetable'
+            ? (a.is_tomorrow ? `내일 ${a.depart_at}` : a.depart_at)
+            : (a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null)
+          result.push({
+            routeCode:  badge ? `${badge}:${a.route_no}` : a.route_no,
+            routeColor: color,
+            direction:  a.destination ? `등교 · ${a.destination}` : '등교',
+            minutes:    mins,
+            detail: {
+              type:       'bus',
+              routeCode:  a.route_no,
+              routeId:    a.route_id ?? null,
+              stopId:     routeMeta?.outbound_stop_id ?? null,
+              favCode:    `등교:${a.route_no}`,
+              mapLat:     sheetStation.lat ?? null,
+              mapLng:     sheetStation.lng ?? null,
+              isRealtime: a.arrival_type !== 'timetable',
+              title:      a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
+              accentColor: color,
+            },
+          })
+        }
+      }
+
       return result
     }
 
@@ -593,7 +632,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, sheetDirection, busArrivalsData, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
+  }, [sheetStation, sheetDirection, busArrivalsData, busArrivalsSiheung, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()

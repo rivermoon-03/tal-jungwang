@@ -98,18 +98,18 @@ def setup_scheduler():
 
     logger.info("Traffic collection scheduler configured")
 
-    # ── 버스 도착정보 폴링 (45초 간격, 02:00~03:59 KST 제외) ──
-    # 45s: 22h(04~02시) × 3600/45 × 2정류장 = 3,520호출/일 → GBIS 일 10,000회 한도 이내
+    # ── 버스 도착정보 폴링 (38초 간격, 02:00~03:59 KST 제외) ──
+    # 38s: 22h(04~02시) × 3600/38 × 4정류장 = 8,336호출/일 → GBIS 일 10,000회 한도의 83%
     scheduler.add_job(
         _bus_poll_job,
-        IntervalTrigger(seconds=45),
+        IntervalTrigger(seconds=38),
         id="bus_arrival_poll",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
-        misfire_grace_time=30,
+        misfire_grace_time=20,
     )
-    logger.info("Bus arrival polling scheduler configured (every 45s, skip 02:00-03:59 KST)")
+    logger.info("Bus arrival polling scheduler configured (every 38s, skip 02:00-03:59 KST)")
 
     # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
     scheduler.add_job(
