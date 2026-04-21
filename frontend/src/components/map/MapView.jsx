@@ -19,7 +19,7 @@ import { getFirstBusLabel } from '../../utils/arrivalTime'
 
 function getPrimaryStopId(marker) {
   if (!marker) return null
-  if (marker.type === 'bus') return marker.ui_meta?.primaryStopGbisId ?? null
+  if (marker.type === 'bus') return marker.primaryStopGbisId ?? null
   const first = marker.routes?.[0]
   if (!first) return null
   return first.outbound_stop_gbis_id ?? first.outbound_stop_id ?? null
@@ -278,6 +278,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
           subLabel: ui.subLabel ?? busArrivalLabel,
           subLabelSep: ui.subLabelSep ?? '|',
           liveMinutes: busLiveMinutes,
+          primaryStopGbisId: ui.primaryStopGbisId ?? null,
+          routes: m.routes ?? [],
         }
       }
       if (m.type === 'seohae') {
@@ -375,7 +377,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     let cancelled = false
     setSheetBusLoading(true)
     apiFetch(`/bus/arrivals/${stopId}`)
-      .then((res) => { if (!cancelled) setSheetBusArrivals(res?.data ?? null) })
+      .then((res) => { if (!cancelled) setSheetBusArrivals(res ?? null) })
       .catch(() => { if (!cancelled) setSheetBusArrivals(null) })
       .finally(() => { if (!cancelled) setSheetBusLoading(false) })
     return () => { cancelled = true }
