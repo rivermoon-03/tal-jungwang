@@ -27,25 +27,16 @@ export const BUS_STATIONS = {
     perRouteDisplay: {
       '3400': { origin: '시화터미널', dest: '사당 경유 강남행' },
     },
-    routes: {
-      하교: ['시흥33', '20-1', '11-A', '3400'],
-    },
   },
   이마트: {
     gbisStationId: '224000513',
     allowedDirections: ['하교'],
     defaultDirection: '하교',
-    routes: {
-      하교: ['시흥1', '5602', '6502', '3401'],
-    },
   },
   시흥시청: {
     gbisStationId: '224000586',
     allowedDirections: ['등교'],
     defaultDirection: '등교',
-    routes: {
-      등교: ['5602', '시흥33', '3401'],
-    },
   },
   // 서울 출발 등교 전용 — 실시간 없음(시간표 기반)
   서울: {
@@ -72,6 +63,8 @@ export function getDefaultDirection(station) {
   return BUS_STATIONS[station]?.defaultDirection ?? '하교'
 }
 
+// 서울 정류장만 whitelist 방식으로 노선을 제한한다.
+// gbis 정류장(한국공학대/이마트/시흥시청)은 arrivals API에서 모든 노선을 반환하므로 사용하지 않음.
 export function getRoutesFor(station, direction) {
   return BUS_STATIONS[station]?.routes?.[direction] ?? []
 }
@@ -84,22 +77,20 @@ export function getViaLabel(station, direction) {
   return BUS_STATIONS[station]?.viaLabel?.[direction] ?? null
 }
 
-export function getDisplayOrigin(station, direction) {
-  return BUS_STATIONS[station]?.displayOrigin?.[direction] ?? null
-}
-
 export function getPerRouteDisplay(station) {
   return BUS_STATIONS[station]?.perRouteDisplay ?? null
 }
 
 // 노선 번호로 실시간 도착정보를 조회해야 할 GBIS 정류장 ID를 반환.
-// 같은 노선이 여러 정류장에 속할 일은 없으므로 첫 매치를 사용한다.
+const _ROUTE_TO_GBIS = {
+  '시흥33': '224000639',
+  '20-1':  '224000639',
+  '11-A':  '224000639',
+  '시흥1':  '224000513',
+  '3401':  '224000586',
+  '5602':  '224000586',
+}
+
 export function getGbisStationIdForRoute(routeNumber) {
-  for (const cfg of Object.values(BUS_STATIONS)) {
-    if (!cfg.gbisStationId) continue
-    for (const routes of Object.values(cfg.routes)) {
-      if (routes.includes(routeNumber)) return cfg.gbisStationId
-    }
-  }
-  return null
+  return _ROUTE_TO_GBIS[routeNumber] ?? null
 }
