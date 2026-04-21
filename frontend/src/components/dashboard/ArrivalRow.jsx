@@ -1,24 +1,6 @@
 import RouteBadge from '../common/RouteBadge.jsx'
 import { CrowdedBadge } from '../bus/BusArrivalCard.jsx'
 
-/**
- * ArrivalRow — 도착 정보 공용 행 컴포넌트.
- * 디자인 번들 lib/components.jsx의 ArrivalRow.
- *
- * Props (디자인 번들 정렬):
- *   route          (string)        노선명. RouteBadge에 그대로 전달
- *   routeNumber    (string)        본문 텍스트. 없으면 route 사용 (back-compat)
- *   direction      (string)        방향
- *   minutes        (number|number[])  남은 분 — 배열이면 [first, ...rest]
- *   extraMinutes   (number[])      추가 분 (minutes가 단일 값일 때)
- *   isUrgent       (boolean)       강제 urgent (자동: first <= 3)
- *   lastTrain      (boolean)       막차 chip 표시
- *   status         ('ok'|'warn'|'bad'|null) 작은 상태 dot
- *   onClick        (fn)
- *   returnTrip     (boolean)       회차탑승 chip 표시
- *   rightAddon     (ReactNode)     기존 호환 (분 옆에 붙는 노드)
- *   routeColor     (string)        DEPRECATED — RouteBadge가 대체
- */
 export default function ArrivalRow({
   route,
   routeNumber,
@@ -33,7 +15,6 @@ export default function ArrivalRow({
   rightAddon = null,
   crowded = 0,
 }) {
-  // minutes는 number 또는 number[]로 들어올 수 있음 — 정규화
   const minsArr = Array.isArray(minutes)
     ? minutes
     : minutes != null && Number.isFinite(minutes)
@@ -61,23 +42,23 @@ export default function ArrivalRow({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '10px 12px',
-        borderRadius: 14,
+        gap: 10,
+        padding: '11px 12px',
+        borderRadius: 11,
         border: '1px solid var(--tj-line)',
-        background: 'transparent',
-        boxShadow: urgent ? '0 0 0 1.5px var(--tj-accent) inset' : 'none',
+        background: urgent ? '#fafafa' : 'transparent',
+        boxShadow: 'none',
       }}
     >
-      <RouteBadge route={badgeRoute} variant="badge" size="sm" />
+      <RouteBadge route={badgeRoute} variant="tag" />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
             style={{
-              fontSize: 13,
-              fontWeight: 800,
-              letterSpacing: '-0.01em',
+              fontSize: 15,
+              fontWeight: 900,
+              letterSpacing: '-0.02em',
               whiteSpace: 'nowrap',
               color: 'var(--tj-ink)',
             }}
@@ -124,9 +105,9 @@ export default function ArrivalRow({
         {direction && (
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: 'var(--tj-mute)',
-              marginTop: 1,
+              marginTop: 2,
               fontWeight: 500,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -151,18 +132,17 @@ export default function ArrivalRow({
           {hasFirst ? (
             <>
               <div
-                className={urgent ? 'tj-urgent' : ''}
                 style={{
                   display: 'flex',
                   alignItems: 'baseline',
                   gap: 2,
                   justifyContent: 'flex-end',
-                  color: urgent ? 'var(--tj-accent)' : 'var(--tj-ink)',
+                  color: urgent ? '#dc2626' : 'var(--tj-ink)',
                 }}
               >
                 <span
                   style={{
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: 900,
                     letterSpacing: '-0.03em',
                     lineHeight: 1,
@@ -172,8 +152,8 @@ export default function ArrivalRow({
                 </span>
                 <span
                   style={{
-                    fontSize: 11,
-                    color: urgent ? 'var(--tj-accent)' : 'var(--tj-mute)',
+                    fontSize: 12,
+                    color: urgent ? '#dc2626' : 'var(--tj-mute)',
                     fontWeight: 700,
                   }}
                 >
@@ -183,7 +163,7 @@ export default function ArrivalRow({
               {rest.length > 0 && (
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: 'var(--tj-mute-2)',
                     marginTop: 2,
                     fontWeight: 600,
