@@ -213,6 +213,22 @@ async def get_arrivals(
         except Exception as exc:
             logger.warning("Redis 캐시 읽기 실패 (정류장 %s): %s", station_id, exc)
 
+    # ── 1-1. GBIS 캐시에 없는 실시간 노선 → null placeholder ─────────────────
+    # 버스가 정류장 근처에 없어도 노선 행 자체는 항상 표시되도록 보장.
+    seen_realtime_ids: set[int] = {a["route_id"] for a in arrivals}
+    for route in realtime_routes:
+        if route.id not in seen_realtime_ids:
+            arrivals.append({
+                "route_id": route.id,
+                "route_no": route.route_number,
+                "destination": route.direction_name,
+                "category": route.category,
+                "arrival_type": "realtime",
+                "depart_at": None,
+                "arrive_in_seconds": None,
+                "is_tomorrow": False,
+            })
+
     # ── 2. 시간표 기반 노선: DB 조회 ───────────────────────────────────────
     realtime_route_ids: set[int] = {r.id for r in realtime_routes}
     timetable_route_ids: set[int] = {
