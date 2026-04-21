@@ -205,39 +205,26 @@ export default function WeatherCard() {
       />
 
       <div className="relative p-5">
-        {/* 헤더 */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-xs text-white/50">정왕역 날씨</div>
-            <div className="mt-1.5 leading-none">
-              <span className="text-5xl font-extrabold text-white tabular-nums tracking-tight">
-                {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
-              </span>
-            </div>
-            <div className="mt-2 text-sm font-medium text-white/75">
-              {SKY_TEXT[icon] ?? weather?.currentSky ?? ''}
+        {/* 헤더 — 온도 + 아이콘 가로 배치 */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-end gap-3">
+            <span className="text-4xl font-extrabold text-white tabular-nums tracking-tight leading-none">
+              {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
+            </span>
+            <div className="mb-0.5">
+              <div className="text-sm font-medium text-white/75 leading-none">
+                {SKY_TEXT[icon] ?? weather?.currentSky ?? ''}
+              </div>
+              <div className="mt-1 flex gap-3 text-xs text-white/50">
+                {todayHigh != null && <span>최고 <span className="font-semibold text-white/80">{todayHigh}°</span></span>}
+                {todayLow  != null && <span>최저 <span className="font-semibold text-white/80">{todayLow}°</span></span>}
+                {weather?.rainProb != null && weather.rainProb > 0 && (
+                  <span>강수 <span className="font-semibold text-white/80">{weather.rainProb}%</span></span>
+                )}
+              </div>
             </div>
           </div>
-
-          <Icon
-            size={48}
-            strokeWidth={1.4}
-            className="text-white/70 shrink-0"
-            aria-hidden="true"
-          />
-        </div>
-
-        {/* 오늘 최고/최저 */}
-        <div className="mt-3 flex gap-4 text-sm text-white/60">
-          {todayHigh != null && (
-            <span>최고 <span className="font-semibold text-white">{todayHigh}°</span></span>
-          )}
-          {todayLow != null && (
-            <span>최저 <span className="font-semibold text-white">{todayLow}°</span></span>
-          )}
-          {weather?.rainProb != null && weather.rainProb > 0 && (
-            <span>강수 <span className="font-semibold text-white">{weather.rainProb}%</span></span>
-          )}
+          <Icon size={40} strokeWidth={1.4} className="text-white/60 shrink-0" aria-hidden="true" />
         </div>
 
         {/* 기온 변화 스파크라인 */}

@@ -8,17 +8,9 @@ import ArrivalRow from '../dashboard/ArrivalRow'
 import {
   getGbisStationId, getViaLabel,
   getPerRouteDisplay, getRoutesFor,
+  getRouteDisplayConfig,
 } from '../dashboard/busStationConfig'
 
-const ROUTE_INLINE_BG = {
-  '20-1':  '#2563EB',
-  '5602':  '#2563EB',
-  '시흥33': '#0891B2',
-  '시흥1':  '#F97316',
-  '3400':  '#E02020',
-  '6502':  '#E02020',
-  '3401':  '#E02020',
-}
 const DEFAULT_ROUTE_COLOR = '#64748B'
 
 export default function BusPanel() {
@@ -117,9 +109,11 @@ export default function BusPanel() {
         const minutes2 = toMinutes(a2)
 
         const perRoute = getPerRouteDisplay(selectedBusStation)?.[a.route_no]
+        const cfg = getRouteDisplayConfig(a.route_no)
         const viaLabel = getViaLabel(selectedBusStation, selectedBusDirection)
-        const destText = perRoute?.dest ?? viaLabel ?? (a.destination ?? '')
+        const destText = perRoute?.dest ?? cfg?.direction ?? viaLabel ?? (a.destination ?? '')
         const originText = perRoute ? `${perRoute.origin} 출발` : ''
+        const routeColor = cfg?.color ?? DEFAULT_ROUTE_COLOR
 
         const rightAddon = a.arrival_type === 'realtime' ? (
           <span className="text-micro font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
@@ -130,7 +124,7 @@ export default function BusPanel() {
         return (
           <ArrivalRow
             key={a.route_no}
-            routeColor={ROUTE_INLINE_BG[a.route_no] ?? DEFAULT_ROUTE_COLOR}
+            routeColor={routeColor}
             routeNumber={a.route_no}
             direction={originText || destText}
             subdirection={originText && destText ? destText : ''}
@@ -174,12 +168,13 @@ function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection, setDet
   const secondMinutes = arrivalToMinutes(secondEntry)
 
   const perRoute = getPerRouteDisplay(selectedBusStation)?.[route_number]
-  const destText = perRoute?.dest ?? (route.direction_name ?? '')
+  const cfg = getRouteDisplayConfig(route_number)
+  const destText = perRoute?.dest ?? cfg?.direction ?? (route.direction_name ?? '')
   const originText = perRoute ? `${perRoute.origin} 출발` : ''
 
   return (
     <ArrivalRow
-      routeColor={ROUTE_INLINE_BG[route_number] ?? DEFAULT_ROUTE_COLOR}
+      routeColor={cfg?.color ?? DEFAULT_ROUTE_COLOR}
       routeNumber={route_number}
       direction={originText || destText}
       subdirection={originText && destText ? destText : ''}

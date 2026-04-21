@@ -9,11 +9,14 @@ const PAD_TOP = 16
 const PAD_BOTTOM = 20
 const SPEED_MAX = 50 // km/h 축 상한
 
-function filterByRange(points, curMin, rangeH) {
-  if (rangeH === 24) return points
-  const half = (rangeH / 2) * 60 // 6h→180, 12h→360
-  const lo = Math.max(0, curMin - half)
-  const hi = Math.min(1440, curMin + half)
+function filterByRange(points, curMin, rangeH, futureMode = false) {
+  if (rangeH === 24 && !futureMode) return points
+  const lo = futureMode
+    ? Math.max(0, curMin - 60)
+    : Math.max(0, curMin - (rangeH / 2) * 60)
+  const hi = futureMode
+    ? Math.min(1440, curMin + rangeH * 60)
+    : Math.min(1440, curMin + (rangeH / 2) * 60)
   return points.filter((p) => {
     const m = p.hour * 60 + (p.minute ?? 0)
     return m >= lo && m <= hi
@@ -32,14 +35,14 @@ function classifySpeed(kmh) {
   return '정체'
 }
 
-export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = null, rangeH = 24 }) {
+export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = null, rangeH = 24, futureMode = false }) {
   const wrapRef = useRef(null)
   const [hoverIdx, setHoverIdx] = useState(null)
   const [locked, setLocked] = useState(false)
 
   const filtered = useMemo(
-    () => filterByRange(points, nowMinutes ?? 720, rangeH),
-    [points, nowMinutes, rangeH],
+    () => filterByRange(points, nowMinutes ?? 720, rangeH, futureMode),
+    [points, nowMinutes, rangeH, futureMode],
   )
 
   const geometry = useMemo(() => {

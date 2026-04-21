@@ -16,6 +16,7 @@ import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
+import { getRouteDisplayConfig } from '../dashboard/busStationConfig'
 
 function getPrimaryStopId(marker) {
   if (!marker) return null
@@ -414,10 +415,11 @@ export default function MapView({ onMarkerClick, selectedId }) {
             : null
         }
 
+        const rCfg = getRouteDisplayConfig(a.route_no)
         result.push({
           routeCode:  a.route_no,
-          routeColor: null,
-          direction:  a.destination ?? '',
+          routeColor: rCfg?.color ?? null,
+          direction:  rCfg?.direction ?? (a.destination ?? ''),
           minutes,
           detail: {
             type:       'bus',

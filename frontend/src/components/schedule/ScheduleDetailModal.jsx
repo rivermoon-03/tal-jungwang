@@ -336,8 +336,8 @@ function ShuttleContent({ direction, accentColor }) {
       if (e.note === '수시운행') {
         let j = i
         while (j < future.length && future[j].note === '수시운행') j++
-        // 밴드 종료: 다음 비(非)수시운행 편의 time (없으면 마지막 수시운행 시각)
-        const bandEnd = future[j]?.time ?? future[j - 1]?.time ?? null
+        // 밴드 종료: 마지막 수시운행 편의 time (10:00이면 10:00까지 수시운행으로 표시)
+        const bandEnd = future[j - 1]?.time ?? null
         displayEntries.push({
           type: 'frequent',
           key: `freq-${e.time}-${i}`,
