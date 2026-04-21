@@ -245,7 +245,7 @@ export default function MorePage() {
               Made by moonlandingplan
             </div>
             <div style={{ fontSize: 10, color: 'var(--tj-mute)', fontWeight: 500, marginTop: 2 }}>
-              본캠 · v{version}
+              한국공대 · v{version}
             </div>
           </div>
         </div>
