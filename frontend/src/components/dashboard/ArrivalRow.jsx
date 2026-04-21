@@ -5,6 +5,7 @@ export default function ArrivalRow({
   route,
   routeNumber,
   direction,
+  subdirection = null,
   minutes,
   extraMinutes = [],
   isUrgent,
@@ -55,15 +56,27 @@ export default function ArrivalRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
-            style={{
-              fontSize: 16,
-              fontWeight: 900,
-              letterSpacing: '-0.02em',
-              whiteSpace: 'nowrap',
-              color: 'var(--tj-ink)',
-            }}
+            style={
+              subdirection != null
+                ? {
+                    fontSize: 15,
+                    fontWeight: 700,
+                    letterSpacing: '-0.01em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    color: 'var(--tj-ink)',
+                  }
+                : {
+                    fontSize: 16,
+                    fontWeight: 900,
+                    letterSpacing: '-0.02em',
+                    whiteSpace: 'nowrap',
+                    color: 'var(--tj-ink)',
+                  }
+            }
           >
-            {titleText}
+            {subdirection != null ? direction : titleText}
           </span>
           {lastTrain && (
             <span
@@ -101,8 +114,10 @@ export default function ArrivalRow({
               style={{ width: 6, height: 6, borderRadius: 999, background: statusColor }}
             />
           )}
+          {rightAddon}
+          {crowded > 0 && <CrowdedBadge level={crowded} />}
         </div>
-        {direction && (
+        {(subdirection != null ? subdirection : direction) && (
           <div
             style={{
               fontSize: 13,
@@ -114,7 +129,7 @@ export default function ArrivalRow({
               textOverflow: 'ellipsis',
             }}
           >
-            {direction}
+            {subdirection != null ? subdirection : direction}
           </div>
         )}
       </div>
@@ -160,30 +175,23 @@ export default function ArrivalRow({
                   분
                 </span>
               </div>
-              {rest.length > 0 && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--tj-mute-2)',
-                    marginTop: 2,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {rest.join(' · ')}분
-                </div>
-              )}
-              {crowded > 0 && (
-                <div style={{ marginTop: 2 }}>
-                  <CrowdedBadge level={crowded} />
-                </div>
-              )}
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'var(--tj-mute-2)',
+                  marginTop: 2,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  textAlign: 'right',
+                }}
+              >
+                {rest[0] != null ? `${rest[0]}분` : '--'}
+              </div>
             </>
           ) : (
-            !rightAddon && <span style={{ fontSize: 12, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
+            <span style={{ fontSize: 12, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
           )}
         </div>
-        {rightAddon}
       </div>
     </button>
   )

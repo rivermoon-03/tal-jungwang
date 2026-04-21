@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import {
@@ -92,6 +93,7 @@ export default function StationPills({ mode, value, onChange, options }) {
             <StationPillButton
               key={label}
               label={getBusStationDisplay(label)}
+              suffix={isMultiDir ? null : allowed[0]}
               active={isActive}
               onClick={() => handleSelectStation(label)}
             />
@@ -130,62 +132,84 @@ export default function StationPills({ mode, value, onChange, options }) {
 
 function DirectionDropdownPill({ label, direction, onSelectDirection }) {
   const [open, setOpen] = useState(false)
-  const containerRef = useRef(null)
+  const [menuRect, setMenuRect] = useState(null)
+  const buttonRef = useRef(null)
+  const menuRef = useRef(null)
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return
+    const updateRect = () => {
+      const r = buttonRef.current?.getBoundingClientRect()
+      if (r) setMenuRect({ top: r.bottom + 4, left: r.left, minWidth: r.width })
+    }
+    updateRect()
+    window.addEventListener('scroll', updateRect, true)
+    window.addEventListener('resize', updateRect)
+    return () => {
+      window.removeEventListener('scroll', updateRect, true)
+      window.removeEventListener('resize', updateRect)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const handleOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false)
-      }
+      const b = buttonRef.current
+      const m = menuRef.current
+      if (b && b.contains(e.target)) return
+      if (m && m.contains(e.target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [open])
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', flexShrink: 0 }}>
+    <div style={{ position: 'relative', flexShrink: 0 }}>
       <button
+        ref={buttonRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="pressable whitespace-nowrap"
         style={{
-          padding: '5px 11px',
+          padding: '10px 16px',
           borderRadius: 999,
           border: '1.5px solid var(--tj-pill-active-bg)',
           background: 'var(--tj-pill-active-bg)',
           color: 'var(--tj-pill-active-fg)',
-          fontSize: 11,
-          fontWeight: 700,
-          lineHeight: 1.2,
+          fontSize: 13,
+          fontWeight: 800,
+          letterSpacing: '-0.01em',
+          lineHeight: 1,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: 4,
+          gap: 6,
         }}
       >
         {label}
-        <span style={{ opacity: .75, fontSize: 9 }}>· {direction}</span>
-        <span style={{ opacity: .6, fontSize: 8 }}>{open ? '▴' : '▾'}</span>
+        <span style={{ opacity: .75, fontSize: 11, fontWeight: 700 }}>· {direction}</span>
+        <span style={{ opacity: .6, fontSize: 10 }}>{open ? '▴' : '▾'}</span>
       </button>
 
-      {open && (
+      {open && menuRect && createPortal(
         <div
+          ref={menuRef}
           role="listbox"
           aria-label="방향 선택"
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            background: 'var(--tj-surface)',
+            position: 'fixed',
+            top: menuRect.top,
+            left: menuRect.left,
+            minWidth: Math.max(menuRect.minWidth, 112),
+            background: '#fff',
             border: '1.5px solid var(--tj-line)',
-            borderRadius: 10,
-            boxShadow: '0 4px 16px rgba(0,0,0,.12)',
+            borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(0,0,0,.16)',
             overflow: 'hidden',
-            zIndex: 50,
-            minWidth: 72,
+            zIndex: 9999,
           }}
         >
           {['등교', '하교'].map((dir) => (
@@ -198,9 +222,10 @@ function DirectionDropdownPill({ label, direction, onSelectDirection }) {
               style={{
                 display: 'block',
                 width: '100%',
-                padding: '8px 14px',
-                fontSize: 12,
-                fontWeight: 700,
+                padding: '12px 18px',
+                fontSize: 14,
+                fontWeight: 800,
+                letterSpacing: '-0.01em',
                 textAlign: 'left',
                 background: direction === dir ? 'var(--tj-pill-active-bg)' : 'transparent',
                 color: direction === dir ? 'var(--tj-pill-active-fg)' : 'var(--tj-ink)',
@@ -212,13 +237,14 @@ function DirectionDropdownPill({ label, direction, onSelectDirection }) {
               {dir}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
 }
 
-function StationPillButton({ label, active, onClick }) {
+function StationPillButton({ label, suffix, active, onClick }) {
   return (
     <button
       type="button"
@@ -226,21 +252,28 @@ function StationPillButton({ label, active, onClick }) {
       aria-pressed={active}
       className="pressable whitespace-nowrap"
       style={{
-        padding: '5px 11px',
+        padding: '10px 16px',
         borderRadius: 999,
         border: active
           ? '1.5px solid var(--tj-pill-active-bg)'
           : '1.5px solid var(--tj-line)',
         background: active ? 'var(--tj-pill-active-bg)' : 'transparent',
         color: active ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-        fontSize: 11,
-        fontWeight: 700,
-        lineHeight: 1.2,
+        fontSize: 13,
+        fontWeight: 800,
+        letterSpacing: '-0.01em',
+        lineHeight: 1,
         cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
         transition: 'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
       }}
     >
       {label}
+      {suffix && (
+        <span style={{ opacity: .75, fontSize: 11, fontWeight: 700 }}>· {suffix}</span>
+      )}
     </button>
   )
 }

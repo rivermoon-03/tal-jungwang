@@ -45,6 +45,7 @@ class BusArrival(BaseModel):
     arrive_in_seconds: int | None = None
     is_tomorrow: bool = False  # 오늘 시간표 소진 후 내일 첫차인 경우 True
     crowded: int = 0  # 혼잡도 (0=정보없음, 1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
+    avg_interval_minutes: int | None = None  # 현재 시각 ±60분 윈도우 평균 배차 간격(분)
 
 
 class BusArrivalsResponse(BaseModel):

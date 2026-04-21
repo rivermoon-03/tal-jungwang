@@ -37,13 +37,13 @@ function minutesUntil(timeStr, isTomorrow = false) {
   const now = new Date()
   const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0)
   if (isTomorrow) target.setDate(target.getDate() + 1)
-  return Math.round((target - now) / 60000)
+  return Math.ceil((target - now) / 60000)
 }
 
 // 개별 도착 시간 칩
 function RealtimeChip({ arrival }) {
-  const totalSec = Math.round(arrival.arrive_in_seconds ?? 0)
-  const minutes = Math.floor(totalSec / 60)
+  const sec = arrival.arrive_in_seconds ?? 0
+  const minutes = Math.ceil(sec / 60)
   return (
     <span className="time-num text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
       {minutes === 0 ? '곧' : `${minutes}분`}
@@ -54,10 +54,30 @@ function RealtimeChip({ arrival }) {
 function TimetableChip({ arrival }) {
   const isTomorrow = arrival.is_tomorrow === true
   const diffMin = minutesUntil(arrival.depart_at, isTomorrow)
+
+  if (isTomorrow) {
+    return (
+      <>
+        <span className="text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
+          내일
+        </span>
+        <span className="text-micro text-slate-400 tabular-nums">
+          {arrival.depart_at}
+        </span>
+      </>
+    )
+  }
+
+  const label = diffMin <= 0 ? '곧' : `${diffMin}분`
   return (
-    <span className="text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
-      {isTomorrow ? `내일 ${arrival.depart_at}` : diffMin <= 0 ? '곧' : `${arrival.depart_at}`}
-    </span>
+    <>
+      <span className="text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
+        {label}
+      </span>
+      <span className="text-micro text-slate-400 tabular-nums">
+        {arrival.depart_at}
+      </span>
+    </>
   )
 }
 
@@ -87,11 +107,13 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
                 ? <TimetableChip arrival={a} />
                 : <RealtimeChip arrival={a} />
               }
-              {!isTimetable && a.crowded > 0
-                ? <CrowdedBadge level={a.crowded} />
-                : shown.length > 1 && (
-                    <span className="text-micro text-slate-400 tabular-nums">{i + 1}번</span>
-                  )
+              {isTimetable
+                ? null
+                : a.crowded > 0
+                  ? <CrowdedBadge level={a.crowded} />
+                  : shown.length > 1 && (
+                      <span className="text-micro text-slate-400 tabular-nums">{i + 1}번</span>
+                    )
               }
             </span>
           ))}
@@ -100,7 +122,7 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
           <ChevronRight size={16} className="text-slate-400 shrink-0" />
         )}
       </div>
-      <div className="px-4 pb-3 flex items-center gap-2">
+      <div className={`px-4 flex items-center gap-2 ${!isTimetable && first.avg_interval_minutes != null ? 'pb-1.5' : 'pb-3'}`}>
         {isTimetable ? (
           <span className="text-xs px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-medium">
             시간표
@@ -116,6 +138,17 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
           </span>
         )}
       </div>
+      {!isTimetable && first.avg_interval_minutes != null && (
+        <div className="px-4 pb-3 text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+          <span>🕒</span>
+          <span>
+            보통 이 시간대 평균{' '}
+            <b className="font-semibold text-slate-500 dark:text-slate-400">
+              {first.avg_interval_minutes}분 간격
+            </b>
+          </span>
+        </div>
+      )}
     </>
   )
 

@@ -34,8 +34,8 @@ function parseBusFavKey(favKey) {
 const FAV_KEY_COMMUTE = {
   'shuttle:등교':         '등교',
   'shuttle:하교':         '하교',
-  '20-1':                 '하교',  // 한국공대 출발
-  '시흥33':               '하교',  // 한국공대 출발
+  '20-1':                 '하교',  // 본캠 출발
+  '시흥33':               '하교',  // 본캠 출발
   '시흥1':                '하교',  // 이마트 출발 (서울/신천)
   '버스 - 학교행:3400':   '등교',
   '버스 - 학교행:6502':   '등교',
@@ -84,7 +84,7 @@ function classifyCommute(favKey) {
 
 // 버스 노선별 다음 출발까지 남은 분 (favKey → minutes)
 function useBusMinutesByFavKey() {
-  // 실시간 (GBIS) — 20-1, 시흥33 (한국공대), 시흥1 (이마트)
+  // 실시간 (GBIS) — 20-1, 시흥33 (본캠), 시흥1 (이마트)
   const realtimeHanguk = useBusArrivals('224000639')
   const realtimeEmart  = useBusArrivals('224000513')
 
@@ -134,8 +134,8 @@ function useBusMinutesByFavKey() {
 
 // favKey → 표시 메타
 const ROUTE_STATION_MAP = {
-  '20-1':   { stationId: '224000639', stationName: '한국공학대학교', type: 'bus', routeCode: '20-1' },
-  '시흥33': { stationId: '224000639', stationName: '한국공학대학교', type: 'bus', routeCode: '시흥33' },
+  '20-1':   { stationId: '224000639', stationName: '본캠', type: 'bus', routeCode: '20-1' },
+  '시흥33': { stationId: '224000639', stationName: '본캠', type: 'bus', routeCode: '시흥33' },
   '시흥1':  { stationId: '224000513', stationName: '이마트',          type: 'bus', routeCode: '시흥1' },
   '버스 - 서울행:3400':  { stationName: '시화',   type: 'bus', routeCode: '3400', endpoints: '서울행' },
   '버스 - 서울행:6502':  { stationName: '이마트', type: 'bus', routeCode: '6502', endpoints: '서울행' },
@@ -260,7 +260,7 @@ function useFavoriteItems(favorites) {
           id: `route:${routeCode}`,
           type: 'shuttle',
           routeCode: `${label}셔틀`,
-          stationName: '한국공학대학교',
+          stationName: '본캠',
           minutes: mins,
           walkMin: 3,
           status: getBoardingStatus(mins, 3),

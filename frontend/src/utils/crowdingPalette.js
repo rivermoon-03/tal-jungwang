@@ -29,7 +29,7 @@ export function crowdedColor(v) {
 
 export function crowdedLabel(v) {
   if (v == null) return '정보없음'
-  if (v < 1.5) return '여유'
+  if (v < 1.35) return '여유'
   if (v < 2.5) return '보통'
   if (v < 3.5) return '혼잡'
   return '매우혼잡'

@@ -1,9 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Bus, MapPin, School } from 'lucide-react'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 
-// direction int → 내부 key (0=등교, 1=하교)
-const DIR_KEY = { 0: 'school', 1: 'station' }
+// direction int → 내부 key
+// 0=본캠 등교, 1=본캠 하교, 2=2캠 등교, 3=2캠 하교
+const DIR_KEY = { 0: 'school', 1: 'station', 2: 'school2', 3: 'station2' }
+
+const CAMPUS_META = {
+  main:   { label: '본캠' },
+  second: { label: '2캠' },
+}
+
+const CAMPUS_PAIRS = {
+  main:   { left: { key: 'station',  label: '정왕역 (하교)', Icon: MapPin }, right: { key: 'school',  label: '학교 (등교)',   Icon: School } },
+  second: { left: { key: 'station2', label: '하교 (2캠)',    Icon: MapPin }, right: { key: 'school2', label: '등교 (2캠)',    Icon: School } },
+}
+
+const campusOf = (dir) => (dir >= 2 ? 'second' : 'main')
 
 function toMin(t) {
   const [h, m] = t.split(':').map(Number)
@@ -24,15 +37,13 @@ function isInsideFrequentWindow(times) {
   return hasPastFrequent && next?.note === '수시운행'
 }
 
-/** 수시운행 회차 구간 안에 있는지 여부.
- *  직전에 지나간 항목이 '회차편 · 학교 수시운행 출발'이면 회차 구간으로 판단. */
+/** 수시운행 회차 구간 안에 있는지 여부. */
 function isInsideFrequentReturnWindow(times) {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
   const lastPast = [...times].reverse().find((t) => toMin(t.depart_at) <= nowMin)
   return !!(lastPast?.note?.startsWith('회차편') && lastPast.note.includes('수시운행'))
 }
 
-/** { main: string, sub: string|null } 형태로 반환 */
 function departLabel(next, { inFrequent, inFrequentReturn }) {
   if (!next) return null
   if (inFrequent)       return { main: '수시운행', sub: null }
@@ -88,6 +99,7 @@ function TimeCell({ label, Icon, pair, times }) {
 export default function ShuttleCard({ onOpenSheet }) {
   const { data: schedule, loading } = useShuttleSchedule()
   const [tick, setTick] = useState(0)
+  const [activeCampus, setActiveCampus] = useState('main')
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60_000)
@@ -96,9 +108,24 @@ export default function ShuttleCard({ onOpenSheet }) {
   void tick
 
   const directions = schedule?.directions ?? []
+
+  const availableCampuses = useMemo(() => {
+    const set = new Set(directions.map((d) => campusOf(d.direction)))
+    const ordered = []
+    if (set.has('main')) ordered.push('main')
+    if (set.has('second')) ordered.push('second')
+    return ordered
+  }, [directions])
+
+  const effectiveCampus = availableCampuses.includes(activeCampus)
+    ? activeCampus
+    : availableCampuses[0] ?? 'main'
+
   const info = {
     station: { pair: [null, null], times: [] },
     school:  { pair: [null, null], times: [] },
+    station2:{ pair: [null, null], times: [] },
+    school2: { pair: [null, null], times: [] },
   }
   for (const dir of directions) {
     const key = DIR_KEY[dir.direction]
@@ -108,30 +135,53 @@ export default function ShuttleCard({ onOpenSheet }) {
     }
   }
 
+  const pair = CAMPUS_PAIRS[effectiveCampus]
+
   return (
     <div className="bg-white dark:bg-surface-dark rounded-2xl overflow-hidden border border-slate-200 dark:border-border-dark shadow-sm">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-border-dark">
-        <div className="flex items-center gap-2">
-          <Bus size={16} strokeWidth={2} className="text-navy dark:text-blue-400" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-border-dark gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Bus size={16} strokeWidth={2} className="text-navy dark:text-blue-400 flex-shrink-0" />
           <span className="text-sm font-bold text-navy dark:text-blue-300">셔틀버스</span>
           {schedule && (
-            <span className="text-xs text-slate-400">{schedule.schedule_name}</span>
+            <span className="text-xs text-slate-400 truncate">{schedule.schedule_name}</span>
           )}
         </div>
-        <button
-          onClick={onOpenSheet}
-          className="text-xs text-blue-500 font-semibold hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-        >
-          시간표 전체보기 ›
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {availableCampuses.length > 1 && (
+            <div className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5">
+              {availableCampuses.map((key) => {
+                const active = key === effectiveCampus
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveCampus(key)}
+                    className={`px-2.5 py-0.5 text-xs font-semibold rounded-full transition-colors
+                      ${active
+                        ? 'bg-white dark:bg-slate-700 text-navy dark:text-blue-300 shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400'}`}
+                  >
+                    {CAMPUS_META[key].label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <button
+            onClick={onOpenSheet}
+            className="text-xs text-blue-500 font-semibold hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+          >
+            전체보기 ›
+          </button>
+        </div>
       </div>
 
       {loading ? (
         <div className="py-6 text-center text-slate-400 text-sm">불러오는 중...</div>
       ) : (
         <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-700">
-          <TimeCell label="정왕역 (하교)" Icon={MapPin} pair={info.station.pair} times={info.station.times} />
-          <TimeCell label="학교 (등교)" Icon={School} pair={info.school.pair} times={info.school.times} />
+          <TimeCell label={pair.left.label}  Icon={pair.left.Icon}  pair={info[pair.left.key].pair}  times={info[pair.left.key].times} />
+          <TimeCell label={pair.right.label} Icon={pair.right.Icon} pair={info[pair.right.key].pair} times={info[pair.right.key].times} />
         </div>
       )}
     </div>

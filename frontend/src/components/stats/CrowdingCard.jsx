@@ -11,6 +11,8 @@ const ROUTE_TABS = [
   { id: '11-A',  label: '11-A'   },
 ]
 
+const RANGE_TABS = [6, 12, 24]
+
 const LEGEND = [
   { v: 1, label: '여유' },
   { v: 2, label: '보통' },
@@ -30,6 +32,7 @@ function formatHour(hh, mm) {
 export default function CrowdingCard() {
   const dayType = isWeekend() ? 'weekend' : 'weekday'
   const [routeNo, setRouteNo] = useState('시흥33')
+  const [rangeH, setRangeH] = useState(24)
 
   const { data, loading } = useCrowdingFlow(routeNo, dayType)
 
@@ -58,9 +61,21 @@ export default function CrowdingCard() {
 
   const accent = ROUTE_ACCENTS[routeNo] ?? '#38bdf8'
 
+  const xAxisLabels = useMemo(() => {
+    const curMin = nowMinutes
+    const half = (rangeH / 2) * 60
+    const lo = Math.max(0, curMin - half)
+    const hi = Math.min(1440, curMin + half)
+    const step = (hi - lo) / 4
+    return Array.from({ length: 5 }, (_, i) => {
+      const m = lo + step * i
+      return String(Math.floor(m / 60)).padStart(2, '0')
+    })
+  }, [rangeH, nowMinutes])
+
   return (
     <article
-      className="relative overflow-hidden rounded-3xl shadow-sm mt-4 border border-white/5"
+      className="relative overflow-hidden rounded-3xl shadow-sm border border-white/5"
       style={{
         background: 'linear-gradient(165deg, #111827 0%, #1e293b 60%, #0f172a 100%)',
       }}
@@ -76,37 +91,51 @@ export default function CrowdingCard() {
       <div className="relative p-5">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-xs font-medium text-white/80">노선별 혼잡도</div>
+            <div className="text-base font-bold text-white">노선별 혼잡도</div>
             <div
               key={`meta-${routeNo}`}
-              className="mt-0.5 text-[11px] tabular-nums text-white/50 animate-fade-in"
+              className="mt-1 text-xs text-white/50 animate-fade-in leading-snug"
             >
-              {dayType === 'weekday' ? '평일' : '주말'} · 최근 {sampleDays}일
-              {totalSamples > 0 && <> · {totalSamples.toLocaleString()}건 수집</>}
-              {data?.stop_name && <> · {data.stop_name}</>}
+              {data?.stop_name && data?.route_direction
+                ? <>{data.stop_name} 출발 · {data.route_direction}</>
+                : `${dayType === 'weekday' ? '평일' : '주말'} · 최근 ${sampleDays}일`
+              }
             </div>
           </div>
 
-          <div
-            key={`now-${routeNo}`}
-            className="text-right leading-none shrink-0 animate-fade-in"
-          >
-            <div className="text-[10px] text-white/50 mb-1">현재</div>
-            {currentPoint ? (
-              <>
+          <div className="flex items-start gap-3 shrink-0">
+            {/* 시간 범위 탭 */}
+            <div className="flex gap-0.5 rounded-lg overflow-hidden bg-white/5 ring-1 ring-white/10 p-0.5">
+              {RANGE_TABS.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setRangeH(h)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                    rangeH === h ? 'bg-white text-slate-900' : 'text-white/55 hover:text-white'
+                  }`}
+                >
+                  {h}h
+                </button>
+              ))}
+            </div>
+
+            <div
+              key={`now-${routeNo}`}
+              className="text-right leading-none animate-fade-in"
+            >
+              <div className="text-xs text-white/50 mb-1">현재</div>
+              {currentPoint ? (
                 <div
                   className="text-3xl font-extrabold tabular-nums tracking-tight"
                   style={{ color: crowdedColor(currentPoint.crowded) }}
                 >
                   {crowdedLabel(currentPoint.crowded)}
                 </div>
-                <div className="mt-1 text-[11px] text-white/60 tabular-nums">
-                  평균 {currentPoint.crowded.toFixed(2)}
-                </div>
-              </>
-            ) : (
-              <div className="text-2xl font-extrabold text-white/40">--</div>
-            )}
+              ) : (
+                <div className="text-2xl font-extrabold text-white/40">--</div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -151,24 +180,20 @@ export default function CrowdingCard() {
               아직 누적된 혼잡도 데이터가 없어요
             </div>
           ) : (
-            <CrowdingChart points={points} nowMinutes={nowMinutes} stroke="#ffffff" />
+            <CrowdingChart points={points} nowMinutes={nowMinutes} stroke="#ffffff" rangeH={rangeH} />
           )}
         </div>
 
         {/* X축 라벨 */}
         <div className="mt-1 flex justify-between px-1 text-[10px] tabular-nums text-white/40">
-          <span>00</span>
-          <span>06</span>
-          <span>12</span>
-          <span>18</span>
-          <span>24</span>
+          {xAxisLabels.map((l, i) => <span key={i}>{l}</span>)}
         </div>
 
         {/* 범례 + 피크 */}
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             {LEGEND.map((l) => (
-              <div key={l.v} className="flex items-center gap-1 text-[10px] text-white/70">
+              <div key={l.v} className="flex items-center gap-1.5 text-xs text-white/70">
                 <span
                   className="inline-block w-2.5 h-2.5 rounded-sm"
                   style={{ background: crowdedColor(l.v) }}
@@ -180,7 +205,7 @@ export default function CrowdingCard() {
           {peakPoint && (
             <div
               key={`peak-${routeNo}`}
-              className="text-[11px] text-white/70 tabular-nums animate-fade-in"
+              className="text-xs text-white/70 tabular-nums animate-fade-in"
             >
               피크{' '}
               <span className="font-semibold text-white">

@@ -31,6 +31,7 @@ _PRIVATE_NETS = [
     ipaddress.ip_network("10.0.0.0/8"),
     ipaddress.ip_network("172.16.0.0/12"),
     ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("100.64.0.0/10"),  # Railway 내부 네트워크 (RFC 6598)
 ]
 
 def _is_private(ip: str) -> bool:

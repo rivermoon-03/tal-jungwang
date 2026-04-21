@@ -23,6 +23,79 @@ def _day_type(d: date) -> str:
     return "sunday"
 
 
+async def _compute_avg_interval(
+    db: AsyncSession,
+    route_id: int,
+    stop_id: int,
+    day_type: str,
+    hour: int,
+) -> int | None:
+    """현재 시각 ±60분 윈도우의 bus_timetable_entries 기반 평균 배차 간격(분).
+
+    entries 수 < 3이면 None 반환 (통계적으로 불충분).
+    결과는 Redis에 TTL 3600으로 캐시. None은 캐시하지 않음 (다음 갱신 때 재계산).
+    """
+    if hour < 0 or hour > 23:
+        return None
+
+    cache_key = f"bus:interval:{route_id}:{stop_id}:{day_type}:{hour}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        # 캐시는 {"value": int} 형태로 저장; 과거 int 저장 케이스도 방어
+        if isinstance(cached, dict):
+            val = cached.get("value")
+            if isinstance(val, int):
+                return val
+        elif isinstance(cached, int):
+            return cached
+
+    # ±60분 윈도우: (hour-1)시 00분 ~ (hour+1)시 59분
+    # 자정 경계는 clamp (자정 이후 entries는 다음날 day_type이라 이 윈도우에서 제외)
+    lower_hour = max(0, hour - 1)
+    upper_hour = min(23, hour + 1)
+    lower_bound = time(lower_hour, 0, 0)
+    upper_bound = time(upper_hour, 59, 59)
+
+    stmt = (
+        select(BusTimetableEntry.departure_time)
+        .where(
+            BusTimetableEntry.route_id == route_id,
+            BusTimetableEntry.stop_id == stop_id,
+            BusTimetableEntry.day_type == day_type,
+            BusTimetableEntry.departure_time >= lower_bound,
+            BusTimetableEntry.departure_time <= upper_bound,
+        )
+        .order_by(BusTimetableEntry.departure_time)
+    )
+    result = await db.execute(stmt)
+    times: list[time] = list(result.scalars().all())
+
+    if len(times) < 3:
+        return None
+
+    # 인접 간격(분) 계산
+    gaps: list[float] = []
+    for i in range(len(times) - 1):
+        t1 = times[i]
+        t2 = times[i + 1]
+        sec1 = t1.hour * 3600 + t1.minute * 60 + t1.second
+        sec2 = t2.hour * 3600 + t2.minute * 60 + t2.second
+        diff_sec = sec2 - sec1
+        if diff_sec <= 0:
+            continue
+        gaps.append(diff_sec / 60.0)
+
+    if not gaps:
+        return None
+
+    avg_minutes = round(sum(gaps) / len(gaps))
+    if avg_minutes <= 0:
+        return None
+
+    await set_cached_json(cache_key, {"value": avg_minutes}, ttl=3600)
+    return avg_minutes
+
+
 async def get_stations(db: AsyncSession) -> list[dict]:
     cache_key = "bus:stations"
     cached = await get_cached_json(cache_key)
@@ -113,11 +186,29 @@ async def get_arrivals(
                     except (KeyError, ValueError):
                         elapsed_sec = 0
 
+                # 노선별 avg_interval_minutes 캐시(동일 노선 중복 계산 방지)
+                interval_cache: dict[int, int | None] = {}
                 for arrival in cached_arrivals:
                     if elapsed_sec > 0 and arrival.get("arrive_in_seconds") is not None:
                         arrival["arrive_in_seconds"] = max(
                             0, arrival["arrive_in_seconds"] - elapsed_sec
                         )
+                    route_id = arrival.get("route_id")
+                    if isinstance(route_id, int):
+                        if route_id not in interval_cache:
+                            try:
+                                interval_cache[route_id] = await _compute_avg_interval(
+                                    db, route_id, stop.id, day, now_time.hour
+                                )
+                            except Exception as exc:
+                                logger.warning(
+                                    "avg_interval 계산 실패 (route %s, stop %s): %s",
+                                    route_id, stop.id, exc,
+                                )
+                                interval_cache[route_id] = None
+                        avg = interval_cache[route_id]
+                        if avg is not None:
+                            arrival["avg_interval_minutes"] = avg
                 arrivals.extend(cached_arrivals)
         except Exception as exc:
             logger.warning("Redis 캐시 읽기 실패 (정류장 %s): %s", station_id, exc)

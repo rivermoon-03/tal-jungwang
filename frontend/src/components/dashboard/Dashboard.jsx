@@ -4,6 +4,7 @@ import StationPills from './StationPills'
 import BusPanel from '../summary/BusPanel'
 import SubwayPanel from '../summary/SubwayPanel'
 import ShuttlePanel from '../summary/ShuttlePanel'
+import TaxiPanel from '../summary/TaxiPanel'
 
 /**
  * Dashboard — 스냅 하단 영역. 모드 탭 + 정류장 pill + 활성 패널 렌더.
@@ -17,12 +18,17 @@ export default function Dashboard() {
   const selectedMode = useAppStore((s) => s.selectedMode)
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
   const selectedSubwayStation = useAppStore((s) => s.selectedSubwayStation)
+  const selectedShuttleCampus = useAppStore((s) => s.selectedShuttleCampus)
 
   let stationValue = null
   if (selectedMode === 'bus') {
     stationValue = selectedBusStation
   } else if (selectedMode === 'subway') {
     stationValue = selectedSubwayStation
+  } else if (selectedMode === 'shuttle') {
+    stationValue = selectedShuttleCampus
+  } else if (selectedMode === 'taxi') {
+    stationValue = null
   }
 
   return (
@@ -32,9 +38,7 @@ export default function Dashboard() {
     >
       <ModeTabs />
 
-      {selectedMode !== 'shuttle' ? (
-        <StationPills mode={selectedMode} value={stationValue} />
-      ) : null}
+      <StationPills mode={selectedMode} value={stationValue} />
 
       <div className="px-4 pb-6">
         {selectedMode === 'bus' && (
@@ -45,6 +49,9 @@ export default function Dashboard() {
         )}
         {selectedMode === 'shuttle' && (
           <div key="shuttle" className="animate-fade-in"><ShuttlePanel /></div>
+        )}
+        {selectedMode === 'taxi' && (
+          <div key="taxi" className="animate-fade-in"><TaxiPanel /></div>
         )}
       </div>
     </section>

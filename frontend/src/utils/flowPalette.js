@@ -2,17 +2,17 @@
 // 새벽/아침/한낮/해질녘/밤 키프레임을 이웃 구간끼리 선형 보간한다.
 
 const KF = [
-  { t: 0,    top: '#0b1220', bottom: '#1e1b4b' },  // 00:00 한밤 navy
-  { t: 300,  top: '#1e1b4b', bottom: '#3730a3' },  // 05:00 pre-dawn indigo
-  { t: 360,  top: '#f59e0b', bottom: '#fda4af' },  // 06:00 여명 amber→peach
-  { t: 420,  top: '#fde68a', bottom: '#7dd3fc' },  // 07:00 맑은 아침
-  { t: 600,  top: '#7dd3fc', bottom: '#3b82f6' },  // 10:00 푸른 하늘
-  { t: 900,  top: '#38bdf8', bottom: '#1d4ed8' },  // 15:00 한낮 blue
-  { t: 1080, top: '#fbbf24', bottom: '#f97316' },  // 18:00 노을 amber
-  { t: 1140, top: '#f97316', bottom: '#be185d' },  // 19:00 주황→마젠타
-  { t: 1200, top: '#7c3aed', bottom: '#3730a3' },  // 20:00 황혼 보라
-  { t: 1320, top: '#1e1b4b', bottom: '#0b1220' },  // 22:00 깊은 밤
-  { t: 1440, top: '#0b1220', bottom: '#1e1b4b' },  // 24:00 wrap
+  { t: 0,    top: '#06101e', bottom: '#0d1540' },  // 00:00 deep night
+  { t: 300,  top: '#0d1540', bottom: '#1a1b5a' },  // 05:00 pre-dawn indigo
+  { t: 360,  top: '#1c0f3f', bottom: '#7c2d12' },  // 06:00 dark violet → burnt orange
+  { t: 480,  top: '#7c3500', bottom: '#083344' },  // 08:00 deep amber → ocean teal
+  { t: 600,  top: '#083344', bottom: '#0f2d4a' },  // 10:00 deep teal → ocean blue
+  { t: 900,  top: '#1e3a8a', bottom: '#0f172a' },  // 15:00 deep navy
+  { t: 1020, top: '#78350f', bottom: '#6b1d3a' },  // 17:00 amber → deep rose
+  { t: 1080, top: '#92400e', bottom: '#4c0519' },  // 18:00 golden dusk → dark crimson
+  { t: 1140, top: '#4c1d95', bottom: '#1e1040' },  // 19:00 violet → dark
+  { t: 1260, top: '#0d1540', bottom: '#06101e' },  // 21:00 deep night
+  { t: 1440, top: '#06101e', bottom: '#0d1540' },  // 24:00 wrap
 ]
 
 function parseHex(h) {

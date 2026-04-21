@@ -95,10 +95,15 @@ const SUBWAY_GROUPS = [
   { id: '시흥시청', label: '시흥시청', stationCode: 'K447' },
 ]
 
-const SHUTTLE_GROUPS = [
-  { id: '등교', label: '등교', direction: 0 },
-  { id: '하교', label: '하교', direction: 1 },
+const SHUTTLE_CAMPUS_GROUPS = [
+  { id: 'main',   label: '본캠' },
+  { id: 'second', label: '2캠' },
 ]
+
+const SHUTTLE_CAMPUS_DIRECTIONS = {
+  main:   [{ id: '등교', label: '등교', direction: 0 }, { id: '하교', label: '하교', direction: 1 }],
+  second: [{ id: '등교', label: '등교', direction: 2 }, { id: '하교', label: '하교', direction: 3 }],
+}
 
 // ─── mode label config ───────────────────────────────────────────────────────
 const MODES = [
@@ -365,18 +370,24 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
 
 // ─── shuttle section ─────────────────────────────────────────────────────────
 function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCodes = [] }) {
-  const label = direction === 0 ? '등교' : '하교'
-  if (favoritesOnly && !favCodes.includes(`shuttle:${label}`)) return null
+  const label = direction % 2 === 0 ? '등교' : '하교'
+  const campusTag = direction >= 2 ? '2캠 ' : ''
+  const titleText = `${campusTag}셔틀 ${label}`.trim()
+  const favCode = `shuttle:${campusTag}${label}`.trim()
   const { data, loading, error } = useShuttleSchedule(direction)
+  if (favoritesOnly && !favCodes.includes(favCode)) return null
+
+  const subtitleText = direction >= 2 ? '2캠' : '본캠'
+  const routeCode = `${campusTag}셔틀${label}`.trim()
 
   const noSchedule = !loading && (error || !data || (data.directions ?? []).length === 0)
   if (noSchedule) {
     return (
       <ScheduleSection
-        title={`셔틀 ${label}`}
-        subtitle="한국공대"
+        title={titleText}
+        subtitle={subtitleText}
         type="shuttle"
-        routeCode={`셔틀${label}`}
+        routeCode={routeCode}
         next={null}
         afterNext={null}
         loading={false}
@@ -415,7 +426,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
   const inFrequent = hasPastFrequent && futureEntries[0]?.note === '수시운행'
 
   const MAX_SHUTTLE_ROWS = 4
-  const handleClick = () => onCardClick({ type: 'shuttle', routeCode: `셔틀${label}`, direction, favCode: `shuttle:${label}`, title: `셔틀버스 ${label}` })
+  const handleClick = () => onCardClick({ type: 'shuttle', routeCode, direction, favCode, title: `${campusTag}셔틀버스 ${label}` })
 
   function buildRow(e) {
     const ts = e.depart_at?.slice(0, 5) ?? null
@@ -475,10 +486,10 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
   if (rows.length === 0) {
     return (
       <ScheduleSection
-        title={`셔틀 ${label}`}
-        subtitle="한국공대"
+        title={titleText}
+        subtitle={subtitleText}
         type="shuttle"
-        routeCode={`셔틀${label}`}
+        routeCode={routeCode}
         next={null}
         afterNext={null}
         loading={false}
@@ -495,10 +506,10 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
     .filter((s) => typeof s === 'string' && s.length > 0)
   return (
     <ScheduleSection
-      title={`셔틀 ${label}`}
-      subtitle="한국공대"
+      title={titleText}
+      subtitle={subtitleText}
       type="shuttle"
-      routeCode={`셔틀${label}`}
+      routeCode={routeCode}
       next={first?.statusLabel ?? first?.departStr ?? null}
       afterNext={second?.statusLabel ?? second?.departStr ?? null}
       minutesUntil={first?.mins ?? null}
@@ -540,7 +551,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
       favCode,
       stopId: stop?.stop_id ?? null,
       destLabel: route.direction_name ?? null,
-      originLabel: stopName?.replace('한국공학대학교', '한국공대') ?? null,
+      originLabel: stopName?.replace('한국공학대학교', '본캠') ?? null,
       mapLat: markerCoord?.lat ?? stopLat,
       mapLng: markerCoord?.lng ?? stopLng,
       isRealtime: route.is_realtime ?? false,
@@ -592,6 +603,8 @@ export default function SchedulePage() {
 
   const storedMode = useAppStore((s) => s.selectedMode)
   const setStoredMode = useAppStore((s) => s.setSelectedMode)
+  const shuttleCampus = useAppStore((s) => s.selectedShuttleCampus)
+  const setShuttleCampus = useAppStore((s) => s.setShuttleCampus)
   const scheduleHint = useAppStore((s) => s.scheduleHint)
   const setScheduleHint = useAppStore((s) => s.setScheduleHint)
   const favorites = useAppStore((s) => s.favorites)
@@ -607,7 +620,6 @@ export default function SchedulePage() {
   const favCodes = favorites.routes ?? []
   const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
-  const [, setShuttleGroup] = useState('등교')
   const [selectedDetail, setSelectedDetail] = useState(null)
 
   useEffect(() => {
@@ -625,10 +637,12 @@ export default function SchedulePage() {
     if (scheduleHint.group) {
       if (scheduleHint.mode === 'bus') setBusGroup(scheduleHint.group)
       else if (scheduleHint.mode === 'subway') setSubwayGroup(scheduleHint.group)
-      else if (scheduleHint.mode === 'shuttle') setShuttleGroup(scheduleHint.group)
+      else if (scheduleHint.mode === 'shuttle') {
+        if (scheduleHint.group === 'main' || scheduleHint.group === 'second') setShuttleCampus(scheduleHint.group)
+      }
     }
     setScheduleHint(null)
-  }, [scheduleHint, setScheduleHint, setStoredMode])
+  }, [scheduleHint, setScheduleHint, setStoredMode, setShuttleCampus])
 
   function handleModeChange(next) {
     if (next === mode) return
@@ -645,11 +659,20 @@ export default function SchedulePage() {
   const handleModalClose = () => setSelectedDetail(null)
 
   const groups =
-    mode === 'bus' ? BUS_GROUP_IDS : mode === 'subway' ? SUBWAY_GROUPS : []
+    mode === 'bus' ? BUS_GROUP_IDS
+    : mode === 'subway' ? SUBWAY_GROUPS
+    : mode === 'shuttle' ? SHUTTLE_CAMPUS_GROUPS
+    : []
   const activeGroupId =
-    mode === 'bus' ? busGroup : mode === 'subway' ? subwayGroup : null
+    mode === 'bus' ? busGroup
+    : mode === 'subway' ? subwayGroup
+    : mode === 'shuttle' ? shuttleCampus
+    : null
   const setActiveGroup =
-    mode === 'bus' ? setBusGroup : mode === 'subway' ? setSubwayGroup : () => {}
+    mode === 'bus' ? setBusGroup
+    : mode === 'subway' ? setSubwayGroup
+    : mode === 'shuttle' ? setShuttleCampus
+    : () => {}
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up">
@@ -688,7 +711,7 @@ export default function SchedulePage() {
       </div>
 
       {/* group secondary pills */}
-      {mode !== 'shuttle' && groups.length > 0 && (
+      {groups.length > 0 && (
         <div className="px-4 pb-2 flex-shrink-0">
           <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
             {groups.map((g) => {
@@ -741,9 +764,9 @@ export default function SchedulePage() {
               favCodes={favCodes}
             />
           )}
-          {mode === 'shuttle' && SHUTTLE_GROUPS.map((g) => (
+          {mode === 'shuttle' && (SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main).map((g) => (
             <ShuttleSection
-              key={g.id}
+              key={`${shuttleCampus}:${g.id}`}
               direction={g.direction}
               onCardClick={handleCardClick}
               favoritesOnly={favoritesOnly}

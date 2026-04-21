@@ -1,11 +1,12 @@
 import useAppStore from '../../stores/useAppStore'
 import { useMemo } from 'react'
 import { useBusRoutesByCategory, useBusArrivals, useBusTimetable } from '../../hooks/useBus'
+import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import ArrivalRow from '../dashboard/ArrivalRow'
 import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
-import { getRoutesFor, getGbisStationId } from '../dashboard/busStationConfig'
+import { getRoutesFor, getGbisStationId, getBusStationDisplay, getViaLabel, getDisplayOrigin, getPerRouteDisplay } from '../dashboard/busStationConfig'
 
 // 노선 번호별 배지 색상 — 디자인 시스템 단순화까지는 매핑 유지
 const ROUTE_INLINE_BG = {
@@ -22,7 +23,7 @@ const DEFAULT_ROUTE_COLOR = '#64748B'
 
 export default function BusPanel() {
   const selectedBusStation   = useAppStore((s) => s.selectedBusStation)
-  const selectedBusDirection = useAppStore((s) => s.selectedBusDirection)
+  const { direction: selectedBusDirection } = useEffectiveDirection()
   const allowedRouteNumbers  = useMemo(
     () => new Set(getRoutesFor(selectedBusStation, selectedBusDirection)),
     [selectedBusStation, selectedBusDirection]
@@ -55,59 +56,77 @@ export default function BusPanel() {
           key={route.route_id}
           route={route}
           realtimeArrivals={realtimeArrivals}
+          selectedBusStation={selectedBusStation}
         />
       ))}
     </div>
   )
 }
 
-function BusRouteRow({ route, realtimeArrivals }) {
+function BusRouteRow({ route, realtimeArrivals, selectedBusStation }) {
   const setDetailModal       = useAppStore((s) => s.setDetailModal)
-  const selectedBusDirection = useAppStore((s) => s.selectedBusDirection)
+  const { direction: selectedBusDirection } = useEffectiveDirection()
   const { route_id, route_number, is_realtime, stops = [] } = route
 
+  // 스테이션에 GBIS ID가 없으면 (예: 서울) 실시간 불가 → 시간표 강제
+  const stationHasRealtime = !!getGbisStationId(selectedBusStation)
+  const effectiveRealtime  = is_realtime && stationHasRealtime
+
   // 실시간: 도착정보 목록에서 이 route_number만 추출 (동일 정류장 여러 노선 중)
-  const liveEntries = is_realtime && realtimeArrivals.data?.arrivals
+  const liveEntries = effectiveRealtime && realtimeArrivals.data?.arrivals
     ? realtimeArrivals.data.arrivals.filter((a) => a.route_no === route_number).slice(0, 2)
     : []
   const hasLiveData = liveEntries.length > 0
 
   // 비실시간 or 실시간 폴백: route_id 기반 시간표
-  const useFallback = !is_realtime || (!realtimeArrivals.loading && !hasLiveData)
+  const useFallback = !effectiveRealtime || (!realtimeArrivals.loading && !hasLiveData)
   const timetable = useBusTimetable(useFallback ? route_id : null)
 
-  const loading = is_realtime ? realtimeArrivals.loading : timetable.loading
-  const refetch = is_realtime
+  const loading = effectiveRealtime ? realtimeArrivals.loading : timetable.loading
+  const refetch = effectiveRealtime
     ? () => { realtimeArrivals.refetch(); timetable.refetch?.() }
     : timetable.refetch
 
-  const hasError = is_realtime
+  const hasError = effectiveRealtime
     ? (realtimeArrivals.error && timetable.error && !timetable.data)
     : (timetable.error && !timetable.data)
 
   if (loading) return <Skeleton height="3rem" rounded="rounded-xl" />
   if (hasError) return <ErrorState message={`${route_number} 정보 오류`} onRetry={refetch} className="py-4" />
 
-  const arrivals = hasLiveData ? liveEntries : extractNext(timetable.data, 2)
-  const nextEntry = arrivals[0] ?? null
-  const minutes = arrivalToMinutes(nextEntry)
+  const arrivals    = hasLiveData ? liveEntries : extractNext(timetable.data, 2)
+  const nextEntry   = arrivals[0] ?? null
+  const secondEntry = arrivals[1] ?? null
+  const minutes       = arrivalToMinutes(nextEntry)
+  const secondMinutes = arrivalToMinutes(secondEntry)
 
-  // 출발지: 이 route의 첫 번째 stop (이미 방향별로 분리된 route라 origin이 명확)
-  const originStop = stops[0]
-  const originLabel = originStop
-    ? (originStop.sub_name ? `${originStop.name} ${originStop.sub_name}` : originStop.name)
-    : null
-  const destLabel = route.direction_name ?? ''
-  const direction = originLabel && destLabel
-    ? `${originLabel} 출발 · ${destLabel}`
-    : originLabel
-      ? `${originLabel} 출발`
-      : destLabel
-  const stopId = originStop?.stop_id ?? null
+  // perRouteDisplay가 있으면 해당 노선의 origin/dest를 그대로 사용 (우선순위 최고)
+  const perRoute = getPerRouteDisplay(selectedBusStation)?.[route_number]
+
+  // 탑승 정류장: 선택된 정류장 이름이 포함된 stop 우선, 없으면 첫 번째 stop
+  const boardingStop = stops.find((s) => s.name.includes(selectedBusStation)) ?? stops[0]
+  const isFirstStop  = !boardingStop || stops[0]?.stop_id === boardingStop.stop_id
+
+  const stationLabel  = getBusStationDisplay(selectedBusStation)
+  const displayOrigin = getDisplayOrigin(selectedBusStation, selectedBusDirection)
+  const destLabel     = route.direction_name ?? ''
+
+  const originText = perRoute
+    ? `${perRoute.origin} 출발`
+    : displayOrigin
+      ? `${displayOrigin} 출발`
+      : stationLabel ? `${stationLabel} ${isFirstStop ? '출발' : '탑승'}` : ''
+
+  const viaLabel   = getViaLabel(selectedBusStation, selectedBusDirection)
+  const cleanDest  = destLabel.replace(/\s*방면$/, '')
+  const destText   = perRoute?.dest
+    ?? viaLabel
+    ?? (cleanDest ? (cleanDest.endsWith('행') ? cleanDest : `${cleanDest}행`) : '')
+  const stopId = boardingStop?.stop_id ?? null
 
   const crowdedLevel = hasLiveData ? (liveEntries[0]?.crowded ?? 0) : 0
 
-  const rightAddon = is_realtime && hasLiveData ? (
+  const rightAddon = effectiveRealtime && hasLiveData ? (
     <span className="text-micro font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
       실시간
     </span>
@@ -121,9 +140,9 @@ function BusRouteRow({ route, realtimeArrivals }) {
       routeId: route_id ?? null,
       stopId: stopId ?? null,
       favCode: `${selectedBusDirection}:${route_number}`,
-      mapLat: originStop?.lat ?? null,
-      mapLng: originStop?.lng ?? null,
-      isRealtime: !!is_realtime,
+      mapLat: boardingStop?.lat ?? null,
+      mapLng: boardingStop?.lng ?? null,
+      isRealtime: effectiveRealtime,
       title: route.direction_name
         ? `${route_number} · ${route.direction_name}`
         : `${route_number}번 버스`,
@@ -135,8 +154,10 @@ function BusRouteRow({ route, realtimeArrivals }) {
     <ArrivalRow
       routeColor={ROUTE_INLINE_BG[route_number] ?? DEFAULT_ROUTE_COLOR}
       routeNumber={route_number}
-      direction={direction}
+      direction={originText || destText}
+      subdirection={originText && destText ? destText : ''}
       minutes={minutes}
+      extraMinutes={secondMinutes != null ? [secondMinutes] : []}
       isUrgent={minutes != null && minutes <= 3}
       onClick={handleClick}
       rightAddon={rightAddon}
