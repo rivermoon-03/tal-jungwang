@@ -78,22 +78,43 @@ export default function BusPanel() {
     return <div className="text-caption text-mute py-6 text-center">운행 정보 없음</div>
   }
 
+  // route_no 기준으로 그룹핑 — 같은 노선의 여러 버스를 1행으로 표시
+  const routeGroups = []
+  const seenRoutes = new Map()
+  for (const a of arrivals) {
+    if (seenRoutes.has(a.route_no)) {
+      seenRoutes.get(a.route_no).push(a)
+    } else {
+      const group = [a]
+      seenRoutes.set(a.route_no, group)
+      routeGroups.push(group)
+    }
+  }
+
   return (
     <div className="space-y-2">
-      {arrivals.map((a, idx) => {
-        let minutes = null
-        if (a.arrival_type === 'timetable') {
-          if (!a.is_tomorrow && a.depart_at) {
-            const [h, m] = a.depart_at.split(':').map(Number)
-            const t = new Date(now); t.setHours(h, m, 0, 0)
-            const diffSec = Math.floor((t - now) / 1000)
-            minutes = diffSec < 0 ? null : Math.ceil(diffSec / 60)
+      {routeGroups.map((group) => {
+        const a = group[0]
+        const a2 = group[1] ?? null
+
+        const toMinutes = (entry) => {
+          if (!entry) return null
+          if (entry.arrival_type === 'timetable') {
+            if (!entry.is_tomorrow && entry.depart_at) {
+              const [h, m] = entry.depart_at.split(':').map(Number)
+              const t = new Date(now); t.setHours(h, m, 0, 0)
+              const diffSec = Math.floor((t - now) / 1000)
+              return diffSec < 0 ? null : Math.ceil(diffSec / 60)
+            }
+            return null
           }
-        } else {
-          minutes = a.arrive_in_seconds != null
-            ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60))
+          return entry.arrive_in_seconds != null
+            ? Math.max(0, Math.ceil(entry.arrive_in_seconds / 60))
             : null
         }
+
+        const minutes = toMinutes(a)
+        const minutes2 = toMinutes(a2)
 
         const perRoute = getPerRouteDisplay(selectedBusStation)?.[a.route_no]
         const viaLabel = getViaLabel(selectedBusStation, selectedBusDirection)
@@ -108,13 +129,13 @@ export default function BusPanel() {
 
         return (
           <ArrivalRow
-            key={`${a.route_no}-${idx}`}
+            key={a.route_no}
             routeColor={ROUTE_INLINE_BG[a.route_no] ?? DEFAULT_ROUTE_COLOR}
             routeNumber={a.route_no}
             direction={originText || destText}
             subdirection={originText && destText ? destText : ''}
             minutes={a.is_tomorrow ? '내일 첫차' : minutes}
-            extraMinutes={[]}
+            extraMinutes={minutes2 != null ? [minutes2] : []}
             isUrgent={typeof minutes === 'number' && minutes <= 3}
             rightAddon={rightAddon}
             crowded={a.arrival_type === 'realtime' ? (a.crowded ?? 0) : 0}
