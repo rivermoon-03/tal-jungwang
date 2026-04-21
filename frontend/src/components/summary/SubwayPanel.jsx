@@ -44,6 +44,7 @@ function offsetDate(days) {
 
 export default function SubwayPanel() {
   const selectedStation = useAppStore((s) => s.selectedSubwayStation)
+  const setScheduleHint = useAppStore((s) => s.setScheduleHint)
   const { data, loading, error, refetch } = useSubwayNext()
 
   const lines = STATION_LINES[selectedStation] ?? []
@@ -78,9 +79,14 @@ export default function SubwayPanel() {
     )
   }
 
+  // 자정~첫차 사이(hour < 5): 막차가 끊긴 상태. 다음 열차는 오늘 시간표 기준 첫차.
+  const isOvernight = new Date().getHours() < 5
+  const emptyTitle = isOvernight ? '막차 끊김' : '오늘 운행 없음'
+  const firstLabel = isOvernight ? '오늘 첫차' : '내일 첫차'
+
   const handleClick = () => {
-    const url = `/schedule?mode=subway&station=${encodeURIComponent(selectedStation)}`
-    window.history.pushState({}, '', url)
+    setScheduleHint({ mode: 'subway', group: selectedStation })
+    window.history.pushState({}, '', '/schedule')
     window.dispatchEvent(new PopStateEvent('popstate'))
   }
 
@@ -90,8 +96,14 @@ export default function SubwayPanel() {
         const meta = LINE_META[line.name] ?? { symbol: line.name.slice(0, 1), color: '#6b7280' }
         const up = data[line.upKey]
         const down = data[line.downKey]
-        const upFirst = tmrData?.[line.upKey]?.[0]?.depart_at ?? null
-        const downFirst = tmrData?.[line.downKey]?.[0]?.depart_at ?? null
+        // 자정~새벽: useSubwayNext가 오늘 첫차를 이미 반환하지만 trainToMinutes가 >1h 차단.
+        // 해당 데이터의 depart_at을 직접 사용. 평시엔 내일 시간표에서 첫차를 가져온다.
+        const upFirst = isOvernight
+          ? (up?.depart_at ?? null)
+          : (tmrData?.[line.upKey]?.[0]?.depart_at ?? null)
+        const downFirst = isOvernight
+          ? (down?.depart_at ?? null)
+          : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
         return (
           <DualDirectionCard
             key={line.name}
@@ -102,6 +114,8 @@ export default function SubwayPanel() {
             left={trainToSlot(up, '상행', upFirst)}
             right={trainToSlot(down, '하행', downFirst)}
             onClick={handleClick}
+            emptyTitle={emptyTitle}
+            firstLabel={firstLabel}
           />
         )
       })}

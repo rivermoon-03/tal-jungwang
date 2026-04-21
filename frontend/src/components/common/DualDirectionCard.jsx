@@ -32,6 +32,8 @@ export default function DualDirectionCard({
   onClick,
   onLeftClick,
   onRightClick,
+  emptyTitle = '오늘 운행 없음',
+  firstLabel = '내일 첫차',
 }) {
   const leftEmpty = !left || left.variant === 'empty'
   const rightEmpty = !right || right.variant === 'empty'
@@ -112,7 +114,7 @@ export default function DualDirectionCard({
       </div>
 
       {bothEmpty && !splitClick ? (
-        <BothEmpty leftSlot={left} rightSlot={right} />
+        <BothEmpty leftSlot={left} rightSlot={right} emptyTitle={emptyTitle} firstLabel={firstLabel} />
       ) : (
         <div
           style={{
@@ -126,7 +128,7 @@ export default function DualDirectionCard({
             style={{ padding: '2px 10px 2px 0', ...(onLeftClick && { cursor: 'pointer' }) }}
             onClick={onLeftClick ? (e) => { e.stopPropagation(); onLeftClick(e) } : undefined}
           >
-            <SlotRenderer slot={left} align="left" />
+            <SlotRenderer slot={left} align="left" firstLabel={firstLabel} />
           </div>
           <div
             aria-hidden="true"
@@ -136,7 +138,7 @@ export default function DualDirectionCard({
             style={{ padding: '2px 0 2px 10px', ...(onRightClick && { cursor: 'pointer' }) }}
             onClick={onRightClick ? (e) => { e.stopPropagation(); onRightClick(e) } : undefined}
           >
-            <SlotRenderer slot={right} align="right" />
+            <SlotRenderer slot={right} align="right" firstLabel={firstLabel} />
           </div>
         </div>
       )}
@@ -144,7 +146,7 @@ export default function DualDirectionCard({
   )
 }
 
-function BothEmpty({ leftSlot, rightSlot }) {
+function BothEmpty({ leftSlot, rightSlot, emptyTitle, firstLabel }) {
   const leftFirst = leftSlot?.firstTomorrow
   const rightFirst = rightSlot?.firstTomorrow
   return (
@@ -161,24 +163,24 @@ function BothEmpty({ leftSlot, rightSlot }) {
     >
       <Moon size={22} strokeWidth={1.6} aria-hidden="true" />
       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tj-mute)' }}>
-        오늘 운행 없음
+        {emptyTitle}
       </div>
       {(leftFirst || rightFirst) ? (
         <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--tj-mute-2)', fontWeight: 600 }}>
-          {leftFirst && <span>{leftSlot?.dir ? `${leftSlot.dir} ` : ''}내일 첫차 {leftFirst}</span>}
+          {leftFirst && <span>{leftSlot?.dir ? `${leftSlot.dir} ` : ''}{firstLabel} {leftFirst}</span>}
           {leftFirst && rightFirst && <span style={{ color: 'var(--tj-line)' }}>|</span>}
-          {rightFirst && <span>{rightSlot?.dir ? `${rightSlot.dir} ` : ''}내일 첫차 {rightFirst}</span>}
+          {rightFirst && <span>{rightSlot?.dir ? `${rightSlot.dir} ` : ''}{firstLabel} {rightFirst}</span>}
         </div>
       ) : (
         <div style={{ fontSize: 11, color: 'var(--tj-mute-2)' }}>
-          내일 첫차 시간을 확인하세요
+          {firstLabel} 시간을 확인하세요
         </div>
       )}
     </div>
   )
 }
 
-function SlotRenderer({ slot, align }) {
+function SlotRenderer({ slot, align, firstLabel }) {
   if (!slot || slot.variant === 'empty') {
     return (
       <div style={{ textAlign: align }}>
@@ -188,7 +190,7 @@ function SlotRenderer({ slot, align }) {
         </div>
         {slot?.firstTomorrow && (
           <div style={{ fontSize: 12, color: 'var(--tj-mute-2)', fontWeight: 600, marginTop: 3 }}>
-            내일 첫차 {slot.firstTomorrow}
+            {firstLabel} {slot.firstTomorrow}
           </div>
         )}
       </div>

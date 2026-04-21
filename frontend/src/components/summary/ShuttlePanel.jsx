@@ -34,6 +34,20 @@ function offsetDate(days) {
   return d.toISOString().slice(0, 10)
 }
 
+function toMin(t) {
+  const [h, m] = (t ?? '00:00').split(':').map(Number)
+  return h * 60 + m
+}
+
+// ShuttleCard.isInsideFrequentWindow 와 동일한 로직 — 스케줄 전체 데이터 기반
+function checkInsideFrequentWindow(scheduleData, direction) {
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const times = scheduleData?.directions?.find((d) => d.direction === direction)?.times ?? []
+  const hasPastFrequent = times.some((t) => t.note === '수시운행' && toMin(t.depart_at) <= nowMin)
+  const next = times.find((t) => toMin(t.depart_at) > nowMin)
+  return hasPastFrequent && next?.note === '수시운행'
+}
+
 export default function ShuttlePanel() {
   const campus = useAppStore((s) => s.selectedShuttleCampus)
   const setDetailModal = useAppStore((s) => s.setDetailModal)
@@ -41,6 +55,8 @@ export default function ShuttlePanel() {
   const [goDir, backDir] = campus === 'second' ? [2, 3] : [0, 1]
   const goQuery = useShuttleNext(goDir)
   const backQuery = useShuttleNext(backDir)
+  // 오늘 전체 시간표 — 수시운행 창 진입 여부 판별용 (5분 TTL 캐시, 추가 네트워크 없음)
+  const { data: schedule } = useShuttleSchedule()
 
   const anyLoading = goQuery.loading || backQuery.loading
 
@@ -88,8 +104,11 @@ export default function ShuttlePanel() {
     )
   }
 
-  const left = toSlot(goData, goDir, goFirstTomorrow)
-  const right = toSlot(backData, backDir, backFirstTomorrow)
+  const goInsideWindow = checkInsideFrequentWindow(schedule, goDir)
+  const backInsideWindow = checkInsideFrequentWindow(schedule, backDir)
+
+  const left = toSlot(goData, goDir, goFirstTomorrow, goInsideWindow)
+  const right = toSlot(backData, backDir, backFirstTomorrow, backInsideWindow)
 
   function openModal(dir) {
     const meta = DIR_META[dir]
@@ -125,7 +144,7 @@ function normalizeData(query) {
   return null
 }
 
-function toSlot(data, direction, firstTomorrow = null) {
+function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = false) {
   const meta = DIR_META[direction]
   if (!meta) return { variant: 'empty' }
   const dirText = `${meta.arrow} ${meta.label}`
@@ -144,6 +163,24 @@ function toSlot(data, direction, firstTomorrow = null) {
       time,
       descLine1: `에 ${origin}에서 출발한 버스`,
       descLine2: '회차탑승',
+    }
+  }
+
+  // 수시운행 창 밖(아직 시작 전)이면 일반 슬롯으로 표시 — "수시운행 중"으로 오해하지 않도록
+  if (isFrequent && !isInsideFreqWindow) {
+    const minutes = data.arrive_in_seconds != null
+      ? Math.max(0, Math.ceil(data.arrive_in_seconds / 60))
+      : null
+    const nextMinutes = data.next_arrive_in_seconds != null
+      ? Math.max(0, Math.ceil(data.next_arrive_in_seconds / 60))
+      : null
+    return {
+      variant: 'normal',
+      dir: dirText,
+      route: `${meta.origin} → ${meta.dest}`,
+      minutes,
+      nextMinutes,
+      isUrgent: minutes != null && minutes <= 3,
     }
   }
 

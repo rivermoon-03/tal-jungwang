@@ -25,7 +25,7 @@ export const BUS_STATIONS = {
       하교: '정왕역 경유',
     },
     perRouteDisplay: {
-      '3400': { origin: '시화터미널', dest: '사당 경유 강남행' },
+      '3400': { origin: '시화터미널', dest: '사당 경유 · 강남행' },
     },
   },
   이마트: {
@@ -79,6 +79,24 @@ export function getViaLabel(station, direction) {
 
 export function getPerRouteDisplay(station) {
   return BUS_STATIONS[station]?.perRouteDisplay ?? null
+}
+
+// 노선별 표시 색상 + 방향 레이블 (단일 소스)
+// BusPanel과 MarkerSheet 양쪽에서 동일하게 사용
+export const ROUTE_DISPLAY_CONFIG = {
+  '3400':  { color: '#DC2626', direction: '사당 경유 · 강남행' },
+  '6502':  { color: '#DC2626', direction: '사당행' },
+  '3401':  { color: '#DC2626', direction: '시흥시청 경유 · 석수행' },
+  '5602':  { color: '#2563EB', direction: '시흥시청 경유 · 구로행' },
+  '시흥33': { color: '#0891B2', direction: null },
+  '20-1':  { color: '#2563EB', direction: null },
+  '11-A':  { color: '#0891B2', direction: null },
+  '99-2':  { color: '#0891B2', direction: null },
+  '시흥1':  { color: '#0891B2', direction: null },
+}
+
+export function getRouteDisplayConfig(routeNo) {
+  return ROUTE_DISPLAY_CONFIG[routeNo] ?? null
 }
 
 // 노선 번호로 실시간 도착정보를 조회해야 할 GBIS 정류장 ID를 반환.

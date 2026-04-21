@@ -9,7 +9,7 @@ const PAD_TOP = 16
 const PAD_BOTTOM = 20
 const CROWDED_MAX = 4
 
-export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ffffff', rangeH = 24 }) {
+export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ffffff', rangeH = 24, futureMode = false }) {
   const wrapRef = useRef(null)
   const [hoverKey, setHoverKey] = useState(null)
   const [locked, setLocked] = useState(false)
@@ -21,16 +21,19 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
   }, [points])
 
   const visibleIndices = useMemo(() => {
-    if (rangeH === 24) return Array.from({ length: 48 }, (_, i) => i)
-    const half = (rangeH / 2) * 60 // 분
+    if (rangeH === 24 && !futureMode) return Array.from({ length: 48 }, (_, i) => i)
     const curMin = nowMinutes ?? 720
-    const lo = Math.max(0, curMin - half)
-    const hi = Math.min(1440, curMin + half)
+    const lo = futureMode
+      ? Math.max(0, curMin - 60)
+      : Math.max(0, curMin - (rangeH / 2) * 60)
+    const hi = futureMode
+      ? Math.min(1440, curMin + rangeH * 60)
+      : Math.min(1440, curMin + (rangeH / 2) * 60)
     return Array.from({ length: 48 }, (_, i) => i).filter((i) => {
       const m = Math.floor(i / 2) * 60 + (i % 2) * 30
       return m >= lo && m <= hi
     })
-  }, [rangeH, nowMinutes])
+  }, [rangeH, nowMinutes, futureMode])
 
   const bars = useMemo(() => {
     const innerW = W - PAD_X * 2
