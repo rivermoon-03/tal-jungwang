@@ -13,7 +13,7 @@ function timeToMinutes(t) {
   return hh * 60 + mm
 }
 
-export default function BusTimetableDetail({ routeId, routeNo, onBack }) {
+export default function BusTimetableDetail({ routeId, routeNo, destination, onBack }) {
   const { data, loading } = useBusTimetable(routeId)
   const nextRef = useRef(null)
 
@@ -34,9 +34,14 @@ export default function BusTimetableDetail({ routeId, routeNo, onBack }) {
           <ChevronLeft size={22} strokeWidth={2.5} />
         </button>
         <BusFront size={20} strokeWidth={2} />
-        <h2 className="text-lg font-bold">{routeNo}번 시간표</h2>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-bold leading-tight">{routeNo}번 시간표</h2>
+          {destination && (
+            <p className="text-xs opacity-75 truncate">{destination}</p>
+          )}
+        </div>
         {data && (
-          <span className="ml-auto text-sm opacity-75">
+          <span className="ml-auto text-sm opacity-75 shrink-0">
             {{ weekday: '평일', saturday: '토요일', sunday: '일요일' }[data.schedule_type] ?? data.schedule_type}
           </span>
         )}
