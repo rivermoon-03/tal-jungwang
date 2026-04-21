@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Navigation, School } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
-import TaxiCard from './TaxiCard'
 import DriveRoutePolyline from './DriveRoutePolyline'
 import WalkRoutePolyline from './WalkRoutePolyline'
 import WalkRouteCard from './WalkRouteCard'
@@ -18,7 +17,7 @@ import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../ho
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 
-// 한국공학대학교 정문 좌표
+// 본캠 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
 
@@ -33,15 +32,17 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const setDriveRouteCoords = useAppStore((s) => s.setDriveRouteCoords)
   const mapPanTarget        = useAppStore((s) => s.mapPanTarget)
   const setMapPanTarget     = useAppStore((s) => s.setMapPanTarget)
-  const taxiOpen            = useAppStore((s) => s.taxiOpen)
-  const setTaxiOpen         = useAppStore((s) => s.setTaxiOpen)
   const activeTab           = useAppStore((s) => s.activeTab)
 
   // 실시간 데이터 훅
   const { data: shuttleToSchoolData }   = useShuttleNext(0) // 등교: 정왕역 → 학교
   const { data: shuttleFromSchoolData } = useShuttleNext(1) // 하교: 학교 → 정왕역
+  const { data: shuttleToCampus2Data }   = useShuttleNext(2) // 2캠 등교: 본캠 → 2캠
+  const { data: shuttleFromCampus2Data } = useShuttleNext(3) // 2캠 하교: 2캠 → 본캠
   const { data: shuttleToSchoolSched }  = useShuttleSchedule(0)
   const { data: shuttleFromSchoolSched } = useShuttleSchedule(1)
+  const { data: shuttleToCampus2Sched }  = useShuttleSchedule(2)
+  const { data: shuttleFromCampus2Sched } = useShuttleSchedule(3)
   const { data: subwayNextData }        = useSubwayNext()
   const { data: seohaeTimetable }       = useSubwayTimetable()
   const { data: busArrivalsData }       = useBusArrivals(224000639)
@@ -77,19 +78,31 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const shuttleToSchoolMins = useMemo(() => {
     const sec = shuttleToSchoolData?.arrive_in_seconds
     if (sec == null) return null
-    return Math.max(0, Math.round(sec / 60))
+    return Math.max(0, Math.ceil(sec / 60))
   }, [shuttleToSchoolData])
 
   const shuttleFromSchoolMins = useMemo(() => {
     const sec = shuttleFromSchoolData?.arrive_in_seconds
     if (sec == null) return null
-    return Math.max(0, Math.round(sec / 60))
+    return Math.max(0, Math.ceil(sec / 60))
   }, [shuttleFromSchoolData])
+
+  const shuttleToCampus2Mins = useMemo(() => {
+    const sec = shuttleToCampus2Data?.arrive_in_seconds
+    if (sec == null) return null
+    return Math.max(0, Math.ceil(sec / 60))
+  }, [shuttleToCampus2Data])
+
+  const shuttleFromCampus2Mins = useMemo(() => {
+    const sec = shuttleFromCampus2Data?.arrive_in_seconds
+    if (sec == null) return null
+    return Math.max(0, Math.ceil(sec / 60))
+  }, [shuttleFromCampus2Data])
 
   const subwayLiveMinutes = useMemo(() => {
     const sec = subwayNextData?.up?.arrive_in_seconds ?? subwayNextData?.down?.arrive_in_seconds
     if (sec == null) return null
-    return Math.max(0, Math.round(sec / 60))
+    return Math.max(0, Math.ceil(sec / 60))
   }, [subwayNextData])
 
   const busLiveMinutes = useMemo(() => {
@@ -100,7 +113,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       .map((a) => a.arrive_in_seconds)
       .filter((s) => s != null)
     if (!secs.length) return null
-    return Math.max(0, Math.round(Math.min(...secs) / 60))
+    return Math.max(0, Math.ceil(Math.min(...secs) / 60))
   }, [busArrivalsData])
 
   const minsUntilNextTimetable = (timetable) => {
@@ -151,12 +164,36 @@ export default function MapView({ onMarkerClick, selectedId }) {
     const vals = [up, dn].filter((v) => v != null)
     return vals.length ? Math.min(...vals) : null
   }, [seohaeTimetable])
+  const siheungUpMinutes = useMemo(() => {
+    const liveSec = subwayNextData?.siheung_up?.arrive_in_seconds
+    if (liveSec != null) return Math.max(0, Math.ceil(liveSec / 60))
+    return nextMinFromTrains(seohaeTimetable?.siheung_up)
+  }, [subwayNextData, seohaeTimetable])
+  const siheungDnMinutes = useMemo(() => {
+    const liveSec = subwayNextData?.siheung_dn?.arrive_in_seconds
+    if (liveSec != null) return Math.max(0, Math.ceil(liveSec / 60))
+    return nextMinFromTrains(seohaeTimetable?.siheung_dn)
+  }, [subwayNextData, seohaeTimetable])
   const siheungMinutes = useMemo(() => {
-    const up = nextMinFromTrains(seohaeTimetable?.siheung_up)
-    const dn = nextMinFromTrains(seohaeTimetable?.siheung_dn)
-    const vals = [up, dn].filter((v) => v != null)
+    const vals = [siheungUpMinutes, siheungDnMinutes].filter((v) => v != null)
     return vals.length ? Math.min(...vals) : null
-  }, [seohaeTimetable])
+  }, [siheungUpMinutes, siheungDnMinutes])
+  // 시흥시청역에서 가장 빨리 오는 등교 버스 (실시간)
+  const siheungEarliestBus = useMemo(() => {
+    const arrivals = busArrivalsSiheung?.arrivals ?? []
+    let best = null
+    for (const a of arrivals) {
+      if (a.category !== '등교') continue
+      if (a.arrival_type !== 'realtime') continue
+      if (a.arrive_in_seconds == null) continue
+      if (!best || a.arrive_in_seconds < best.arrive_in_seconds) best = a
+    }
+    if (!best) return null
+    return {
+      routeNo: best.route_no,
+      minutes: Math.max(0, Math.ceil(best.arrive_in_seconds / 60)),
+    }
+  }, [busArrivalsSiheung])
 
   // 노선 번호 + 방향(out/in) → 계산된 분 lookup
   const liveMinByRouteDir = useMemo(() => ({
@@ -204,11 +241,17 @@ export default function MapView({ onMarkerClick, selectedId }) {
         // note 예: "회차편 · 학교 21:20 출발" → HH:MM 추출
         const noteMatch = isReturnTrip ? shuttleToSchoolData?.note?.match(/(\d{2}:\d{2})/) : null
         const departTime = noteMatch ? noteMatch[1] : null
+        const liveMinsByDir = {
+          0: shuttleToSchoolMins,
+          1: shuttleFromSchoolMins,
+          2: shuttleToCampus2Mins,
+          3: shuttleFromCampus2Mins,
+        }
         return {
           ...base,
           iconType: ui.iconType ?? 'bus',
           direction: ui.direction,
-          liveMinutes: isReturnTrip ? null : (ui.direction === 0 ? shuttleToSchoolMins : shuttleFromSchoolMins),
+          liveMinutes: isReturnTrip ? null : (liveMinsByDir[ui.direction] ?? null),
           showLive: isReturnTrip ? false : (ui.showLive ?? false),
           subLabel: isReturnTrip && departTime ? `하교 ${departTime} 출발` : null,
         }
@@ -230,6 +273,19 @@ export default function MapView({ onMarkerClick, selectedId }) {
         // ui_meta.tabId가 DB에 없으면 마커 key로 추론
         const tabId = ui.tabId ?? (m.key.includes('choji') ? 'choji' : 'siheung')
         const mins = tabId === 'choji' ? chojiMinutes : siheungMinutes
+        // 시흥시청: 확대 시 역명/상행↑/하행↓/가장 빠른 버스 4줄 chip
+        if (tabId === 'siheung') {
+          return {
+            ...base,
+            tabId,
+            liveMinutes: mins,
+            routes: m.routes ?? [],
+            chipVariant: 'seohaeSiheung',
+            upMinutes:   siheungUpMinutes,
+            dnMinutes:   siheungDnMinutes,
+            earliestBus: siheungEarliestBus,
+          }
+        }
         return { ...base, tabId, liveMinutes: mins, routes: m.routes ?? [] }
       }
       if (m.type === 'bus_seoul') {
@@ -286,7 +342,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       }
       return base
     })
-  }, [markersData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, liveMinByRouteDir])
+  }, [markersData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, shuttleToCampus2Mins, shuttleFromCampus2Mins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, siheungUpMinutes, siheungDnMinutes, siheungEarliestBus, liveMinByRouteDir])
 
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
@@ -315,7 +371,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
         direction:  a.destination ?? '',
         minutes:    a.arrival_type === 'timetable'
           ? (a.is_tomorrow ? `내일 ${a.depart_at}` : a.depart_at)
-          : (a.arrive_in_seconds != null ? Math.max(0, Math.round(a.arrive_in_seconds / 60)) : null),
+          : (a.arrive_in_seconds != null ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60)) : null),
         detail: {
           type: 'bus',
           routeCode:  a.route_no,
@@ -428,8 +484,16 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     if (sheetStation.type === 'shuttle') {
-      const isFrom = sheetStation.direction === 1
-      const sched = isFrom ? shuttleFromSchoolSched : shuttleToSchoolSched
+      // 하교(1) 또는 2캠 하교(3) = "from" 방향
+      const isFrom = sheetStation.direction === 1 || sheetStation.direction === 3
+      const isCampus2 = sheetStation.direction === 2 || sheetStation.direction === 3
+      const schedByDir = {
+        0: shuttleToSchoolSched,
+        1: shuttleFromSchoolSched,
+        2: shuttleToCampus2Sched,
+        3: shuttleFromCampus2Sched,
+      }
+      const sched = schedByDir[sheetStation.direction]
       const dirData = sched?.directions?.find((d) => d.direction === sheetStation.direction)
       const times = dirData?.times ?? []
       const now = new Date()
@@ -451,41 +515,46 @@ export default function MapView({ onMarkerClick, selectedId }) {
         const isLateNightGap = (_hs >= 23 || _hs < 5) && diffMin >= 100
         if (isLateNightGap) continue
 
-        const isReturnTrip = !isFrom && !!(note?.includes('회차편'))
+        // 회차편은 본캠 등교(direction=0)에만 존재
+        const isReturnTrip = sheetStation.direction === 0 && !!(note?.includes('회차편'))
         // note 예: "회차편 · 학교 21:20 출발" → HH:MM 추출
         const noteTimeMatch = isReturnTrip ? note?.match(/(\d{2}:\d{2})/) : null
         const hagyeoTimeStr = noteTimeMatch ? noteTimeMatch[1] : timeStr
+        const shortLabel = isFrom ? '하교' : '등교'
+        const dirLabel = isCampus2 ? `${shortLabel} (2캠)` : shortLabel
         upcoming.push({
-          routeCode:  isFrom ? '하교' : '등교',
+          routeCode:  dirLabel,
           routeColor: '#1b3a6e',
           direction:  isReturnTrip ? '회차탑승' : (note ? `${timeStr} · ${note}` : timeStr),
           minutes:    isReturnTrip ? `하교 ${hagyeoTimeStr} 출발` : Math.max(0, diffMin),
           detail: {
             type: 'shuttle',
-            routeCode: `셔틀${isFrom ? '하교' : '등교'}`,
+            routeCode: `셔틀${dirLabel}`,
             direction: sheetStation.direction,
-            favCode:   `shuttle:${isFrom ? '하교' : '등교'}`,
+            favCode:   `shuttle:${dirLabel}`,
             mapLat:    sheetStation.lat ?? null,
             mapLng:    sheetStation.lng ?? null,
-            title:     `셔틀버스 ${isFrom ? '하교' : '등교'}`,
+            title:     `셔틀버스 ${dirLabel}`,
           },
         })
       }
       if (upcoming.length === 0 && times.length > 0) {
         const timeStrings = times.map(t => (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5))
+        const shortLabel = isFrom ? '하교' : '등교'
+        const dirLabel = isCampus2 ? `${shortLabel} (2캠)` : shortLabel
         upcoming.push({
-          routeCode:  isFrom ? '하교' : '등교',
+          routeCode:  dirLabel,
           routeColor: '#1b3a6e',
-          direction:  isFrom ? '하교 셔틀' : '등교 셔틀',
+          direction:  `${dirLabel} 셔틀`,
           minutes:    getFirstBusLabel(timeStrings, now),
           detail: {
             type: 'shuttle',
-            routeCode: `셔틀${isFrom ? '하교' : '등교'}`,
+            routeCode: `셔틀${dirLabel}`,
             direction: sheetStation.direction,
-            favCode:   `shuttle:${isFrom ? '하교' : '등교'}`,
+            favCode:   `shuttle:${dirLabel}`,
             mapLat:    sheetStation.lat ?? null,
             mapLng:    sheetStation.lng ?? null,
-            title:     `셔틀버스 ${isFrom ? '하교' : '등교'}`,
+            title:     `셔틀버스 ${dirLabel}`,
           },
         })
       }
@@ -502,7 +571,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       // key를 routeCode에 포함시켜 상행/하행이 groupArrivalsByRoute에서 합쳐지지 않도록 함
       const addSeohae = (key, labelPrefix, defaultDest) => {
         const next = subwayNextData?.[key]
-        const diffMin = next ? Math.max(0, Math.round(next.arrive_in_seconds / 60)) : null
+        const diffMin = next ? Math.max(0, Math.ceil(next.arrive_in_seconds / 60)) : null
         const _hSeohae = now.getHours()
         const isLateNightGap = next && (_hSeohae >= 23 || _hSeohae < 5) && diffMin >= 100
         const detailPayload = {
@@ -588,7 +657,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
       const addSubway = (key, routeCode, routeColor, labelPrefix, defaultDest) => {
         const uniqueCode = `${routeCode}:${key}`
         const next = subwayNextData?.[key]
-        const diffMin = next ? Math.max(0, Math.round(next.arrive_in_seconds / 60)) : null
+        const diffMin = next ? Math.max(0, Math.ceil(next.arrive_in_seconds / 60)) : null
         const _hSubway = now.getHours()
         const isLateNightGap = next && (_hSubway >= 23 || _hSubway < 5) && diffMin >= 100
         const detailPayload = {
@@ -632,7 +701,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, sheetDirection, busArrivalsData, busArrivalsSiheung, shuttleToSchoolSched, shuttleFromSchoolSched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
+  }, [sheetStation, sheetDirection, busArrivalsData, busArrivalsSiheung, shuttleToSchoolSched, shuttleFromSchoolSched, shuttleToCampus2Sched, shuttleFromCampus2Sched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
@@ -797,7 +866,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           className="absolute inset-0 bg-slate-200"
         />
 
-        {/* 우상단 플로팅 버튼: 내 위치, 학교로 */}
+        {/* 우상단 플로팅 버튼 */}
         {mapInstance && (
           <div className="absolute top-4 right-4 flex flex-col gap-2 z-[50]">
             {/* 내 위치 FAB */}
@@ -837,17 +906,6 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
         {/* 도보 경로 카드 */}
         <WalkRouteCard />
-
-        {/* 택시 카드 — taxiOpen일 때만 마운트 */}
-        {mapInstance && taxiOpen && (
-          <TaxiCard
-            open={taxiOpen}
-            onClose={() => {
-              setTaxiOpen(false)
-              setDriveRouteCoords(null)
-            }}
-          />
-        )}
 
         {/* 마커 탭 → 바텀시트 */}
         {sheetStation && (

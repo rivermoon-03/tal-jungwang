@@ -229,6 +229,86 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
 }
 
 /**
+ * 시흥시청역 전용 — 역명 + 서해선 상/하행 + 가장 빠른 등교 버스.
+ * @param {{ stationName: string, upMinutes: number|null, dnMinutes: number|null, earliestBus: {routeNo: string, minutes: number}|null, onClick?: () => void }} opts
+ */
+export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinutes, earliestBus, onClick }) {
+  const SEOHAE = '#75bf43'
+  const BUS_COLOR = '#DC2626'
+
+  const wrapper = document.createElement('div')
+  wrapper.style.cssText = 'position:relative;display:inline-flex;cursor:pointer'
+
+  const pill = document.createElement('div')
+  pill.style.cssText = [
+    'display:flex',
+    'flex-direction:column',
+    'gap:3px',
+    'background:#fff',
+    'border-radius:14px',
+    'padding:6px 10px',
+    'box-shadow:0 4px 14px rgba(0,0,0,0.1)',
+    'user-select:none',
+    'white-space:nowrap',
+    'min-width:112px',
+  ].join(';')
+
+  // 1줄: 역명
+  const title = document.createElement('div')
+  title.style.cssText = 'font-size:12px;font-weight:800;color:#1b3a6e;text-align:center'
+  title.textContent = stationName
+  pill.appendChild(title)
+
+  // 공통 행 빌더
+  const makeRow = ({ badgeBg, badgeText, minutes }) => {
+    const row = document.createElement('div')
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#1b3a6e'
+
+    const badge = document.createElement('span')
+    badge.style.cssText = [
+      'display:inline-flex',
+      'align-items:center',
+      'justify-content:center',
+      'min-width:28px',
+      'height:16px',
+      'padding:0 6px',
+      'border-radius:8px',
+      `background:${badgeBg}`,
+      'color:#fff',
+      'font-size:9px',
+      'font-weight:700',
+      'flex-shrink:0',
+    ].join(';')
+    badge.textContent = badgeText
+    row.appendChild(badge)
+
+    const mins = document.createElement('span')
+    mins.style.cssText = `margin-left:auto;color:${minutes != null ? '#102c4c' : '#94a3b8'}`
+    mins.textContent = minutes != null ? `${minutes}분` : '—'
+    row.appendChild(mins)
+    return row
+  }
+
+  // 2줄: 상행
+  pill.appendChild(makeRow({ badgeBg: SEOHAE, badgeText: '상행↑', minutes: upMinutes }))
+  // 3줄: 하행
+  pill.appendChild(makeRow({ badgeBg: SEOHAE, badgeText: '하행↓', minutes: dnMinutes }))
+
+  // 4줄 (선택): 가장 빠른 등교 버스
+  if (earliestBus) {
+    pill.appendChild(makeRow({
+      badgeBg: BUS_COLOR,
+      badgeText: earliestBus.routeNo,
+      minutes: earliestBus.minutes,
+    }))
+  }
+
+  wrapper.appendChild(pill)
+  if (onClick) wrapper.addEventListener('click', onClick)
+  return wrapper
+}
+
+/**
  * 정왕역 전용 — 수인분당선·4호선 상/하행 2x2 그리드 오버레이.
  * @param {{ subwayData: { up, down, line4_up, line4_down }|null, onClick?: () => void }} opts
  */
@@ -259,7 +339,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
   for (const line of LINES) {
     const entry = subwayData?.[line.key]
     const minutes = entry?.arrive_in_seconds != null
-      ? Math.max(0, Math.round(entry.arrive_in_seconds / 60))
+      ? Math.max(0, Math.ceil(entry.arrive_in_seconds / 60))
       : null
 
     const cell = document.createElement('span')
