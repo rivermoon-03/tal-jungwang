@@ -17,6 +17,14 @@ import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../ho
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 
+function getPrimaryStopId(marker) {
+  if (!marker) return null
+  if (marker.type === 'bus') return marker.ui_meta?.primaryStopGbisId ?? null
+  const first = marker.routes?.[0]
+  if (!first) return null
+  return first.outbound_stop_gbis_id ?? first.outbound_stop_id ?? null
+}
+
 // 본캠 정문 좌표
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
@@ -350,26 +358,42 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
+  const [sheetBusArrivals, setSheetBusArrivals] = useState(null)
+  const [sheetBusLoading, setSheetBusLoading] = useState(false)
   const [sheetDirection, setSheetDirection] = useState('outbound')
+
+  useEffect(() => {
+    if (!sheetStation) {
+      setSheetBusArrivals(null)
+      return
+    }
+    const stopId = getPrimaryStopId(sheetStation)
+    if (!stopId) {
+      setSheetBusArrivals(null)
+      return
+    }
+    let cancelled = false
+    setSheetBusLoading(true)
+    apiFetch(`/bus/arrivals/${stopId}`)
+      .then((res) => { if (!cancelled) setSheetBusArrivals(res?.data ?? null) })
+      .catch(() => { if (!cancelled) setSheetBusArrivals(null) })
+      .finally(() => { if (!cancelled) setSheetBusLoading(false) })
+    return () => { cancelled = true }
+  }, [sheetStation])
 
   // MarkerSheet arrivals 계산
   const sheetArrivals = useMemo(() => {
     if (!sheetStation) return []
 
-    if (sheetStation.type === 'bus') {
-      const arrivals = busArrivalsData?.arrivals ?? []
-      // 노선별 첫 번째 도착만 추출 (같은 노선 중복 제거), 최대 6개
-      const seenRoutes = new Set()
-      const deduped = []
-      for (const a of arrivals) {
-        if (!seenRoutes.has(a.route_no)) {
-          seenRoutes.add(a.route_no)
-          deduped.push(a)
-        }
-        if (deduped.length >= 6) break
-      }
+    if (sheetStation.type === 'bus' || sheetStation.type === 'bus_seoul') {
+      const arrivals = sheetBusArrivals?.arrivals ?? []
       const nowBus = new Date()
-      return deduped.map((a) => {
+      const seenRoutes = new Set()
+      const result = []
+      for (const a of arrivals) {
+        if (seenRoutes.has(a.route_no)) continue
+        seenRoutes.add(a.route_no)
+
         let minutes
         if (a.arrival_type === 'timetable') {
           if (a.is_tomorrow) {
@@ -383,149 +407,30 @@ export default function MapView({ onMarkerClick, selectedId }) {
             minutes = null
           }
         } else {
-          minutes = a.arrive_in_seconds != null ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60)) : null
+          minutes = a.arrive_in_seconds != null
+            ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60))
+            : null
         }
-        return {
+
+        result.push({
           routeCode:  a.route_no,
           routeColor: null,
           direction:  a.destination ?? '',
           minutes,
           detail: {
-            type: 'bus',
+            type:       'bus',
             routeCode:  a.route_no,
-            routeId:    null,
-            stopId:     null,
-            favCode:    `하교:${a.route_no}`,
+            routeId:    a.route_id ?? null,
+            stopId:     sheetBusArrivals?.station_id ?? null,
+            favCode:    `${a.category ?? '하교'}:${a.route_no}`,
             mapLat:     sheetStation.lat ?? null,
             mapLng:     sheetStation.lng ?? null,
             isRealtime: a.arrival_type !== 'timetable',
             title:      a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
           },
-        }
-      })
-    }
+        })
 
-    if (sheetStation.type === 'bus_seoul') {
-      const isOutbound = sheetDirection === 'outbound'
-      const pickTimetableFor = (r) => {
-        const wantStopId = isOutbound ? r.outbound_stop_id : r.inbound_stop_id
-        if (r.route_number === '3400') {
-          if (wantStopId === stopIds.sihwa)   return timetable3400Out
-          if (wantStopId === stopIds.gangnam) return timetable3400In
-        } else if (r.route_number === '6502') {
-          if (wantStopId === stopIds.emart)  return timetable6502Out
-          if (wantStopId === stopIds.sadang) return timetable6502In
-        } else if (r.route_number === '3401') {
-          if (wantStopId === stopIds.emart)  return timetable3401Out
-          if (wantStopId === stopIds.seoksu) return timetable3401In
-        } else if (r.route_number === '5602') {
-          if (wantStopId === stopIds.emart) return timetable5602Out
-          if (wantStopId === stopIds.guro)  return timetable5602In
-        }
-        return null
-      }
-      const now = new Date()
-      const routes = sheetStation.routes ?? []
-      // 5602는 지선(파랑 B)이지만 DB엔 G/빨강으로 저장돼 있어 표시 단에서 덮어쓴다.
-      const badgeFor = (r) => r.route_number === '5602' ? 'B' : r.badge_text
-      const colorFor = (r) => r.route_number === '5602' ? '#2563eb' : (r.route_color ?? '#DC2626')
-      const result = []
-      for (const r of routes) {
-        const label = (isOutbound ? r.ui_meta?.outboundDirLabel : r.ui_meta?.inboundDirLabel) ?? ''
-        const timetable = pickTimetableFor(r)
-        const times = timetable?.times ?? []
-        const notes = timetable?.notes ?? []
-        let picked = 0
-        for (let i = 0; i < times.length; i++) {
-          const [hh, mm] = String(times[i]).split(':').map(Number)
-          if (Number.isNaN(hh) || Number.isNaN(mm)) continue
-
-          const tDate = new Date(now)
-          tDate.setHours(hh, mm, 0, 0)
-          if (tDate <= now) continue // 이미 지난 시간 건너뜀 (내일로 롤오버 금지)
-
-          const diffMin = Math.ceil((tDate - now) / 60000)
-          if (diffMin > 12 * 60) continue // 12시간 이후는 제외
-
-          // 밤 11시 이후 또는 자정~새벽 5시에 100분 이상 남으면 첫차 라벨로 전환
-          const _h = now.getHours()
-          const isLateNightGap = (_h >= 23 || _h < 5) && diffMin >= 100
-          if (isLateNightGap) continue
-
-          const note = notes[i]
-          const badge = badgeFor(r)
-          const color = colorFor(r)
-          result.push({
-            routeCode:  badge ? `${badge}:${r.route_number}` : r.route_number,
-            routeColor: color,
-            direction:  note ? `${r.route_number} · ${label} · ${note}` : `${r.route_number} · ${label}`,
-            minutes:    diffMin,
-            detail: {
-              type: 'bus',
-              routeCode:  r.route_number,
-              routeId:    r.route_id ?? null,
-              stopId:     isOutbound ? (r.outbound_stop_id ?? null) : (r.inbound_stop_id ?? null),
-              favCode:    `${isOutbound ? '등교' : '하교'}:${r.route_number}`,
-              mapLat:     sheetStation.lat ?? null,
-              mapLng:     sheetStation.lng ?? null,
-              isRealtime: false,
-              title:      `${r.route_number} · ${label}`,
-              accentColor: color,
-            },
-          })
-          picked += 1
-          if (picked >= 3) break
-        }
-        if (picked === 0 && times.length > 0) {
-          const badge = badgeFor(r)
-          const color = colorFor(r)
-          result.push({
-            routeCode:  badge ? `${badge}:${r.route_number}` : r.route_number,
-            routeColor: color,
-            direction:  `${r.route_number} · ${label}`,
-            minutes:    getFirstBusLabel(times, now),
-            detail: {
-              type: 'bus',
-              routeCode:  r.route_number,
-              routeId:    r.route_id ?? null,
-              stopId:     isOutbound ? (r.outbound_stop_id ?? null) : (r.inbound_stop_id ?? null),
-              favCode:    `${isOutbound ? '등교' : '하교'}:${r.route_number}`,
-              mapLat:     sheetStation.lat ?? null,
-              mapLng:     sheetStation.lng ?? null,
-              isRealtime: false,
-              title:      `${r.route_number} · ${label}`,
-              accentColor: color,
-            },
-          })
-        }
-        // timetable 없는 노선(99-2 등)은 이마트 정류장 실시간 도착으로 fallback
-        if (times.length === 0 && isOutbound && r.outbound_stop_id != null) {
-          const emartArrivals = busArrivalsEmart?.arrivals ?? []
-          const matched = emartArrivals.filter((a) => String(a.route_no) === String(r.route_number)).slice(0, 2)
-          const badge = badgeFor(r)
-          const color = colorFor(r)
-          for (const a of matched) {
-            const minutes = a.arrive_in_seconds != null ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60)) : null
-            result.push({
-              routeCode:  badge ? `${badge}:${r.route_number}` : r.route_number,
-              routeColor: color,
-              direction:  `${r.route_number} · ${label || a.destination || ''}`,
-              minutes,
-              detail: {
-                type: 'bus',
-                routeCode:  r.route_number,
-                routeId:    r.route_id ?? null,
-                stopId:     r.outbound_stop_id,
-                favCode:    `하교:${r.route_number}`,
-                mapLat:     sheetStation.lat ?? null,
-                mapLng:     sheetStation.lng ?? null,
-                isRealtime: true,
-                title:      `${r.route_number} · ${label || a.destination || ''}`,
-                accentColor: color,
-              },
-            })
-          }
-        }
+        if (result.length >= 6) break
       }
       return result
     }
@@ -760,7 +665,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, sheetDirection, busArrivalsData, busArrivalsSiheung, busArrivalsEmart, shuttleToSchoolSched, shuttleFromSchoolSched, shuttleToCampus2Sched, shuttleFromCampus2Sched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
+  }, [sheetStation, sheetDirection, sheetBusArrivals, busArrivalsSiheung, shuttleToSchoolSched, shuttleFromSchoolSched, shuttleToCampus2Sched, shuttleFromCampus2Sched, subwayNextData, seohaeTimetable])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
