@@ -47,6 +47,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const { data: seohaeTimetable }       = useSubwayTimetable()
   const { data: busArrivalsData }       = useBusArrivals(224000639)
   const { data: busArrivalsSiheung }    = useBusArrivals(224000586)
+  const { data: busArrivalsEmart }      = useBusArrivals(224000513)
   const { data: stationsData }          = useBusStations()
   const { data: markersData }           = useMapMarkers()
 
@@ -497,6 +498,34 @@ export default function MapView({ onMarkerClick, selectedId }) {
             },
           })
         }
+        // timetable 없는 노선(99-2 등)은 이마트 정류장 실시간 도착으로 fallback
+        if (times.length === 0 && isOutbound && r.outbound_stop_id != null) {
+          const emartArrivals = busArrivalsEmart?.arrivals ?? []
+          const matched = emartArrivals.filter((a) => String(a.route_no) === String(r.route_number)).slice(0, 2)
+          const badge = badgeFor(r)
+          const color = colorFor(r)
+          for (const a of matched) {
+            const minutes = a.arrive_in_seconds != null ? Math.max(0, Math.ceil(a.arrive_in_seconds / 60)) : null
+            result.push({
+              routeCode:  badge ? `${badge}:${r.route_number}` : r.route_number,
+              routeColor: color,
+              direction:  `${r.route_number} · ${label || a.destination || ''}`,
+              minutes,
+              detail: {
+                type: 'bus',
+                routeCode:  r.route_number,
+                routeId:    r.route_id ?? null,
+                stopId:     r.outbound_stop_id,
+                favCode:    `하교:${r.route_number}`,
+                mapLat:     sheetStation.lat ?? null,
+                mapLng:     sheetStation.lng ?? null,
+                isRealtime: true,
+                title:      `${r.route_number} · ${label || a.destination || ''}`,
+                accentColor: color,
+              },
+            })
+          }
+        }
       }
       return result
     }
@@ -731,7 +760,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
     }
 
     return []
-  }, [sheetStation, sheetDirection, busArrivalsData, busArrivalsSiheung, shuttleToSchoolSched, shuttleFromSchoolSched, shuttleToCampus2Sched, shuttleFromCampus2Sched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
+  }, [sheetStation, sheetDirection, busArrivalsData, busArrivalsSiheung, busArrivalsEmart, shuttleToSchoolSched, shuttleFromSchoolSched, shuttleToCampus2Sched, shuttleFromCampus2Sched, subwayNextData, timetable3400Out, timetable3400In, timetable6502Out, timetable6502In, timetable3401Out, timetable3401In, timetable5602Out, timetable5602In, stopIds, seohaeTimetable])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()
