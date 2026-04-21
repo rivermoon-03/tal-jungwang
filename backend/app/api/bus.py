@@ -18,8 +18,10 @@ from app.schemas.bus import (
     BusStationResponse,
     BusTimetableResponse,
 )
+from app.schemas.traffic import CrowdingFlowResponse
 from app.core.cache import get_cached_json, set_cached_json
 from app.services.bus import get_arrivals, get_stations, get_timetable, get_timetable_by_route_number
+from app.services.crowding_flow import compute_crowding_flow
 from app.services.external.gbis import fetch_bus_locations
 
 router = APIRouter(prefix="/api/v1/bus", tags=["bus"])
@@ -264,6 +266,32 @@ async def bus_history_preview(
         "stop_name": stop_name or "",
         "columns": columns,
     })
+
+
+_CROWDING_FLOW_CACHE_TTL = 1800  # 30분 — 혼잡도 누적은 천천히 바뀜
+
+
+@router.get("/crowding/{route_number}")
+@limiter.limit("30/minute")
+async def bus_crowding_flow(
+    request: Request,
+    route_number: str,
+    day_type: str = Query("weekday", pattern="^(weekday|weekend)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """노선별 24시간 혼잡도 곡선 (30분 버킷, 최근 60일 평균).
+
+    GBIS crowded1/crowded2 필드(1~4)를 bus_crowding_logs에서 집계한다.
+    실시간 추적 노선(gbis_route_id 존재)만 데이터가 쌓인다.
+    """
+    cache_key = f"crowding:flow:{route_number}:{day_type}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return ApiResponse[CrowdingFlowResponse].ok(cached)
+
+    data = await compute_crowding_flow(db, route_no=route_number, day_type=day_type)
+    await set_cached_json(cache_key, data, ttl=_CROWDING_FLOW_CACHE_TTL)
+    return ApiResponse[CrowdingFlowResponse].ok(data)
 
 
 @router.get("/locations/{route_id}")

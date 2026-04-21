@@ -20,8 +20,8 @@ describe('BottomDock', () => {
   it('4개 탭 라벨 모두 렌더링', () => {
     render(<BottomDock />)
     expect(screen.getByText('지도')).toBeInTheDocument()
-    expect(screen.getByText('즐겨찾기')).toBeInTheDocument()
     expect(screen.getByText('시간표')).toBeInTheDocument()
+    expect(screen.getByText('통계')).toBeInTheDocument()
     expect(screen.getByText('더보기')).toBeInTheDocument()
   })
 
@@ -34,13 +34,13 @@ describe('BottomDock', () => {
     setPathname('/')
     render(<BottomDock />)
     expect(screen.getByRole('link', { name: '지도' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: '즐겨찾기' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: '시간표' })).not.toHaveAttribute('aria-current')
   })
 
-  it('pathname=/favorites 이면 즐겨찾기 탭이 active', () => {
-    setPathname('/favorites')
+  it('pathname=/stats 이면 통계 탭이 active', () => {
+    setPathname('/stats')
     render(<BottomDock />)
-    expect(screen.getByRole('link', { name: '즐겨찾기' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: '통계' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: '지도' })).not.toHaveAttribute('aria-current')
   })
 
@@ -61,17 +61,17 @@ describe('BottomDock', () => {
     const pushSpy = vi.spyOn(window.history, 'pushState')
     render(<BottomDock />)
 
-    fireEvent.click(screen.getByRole('link', { name: '즐겨찾기' }))
+    fireEvent.click(screen.getByRole('link', { name: '통계' }))
 
-    expect(pushSpy).toHaveBeenCalledWith({}, '', '/favorites')
+    expect(pushSpy).toHaveBeenCalledWith({}, '', '/stats')
   })
 
   it('현재 경로와 동일한 탭 클릭 시 pushState가 호출되지 않는다', () => {
-    setPathname('/favorites')
+    setPathname('/stats')
     const pushSpy = vi.spyOn(window.history, 'pushState')
     render(<BottomDock />)
 
-    fireEvent.click(screen.getByRole('link', { name: '즐겨찾기' }))
+    fireEvent.click(screen.getByRole('link', { name: '통계' }))
 
     expect(pushSpy).not.toHaveBeenCalled()
   })

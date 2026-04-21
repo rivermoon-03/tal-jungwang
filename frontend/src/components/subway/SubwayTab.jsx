@@ -160,7 +160,7 @@ export default function SubwayTab() {
           <button
             key={name}
             onClick={() => setStationTab(name)}
-            className={`px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
+            className={`pressable px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
               stationTab === name
                 ? 'bg-navy text-white'
                 : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
@@ -180,7 +180,7 @@ export default function SubwayTab() {
           <LastTrainBanner warnings={lastTrainWarnings} />
           <div className="p-4 flex flex-col gap-3">
             {[activeGroup].map((group) => (
-              <div key={group.stationName}>
+              <div key={group.stationName} className="animate-fade-in">
                 <div className="flex flex-col gap-3">
                   {group.cards.map((card) => {
                     const dest = getNextDestination(timetable?.[card.key]) ?? card.fallback

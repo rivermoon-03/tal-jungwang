@@ -6,7 +6,6 @@ import MainTab from './components/map/MainTab'
 import SubwayTab from './components/subway/SubwayTab'
 import TransitTab from './components/transit/TransitTab'
 import MoreTab from './components/more/MoreTab'
-import NowTab from './components/now/NowTab'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
 import BottomDock from './components/layout/BottomDock'
@@ -16,24 +15,18 @@ import MorePage from './pages/MorePage'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
 import { useNotices } from './hooks/useMore'
 
-const VALID_HASH_TABS = ['now', 'main', 'map', 'transit', 'subway', 'more']
+const VALID_HASH_TABS = ['main', 'map', 'transit', 'subway', 'more']
 
-function hashToTab(hash, firstScreen = 'now') {
+function hashToTab(hash) {
   const id = hash.replace(/^#\/?/, '')
-  if (!id) return firstScreen === 'map' ? 'map' : 'now'
-  return VALID_HASH_TABS.includes(id) ? id : 'now'
+  if (!id) return 'map'
+  return VALID_HASH_TABS.includes(id) ? id : 'map'
 }
 
 function pathnameToPage(pathname) {
   if (pathname.startsWith('/schedule'))  return 'schedule'
-  if (pathname.startsWith('/stats'))     return 'stats'   // legacy — unreachable from dock
+  if (pathname.startsWith('/stats'))     return 'stats'
   if (pathname.startsWith('/more'))      return 'more-page'
-  return null
-}
-
-// Some pathnames should force a specific activeTab (e.g. /map → 지도 탭)
-function pathnameToTab(pathname) {
-  if (pathname.startsWith('/map')) return 'map'
   return null
 }
 
@@ -41,7 +34,6 @@ export default function App() {
   const activeTab     = useAppStore((s) => s.activeTab)
   const setActiveTab  = useAppStore((s) => s.setActiveTab)
   const setTabBadges  = useAppStore((s) => s.setTabBadges)
-  const firstScreen   = useAppStore((s) => s.firstScreen)
 
   useTheme()
 
@@ -59,8 +51,7 @@ export default function App() {
     const page = pathnameToPage(window.location.pathname)
     setCurrentPage(page)
     if (!page) {
-      const forced = pathnameToTab(window.location.pathname)
-      const initial = forced ?? hashToTab(window.location.hash, firstScreen)
+      const initial = hashToTab(window.location.hash)
       if (initial !== activeTab) setActiveTab(initial)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -70,23 +61,20 @@ export default function App() {
       const page = pathnameToPage(window.location.pathname)
       setCurrentPage(page)
       if (!page) {
-        const forced = pathnameToTab(window.location.pathname)
-        setActiveTab(forced ?? hashToTab(window.location.hash, firstScreen))
+        setActiveTab(hashToTab(window.location.hash))
       }
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [setActiveTab, firstScreen])
+  }, [setActiveTab])
 
   useEffect(() => {
     if (currentPage) return
-    // Skip hash-sync when pathname pins the tab (/map).
-    if (pathnameToTab(window.location.pathname)) return
-    const current = hashToTab(window.location.hash, firstScreen)
+    const current = hashToTab(window.location.hash)
     if (current !== activeTab) {
       history.pushState(null, '', `#${activeTab}`)
     }
-  }, [activeTab, currentPage, firstScreen])
+  }, [activeTab, currentPage])
 
   if (currentPage === 'schedule') {
     return (
@@ -152,14 +140,7 @@ export default function App() {
         </div>
 
         <main className="flex-1 overflow-hidden min-h-0 relative">
-          {/* 지금 탭 — 새 랜딩 */}
-          {activeTab === 'now' && (
-            <div key="now" className="h-full overflow-hidden animate-fade-in">
-              <NowTab />
-            </div>
-          )}
-
-          {/* 모바일: 2단 스냅 MainShell (activeTab=map 또는 레거시 main) */}
+          {/* 모바일: 2단 스냅 MainShell (기본 랜딩) */}
           {(activeTab === 'map' || activeTab === 'main') && <MainShell />}
 
           {/* PC: 기존 MainTab 유지 (md:block) */}

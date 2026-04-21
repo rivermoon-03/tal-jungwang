@@ -7,7 +7,7 @@ import { ChevronLeft, Construction } from 'lucide-react'
 
 export default function NotificationsPage({ onBack }) {
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-slide-in-right">
       {/* header — NoticesPage와 통일된 스타일 */}
       <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-white dark:bg-surface-dark border-b border-slate-100 dark:border-border-dark flex-shrink-0">
         <button

@@ -18,9 +18,13 @@ async def compute_flow(
     db: AsyncSession,
     road_name: str = "마유로",
     day_type: str = "weekday",
+    direction: str | None = None,
     lookback_days: int = 60,
 ) -> dict:
-    """최근 `lookback_days`일간의 혼잡도를 30분 간격으로 집계."""
+    """최근 `lookback_days`일간의 혼잡도·속도를 30분 간격으로 집계.
+
+    direction=None이면 두 방향(to_school, to_station)을 모두 포함해 평균.
+    """
     since = datetime.now(KST) - timedelta(days=lookback_days)
 
     # KST 기준 타임스탬프 표현식 — 서울 시간대로 변환 후 시/분 추출
@@ -36,16 +40,23 @@ async def compute_flow(
             hour_expr.label("h"),
             half_expr.label("m"),
             func.avg(TrafficHistory.congestion).label("avg_cong"),
+            func.avg(TrafficHistory.speed).label("avg_speed"),
             func.count(func.distinct(func.date(ts_kst))).label("days"),
         )
         .where(TrafficHistory.road_name == road_name)
         .where(TrafficHistory.collected_at >= since)
+        # TMAP 세그먼트 duration이 비정상적으로 짧게 찍히는 케이스(예: 281m/2초 → 505km/h)를
+        # 집계에서 제외. 60km/h는 도시 간선도로 상한으로 실제 주행 상한을 벗어나는 값을 컷.
+        .where(TrafficHistory.speed < 60)
     )
 
     if day_type == "weekday":
         stmt = stmt.where(dow_expr <= 5)
     else:  # weekend
         stmt = stmt.where(dow_expr > 5)
+
+    if direction:
+        stmt = stmt.where(TrafficHistory.direction == direction)
 
     stmt = stmt.group_by("h", "m").order_by("h", "m")
 
@@ -56,6 +67,7 @@ async def compute_flow(
             "hour": int(r.h),
             "minute": int(r.m),
             "congestion": float(r.avg_cong),
+            "speed": float(r.avg_speed),
         }
         for r in rows
     ]
