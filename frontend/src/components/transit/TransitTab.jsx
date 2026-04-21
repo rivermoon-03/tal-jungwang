@@ -19,6 +19,7 @@ export default function TransitTab() {
       <BusTimetableDetail
         routeId={timetableRoute.routeId}
         routeNo={timetableRoute.routeNo}
+        destination={timetableRoute.destination}
         onBack={() => setTimetableRoute(null)}
       />
     )

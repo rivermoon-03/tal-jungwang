@@ -156,7 +156,7 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
     return (
       <button
         className="w-full rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark text-left pressable"
-        onClick={() => onTimetableClick(first.route_id, first.route_no)}
+        onClick={() => onTimetableClick(first.route_id, first.route_no, first.destination)}
       >
         {inner}
       </button>
