@@ -113,7 +113,11 @@ export default function GlobalSubwayDetailSheet() {
             const mins = Math.ceil(secs / 60)
             etaLabel = mins <= 0 ? '이미 도착' : `${mins}분 후`
           } else if ([3, 4, 5].includes(rtTrain.status_code)) {
-            etaLabel = '곧 도착'
+            if (displayed.lineName === '4호선' && displayed.direction === '상행' && rtTrain.status_code === 5 && (rtTrain.location_msg?.includes('오이도') || rtTrain.current_station === '오이도')) {
+              etaLabel = '오이도'
+            } else {
+              etaLabel = '곧 도착'
+            }
           } else {
             const count = getStationCount(rtTrain)
             if (count != null && count > 0) {

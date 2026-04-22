@@ -84,10 +84,16 @@ function locationSub(train) {
 
 export function RealtimeSlot({ train, dir, align, onClick }) {
   const statusInfo = train ? getStatusInfo(train.status_code) : null
-  const isUrgent = statusInfo?.level === 'urgent'
-  const isNear = statusInfo?.level === 'near'
+  let label = arrivalLabel(train)
+  const isOidoWait = train?.line === '4호선' && train?.direction === '상행' && train?.status_code === 5 && (train?.location_msg?.includes('오이도') || train?.current_station === '오이도')
+  
+  if (isOidoWait) {
+    label = '오이도'
+  }
 
-  const label = arrivalLabel(train)
+  const isUrgent = statusInfo?.level === 'urgent' || isOidoWait
+  const isNear = statusInfo?.level === 'near' && !isOidoWait
+
   const sub = train ? locationSub(train) : null
   const isRunning = label === '운행 중'
   // 타이포그래피 강조: labelSize
