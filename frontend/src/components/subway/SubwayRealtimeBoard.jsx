@@ -103,11 +103,13 @@ export default function SubwayRealtimeBoard({ arrivals, onRowClick }) {
 
   const line4 = arrivals.filter((a) => a.line === '4호선')
   const suinbundang = arrivals.filter((a) => a.line === '수인분당선')
+  const seohae = arrivals.filter((a) => a.line === '서해선')
 
   return (
     <div className="flex-1 overflow-y-auto">
       <Section lineName="4호선" color="#1B5FAD" items={line4} onRowClick={onRowClick} />
       <Section lineName="수인분당선" color="#F5A623" items={suinbundang} onRowClick={onRowClick} />
+      <Section lineName="서해선" color="#75bf43" items={seohae} onRowClick={onRowClick} />
     </div>
   )
 }
