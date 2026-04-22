@@ -42,6 +42,11 @@ const useAppStore = create(
       setSubwayLineSheet: (item) => set({ subwayLineSheet: item }),
       closeSubwayLineSheet: () => set({ subwayLineSheet: null }),
 
+      // 지하철 시간표+실시간 상세 시트 (지도 탭 패널 → App 레벨 렌더링)
+      subwayDetailSheet: null, // { station, lineName, timetableKey, direction, color, darkColor, lightColor, symbol } | null
+      setSubwayDetailSheet: (item) => set({ subwayDetailSheet: item }),
+      closeSubwayDetailSheet: () => set({ subwayDetailSheet: null }),
+
       // ── 신규 테마 / UX 상태 (persist 대상) ───────────────────────────
       themeMode: 'system',          // 'light' | 'dark' | 'system'
       setThemeMode: (mode) => set({ themeMode: mode }),

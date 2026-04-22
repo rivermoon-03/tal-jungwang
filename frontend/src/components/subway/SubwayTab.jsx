@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { TrainFront, ChevronLeft } from 'lucide-react'
+import { TrainFront, ChevronLeft, Map } from 'lucide-react'
 import { useSubwayTimetable, useSubwayRealtime } from '../../hooks/useSubway'
+import useAppStore from '../../stores/useAppStore'
 import SubwayLineCard from './SubwayLineCard'
 import SubwayCountdown from './SubwayCountdown'
 import SubwayTimetable from './SubwayTimetable'
 import SubwayRealtimeBoard from './SubwayRealtimeBoard'
-import SubwayLineMap from './SubwayLineMap'
+import { RealtimeCompactCard } from './SubwayRealtimeCard'
 import { getLastTrainStatus, getSpecialTrainIndices } from '../../utils/trainTime'
 
 function timeToMinutes(t) {
@@ -17,6 +18,11 @@ function getNextDestination(trains) {
   if (!trains?.length) return null
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
   return trains.find((t) => timeToMinutes(t.depart_at) > nowMin)?.destination ?? null
+}
+
+function cleanMsg(msg) {
+  if (!msg) return ''
+  return msg.replace(/\[(\d+)\]/g, '$1').replace(/\[([^\]]+)\]/g, '$1')
 }
 
 // 역별 카드 정의
@@ -91,135 +97,196 @@ function LastTrainBanner({ warnings }) {
 
 const STATION_TABS = STATION_GROUPS.map((g) => g.stationName)
 
-// 역 탭명 → 실시간 데이터 키 (백엔드 응답 dict 키와 일치)
+// 역 탭명 → 실시간 데이터 키
 const STATION_REALTIME_KEY = {
   '정왕역': '정왕',
   '초지역': '초지',
   '시흥시청역': '시흥시청',
 }
 
-// 역 탭명 → SubwayLineMap viewStation prop
+// 역 탭명 → SubwayLineMap viewStation
 const STATION_VIEW = {
   '정왕역': '정왕',
   '초지역': '초지',
   '시흥시청역': '시흥시청',
 }
 
+// 시간표 모드 실시간 요약에 사용하는 노선 메타
+const LINE_META_COMPACT = {
+  '4호선':    { symbol: '4', color: '#1B5FAD' },
+  '수인분당선': { symbol: '수', color: '#F5A623' },
+  '서해선':   { symbol: '서', color: '#75bf43' },
+}
+
+// ── 통합 상세 뷰 ─────────────────────────────────────────────────────────────
+function UnifiedDetail({ card, realtimeTrain, timetable, loading, onBack, viewStation }) {
+  const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
+
+  const trains = timetable?.[card.key] ?? []
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const nextIndex = trains.findIndex((t) => timeToMinutes(t.depart_at) > nowMin)
+  const nextTrain = nextIndex >= 0 ? trains[nextIndex] : null
+  const { lastIdx, firstIdx } = getSpecialTrainIndices(trains)
+
+  const titleDest = realtimeTrain
+    ? realtimeTrain.destination
+    : (getNextDestination(trains) ?? card.fallback)
+
+  // 실시간 열차 상태 표시
+  const renderRealtimeStatus = () => {
+    if (!realtimeTrain) return null
+    const secs = realtimeTrain.arrive_seconds
+    const isImminent = [0, 1, 5].includes(realtimeTrain.status_code)
+    let etaLabel
+    if (isImminent) etaLabel = '곧 도착'
+    else if (secs != null && secs >= 0) {
+      const mins = Math.ceil(secs / 60)
+      etaLabel = mins <= 0 ? '곧 도착' : `${mins}분 후`
+    } else {
+      etaLabel = cleanMsg(realtimeTrain.location_msg) || cleanMsg(realtimeTrain.status_msg) || '운행 중'
+    }
+
+    return (
+      <div className="mx-4 mt-3 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 bg-slate-50 dark:bg-slate-800/50">
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">이 열차 실시간</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              {realtimeTrain.destination}행
+            </span>
+            {realtimeTrain.is_last_train && (
+              <span className="ml-1.5 text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">막차</span>
+            )}
+            {realtimeTrain.train_type && realtimeTrain.train_type !== '일반' && realtimeTrain.train_type !== '' && (
+              <span className="ml-1 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full"
+                style={{ background: card.color }}>{realtimeTrain.train_type}</span>
+            )}
+            <p className="text-xs text-slate-400 mt-0.5">
+              {cleanMsg(realtimeTrain.status_msg) || ''}{realtimeTrain.location_msg ? ` · ${cleanMsg(realtimeTrain.location_msg)}` : ''}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-lg font-black"
+              style={{ color: isImminent ? '#dc2626' : card.color }}
+            >
+              {etaLabel}
+            </span>
+            <button
+              onClick={() => setSubwayLineSheet(realtimeTrain)}
+              className="flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <Map size={12} />
+              노선도
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-full animate-slide-in-right">
+      {/* 헤더 */}
+      <div
+        className="flex items-center gap-2 text-white px-4 py-4 flex-shrink-0"
+        style={{ backgroundColor: card.color }}
+      >
+        <button onClick={onBack} className="p-0.5 -ml-1 rounded">
+          <ChevronLeft size={22} strokeWidth={2.5} />
+        </button>
+        <TrainFront size={20} strokeWidth={2} />
+        <h2 className="text-lg font-bold flex-1 truncate">
+          {card.lineName} · {card.upDown} · {titleDest} 방면
+        </h2>
+      </div>
+
+      {/* 실시간 상태 (열차 클릭 시) */}
+      {renderRealtimeStatus()}
+
+      {/* 카운트다운 */}
+      <SubwayCountdown nextTrain={nextTrain} lineColor={card.color} lineDarkColor={card.darkColor} />
+
+      {/* 시간표 */}
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-base text-slate-400">불러오는 중...</p>
+        </div>
+      ) : (
+        <SubwayTimetable
+          entries={trains}
+          nextIndex={nextIndex}
+          lastIdx={lastIdx ?? null}
+          firstIdx={firstIdx ?? null}
+          lineColor={card.color}
+          lineDarkColor={card.darkColor}
+          lineLightColor={card.lightColor}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function SubwayTab() {
-  const [selectedKey, setSelectedKey] = useState(null)
+  // selectedDetail = { card, realtimeTrain: null | item } | null
+  const [selectedDetail, setSelectedDetail] = useState(null)
   const [stationTab, setStationTab] = useState(STATION_TABS[0])
   const [modeTab, setModeTab] = useState('realtime')
-  const [selectedRealtimeItem, setSelectedRealtimeItem] = useState(null)
   const didAutoSwitchRef = useRef(false)
   const { data: timetable, loading } = useSubwayTimetable()
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
   const lastTrainWarnings = useLastTrainWarnings(timetable)
 
-  // 현재 역 탭의 실시간 데이터
   const realtimeArrivals = realtimeAll?.[STATION_REALTIME_KEY[stationTab]] ?? null
+  const activeGroup = STATION_GROUPS.find((g) => g.stationName === stationTab) ?? STATION_GROUPS[0]
 
   // 역 탭이 바뀔 때 상세뷰/모드 전체 초기화
   useEffect(() => {
     setModeTab('realtime')
-    setSelectedRealtimeItem(null)
-    setSelectedKey(null)
+    setSelectedDetail(null)
     didAutoSwitchRef.current = false
   }, [stationTab])
 
-  // 실시간 데이터가 없을 때 시간표 모드로 자동 전환 (최초 1회만, 데이터 복구 시 리셋)
+  // 실시간 데이터 없음 → 시간표 자동 전환, 데이터 복구 시 실시간 복귀
   useEffect(() => {
     if (!realtimeLoading && realtimeArrivals !== null) {
       if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
         didAutoSwitchRef.current = true
         setModeTab('timetable')
-      } else if (realtimeArrivals.length > 0) {
+      } else if (realtimeArrivals.length > 0 && didAutoSwitchRef.current) {
         didAutoSwitchRef.current = false
+        setModeTab('realtime')
       }
     }
   }, [realtimeArrivals, realtimeLoading])
 
-  const selected = selectedKey ? ALL_CARD_DEFS.find((c) => c.key === selectedKey) : null
-  const trains = selected ? (timetable?.[selected.key] ?? []) : []
-
-  const now = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const nextIndex = selected
-    ? trains.findIndex((t) => timeToMinutes(t.depart_at) > nowMin)
-    : -1
-  const nextTrain = nextIndex >= 0 ? trains[nextIndex] : null
-  const { lastIdx, firstIdx } = selected ? getSpecialTrainIndices(trains) : {}
-
-  // ── 실시간 상세 뷰 (정왕역 실시간 항목 클릭 시) ──────────────────
-  if (selectedRealtimeItem !== null) {
-    const item = selectedRealtimeItem
-    return (
-      <div className="flex flex-col h-full animate-slide-in-right">
-        <div
-          className="flex items-center gap-2 text-white px-4 py-4"
-          style={{ backgroundColor: item.color }}
-        >
-          <button onClick={() => setSelectedRealtimeItem(null)} className="p-0.5 -ml-1 rounded">
-            <ChevronLeft size={22} strokeWidth={2.5} />
-          </button>
-          <TrainFront size={20} strokeWidth={2} />
-          <h2 className="text-lg font-bold">
-            {item.line} · {item.destination} 방면
-          </h2>
-        </div>
-
-        <SubwayLineMap
-          line={item.line}
-          direction={item.direction}
-          currentStation={item.current_station}
-          terminalStation={item.destination}
-          color={item.color}
-          viewStation={STATION_VIEW[stationTab]}
-        />
-      </div>
-    )
+  // 실시간 열차 클릭 → 매칭 카드 찾아 통합 상세 오픈
+  const openRealtimeDetail = (item) => {
+    const card = activeGroup.cards.find(
+      (c) => c.lineName === item.line && c.upDown === item.direction
+    ) ?? null
+    if (card) {
+      setSelectedDetail({ card, realtimeTrain: item })
+    }
+    // card 없으면 무시 (해당 역에 없는 노선/방향)
   }
 
-  // ── 시간표 상세 뷰 (timetable 카드 클릭 시) ──────────────────────
-  if (selected) {
+  // 통합 상세 뷰
+  if (selectedDetail) {
     return (
-      <div className="flex flex-col h-full animate-slide-in-right">
-        <div
-          className="flex items-center gap-2 text-white px-4 py-4"
-          style={{ backgroundColor: selected.color }}
-        >
-          <button onClick={() => setSelectedKey(null)} className="p-0.5 -ml-1 rounded">
-            <ChevronLeft size={22} strokeWidth={2.5} />
-          </button>
-          <TrainFront size={20} strokeWidth={2} />
-          <h2 className="text-lg font-bold">
-            {selected.lineName} · {getNextDestination(timetable?.[selected.key]) ?? selected.fallback} 방면
-          </h2>
-        </div>
-
-        <SubwayCountdown nextTrain={nextTrain} lineColor={selected.color} lineDarkColor={selected.darkColor} />
-
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-base text-slate-400">불러오는 중...</p>
-          </div>
-        ) : (
-          <SubwayTimetable
-            entries={trains}
-            nextIndex={nextIndex}
-            lastIdx={lastIdx ?? null}
-            firstIdx={firstIdx ?? null}
-            lineColor={selected.color}
-            lineDarkColor={selected.darkColor}
-            lineLightColor={selected.lightColor}
-          />
-        )}
-      </div>
+      <UnifiedDetail
+        card={selectedDetail.card}
+        realtimeTrain={selectedDetail.realtimeTrain}
+        timetable={timetable}
+        loading={loading}
+        onBack={() => setSelectedDetail(null)}
+        viewStation={STATION_VIEW[stationTab]}
+      />
     )
   }
 
   // ── 카드 목록 뷰 ─────────────────────────────────────────
-  const activeGroup = STATION_GROUPS.find((g) => g.stationName === stationTab) ?? STATION_GROUPS[0]
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 bg-navy text-white px-5 py-4">
@@ -271,10 +338,7 @@ export default function SubwayTab() {
           <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
             <SubwayRealtimeBoard
               arrivals={realtimeArrivals}
-              onRowClick={(item) => {
-                setSelectedKey(null)
-                setSelectedRealtimeItem(item)
-              }}
+              onRowClick={openRealtimeDetail}
             />
           </div>
         )
@@ -284,32 +348,48 @@ export default function SubwayTab() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
+          {/* 시간표 모드 실시간 요약 — 데이터 있을 때만 */}
+          {realtimeArrivals && realtimeArrivals.length > 0 && (
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">실시간 현황</p>
+              <div className="flex flex-col gap-2">
+                {[...new Set(realtimeArrivals.map((a) => a.line))].map((lineName) => {
+                  const meta = LINE_META_COMPACT[lineName] ?? { symbol: lineName[0], color: '#6b7280' }
+                  const up = realtimeArrivals.find((a) => a.line === lineName && a.direction === '상행') ?? null
+                  const down = realtimeArrivals.find((a) => a.line === lineName && a.direction === '하행') ?? null
+                  return (
+                    <RealtimeCompactCard
+                      key={lineName}
+                      lineName={lineName}
+                      symbol={meta.symbol}
+                      color={meta.color}
+                      upTrain={up}
+                      downTrain={down}
+                      onTrainClick={openRealtimeDetail}
+                    />
+                  )
+                })}
+              </div>
+              <div className="mt-3 border-t border-slate-100 dark:border-slate-800" />
+            </div>
+          )}
           <LastTrainBanner warnings={lastTrainWarnings} />
           <div className="p-4 flex flex-col gap-3">
-            {[activeGroup].map((group) => (
-              <div key={group.stationName} className="animate-fade-in">
-                <div className="flex flex-col gap-3">
-                  {group.cards.map((card) => {
-                    const dest = getNextDestination(timetable?.[card.key]) ?? card.fallback
-                    return (
-                      <SubwayLineCard
-                        key={card.key}
-                        lineName={card.lineName}
-                        dirLabel={`${card.upDown} · ${dest} 방면`}
-                        color={card.color}
-                        darkColor={card.darkColor}
-                        lightColor={card.lightColor}
-                        trains={timetable?.[card.key] ?? []}
-                        onClick={() => {
-                          setSelectedRealtimeItem(null)
-                          setSelectedKey(card.key)
-                        }}
-                      />
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+            {activeGroup.cards.map((card) => {
+              const dest = getNextDestination(timetable?.[card.key]) ?? card.fallback
+              return (
+                <SubwayLineCard
+                  key={card.key}
+                  lineName={card.lineName}
+                  dirLabel={`${card.upDown} · ${dest} 방면`}
+                  color={card.color}
+                  darkColor={card.darkColor}
+                  lightColor={card.lightColor}
+                  trains={timetable?.[card.key] ?? []}
+                  onClick={() => setSelectedDetail({ card, realtimeTrain: null })}
+                />
+              )
+            })}
           </div>
         </div>
       )}
