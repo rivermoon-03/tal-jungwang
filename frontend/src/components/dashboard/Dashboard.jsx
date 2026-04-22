@@ -1,10 +1,12 @@
 import useAppStore from '../../stores/useAppStore'
+import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import ModeTabs from './ModeTabs'
 import StationPills from './StationPills'
 import BusPanel from '../summary/BusPanel'
 import SubwayPanel from '../summary/SubwayPanel'
 import ShuttlePanel from '../summary/ShuttlePanel'
 import TaxiPanel from '../summary/TaxiPanel'
+import { BUS_STATION_LABELS, getAllowedDirections, getDefaultDirection } from './busStationConfig'
 
 /**
  * Dashboard — 스냅 하단 영역. 모드 탭 + 정류장 pill + 활성 패널 렌더.
@@ -14,6 +16,45 @@ import TaxiPanel from '../summary/TaxiPanel'
  *
  * 높이는 부모(MainShell)가 제어하므로 자체적으로 overflow-auto 한다.
  */
+function DirectionToggle() {
+  const { direction } = useEffectiveDirection()
+  const selectedBusStation  = useAppStore((s) => s.selectedBusStation)
+  const setDirectionOverride = useAppStore((s) => s.setDirectionOverride)
+  const setBusStation        = useAppStore((s) => s.setBusStation)
+
+  function handleSelect(full) {
+    setDirectionOverride(full)
+    // 현재 정류장이 새 방향을 허용하지 않으면 해당 방향의 첫 번째 정류장으로 이동
+    if (!getAllowedDirections(selectedBusStation).includes(full)) {
+      const next = BUS_STATION_LABELS.find((s) => getAllowedDirections(s).includes(full))
+      if (next) setBusStation(next)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      {['등', '하'].map((short) => {
+        const full = short === '등' ? '등교' : '하교'
+        const active = direction === full
+        return (
+          <button
+            key={short}
+            type="button"
+            onClick={() => handleSelect(full)}
+            className={`w-8 h-8 rounded-full text-sm font-bold leading-none transition-colors pressable
+              ${active
+                ? 'bg-navy text-white dark:bg-blue-600'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+              }`}
+          >
+            {short}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const selectedMode = useAppStore((s) => s.selectedMode)
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
@@ -36,7 +77,7 @@ export default function Dashboard() {
       className="h-full overflow-auto bg-white dark:bg-surface-dark"
       aria-label="대시보드"
     >
-      <ModeTabs />
+      <ModeTabs rightAddon={selectedMode === 'bus' ? <DirectionToggle /> : null} />
 
       <StationPills mode={selectedMode} value={stationValue} />
 

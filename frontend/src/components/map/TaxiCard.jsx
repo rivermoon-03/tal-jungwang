@@ -35,13 +35,22 @@ function fmtKm(meters) {
   return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`
 }
 
+// GPS 좌표를 ~111m 그리드로 스냅 — 미세한 GPS 진동으로 인한 반복 요청 방지
+const COORD_SNAP = 0.001
+function snapCoord(v) {
+  return v != null && Number.isFinite(v) ? Math.round(v / COORD_SNAP) * COORD_SNAP : null
+}
+
 // ── 단일 경로 훅 ───────────────────────────────────────────
 function useRouteOnce(origin, dest, mode, enabled) {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  const snappedLat = snapCoord(origin?.lat)
+  const snappedLng = snapCoord(origin?.lng)
+
   useEffect(() => {
-    if (!enabled || !origin) return
+    if (!enabled || snappedLat == null || snappedLng == null) return
     setLoading(true)
     setResult(null)
     const endpoint = mode === 'walk' ? '/route/walking' : '/route/driving'
@@ -49,14 +58,14 @@ function useRouteOnce(origin, dest, mode, enabled) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        origin:      { lat: origin.lat, lng: origin.lng },
+        origin:      { lat: snappedLat, lng: snappedLng },
         destination: { lat: dest.lat,   lng: dest.lng   },
       }),
     })
       .then((data) => setResult(data))
       .catch(() => setResult(null))
       .finally(() => setLoading(false))
-  }, [enabled, origin?.lat, origin?.lng, dest.lat, dest.lng, mode])
+  }, [enabled, snappedLat, snappedLng, dest.lat, dest.lng, mode])
 
   return { result, loading }
 }

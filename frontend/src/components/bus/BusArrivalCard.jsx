@@ -64,6 +64,7 @@ export function RouteProgressStrip({ routeNo, stationId, hasArrival }) {
 const ROUTE_COLORS = {
   '6502':  '#E02020',
   '3400':  '#E02020',
+  '5200':  '#E02020',
   '시흥33': '#33B5A5',
   '11-A':  '#33B5A5',
   '시흥1':  '#33B5A5',

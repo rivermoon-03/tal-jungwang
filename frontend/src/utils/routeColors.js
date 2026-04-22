@@ -12,7 +12,7 @@ export const ROUTE_COLORS = {
 }
 
 // Known 광역버스 numbers in our corpus
-const WIDE_BUS = new Set(['3400', '3401', '6502', '5602', '5601'])
+const WIDE_BUS = new Set(['3400', '3401', '5200', '6502', '5602', '5601'])
 
 export function resolveRouteMode({ mode, routeNumber, category } = {}) {
   if (mode) return mode

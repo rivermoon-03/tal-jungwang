@@ -5,7 +5,6 @@ import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import {
   BUS_STATION_LABELS,
   getAllowedDirections,
-  getDefaultDirection,
   getBusStationDisplay,
 } from './busStationConfig'
 
@@ -55,15 +54,15 @@ export default function StationPills({ mode, value, onChange, options }) {
   }
 
   if (mode === 'bus') {
-    const items = options ?? BUS_STATION_LABELS
+    const allItems = options ?? BUS_STATION_LABELS
+    // 현재 방향에 맞는 정류장만 표시
+    const items = allItems.filter((label) =>
+      getAllowedDirections(label).includes(effectiveDirection)
+    )
     const stationValue = value ?? selectedBusStation
 
     const handleSelectStation = (label) => {
       setBusStation(label)
-      const nextAllowed = getAllowedDirections(label)
-      if (!nextAllowed.includes(effectiveDirection)) {
-        setDirectionOverride(getDefaultDirection(label))
-      }
       if (typeof onChange === 'function') onChange(label)
     }
 
@@ -73,32 +72,14 @@ export default function StationPills({ mode, value, onChange, options }) {
         aria-label="정류장 선택"
         className="flex gap-1.5 px-4 pb-1.5 overflow-x-auto scrollbar-hide"
       >
-        {items.map((label) => {
-          const isActive = stationValue === label
-          const allowed = getAllowedDirections(label)
-          const isMultiDir = allowed.length > 1
-
-          if (isActive && isMultiDir) {
-            return (
-              <DirectionDropdownPill
-                key={label}
-                label={getBusStationDisplay(label)}
-                direction={effectiveDirection}
-                onSelectDirection={(dir) => setDirectionOverride(dir)}
-              />
-            )
-          }
-
-          return (
-            <StationPillButton
-              key={label}
-              label={getBusStationDisplay(label)}
-              suffix={isMultiDir ? null : allowed[0]}
-              active={isActive}
-              onClick={() => handleSelectStation(label)}
-            />
-          )
-        })}
+        {items.map((label) => (
+          <StationPillButton
+            key={label}
+            label={getBusStationDisplay(label)}
+            active={stationValue === label}
+            onClick={() => handleSelectStation(label)}
+          />
+        ))}
       </div>
     )
   }
