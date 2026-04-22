@@ -72,7 +72,7 @@ async def _subway_realtime_poll_job():
     """서울 지하철 실시간 도착정보 폴링.
 
     피크(07~09, 17~19): 30초마다 실제 호출.
-    비피크: 90초 미만 경과 시 스킵 (30초 job이 돌지만 실제 API는 90초 주기).
+    비피크: 120초 미만 경과 시 스킵 (30초 job이 돌지만 실제 API는 120초 주기).
     새벽(01~05): 첫차 없으므로 스킵.
     """
     hour = datetime.now(_KST).hour
@@ -82,11 +82,12 @@ async def _subway_realtime_poll_job():
     is_peak = (7 <= hour < 9) or (17 <= hour < 19)
     if not is_peak:
         from app.core.cache import get_redis
+        from app.services.subway_realtime import _LAST_FETCH_KEY
         redis = await get_redis()
-        last_raw = await redis.get("subway:realtime:last_fetch")
+        last_raw = await redis.get(_LAST_FETCH_KEY)
         if last_raw:
             elapsed = _time.time() - float(last_raw)
-            if elapsed < 90:
+            if elapsed < 120:
                 return
 
     from app.services.subway_realtime import fetch_and_cache_realtime
