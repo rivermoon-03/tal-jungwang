@@ -47,7 +47,7 @@ def parse_rows(rows: list[dict]) -> list[dict]:
             "line": meta["line"],
             "direction": row.get("updnLine", ""),
             "destination": row.get("bstatnNm", ""),
-            "status_code": int(row.get("arvlCd", "99")),
+            "status_code": int(row.get("arvlCd") or "99"),
             "status_msg": row.get("arvlMsg2", ""),
             "current_station": row.get("arvlMsg3", ""),
             "train_no": train_no,
@@ -62,8 +62,8 @@ async def fetch_realtime() -> list[dict]:
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(url)
         resp.raise_for_status()
+        root = ET.fromstring(resp.text)
 
-    root = ET.fromstring(resp.text)
     rows = []
     for row_el in root.findall("row"):
         row = {child.tag: (child.text or "") for child in row_el}
