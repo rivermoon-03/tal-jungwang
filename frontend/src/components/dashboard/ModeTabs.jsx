@@ -12,17 +12,20 @@ const MODES = [
   { id: 'taxi',    label: '택시' },
 ]
 
-export default function ModeTabs() {
+export default function ModeTabs({ rightAddon }) {
   const selectedMode = useAppStore((s) => s.selectedMode)
   const setSelectedMode = useAppStore((s) => s.setSelectedMode)
 
   return (
-    <div aria-label="교통수단 선택" className="px-4 pt-2 pb-1.5">
-      <SegmentTabs
-        tabs={MODES}
-        active={selectedMode}
-        onChange={setSelectedMode}
-      />
+    <div aria-label="교통수단 선택" className="flex items-center gap-2 px-4 pt-2 pb-1.5">
+      <div className="flex-1 min-w-0">
+        <SegmentTabs
+          tabs={MODES}
+          active={selectedMode}
+          onChange={setSelectedMode}
+        />
+      </div>
+      {rightAddon}
     </div>
   )
 }

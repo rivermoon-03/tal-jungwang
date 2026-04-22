@@ -196,7 +196,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
           mapLng,
           isRealtime: true,
           title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
-          accentColor: (['3400', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
+          accentColor: (['3400', '5200', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
         })}
       />
     )
@@ -267,7 +267,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
         mapLat,
         mapLng,
         title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
-        accentColor: (['3400', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
+        accentColor: (['3400', '5200', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
       })}
       loading={timetableLoading}
     />

@@ -284,7 +284,7 @@ function useFavoriteItems(favorites) {
         const busNo = route.route_number
         const minKey = NEW_TO_LEGACY_MIN_KEY[routeCode] ?? null
         const mins = minKey ? (busMinsByRoute?.[minKey] ?? null) : null
-        const isAccent = busNo === '3400' || busNo === '6502' || busNo === '3401'
+        const isAccent = busNo === '3400' || busNo === '5200' || busNo === '6502' || busNo === '3401'
         result.push({
           id: `route:${routeCode}`,
           type: 'bus',
@@ -331,7 +331,7 @@ function useFavoriteItems(favorites) {
           type: 'bus',
           routeCode: busNo,
           stopId: stopIdByFavKey?.[routeCode] ?? null,
-          accentColor: (busNo === '3400' || busNo === '6502') ? '#DC2626' : undefined,
+          accentColor: (busNo === '3400' || busNo === '5200' || busNo === '6502') ? '#DC2626' : undefined,
           title: isSeoulBus ? `${busNo} · ${meta.endpoints}` : `${busNo}번 버스`,
         },
       })

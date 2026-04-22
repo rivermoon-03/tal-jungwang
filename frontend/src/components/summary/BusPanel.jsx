@@ -143,7 +143,7 @@ export default function BusPanel() {
               mapLng: null,
               isRealtime: a.arrival_type !== 'timetable',
               title: a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
-              accentColor: ['3400', '6502', '3401'].includes(a.route_no) ? '#DC2626' : undefined,
+              accentColor: ['3400', '5200', '6502', '3401'].includes(a.route_no) ? '#DC2626' : undefined,
             })}
           />
         )
@@ -193,7 +193,7 @@ function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection, setDet
         title: route.direction_name
           ? `${route_number} · ${route.direction_name}`
           : `${route_number}번 버스`,
-        accentColor: ['3400', '6502', '3401'].includes(route_number) ? '#DC2626' : undefined,
+        accentColor: ['3400', '5200', '6502', '3401'].includes(route_number) ? '#DC2626' : undefined,
       })}
     />
   )

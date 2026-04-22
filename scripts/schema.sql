@@ -305,6 +305,7 @@ INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (10, '3401', NULL, '이마트 방면', '224000071', '등교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (14, '시흥33', '시흥33번', '한국공학대학교 방면', '224000062', '등교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (15, '99-2', '시흥99-2번', '월곶역방면', '224000034', '하교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (17, '5200', '시흥5200번', '신도림역방면', '224000052', '하교');
 
 
 --
@@ -344,6 +345,8 @@ INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (13, 10);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (13, 14);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (17, 15);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (2, 15);
+INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (17, 17);
+INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (2, 17);
 
 
 --
@@ -2622,7 +2625,7 @@ SELECT pg_catalog.setval('bus_crowding_logs_id_seq', 7758, true);
 -- Name: bus_routes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('bus_routes_id_seq', 14, true);
+SELECT pg_catalog.setval('bus_routes_id_seq', 17, true);
 
 
 --

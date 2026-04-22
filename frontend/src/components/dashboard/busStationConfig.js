@@ -32,6 +32,7 @@ export const BUS_STATIONS = {
     perRouteDisplay: {
       '3400': { origin: '시화터미널', dest: '사당 경유 강남행' },
       '99-2': { origin: '시화터미널', dest: '이마트 경유 월곶역행' },
+      '5200': { origin: '시화터미널', dest: '신천역 경유 신도림행' },
     },
   },
   이마트: {
@@ -44,6 +45,7 @@ export const BUS_STATIONS = {
       '3401':  { origin: '이마트', dest: '서울행' },
       '5602':  { origin: '이마트', dest: '구로행' },
       '99-2':  { origin: '이마트', dest: '월곶역 방면' },
+      '5200':  { origin: '이마트', dest: '신천역 경유 신도림행' },
     },
   },
   시흥시청: {
@@ -93,6 +95,7 @@ const ROUTE_CARD_DISPLAY = {
   '6502':  { 하교: { origin: '이마트', dest: '사당행' } },
   '99-2':  { 하교: { origin: '이마트', dest: '월곶역 방면' } },
   '시흥1': { 하교: { origin: '이마트', dest: '신천역 경유 개봉행' } },
+  '5200':  { 하교: { origin: '이마트', dest: '신천역 경유 신도림행' } },
 }
 
 export function getRouteCardDisplay(routeNo, category) {
@@ -129,6 +132,7 @@ export function getPerRouteDisplay(station) {
 // BusPanel과 MarkerSheet 양쪽에서 동일하게 사용
 export const ROUTE_DISPLAY_CONFIG = {
   '3400':  { color: '#DC2626', direction: '사당 경유 · 강남행' },
+  '5200':  { color: '#DC2626', direction: '신천역 경유 · 신도림행' },
   '6502':  { color: '#DC2626', direction: '사당행' },
   '3401':  { color: '#DC2626', direction: '시흥시청 경유 · 석수행' },
   '5602':  { color: '#2563EB', direction: '시흥시청 경유 · 구로행' },
@@ -150,6 +154,10 @@ export const ROUTE_WAYPOINTS = {
     { id: 17, label: '시화터미널' },
     { id: 2,  label: '이마트' },
   ],
+  '5200': [
+    { id: 17, label: '시화터미널' },
+    { id: 2,  label: '이마트' },
+  ],
 }
 
 // 노선 번호로 실시간 도착정보를 조회해야 할 GBIS 정류장 ID를 반환.
@@ -161,6 +169,7 @@ const _ROUTE_TO_GBIS = {
   '3401':  '224000586',
   '5602':  '224000586',
   '99-2':  '224000861',
+  '5200':  '224000861',
 }
 
 export function getGbisStationIdForRoute(routeNumber) {
