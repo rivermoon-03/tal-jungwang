@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
-from app.schemas.subway import SubwayNextResponse, SubwayTimetableResponse
+from app.schemas.subway import SubwayNextResponse, SubwayRealtimeItem, SubwayTimetableResponse
 from app.services.subway import get_next, get_timetable
+from app.services.subway_realtime import get_realtime_cached
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -40,3 +41,10 @@ async def subway_next(
     t = now.time()
     result = await get_next(db, d, t)
     return ApiResponse[SubwayNextResponse].ok(result)
+
+
+@router.get("/realtime")
+@limiter.limit("60/minute")
+async def subway_realtime(request: Request):
+    data = await get_realtime_cached()
+    return ApiResponse[list[SubwayRealtimeItem]].ok(data)
