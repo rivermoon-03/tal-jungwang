@@ -8,3 +8,7 @@ export function useSubwayTimetable(direction) {
 export function useSubwayNext() {
   return useApi('/subway/next', { interval: 30_000 })
 }
+
+export function useSubwayRealtime() {
+  return useApi('/subway/realtime', { interval: 30_000 })
+}
