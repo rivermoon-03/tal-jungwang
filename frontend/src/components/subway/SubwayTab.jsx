@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { TrainFront, ChevronLeft } from 'lucide-react'
-import { useSubwayTimetable } from '../../hooks/useSubway'
+import { useSubwayTimetable, useSubwayRealtime } from '../../hooks/useSubway'
 import SubwayLineCard from './SubwayLineCard'
 import SubwayCountdown from './SubwayCountdown'
 import SubwayTimetable from './SubwayTimetable'
+import SubwayRealtimeBoard from './SubwayRealtimeBoard'
+import SubwayLineMap from './SubwayLineMap'
 import { getLastTrainStatus, getSpecialTrainIndices } from '../../utils/trainTime'
 
 function timeToMinutes(t) {
@@ -92,8 +94,26 @@ const STATION_TABS = STATION_GROUPS.map((g) => g.stationName)
 export default function SubwayTab() {
   const [selectedKey, setSelectedKey] = useState(null)
   const [stationTab, setStationTab] = useState(STATION_TABS[0])
+  const [modeTab, setModeTab] = useState('realtime')
+  const [selectedRealtimeItem, setSelectedRealtimeItem] = useState(null)
   const { data: timetable, loading } = useSubwayTimetable()
+  const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
   const lastTrainWarnings = useLastTrainWarnings(timetable)
+
+  // 역 탭이 정왕역 이외로 바뀔 때 modeTab과 selectedRealtimeItem 초기화
+  useEffect(() => {
+    if (stationTab !== '정왕역') {
+      setModeTab('realtime')
+      setSelectedRealtimeItem(null)
+    }
+  }, [stationTab])
+
+  // 실시간 데이터가 없을 때 시간표 모드로 자동 전환
+  useEffect(() => {
+    if (!realtimeLoading && (!realtimeArrivals || realtimeArrivals.length === 0)) {
+      setModeTab('timetable')
+    }
+  }, [realtimeArrivals, realtimeLoading])
 
   const selected = selectedKey ? ALL_CARD_DEFS.find((c) => c.key === selectedKey) : null
   const trains = selected ? (timetable?.[selected.key] ?? []) : []
@@ -106,7 +126,36 @@ export default function SubwayTab() {
   const nextTrain = nextIndex >= 0 ? trains[nextIndex] : null
   const { lastIdx, firstIdx } = selected ? getSpecialTrainIndices(trains) : {}
 
-  // ── 상세 뷰 ──────────────────────────────────────────────
+  // ── 실시간 상세 뷰 (정왕역 실시간 항목 클릭 시) ──────────────────
+  if (selectedRealtimeItem !== null) {
+    const item = selectedRealtimeItem
+    return (
+      <div className="flex flex-col h-full animate-slide-in-right">
+        <div
+          className="flex items-center gap-2 text-white px-4 py-4"
+          style={{ backgroundColor: item.color }}
+        >
+          <button onClick={() => setSelectedRealtimeItem(null)} className="p-0.5 -ml-1 rounded">
+            <ChevronLeft size={22} strokeWidth={2.5} />
+          </button>
+          <TrainFront size={20} strokeWidth={2} />
+          <h2 className="text-lg font-bold">
+            {item.line} · {item.destination} 방면
+          </h2>
+        </div>
+
+        <SubwayLineMap
+          line={item.line}
+          direction={item.direction}
+          currentStation={item.current_station}
+          terminalStation={item.destination}
+          color={item.color}
+        />
+      </div>
+    )
+  }
+
+  // ── 시간표 상세 뷰 (timetable 카드 클릭 시) ──────────────────────
   if (selected) {
     return (
       <div className="flex flex-col h-full animate-slide-in-right">
@@ -146,6 +195,7 @@ export default function SubwayTab() {
 
   // ── 카드 목록 뷰 ─────────────────────────────────────────
   const activeGroup = STATION_GROUPS.find((g) => g.stationName === stationTab) ?? STATION_GROUPS[0]
+  const isJeongwang = stationTab === '정왕역'
 
   return (
     <div className="flex flex-col h-full">
@@ -171,7 +221,40 @@ export default function SubwayTab() {
         ))}
       </div>
 
-      {loading ? (
+      {/* 정왕역 전용 실시간/시간표 모드 탭 */}
+      {isJeongwang && (
+        <div className="flex gap-1.5 px-4 pt-2 pb-1">
+          {['realtime', 'timetable'].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setModeTab(mode)}
+              className={`pressable px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
+                modeTab === mode
+                  ? 'bg-navy text-white'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+              }`}
+            >
+              {mode === 'realtime' ? '실시간' : '시간표'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 콘텐츠 영역 */}
+      {isJeongwang && modeTab === 'realtime' ? (
+        realtimeLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-base text-slate-400">불러오는 중...</p>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
+            <SubwayRealtimeBoard
+              arrivals={realtimeArrivals}
+              onRowClick={(item) => setSelectedRealtimeItem(item)}
+            />
+          </div>
+        )
+      ) : loading ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-base text-slate-400">불러오는 중...</p>
         </div>
