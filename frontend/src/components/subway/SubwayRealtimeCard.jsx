@@ -4,18 +4,27 @@ export function isImminent(code) {
   return [0, 1, 5].includes(code)
 }
 
-export function shortMsg(statusMsg) {
-  if (!statusMsg) return '운행 중'
-  const m = statusMsg.match(/\[(\d+)\]번째 전역/)
-  if (m) return `${m[1]}번째 전역`
-  if (statusMsg.includes('전역 도착')) return '전역 도착'
-  if (statusMsg.includes('도착')) return '도착'
-  if (statusMsg.includes('진입')) return '진입 중'
-  return '운행 중'
+function cleanMsg(msg) {
+  if (!msg) return ''
+  return msg.replace(/\[(\d+)\]/g, '$1').replace(/\[([^\]]+)\]/g, '$1')
+}
+
+// arrive_seconds → 표시 문자열
+export function arrivalLabel(train) {
+  if (!train) return null
+  if (isImminent(train.status_code)) return '곧 도착'
+  const secs = train.arrive_seconds
+  if (secs != null && secs >= 0) {
+    const mins = Math.ceil(secs / 60)
+    return mins <= 0 ? '곧 도착' : `${mins}분 후`
+  }
+  // arrive_seconds 없을 때 cleanMsg 적용 후 반환
+  return cleanMsg(train.location_msg) || cleanMsg(train.status_msg) || '운행 중'
 }
 
 export function RealtimeSlot({ train, dir, align, onClick }) {
   const imminent = train ? isImminent(train.status_code) : false
+  const label = arrivalLabel(train)
 
   return (
     <div
@@ -27,33 +36,39 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
       </div>
       {train ? (
         <>
-          <div
-            style={{
-              fontSize: 11,
-              color: imminent ? ACCENT : 'var(--tj-mute-2)',
-              fontWeight: 600,
-              marginBottom: 4,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {train.destination}행
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: align === 'right' ? 'flex-end' : 'flex-start', flexWrap: 'wrap', marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: imminent ? ACCENT : 'var(--tj-mute-2)',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {train.destination}행
+            </div>
+            {train.is_last_train && (
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', background: ACCENT, padding: '1px 5px', borderRadius: 999, lineHeight: 1.4, flexShrink: 0 }}>
+                막차
+              </span>
+            )}
           </div>
           <div
             style={{
-              fontSize: imminent ? 20 : 15,
+              fontSize: imminent ? 18 : 15,
               fontWeight: 900,
               letterSpacing: '-0.02em',
               lineHeight: 1,
               color: imminent ? ACCENT : 'var(--tj-ink)',
             }}
           >
-            {imminent ? '곧 도착' : shortMsg(train.status_msg)}
+            {label}
           </div>
-          {!imminent && train.current_station && (
-            <div style={{ fontSize: 10, color: 'var(--tj-mute-2)', marginTop: 3 }}>
-              현재: {train.current_station}
+          {!imminent && (train.location_msg || train.status_msg) && (
+            <div style={{ fontSize: 10, color: 'var(--tj-mute-2)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {cleanMsg(train.location_msg || train.status_msg)}
             </div>
           )}
         </>

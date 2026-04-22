@@ -72,7 +72,7 @@ async def _subway_realtime_poll_job():
     """서울 지하철 실시간 도착정보 폴링 (정왕·시흥시청·초지).
 
     피크(07~09, 17~19): 15초마다 실제 호출.
-    비피크: 60초 미만 경과 시 스킵 (15초 job이 돌지만 실제 API는 60초 주기).
+    비피크: 20초 미만 경과 시 스킵 (15초 job이 돌지만 실제 API는 20초 주기).
     새벽(01~05): 첫차 없으므로 스킵.
     """
     hour = datetime.now(_KST).hour
@@ -88,7 +88,7 @@ async def _subway_realtime_poll_job():
     for station in STATIONS:
         if not is_peak:
             last_raw = await redis.get(_last_fetch_key(station))
-            if last_raw and (_time.time() - float(last_raw)) < 60:
+            if last_raw and (_time.time() - float(last_raw)) < 20:
                 continue
         try:
             await fetch_and_cache_realtime(station)
@@ -163,7 +163,7 @@ def setup_scheduler():
     logger.info("Bus arrival Discord report configured (every 3h, 3h window)")
 
     # ── 지하철 실시간 폴링 (15초 간격, 내부에서 비피크/새벽 스킵) ──
-    # 피크: 15초 폴링 × 3역, 비피크: 60초 폴링 × 3역
+    # 피크: 15초 폴링 × 3역, 비피크: 20초 폴링 × 3역
     scheduler.add_job(
         _subway_realtime_poll_job,
         IntervalTrigger(seconds=15),
@@ -173,7 +173,7 @@ def setup_scheduler():
         coalesce=True,
         misfire_grace_time=10,
     )
-    logger.info("Subway realtime polling scheduler configured (every 15s peak / 60s off-peak, 3 stations)")
+    logger.info("Subway realtime polling scheduler configured (every 15s peak / 20s off-peak, 3 stations)")
 
 
 def start_scheduler():

@@ -9,9 +9,9 @@ import DualDirectionCard from '../common/DualDirectionCard'
 import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 
 const LINE_META = {
-  수인분당선: { symbol: '수', color: '#F5A623' },
-  '4호선':    { symbol: '4', color: '#1B5FAD' },
-  서해선:     { symbol: '서', color: '#75BF43' },
+  수인분당선: { symbol: '수', color: '#F5A623', darkColor: '#fbbf24', lightColor: '#FEF6E6' },
+  '4호선':    { symbol: '4', color: '#1B5FAD', darkColor: '#60a5fa', lightColor: '#E8F0FB' },
+  서해선:     { symbol: '서', color: '#75BF43', darkColor: '#75bf43', lightColor: '#f2fde6' },
 }
 
 const STATION_LINES = {
@@ -37,29 +37,33 @@ export default function SubwayPanel() {
   const selectedStation = useAppStore((s) => s.selectedSubwayStation)
   const setScheduleHint = useAppStore((s) => s.setScheduleHint)
   const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
+  const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
   const { data, loading, error, refetch } = useSubwayNext()
-  const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
+  const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
+  // 백엔드는 { 정왕: [...], 초지: [...], 시흥시청: [...] } 전체 dict를 반환하므로 역별로 슬라이싱
+  const realtimeArrivals = realtimeAll?.[selectedStation] ?? null
 
-  const isJeongwang = selectedStation === '정왕'
   const [modeTab, setModeTab] = useState('realtime')
   const didAutoSwitchRef = useRef(false)
 
   const lines = STATION_LINES[selectedStation] ?? []
 
+  // 역이 바뀌면 모드 초기화
   useEffect(() => {
-    if (!isJeongwang) {
-      setModeTab('realtime')
-      didAutoSwitchRef.current = false
-    }
-  }, [isJeongwang])
+    setModeTab('realtime')
+    didAutoSwitchRef.current = false
+  }, [selectedStation])
 
   useEffect(() => {
     if (!realtimeLoading && realtimeArrivals !== null) {
       if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
+        // 실시간 데이터 없음 → 시간표로 자동 전환 (최초 1회)
         didAutoSwitchRef.current = true
         setModeTab('timetable')
-      } else if (realtimeArrivals.length > 0) {
+      } else if (realtimeArrivals.length > 0 && didAutoSwitchRef.current) {
+        // 데이터 복구 → 실시간으로 복귀 (자동 전환된 경우만)
         didAutoSwitchRef.current = false
+        setModeTab('realtime')
       }
     }
   }, [realtimeArrivals, realtimeLoading])
@@ -102,9 +106,8 @@ export default function SubwayPanel() {
 
   return (
     <>
-      {/* 정왕역 전용 실시간/시간표 탭 */}
-      {isJeongwang && (
-        <div className="flex gap-1.5 mb-2">
+      {/* 실시간/시간표 탭 */}
+      <div className="flex gap-1.5 mb-2">
           {['realtime', 'timetable'].map((mode) => (
             <button
               key={mode}
@@ -125,10 +128,9 @@ export default function SubwayPanel() {
             </button>
           ))}
         </div>
-      )}
 
-      {/* 실시간 모드 (정왕역만) */}
-      {isJeongwang && modeTab === 'realtime' && (
+      {/* 실시간 모드 */}
+      {modeTab === 'realtime' && (
         realtimeLoading ? (
           <div className="space-y-2">
             <Skeleton height="5.5rem" rounded="rounded-xl" />
@@ -157,10 +159,10 @@ export default function SubwayPanel() {
       )}
 
       {/* 시간표 모드 */}
-      {(!isJeongwang || modeTab === 'timetable') && (
+      {modeTab === 'timetable' && (
         <div className="space-y-2">
           {lines.map((line) => {
-            const meta = LINE_META[line.name] ?? { symbol: line.name[0], color: '#6b7280' }
+            const meta = LINE_META[line.name] ?? { symbol: line.name[0], color: '#6b7280', darkColor: '#6b7280', lightColor: '#f8f8f8' }
             const up = data[line.upKey]
             const down = data[line.downKey]
             const upFirst = isOvernight
@@ -169,6 +171,18 @@ export default function SubwayPanel() {
             const downFirst = isOvernight
               ? (down?.depart_at ?? null)
               : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
+
+            const openDetail = (direction, timetableKey) => setSubwayDetailSheet({
+              station: selectedStation,
+              lineName: line.name,
+              timetableKey,
+              direction,
+              color: meta.color,
+              darkColor: meta.darkColor,
+              lightColor: meta.lightColor,
+              symbol: meta.symbol,
+            })
+
             return (
               <DualDirectionCard
                 key={line.name}
@@ -178,7 +192,8 @@ export default function SubwayPanel() {
                 sub="다음 열차"
                 left={trainToSlot(up, '상행', upFirst)}
                 right={trainToSlot(down, '하행', downFirst)}
-                onClick={handleTimetableClick}
+                onLeftClick={() => openDetail('상행', line.upKey)}
+                onRightClick={() => openDetail('하행', line.downKey)}
                 emptyTitle={emptyTitle}
                 firstLabel={firstLabel}
               />
