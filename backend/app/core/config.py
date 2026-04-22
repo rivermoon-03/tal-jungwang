@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-_REQUIRED_API_KEYS = ("KAKAO_MOBILITY_REST_KEY", "TMAP_APP_KEY", "DATA_GO_KR_SERVICE_KEY")
+_REQUIRED_API_KEYS = ("KAKAO_MOBILITY_REST_KEY", "TMAP_APP_KEY", "DATA_GO_KR_SERVICE_KEY", "SEOUL_SUBWAY_KEY")
 
 
 class Settings(BaseSettings):
