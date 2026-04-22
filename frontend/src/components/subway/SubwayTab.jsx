@@ -91,6 +91,20 @@ function LastTrainBanner({ warnings }) {
 
 const STATION_TABS = STATION_GROUPS.map((g) => g.stationName)
 
+// 역 탭명 → 실시간 데이터 키 (백엔드 응답 dict 키와 일치)
+const STATION_REALTIME_KEY = {
+  '정왕역': '정왕',
+  '초지역': '초지',
+  '시흥시청역': '시흥시청',
+}
+
+// 역 탭명 → SubwayLineMap viewStation prop
+const STATION_VIEW = {
+  '정왕역': '정왕',
+  '초지역': '초지',
+  '시흥시청역': '시흥시청',
+}
+
 export default function SubwayTab() {
   const [selectedKey, setSelectedKey] = useState(null)
   const [stationTab, setStationTab] = useState(STATION_TABS[0])
@@ -98,16 +112,18 @@ export default function SubwayTab() {
   const [selectedRealtimeItem, setSelectedRealtimeItem] = useState(null)
   const didAutoSwitchRef = useRef(false)
   const { data: timetable, loading } = useSubwayTimetable()
-  const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
+  const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
   const lastTrainWarnings = useLastTrainWarnings(timetable)
+
+  // 현재 역 탭의 실시간 데이터
+  const realtimeArrivals = realtimeAll?.[STATION_REALTIME_KEY[stationTab]] ?? null
 
   // 역 탭이 바뀔 때 상세뷰/모드 전체 초기화
   useEffect(() => {
-    if (stationTab !== '정왕역') {
-      setModeTab('realtime')
-      setSelectedRealtimeItem(null)
-      setSelectedKey(null)
-    }
+    setModeTab('realtime')
+    setSelectedRealtimeItem(null)
+    setSelectedKey(null)
+    didAutoSwitchRef.current = false
   }, [stationTab])
 
   // 실시간 데이터가 없을 때 시간표 모드로 자동 전환 (최초 1회만, 데이터 복구 시 리셋)
@@ -157,6 +173,7 @@ export default function SubwayTab() {
           currentStation={item.current_station}
           terminalStation={item.destination}
           color={item.color}
+          viewStation={STATION_VIEW[stationTab]}
         />
       </div>
     )
@@ -202,7 +219,6 @@ export default function SubwayTab() {
 
   // ── 카드 목록 뷰 ─────────────────────────────────────────
   const activeGroup = STATION_GROUPS.find((g) => g.stationName === stationTab) ?? STATION_GROUPS[0]
-  const isJeongwang = stationTab === '정왕역'
 
   return (
     <div className="flex flex-col h-full">
@@ -228,27 +244,25 @@ export default function SubwayTab() {
         ))}
       </div>
 
-      {/* 정왕역 전용 실시간/시간표 모드 탭 */}
-      {isJeongwang && (
-        <div className="flex gap-1.5 px-4 pt-2 pb-1">
-          {['realtime', 'timetable'].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setModeTab(mode)}
-              className={`pressable px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
-                modeTab === mode
-                  ? 'bg-navy text-white'
-                  : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-              }`}
-            >
-              {mode === 'realtime' ? '실시간' : '시간표'}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* 실시간/시간표 모드 탭 */}
+      <div className="flex gap-1.5 px-4 pt-2 pb-1">
+        {['realtime', 'timetable'].map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setModeTab(mode)}
+            className={`pressable px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
+              modeTab === mode
+                ? 'bg-navy text-white'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+            }`}
+          >
+            {mode === 'realtime' ? '실시간' : '시간표'}
+          </button>
+        ))}
+      </div>
 
       {/* 콘텐츠 영역 */}
-      {isJeongwang && modeTab === 'realtime' ? (
+      {modeTab === 'realtime' ? (
         realtimeLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-base text-slate-400">불러오는 중...</p>

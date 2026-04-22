@@ -9,7 +9,7 @@ from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.subway import SubwayNextResponse, SubwayRealtimeItem, SubwayTimetableResponse
 from app.services.subway import get_next, get_timetable
-from app.services.subway_realtime import get_realtime_cached
+from app.services.subway_realtime import get_all_realtime_cached
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -46,5 +46,5 @@ async def subway_next(
 @router.get("/realtime")
 @limiter.limit("60/minute")
 async def subway_realtime(request: Request):
-    data = await get_realtime_cached()
-    return ApiResponse[list[SubwayRealtimeItem]].ok(data)
+    data = await get_all_realtime_cached()
+    return ApiResponse[dict].ok(data)
