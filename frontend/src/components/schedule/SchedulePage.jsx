@@ -3,7 +3,7 @@
  * - 상단 mode pill: 버스 · 지하철 · 셔틀 (바로 전환)
  * - 각 모드별 그룹 pill selector (지하철: 정왕/초지/시흥시청, 버스: 하교/등교/기타)
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ScheduleSection from './ScheduleSection'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
@@ -14,7 +14,8 @@ import { CrowdedBadge } from '../bus/BusArrivalCard'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
-import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
+import { useSubwayNext, useSubwayTimetable, useSubwayRealtime } from '../../hooks/useSubway'
+import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute } from '../dashboard/busStationConfig'
@@ -277,14 +278,14 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
 // ─── subway direction config per station ─────────────────────────────────────
 const SUBWAY_DIRECTIONS = {
   정왕: [
-    { subtitle: '수인분당선', upKey: 'up',       downKey: 'down',       upLabel: '상행',   downLabel: '하행',   color: '#F5A623' },
-    { subtitle: '4호선',     upKey: 'line4_up', downKey: 'line4_down', upLabel: '상행',   downLabel: '하행',   color: '#1B5FAD' },
+    { subtitle: '수인분당선', symbol: '수', upKey: 'up',       downKey: 'down',       upLabel: '상행', downLabel: '하행', color: '#F5A623' },
+    { subtitle: '4호선',     symbol: '4',  upKey: 'line4_up', downKey: 'line4_down', upLabel: '상행', downLabel: '하행', color: '#1B5FAD' },
   ],
   초지: [
-    { subtitle: '서해선',    upKey: 'choji_up', downKey: 'choji_dn',   upLabel: '상행',   downLabel: '하행',   color: '#75bf43' },
+    { subtitle: '서해선', symbol: '서', upKey: 'choji_up',   downKey: 'choji_dn',   upLabel: '상행', downLabel: '하행', color: '#75bf43' },
   ],
   시흥시청: [
-    { subtitle: '서해선',    upKey: 'siheung_up', downKey: 'siheung_dn', upLabel: '상행', downLabel: '하행',   color: '#75bf43' },
+    { subtitle: '서해선', symbol: '서', upKey: 'siheung_up', downKey: 'siheung_dn', upLabel: '상행', downLabel: '하행', color: '#75bf43' },
   ],
 }
 
@@ -292,8 +293,30 @@ const SUBWAY_DIRECTIONS = {
 function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCodes = [] }) {
   const { data, loading } = useSubwayNext()
   const { data: timetable } = useSubwayTimetable()
+  const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
+  const [modeTab, setModeTab] = useState('realtime')
+  const didAutoSwitchRef = useRef(false)
   const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
+  const isJeongwang = stationGroup === '정왕'
   const now = new Date()
+
+  useEffect(() => {
+    if (!isJeongwang) {
+      setModeTab('realtime')
+      didAutoSwitchRef.current = false
+    }
+  }, [isJeongwang])
+
+  useEffect(() => {
+    if (!realtimeLoading && realtimeArrivals !== null) {
+      if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
+        didAutoSwitchRef.current = true
+        setModeTab('timetable')
+      } else if (realtimeArrivals.length > 0) {
+        didAutoSwitchRef.current = false
+      }
+    }
+  }, [realtimeArrivals, realtimeLoading])
 
   function secondDepartStr(key) {
     const list = timetable?.[key]
@@ -330,9 +353,58 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
     )
   }
 
+  const toggleStyle = (active) => ({
+    padding: '5px 12px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    border: active ? '1.5px solid var(--tj-pill-active-bg)' : '1.5px solid var(--tj-line)',
+    background: active ? 'var(--tj-pill-active-bg)' : 'transparent',
+    color: active ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
+    cursor: 'pointer',
+    transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+  })
+
   return (
     <>
-      {directions.flatMap((dir) => [
+      {/* 정왕역 전용 실시간/시간표 토글 */}
+      {isJeongwang && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          {['realtime', 'timetable'].map((m) => (
+            <button key={m} onClick={() => setModeTab(m)} style={toggleStyle(modeTab === m)}>
+              {m === 'realtime' ? '실시간' : '시간표'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 정왕역 실시간 모드 */}
+      {isJeongwang && modeTab === 'realtime' && (
+        realtimeLoading ? (
+          <>
+            <div style={{ height: 90, borderRadius: 12, background: 'var(--tj-line)', opacity: 0.4 }} />
+            <div style={{ height: 90, borderRadius: 12, background: 'var(--tj-line)', opacity: 0.4 }} />
+          </>
+        ) : (
+          directions.map((dir) => {
+            const up = (realtimeArrivals ?? []).find((a) => a.line === dir.subtitle && a.direction === '상행') ?? null
+            const down = (realtimeArrivals ?? []).find((a) => a.line === dir.subtitle && a.direction === '하행') ?? null
+            return (
+              <RealtimeCompactCard
+                key={dir.subtitle}
+                lineName={dir.subtitle}
+                symbol={dir.symbol}
+                color={dir.color}
+                upTrain={up}
+                downTrain={down}
+              />
+            )
+          })
+        )
+      )}
+
+      {/* 시간표 모드 (정왕 외 역 포함) */}
+      {(!isJeongwang || modeTab === 'timetable') && directions.flatMap((dir) => [
         ...[
           { key: dir.upKey, label: dir.upLabel },
           { key: dir.downKey, label: dir.downLabel },
