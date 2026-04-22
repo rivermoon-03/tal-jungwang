@@ -13,6 +13,7 @@ import SchedulePage from './pages/SchedulePage'
 import StatsPage from './pages/StatsPage'
 import MorePage from './pages/MorePage'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
+import GlobalSubwayLineSheet from './components/subway/GlobalSubwayLineSheet'
 import { useNotices } from './hooks/useMore'
 
 const VALID_HASH_TABS = ['main', 'map', 'transit', 'subway', 'more']
@@ -90,6 +91,7 @@ export default function App() {
           <BottomDock />
         </div>
         <GlobalDetailModal />
+        <GlobalSubwayLineSheet />
       </>
     )
   }
@@ -108,6 +110,7 @@ export default function App() {
           <BottomDock />
         </div>
         <GlobalDetailModal />
+        <GlobalSubwayLineSheet />
       </>
     )
   }
@@ -126,6 +129,7 @@ export default function App() {
           <BottomDock />
         </div>
         <GlobalDetailModal />
+        <GlobalSubwayLineSheet />
       </>
     )
   }

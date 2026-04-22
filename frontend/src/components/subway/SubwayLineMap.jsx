@@ -7,7 +7,7 @@ const STATION_SEQUENCES = {
     하행: ['금정', '산본', '수리산', '대야미', '반월', '상록수', '한대앞', '중앙', '고잔', '초지', '안산', '신길온천', '정왕', '오이도'],
   },
   '수인분당선': {
-    상행: ['오이도', '정왕', '신길온천', '안산', '초지', '고잔', '중앙', '한대앞', '사리', '야목', '어천', '오목천', '고색', '수원'],
+    상행: ['소래포구', '월곶', '달월', '오이도', '정왕', '신길온천', '안산', '초지', '고잔', '중앙', '한대앞', '사리', '야목', '어천', '오목천', '고색', '수원'],
     하행: ['수원', '고색', '오목천', '어천', '야목', '사리', '한대앞', '중앙', '고잔', '초지', '안산', '신길온천', '정왕', '오이도', '달월', '월곶', '소래포구'],
   },
   '서해선': {
@@ -26,13 +26,13 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
   const currentIdx = stations.indexOf(currentStation)
   const trainApproaching = currentIdx !== -1 && viewIdx !== -1 && currentIdx < viewIdx
 
-  // 표시할 역 범위: 현재역 또는 viewStation 기준 앞 1개 ~ 종착역(또는 viewStation 뒤 6개) 중 가까운 쪽
+  // 표시할 역 범위: 열차 위치(또는 viewStation) 기준 앞 4개, viewStation 뒤 2개
   const terminalIdx = terminalStation ? stations.indexOf(terminalStation) : -1
   const anchorIdx = viewIdx !== -1 ? viewIdx : 0
-  const startIdx = Math.max(0, Math.min(currentIdx !== -1 ? currentIdx : anchorIdx, anchorIdx) - 1)
+  const startIdx = Math.max(0, Math.min(currentIdx !== -1 ? currentIdx : anchorIdx, anchorIdx) - 4)
   const endIdx = Math.min(
+    terminalIdx !== -1 ? Math.min(terminalIdx, anchorIdx + 2) : anchorIdx + 2,
     stations.length - 1,
-    terminalIdx !== -1 ? terminalIdx : anchorIdx + 6,
   )
   const visible = stations.slice(startIdx, endIdx + 1)
   const visibleStart = startIdx

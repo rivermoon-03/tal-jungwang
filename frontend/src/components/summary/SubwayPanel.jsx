@@ -6,9 +6,7 @@ import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import EmptyState from '../common/EmptyState'
 import DualDirectionCard from '../common/DualDirectionCard'
-import SubwayLineMap from '../subway/SubwayLineMap'
 import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
-import BottomSheet from '../transit/BottomSheet'
 
 const LINE_META = {
   수인분당선: { symbol: '수', color: '#F5A623' },
@@ -38,12 +36,12 @@ function offsetDate(days) {
 export default function SubwayPanel() {
   const selectedStation = useAppStore((s) => s.selectedSubwayStation)
   const setScheduleHint = useAppStore((s) => s.setScheduleHint)
+  const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
   const { data, loading, error, refetch } = useSubwayNext()
   const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
 
   const isJeongwang = selectedStation === '정왕'
   const [modeTab, setModeTab] = useState('realtime')
-  const [sheetItem, setSheetItem] = useState(null)
   const didAutoSwitchRef = useRef(false)
 
   const lines = STATION_LINES[selectedStation] ?? []
@@ -150,7 +148,7 @@ export default function SubwayPanel() {
                   color={meta.color}
                   upTrain={up}
                   downTrain={down}
-                  onTrainClick={(item) => setSheetItem(item)}
+                  onTrainClick={setSubwayLineSheet}
                 />
               )
             })}
@@ -189,24 +187,6 @@ export default function SubwayPanel() {
         </div>
       )}
 
-      {/* 노선도 바텀시트 */}
-      <BottomSheet
-        open={!!sheetItem}
-        onClose={() => setSheetItem(null)}
-        title={sheetItem ? `${sheetItem.line} · ${sheetItem.destination} 방면` : ''}
-      >
-        {sheetItem && (
-          <div className="overflow-y-auto pb-4">
-            <SubwayLineMap
-              line={sheetItem.line}
-              direction={sheetItem.direction}
-              currentStation={sheetItem.current_station}
-              terminalStation={sheetItem.destination}
-              color={sheetItem.color}
-            />
-          </div>
-        )}
-      </BottomSheet>
     </>
   )
 }
