@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     KAKAO_MOBILITY_REST_KEY: str = ""
     TMAP_APP_KEY: str = ""
     DATA_GO_KR_SERVICE_KEY: str = ""
+    SEOUL_SUBWAY_KEY: str = ""
 
     # ── PostgreSQL ───────────────────────────────────────────
     DB_HOST: str
