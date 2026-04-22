@@ -30,7 +30,7 @@ function groupByCategory(arrivals) {
   return result
 }
 
-export default function ArrivalList({ arrivals, onTimetableClick }) {
+export default function ArrivalList({ arrivals, stationId, onTimetableClick }) {
   if (!arrivals || arrivals.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-bg-dark">
@@ -59,6 +59,7 @@ export default function ArrivalList({ arrivals, onTimetableClick }) {
                   <BusArrivalCard
                     key={group[0].route_no}
                     arrivals={group}
+                    stationId={stationId}
                     onTimetableClick={onTimetableClick}
                   />
                 ))}

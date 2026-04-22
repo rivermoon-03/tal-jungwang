@@ -20,6 +20,7 @@ export default function TransitTab() {
         routeId={timetableRoute.routeId}
         routeNo={timetableRoute.routeNo}
         destination={timetableRoute.destination}
+        stationId={timetableRoute.stationId}
         onBack={() => setTimetableRoute(null)}
       />
     )

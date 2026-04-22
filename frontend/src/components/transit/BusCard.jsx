@@ -68,7 +68,8 @@ export default function BusCard({ setTimetableRoute }) {
       ) : (
         <ArrivalList
           arrivals={adjustedArrivals?.arrivals ?? []}
-          onTimetableClick={(routeId, routeNo, destination) => setTimetableRoute({ routeId, routeNo, destination })}
+          stationId={selectedId}
+          onTimetableClick={(routeId, routeNo, destination) => setTimetableRoute({ routeId, routeNo, destination, stationId: selectedId })}
         />
       )}
     </div>

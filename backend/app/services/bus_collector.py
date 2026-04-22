@@ -124,6 +124,7 @@ async def poll_and_collect():
                         "arrive_in_seconds": sec1,
                         "is_tomorrow": False,
                         "crowded": item.get("crowded1", 0),
+                        "location_no": item.get("location_no1", 0),
                     })
                 if sec2:
                     arrivals_for_cache.append({
@@ -136,6 +137,7 @@ async def poll_and_collect():
                         "arrive_in_seconds": sec2,
                         "is_tomorrow": False,
                         "crowded": item.get("crowded2", 0),
+                        "location_no": item.get("location_no2", 0),
                     })
 
             # cached_at을 함께 저장해 서빙 시 경과 시간만큼 arrive_in_seconds를 보정
