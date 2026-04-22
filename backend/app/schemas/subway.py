@@ -37,3 +37,14 @@ class SubwayNextResponse(BaseModel):
     choji_dn: SubwayNextTrain | None = None
     siheung_up: SubwayNextTrain | None = None
     siheung_dn: SubwayNextTrain | None = None
+
+
+class SubwayRealtimeItem(BaseModel):
+    line: str          # "4호선" | "수인분당선"
+    direction: str     # "상행" | "하행"
+    destination: str   # 종착역명 (예: "불암산", "왕십리")
+    status_code: int   # arvlCd: 0=진입, 1=도착, 2=출발, 5=전역도착, 99=운행중
+    status_msg: str    # 표시용 메시지 (예: "전역 도착", "[4]번째 전역 (소래포구)")
+    current_station: str  # arvlMsg3: 현재 열차가 있는 역명
+    train_no: str      # btrainNo
+    color: str         # 호선 색상 hex
