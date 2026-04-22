@@ -6,8 +6,8 @@ import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import EmptyState from '../common/EmptyState'
 import DualDirectionCard from '../common/DualDirectionCard'
-import SubwayRealtimeBoard from '../subway/SubwayRealtimeBoard'
 import SubwayLineMap from '../subway/SubwayLineMap'
+import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import BottomSheet from '../transit/BottomSheet'
 
 const LINE_META = {
@@ -48,7 +48,6 @@ export default function SubwayPanel() {
 
   const lines = STATION_LINES[selectedStation] ?? []
 
-  // 정왕역이 아닌 역으로 바뀌면 실시간 모드로 리셋
   useEffect(() => {
     if (!isJeongwang) {
       setModeTab('realtime')
@@ -56,7 +55,6 @@ export default function SubwayPanel() {
     }
   }, [isJeongwang])
 
-  // 실시간 데이터가 없을 때 1회 자동 전환
   useEffect(() => {
     if (!realtimeLoading && realtimeArrivals !== null) {
       if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
@@ -69,10 +67,7 @@ export default function SubwayPanel() {
   }, [realtimeArrivals, realtimeLoading])
 
   const tom1 = useMemo(() => offsetDate(1), [])
-  const { data: tmrData } = useApi(
-    `/subway/timetable?date=${tom1}`,
-    { ttl: 43_200_000 }
-  )
+  const { data: tmrData } = useApi(`/subway/timetable?date=${tom1}`, { ttl: 43_200_000 })
 
   if (loading) {
     return (
@@ -116,11 +111,17 @@ export default function SubwayPanel() {
             <button
               key={mode}
               onClick={() => setModeTab(mode)}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                modeTab === mode
-                  ? 'bg-navy text-white'
-                  : 'bg-slate-100 dark:bg-slate-700 text-slate-400'
-              }`}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 700,
+                border: modeTab === mode ? '1.5px solid var(--tj-pill-active-bg)' : '1.5px solid var(--tj-line)',
+                background: modeTab === mode ? 'var(--tj-pill-active-bg)' : 'transparent',
+                color: modeTab === mode ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
+                cursor: 'pointer',
+                transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+              }}
             >
               {mode === 'realtime' ? '실시간' : '시간표'}
             </button>
@@ -132,15 +133,27 @@ export default function SubwayPanel() {
       {isJeongwang && modeTab === 'realtime' && (
         realtimeLoading ? (
           <div className="space-y-2">
-            <Skeleton height="4rem" rounded="rounded-xl" />
-            <Skeleton height="4rem" rounded="rounded-xl" />
+            <Skeleton height="5.5rem" rounded="rounded-xl" />
+            <Skeleton height="5.5rem" rounded="rounded-xl" />
           </div>
         ) : (
-          <div className="-mx-0 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
-            <SubwayRealtimeBoard
-              arrivals={realtimeArrivals}
-              onRowClick={(item) => setSheetItem(item)}
-            />
+          <div className="space-y-2">
+            {lines.map((line) => {
+              const meta = LINE_META[line.name] ?? { symbol: line.name[0], color: '#6b7280' }
+              const up = (realtimeArrivals ?? []).find((a) => a.line === line.name && a.direction === '상행') ?? null
+              const down = (realtimeArrivals ?? []).find((a) => a.line === line.name && a.direction === '하행') ?? null
+              return (
+                <RealtimeCompactCard
+                  key={line.name}
+                  lineName={line.name}
+                  symbol={meta.symbol}
+                  color={meta.color}
+                  upTrain={up}
+                  downTrain={down}
+                  onTrainClick={(item) => setSheetItem(item)}
+                />
+              )
+            })}
           </div>
         )
       )}
@@ -149,7 +162,7 @@ export default function SubwayPanel() {
       {(!isJeongwang || modeTab === 'timetable') && (
         <div className="space-y-2">
           {lines.map((line) => {
-            const meta = LINE_META[line.name] ?? { symbol: line.name.slice(0, 1), color: '#6b7280' }
+            const meta = LINE_META[line.name] ?? { symbol: line.name[0], color: '#6b7280' }
             const up = data[line.upKey]
             const down = data[line.downKey]
             const upFirst = isOvernight
@@ -177,12 +190,12 @@ export default function SubwayPanel() {
       )}
 
       {/* 노선도 바텀시트 */}
-      {sheetItem && (
-        <BottomSheet
-          open={!!sheetItem}
-          onClose={() => setSheetItem(null)}
-          title={`${sheetItem.line} · ${sheetItem.destination} 방면`}
-        >
+      <BottomSheet
+        open={!!sheetItem}
+        onClose={() => setSheetItem(null)}
+        title={sheetItem ? `${sheetItem.line} · ${sheetItem.destination} 방면` : ''}
+      >
+        {sheetItem && (
           <div className="overflow-y-auto pb-4">
             <SubwayLineMap
               line={sheetItem.line}
@@ -192,8 +205,8 @@ export default function SubwayPanel() {
               color={sheetItem.color}
             />
           </div>
-        </BottomSheet>
-      )}
+        )}
+      </BottomSheet>
     </>
   )
 }
