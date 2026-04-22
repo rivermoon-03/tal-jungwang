@@ -1,6 +1,7 @@
 """APScheduler 기반 교통정보 주기 수집 스케줄러."""
 
 import logging
+import time as _time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -65,6 +66,34 @@ async def _bus_poll_job():
         await poll_and_collect()
     except Exception:
         logger.exception("Bus arrival polling failed")
+
+
+async def _subway_realtime_poll_job():
+    """서울 지하철 실시간 도착정보 폴링.
+
+    피크(07~09, 17~19): 30초마다 실제 호출.
+    비피크: 90초 미만 경과 시 스킵 (30초 job이 돌지만 실제 API는 90초 주기).
+    새벽(01~05): 첫차 없으므로 스킵.
+    """
+    hour = datetime.now(_KST).hour
+    if 1 <= hour < 5:
+        return
+
+    is_peak = (7 <= hour < 9) or (17 <= hour < 19)
+    if not is_peak:
+        from app.core.cache import get_redis
+        redis = await get_redis()
+        last_raw = await redis.get("subway:realtime:last_fetch")
+        if last_raw:
+            elapsed = _time.time() - float(last_raw)
+            if elapsed < 90:
+                return
+
+    from app.services.subway_realtime import fetch_and_cache_realtime
+    try:
+        await fetch_and_cache_realtime()
+    except Exception:
+        logger.exception("지하철 실시간 폴링 실패")
 
 
 def setup_scheduler():
@@ -132,6 +161,18 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info("Bus arrival Discord report configured (every 3h, 3h window)")
+
+    # ── 지하철 실시간 폴링 (30초 간격, 내부에서 비피크/새벽 스킵) ──
+    scheduler.add_job(
+        _subway_realtime_poll_job,
+        IntervalTrigger(seconds=30),
+        id="subway_realtime_poll",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=15,
+    )
+    logger.info("Subway realtime polling scheduler configured (every 30s, adaptive skip for off-peak)")
 
 
 def start_scheduler():
