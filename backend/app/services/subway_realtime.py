@@ -79,6 +79,8 @@ async def get_realtime_cached() -> list[dict]:
         return cached
     data = await fetch_realtime()
     await set_cached_json(_CACHE_KEY, data, ttl=_CACHE_TTL)
+    redis = await get_redis()
+    await redis.set(_LAST_FETCH_KEY, str(time.time()), ex=300)
     return data
 
 
@@ -87,5 +89,5 @@ async def fetch_and_cache_realtime() -> list[dict]:
     data = await fetch_realtime()
     await set_cached_json(_CACHE_KEY, data, ttl=_CACHE_TTL)
     redis = await get_redis()
-    await redis.set(_LAST_FETCH_KEY, str(time.time()))
+    await redis.set(_LAST_FETCH_KEY, str(time.time()), ex=300)
     return data
