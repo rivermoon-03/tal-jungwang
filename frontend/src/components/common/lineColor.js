@@ -11,6 +11,7 @@ const TJ_LINE_COLOR = {
   '99-2':     'var(--line-33)',
   '3400':     'var(--line-express)',
   '3401':     'var(--line-express)',
+  '5200':     'var(--line-express)',
   '6502':     'var(--line-express)',
   '5602':     'var(--line-201)',
   '4호선':    'var(--line-4)',

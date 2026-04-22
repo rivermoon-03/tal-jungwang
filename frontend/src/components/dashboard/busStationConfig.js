@@ -40,6 +40,7 @@ export const BUS_STATIONS = {
     allowedDirections: ['하교'],
     defaultDirection: '하교',
     perRouteDisplay: {
+      '3400':  { origin: '이마트', dest: '사당 경유 강남행' },
       '6502':  { origin: '이마트', dest: '사당행' },
       '시흥1': { origin: '이마트', dest: '신천역 경유 개봉행' },
       '3401':  { origin: '이마트', dest: '서울행' },
@@ -150,6 +151,10 @@ export function getRouteDisplayConfig(routeNo) {
 // 노선별 경유 정류장 순서 (내부 stop PK 기준).
 // 버스가 이 순서대로 정류장을 지나침. RouteProgressStrip에서 사용.
 export const ROUTE_WAYPOINTS = {
+  '3400': [
+    { id: 17, label: '시화터미널' },
+    { id: 2,  label: '이마트' },
+  ],
   '99-2': [
     { id: 17, label: '시화터미널' },
     { id: 2,  label: '이마트' },
@@ -166,6 +171,7 @@ const _ROUTE_TO_GBIS = {
   '20-1':  '224000639',
   '11-A':  '224000639',
   '시흥1':  '224000513',
+  '3400':  '224000861',
   '3401':  '224000586',
   '5602':  '224000586',
   '99-2':  '224000861',

@@ -214,26 +214,34 @@ async def get_arrivals(
             logger.warning("Redis 캐시 읽기 실패 (정류장 %s): %s", station_id, exc)
 
     # ── 1-1. GBIS 캐시에 없는 실시간 노선 → null placeholder ─────────────────
-    # 버스가 정류장 근처에 없어도 노선 행 자체는 항상 표시되도록 보장.
-    seen_realtime_ids: set[int] = {a["route_id"] for a in arrivals}
-    for route in realtime_routes:
-        if route.id not in seen_realtime_ids:
-            arrivals.append({
-                "route_id": route.id,
-                "route_no": route.route_number,
-                "destination": route.direction_name,
-                "category": route.category,
-                "arrival_type": "realtime",
-                "depart_at": None,
-                "arrive_in_seconds": None,
-                "is_tomorrow": False,
-            })
+    # gbis_station_id가 없는 정류장은 실시간 조회 자체가 불가하므로 placeholder를 추가하지
+    # 않고 시간표 쿼리로 넘긴다 (stop.gbis_station_id가 있을 때만 placeholder 적용).
+    if stop.gbis_station_id:
+        seen_realtime_ids: set[int] = {a["route_id"] for a in arrivals}
+        for route in realtime_routes:
+            if route.id not in seen_realtime_ids:
+                arrivals.append({
+                    "route_id": route.id,
+                    "route_no": route.route_number,
+                    "destination": route.direction_name,
+                    "category": route.category,
+                    "arrival_type": "realtime",
+                    "depart_at": None,
+                    "arrive_in_seconds": None,
+                    "is_tomorrow": False,
+                })
 
     # ── 2. 시간표 기반 노선: DB 조회 ───────────────────────────────────────
-    realtime_route_ids: set[int] = {r.id for r in realtime_routes}
-    timetable_route_ids: set[int] = {
-        r.id for r in stop.routes if not r.is_realtime
-    }
+    # gbis_station_id 없는 정류장에서는 gbis_route_id를 가진 노선도 시간표로 조회한다.
+    realtime_route_ids: set[int] = (
+        {r.id for r in realtime_routes} if stop.gbis_station_id else set()
+    )
+    # 오늘 시간표 소진 판단 범위: gbis 없는 정류장은 모든 노선을 시간표 대상으로 간주
+    timetable_route_ids: set[int] = (
+        {r.id for r in stop.routes if not r.is_realtime}
+        if stop.gbis_station_id
+        else {r.id for r in stop.routes}
+    )
 
     stmt = (
         select(BusTimetableEntry, BusRoute)
