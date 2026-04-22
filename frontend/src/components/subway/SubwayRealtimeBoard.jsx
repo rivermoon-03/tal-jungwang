@@ -77,6 +77,21 @@ function RealtimeRow({ item, onClick }) {
   )
 }
 
+function Section({ lineName, color, items, onRowClick }) {
+  if (items.length === 0) return null
+  return (
+    <div>
+      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+        <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: color }} />
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{lineName}</span>
+      </div>
+      {items.map((item) => (
+        <RealtimeRow key={item.train_no} item={item} onClick={onRowClick} />
+      ))}
+    </div>
+  )
+}
+
 export default function SubwayRealtimeBoard({ arrivals, onRowClick }) {
   if (!arrivals || arrivals.length === 0) {
     return (
@@ -86,29 +101,13 @@ export default function SubwayRealtimeBoard({ arrivals, onRowClick }) {
     )
   }
 
-  // 호선별로 그룹핑 (4호선 먼저, 수인분당선 다음)
   const line4 = arrivals.filter((a) => a.line === '4호선')
   const suinbundang = arrivals.filter((a) => a.line === '수인분당선')
 
-  function Section({ lineName, color, items }) {
-    if (items.length === 0) return null
-    return (
-      <div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-          <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: color }} />
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{lineName}</span>
-        </div>
-        {items.map((item) => (
-          <RealtimeRow key={item.train_no} item={item} onClick={onRowClick} />
-        ))}
-      </div>
-    )
-  }
-
   return (
     <div className="flex-1 overflow-y-auto">
-      <Section lineName="4호선" color="#1B5FAD" items={line4} />
-      <Section lineName="수인분당선" color="#F5A623" items={suinbundang} />
+      <Section lineName="4호선" color="#1B5FAD" items={line4} onRowClick={onRowClick} />
+      <Section lineName="수인분당선" color="#F5A623" items={suinbundang} onRowClick={onRowClick} />
     </div>
   )
 }

@@ -44,10 +44,10 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
           const absoluteIdx = visibleStart + i
           const isJeongwang = stationName === JEONGWANG
           const isTrain = stationName === currentStation && trainApproaching
-          const isPast = absoluteIdx < (currentIdx !== -1 ? currentIdx : jeongwangIdx)
+          const isPast = currentIdx !== -1 && absoluteIdx < currentIdx
 
           return (
-            <div key={stationName} className="flex items-center gap-0">
+            <div key={absoluteIdx} className="flex items-center gap-0">
               {/* 세로 선 + 역 dot */}
               <div className="flex flex-col items-center w-5 flex-shrink-0">
                 {/* 위 선 */}
