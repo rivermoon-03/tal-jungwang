@@ -14,7 +14,7 @@ const STATION_SEQUENCES = {
 
 const JEONGWANG = '정왕'
 
-export default function SubwayLineMap({ line, direction, currentStation, color }) {
+export default function SubwayLineMap({ line, direction, currentStation, terminalStation, color }) {
   const darkMode = useAppStore((s) => s.darkMode)
   const stations = STATION_SEQUENCES[line]?.[direction] ?? []
 
@@ -24,9 +24,13 @@ export default function SubwayLineMap({ line, direction, currentStation, color }
   const currentIdx = stations.indexOf(currentStation)
   const trainApproaching = currentIdx !== -1 && currentIdx < jeongwangIdx
 
-  // 표시할 역 범위: 현재역 또는 정왕 기준 앞 1개 ~ 정왕 뒤 6개
+  // 표시할 역 범위: 현재역 또는 정왕 기준 앞 1개 ~ 종착역(또는 정왕 뒤 6개) 중 가까운 쪽
+  const terminalIdx = terminalStation ? stations.indexOf(terminalStation) : -1
   const startIdx = Math.max(0, Math.min(currentIdx !== -1 ? currentIdx : jeongwangIdx, jeongwangIdx) - 1)
-  const endIdx = Math.min(stations.length - 1, jeongwangIdx + 6)
+  const endIdx = Math.min(
+    stations.length - 1,
+    terminalIdx !== -1 ? terminalIdx : jeongwangIdx + 6,
+  )
   const visible = stations.slice(startIdx, endIdx + 1)
   const visibleStart = startIdx
 
