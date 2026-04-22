@@ -181,6 +181,7 @@ export default function App() {
       </div>
       <GlobalDetailModal />
       <GlobalSubwayLineSheet />
+      <GlobalSubwayDetailSheet />
     </>
   )
 }
