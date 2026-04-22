@@ -393,7 +393,13 @@ export default function MapView({ onMarkerClick, selectedId }) {
       const nowBus = new Date()
       const seenRoutes = new Set()
       const result = []
+      const isSeoulSide = sheetStation.type === 'bus_seoul' && !sheetStation.isLocalHub
+      // bus_seoul: 마커에 등록된 노선만 표시 (같은 정류장의 무관한 노선 제거)
+      const markerRouteNums = sheetStation.type === 'bus_seoul'
+        ? new Set((sheetStation.routes ?? []).map((r) => r.route_number))
+        : null
       for (const a of arrivals) {
+        if (markerRouteNums && !markerRouteNums.has(a.route_no)) continue
         if (seenRoutes.has(a.route_no)) continue
         seenRoutes.add(a.route_no)
 
@@ -416,17 +422,22 @@ export default function MapView({ onMarkerClick, selectedId }) {
         }
 
         const rCfg = getRouteDisplayConfig(a.route_no)
+        // 서울 측 마커: DB에 저장된 direction_name("학교행", "이마트(학교)" 등)을 그대로 사용
+        // 로컬 허브: ROUTE_DISPLAY_CONFIG의 하교 방향 라벨 사용
+        const directionLabel = isSeoulSide
+          ? (a.destination ?? '학교행')
+          : (rCfg?.direction ?? (a.destination ?? ''))
         result.push({
           routeCode:  a.route_no,
           routeColor: rCfg?.color ?? null,
-          direction:  rCfg?.direction ?? (a.destination ?? ''),
+          direction:  directionLabel,
           minutes,
           detail: {
             type:       'bus',
             routeCode:  a.route_no,
             routeId:    a.route_id ?? null,
             stopId:     sheetBusArrivals?.station_id ?? null,
-            favCode:    `${a.category ?? '하교'}:${a.route_no}`,
+            favCode:    `${a.category ?? (isSeoulSide ? '등교' : '하교')}:${a.route_no}`,
             mapLat:     sheetStation.lat ?? null,
             mapLng:     sheetStation.lng ?? null,
             isRealtime: a.arrival_type !== 'timetable',
@@ -565,9 +576,8 @@ export default function MapView({ onMarkerClick, selectedId }) {
       addSeohae(upKey, '상행', '대곡')
       addSeohae(dnKey, '하행', '원시')
 
-      // 시흥시청역: 등교 방향 버스 도착정보 병합 (routes가 연결된 경우만)
-      const hasBusRoutes = (sheetStation.routes?.length ?? 0) > 0
-      if (hasBusRoutes) {
+      // 시흥시청역: 등교 방향 버스 도착정보 병합
+      if (sheetStation.tabId === 'siheung') {
         // 5602는 지선(파랑 B)이지만 DB엔 G/빨강으로 저장돼 있어 표시 단에서 덮어쓴다.
         const badgeFor = (routeNo, fallback) => routeNo === '5602' ? 'B' : fallback
         const colorFor = (routeNo, fallback) => routeNo === '5602' ? '#2563eb' : (fallback ?? '#DC2626')
