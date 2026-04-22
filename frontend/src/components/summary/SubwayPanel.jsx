@@ -35,12 +35,9 @@ function offsetDate(days) {
 
 export default function SubwayPanel() {
   const selectedStation = useAppStore((s) => s.selectedSubwayStation)
-  const setScheduleHint = useAppStore((s) => s.setScheduleHint)
-  const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
   const { data, loading, error, refetch } = useSubwayNext()
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
-  // 백엔드는 { 정왕: [...], 초지: [...], 시흥시청: [...] } 전체 dict를 반환하므로 역별로 슬라이싱
   const realtimeArrivals = realtimeAll?.[selectedStation] ?? null
 
   const [modeTab, setModeTab] = useState('realtime')
@@ -48,23 +45,20 @@ export default function SubwayPanel() {
 
   const lines = STATION_LINES[selectedStation] ?? []
 
-  // 역이 바뀌면 모드 초기화
   useEffect(() => {
     setModeTab('realtime')
     didAutoSwitchRef.current = false
   }, [selectedStation])
 
   useEffect(() => {
-    if (!realtimeLoading && realtimeArrivals !== null) {
-      if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
-        // 실시간 데이터 없음 → 시간표로 자동 전환 (최초 1회)
-        didAutoSwitchRef.current = true
-        setModeTab('timetable')
-      } else if (realtimeArrivals.length > 0 && didAutoSwitchRef.current) {
-        // 데이터 복구 → 실시간으로 복귀 (자동 전환된 경우만)
-        didAutoSwitchRef.current = false
-        setModeTab('realtime')
-      }
+    if (realtimeLoading) return
+    const isEmpty = !realtimeArrivals || realtimeArrivals.length === 0
+    if (isEmpty && !didAutoSwitchRef.current) {
+      didAutoSwitchRef.current = true
+      setModeTab('timetable')
+    } else if (realtimeArrivals && realtimeArrivals.length > 0 && didAutoSwitchRef.current) {
+      didAutoSwitchRef.current = false
+      setModeTab('realtime')
     }
   }, [realtimeArrivals, realtimeLoading])
 
@@ -98,43 +92,49 @@ export default function SubwayPanel() {
   const emptyTitle = isOvernight ? '막차 끊김' : '오늘 운행 없음'
   const firstLabel = isOvernight ? '오늘 첫차' : '내일 첫차'
 
-  const handleTimetableClick = () => {
-    setScheduleHint({ mode: 'subway', group: selectedStation })
-    window.history.pushState({}, '', '/schedule')
-    window.dispatchEvent(new PopStateEvent('popstate'))
+  const openDetail = (lineName, direction, timetableKey, realtimeTrain = null) => {
+    const meta = LINE_META[lineName] ?? { symbol: lineName[0], color: '#6b7280' }
+    setSubwayDetailSheet({
+      station: selectedStation,
+      lineName: lineName,
+      timetableKey: timetableKey,
+      direction: direction,
+      color: meta.color,
+      darkColor: meta.darkColor,
+      lightColor: meta.lightColor,
+      symbol: meta.symbol,
+      realtimeTrain: realtimeTrain, // 실시간 열차 정보 포함
+    })
   }
 
   return (
     <>
-      {/* 실시간/시간표 탭 */}
       <div className="flex gap-1.5 mb-2">
-          {['realtime', 'timetable'].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setModeTab(mode)}
-              style={{
-                padding: '4px 12px',
-                borderRadius: 999,
-                fontSize: 11,
-                fontWeight: 700,
-                border: modeTab === mode ? '1.5px solid var(--tj-pill-active-bg)' : '1.5px solid var(--tj-line)',
-                background: modeTab === mode ? 'var(--tj-pill-active-bg)' : 'transparent',
-                color: modeTab === mode ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-                cursor: 'pointer',
-                transition: 'background 0.12s, color 0.12s, border-color 0.12s',
-              }}
-            >
-              {mode === 'realtime' ? '실시간' : '시간표'}
-            </button>
-          ))}
-        </div>
+        {['realtime', 'timetable'].map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setModeTab(mode)}
+            style={{
+              padding: '4px 12px',
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 700,
+              border: modeTab === mode ? '1.5px solid var(--tj-pill-active-bg)' : '1.5px solid var(--tj-line)',
+              background: modeTab === mode ? 'var(--tj-pill-active-bg)' : 'transparent',
+              color: modeTab === mode ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
+              cursor: 'pointer',
+              transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+            }}
+          >
+            {mode === 'realtime' ? '실시간' : '시간표'}
+          </button>
+        ))}
+      </div>
 
-      {/* 실시간 모드 */}
       {modeTab === 'realtime' && (
         realtimeLoading ? (
           <div className="space-y-2">
-            <Skeleton height="5.5rem" rounded="rounded-xl" />
-            <Skeleton height="5.5rem" rounded="rounded-xl" />
+            <Skeleton height="5.5rem" rounded="rounded-xl" /><Skeleton height="5.5rem" rounded="rounded-xl" />
           </div>
         ) : (
           <div className="space-y-2">
@@ -150,7 +150,7 @@ export default function SubwayPanel() {
                   color={meta.color}
                   upTrain={up}
                   downTrain={down}
-                  onTrainClick={setSubwayLineSheet}
+                  onTrainClick={(train) => openDetail(line.name, train.direction, train.direction === '상행' ? line.upKey : line.downKey, train)}
                 />
               )
             })}
@@ -158,30 +158,14 @@ export default function SubwayPanel() {
         )
       )}
 
-      {/* 시간표 모드 */}
       {modeTab === 'timetable' && (
         <div className="space-y-2">
           {lines.map((line) => {
             const meta = LINE_META[line.name] ?? { symbol: line.name[0], color: '#6b7280', darkColor: '#6b7280', lightColor: '#f8f8f8' }
             const up = data[line.upKey]
             const down = data[line.downKey]
-            const upFirst = isOvernight
-              ? (up?.depart_at ?? null)
-              : (tmrData?.[line.upKey]?.[0]?.depart_at ?? null)
-            const downFirst = isOvernight
-              ? (down?.depart_at ?? null)
-              : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
-
-            const openDetail = (direction, timetableKey) => setSubwayDetailSheet({
-              station: selectedStation,
-              lineName: line.name,
-              timetableKey,
-              direction,
-              color: meta.color,
-              darkColor: meta.darkColor,
-              lightColor: meta.lightColor,
-              symbol: meta.symbol,
-            })
+            const upFirst = isOvernight ? (up?.depart_at ?? null) : (tmrData?.[line.upKey]?.[0]?.depart_at ?? null)
+            const downFirst = isOvernight ? (down?.depart_at ?? null) : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
 
             return (
               <DualDirectionCard
@@ -192,8 +176,8 @@ export default function SubwayPanel() {
                 sub="다음 열차"
                 left={trainToSlot(up, '상행', upFirst)}
                 right={trainToSlot(down, '하행', downFirst)}
-                onLeftClick={() => openDetail('상행', line.upKey)}
-                onRightClick={() => openDetail('하행', line.downKey)}
+                onLeftClick={() => openDetail(line.name, '상행', line.upKey)}
+                onRightClick={() => openDetail(line.name, '하행', line.downKey)}
                 emptyTitle={emptyTitle}
                 firstLabel={firstLabel}
               />
@@ -201,7 +185,6 @@ export default function SubwayPanel() {
           })}
         </div>
       )}
-
     </>
   )
 }

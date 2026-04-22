@@ -890,7 +890,24 @@ export default function MapView({ onMarkerClick, selectedId }) {
           <MarkerSheet
             station={sheetStation}
             arrivals={sheetArrivals}
-            onArrivalClick={(detail) => useAppStore.getState().setDetailModal(detail)}
+            onArrivalClick={(detail) => {
+              if (detail.type === 'subway') {
+                // 지하철은 통합 상세 패널로 연결
+                useAppStore.getState().setSubwayDetailSheet({
+                  station: detail.routeCode, // '정왕', '초지', '시흥시청'
+                  lineName: detail.title.includes('수인분당') ? '수인분당선' : (detail.title.includes('4호선') ? '4호선' : '서해선'),
+                  timetableKey: detail.subwayKey,
+                  direction: detail.title.includes('상행') ? '상행' : '하행',
+                  color: detail.accentColor,
+                  darkColor: detail.accentColor,
+                  lightColor: '#f8f8f8',
+                  symbol: detail.title.includes('수인분당') ? '수' : (detail.title.includes('4호선') ? '4' : '서'),
+                })
+              } else {
+                // 버스 등은 기존대로 상세 모달
+                useAppStore.getState().setDetailModal(detail)
+              }
+            }}
             relatedMarkers={[]}
             onRelatedMarker={(key) => {
               const target = managedStations.find((s) => s.id === key)

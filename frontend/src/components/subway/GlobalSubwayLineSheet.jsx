@@ -95,6 +95,7 @@ export default function GlobalSubwayLineSheet() {
               currentStation={displayed.current_station}
               terminalStation={displayed.destination}
               color={lineColor}
+              viewStation={displayed.viewStation ?? displayed.current_station}
             />
           )}
         </div>

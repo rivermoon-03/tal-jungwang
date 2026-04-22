@@ -10,5 +10,5 @@ export function useSubwayNext() {
 }
 
 export function useSubwayRealtime() {
-  return useApi('/subway/realtime', { interval: 30_000 })
+  return useApi('/subway/realtime', { interval: 10_000 })
 }

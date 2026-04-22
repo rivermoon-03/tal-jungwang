@@ -1,10 +1,11 @@
 """버스 도착정보 백그라운드 수집기.
 
-38초 간격으로 GBIS API를 폴링하여:
+45초 간격으로 GBIS API를 폴링하여:
 1. Redis에 도착정보 캐시 (프론트 응답용)
 2. 이전 상태와 비교하여 도착 판정 → DB 기록
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -29,7 +30,7 @@ ARRIVAL_THRESHOLD_SEC = 90
 # (폴링 간격 45초 안에 등장·도착·출발이 끝나는 경우 대비)
 FIRST_SIGHT_ARRIVAL_SEC = 30
 
-CACHE_TTL = 80  # 캐시 TTL (초) — 폴링 간격(38초)의 2.1배 (1회 미싱 버퍼)
+CACHE_TTL = 100  # 캐시 TTL (초) — 폴링 간격(45초)의 2.2배 (1회 미싱 버퍼)
 
 # 노선번호별 최소 폴링 간격 (초). 빈 dict = 전 노선 매 사이클 처리.
 ROUTE_POLL_INTERVALS: dict[str, int] = {}
@@ -82,7 +83,10 @@ async def poll_and_collect():
     async with AsyncSessionLocal() as db:
         targets = await _load_realtime_stations(db)
 
-        for target in targets:
+        for i, target in enumerate(targets):
+            if i > 0:
+                await asyncio.sleep(0.5)  # GBIS API 버스트 요청 방지
+
             station_id = target["gbis_station_id"]
             try:
                 items = await fetch_arrivals(station_id)
@@ -250,8 +254,8 @@ async def poll_and_collect():
                 db.add_all(crowding_logs)
                 await db.commit()
 
-            # 현재 상태를 이전 상태로 저장 (38초 폴링 × 3.7사이클 버퍼)
-            await redis.set(prev_key, json.dumps(current_state, ensure_ascii=False), ex=140)
+            # 현재 상태를 이전 상태로 저장 (45초 폴링 × 3.7사이클 버퍼)
+            await redis.set(prev_key, json.dumps(current_state, ensure_ascii=False), ex=170)
             # 이미 집계한 plate 목록 저장 (중복 기록 방지)
             if counted_plates:
                 await redis.set(

@@ -1,4 +1,3 @@
-import { useRef, useEffect } from 'react'
 import useAppStore from '../../stores/useAppStore'
 
 function timeToMinutes(t) {
@@ -7,18 +6,18 @@ function timeToMinutes(t) {
 }
 
 export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx, lineColor, lineDarkColor, lineLightColor }) {
-  const now = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const nextRef = useRef(null)
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
   const darkMode = useAppStore((s) => s.darkMode)
 
-  useEffect(() => {
-    nextRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
-  }, [nextIndex])
+  // 이전 열차 2개 + 현재부터 표시 (스크롤 없이 리스트 자체가 현재 시각 근처에서 시작)
+  const startIdx = nextIndex >= 0
+    ? Math.max(0, nextIndex - 2)
+    : Math.max(0, entries.length - 2)
 
   return (
     <ul className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-28 md:pb-0">
-      {entries.map((train, i) => {
+      {entries.slice(startIdx).map((train, di) => {
+        const i = di + startIdx
         const isPast = timeToMinutes(train.depart_at) <= nowMin
         const isNext = i === nextIndex
         const isLast  = i === lastIdx
@@ -28,7 +27,6 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
         return (
           <li
             key={i}
-            ref={isNext ? nextRef : null}
             className={`flex items-center px-5 py-3 border-b border-slate-100 dark:border-slate-800
               ${isPast ? 'opacity-35 pointer-events-none' : ''}`}
             style={isNext ? { backgroundColor: darkMode ? 'rgba(30,41,59,0.8)' : lineLightColor } : {}}
