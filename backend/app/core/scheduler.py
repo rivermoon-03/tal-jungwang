@@ -2,7 +2,7 @@
 
 import logging
 import time as _time
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -71,25 +71,36 @@ async def _bus_poll_job():
 async def _subway_realtime_poll_job():
     """서울 지하철 실시간 도착정보 폴링 (정왕·시흥시청·초지).
 
-    피크(07~09, 17~19): 15초마다 실제 호출.
-    비피크: 20초 미만 경과 시 스킵 (15초 job이 돌지만 실제 API는 20초 주기).
-    새벽(01~05): 첫차 없으므로 스킵.
+    피크(07~09, 17~19): 15초마다 호출.
+    비피크: 20초 미만 경과 시 스킵.
+    심야(00:00~03:49): 10분 주기 호출 (24시간 체크).
     """
-    hour = datetime.now(_KST).hour
-    if 1 <= hour < 5:
-        return
+    now = datetime.now(_KST)
+    hour = now.hour
+    minute = now.minute
 
+    is_late_night = (1 <= hour < 3) or (
+        hour == 3 and minute < 50
+    )  # 1시부터 3시 50분까지
     is_peak = (7 <= hour < 9) or (17 <= hour < 19)
 
     from app.core.cache import get_redis
-    from app.services.subway_realtime import STATIONS, _last_fetch_key, fetch_and_cache_realtime
+    from app.services.subway_realtime import (
+        STATIONS,
+        _last_fetch_key,
+        fetch_and_cache_realtime,
+    )
 
     redis = await get_redis()
     for station in STATIONS:
-        if not is_peak:
-            last_raw = await redis.get(_last_fetch_key(station))
-            if last_raw and (_time.time() - float(last_raw)) < 20:
+        last_raw = await redis.get(_last_fetch_key(station))
+        if last_raw:
+            elapsed = _time.time() - float(last_raw)
+            if is_late_night and elapsed < 600:
                 continue
+            elif not is_peak and not is_late_night and elapsed < 20:
+                continue
+
         try:
             await fetch_and_cache_realtime(station)
         except Exception:
@@ -138,7 +149,9 @@ def setup_scheduler():
         coalesce=True,
         misfire_grace_time=20,
     )
-    logger.info("Bus arrival polling scheduler configured (every 45s, skip 02:00-03:59 KST)")
+    logger.info(
+        "Bus arrival polling scheduler configured (every 45s, skip 02:00-03:59 KST)"
+    )
 
     # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
     scheduler.add_job(
@@ -149,7 +162,9 @@ def setup_scheduler():
         max_instances=1,
         coalesce=True,
     )
-    logger.info("Weather cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)")
+    logger.info(
+        "Weather cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)"
+    )
 
     # ── 버스 도착 수집 리포트 (Discord 웹훅, 3시간마다 00/03/06/09/12/15/18/21 KST) ──
     scheduler.add_job(
@@ -162,8 +177,8 @@ def setup_scheduler():
     )
     logger.info("Bus arrival Discord report configured (every 3h, 3h window)")
 
-    # ── 지하철 실시간 폴링 (15초 간격, 내부에서 비피크/새벽 스킵) ──
-    # 피크: 15초 폴링 × 3역, 비피크: 20초 폴링 × 3역
+    # ── 지하철 실시간 폴링 (15초 간격, 내부에서 비피크 20초 / 심야 10분 스킵) ──
+    # 피크: 15초 폴링, 비피크: 20초 폴링, 심야(00:00~03:49): 10분 폴링
     scheduler.add_job(
         _subway_realtime_poll_job,
         IntervalTrigger(seconds=15),
@@ -173,7 +188,9 @@ def setup_scheduler():
         coalesce=True,
         misfire_grace_time=10,
     )
-    logger.info("Subway realtime polling scheduler configured (every 15s peak / 20s off-peak, 3 stations)")
+    logger.info(
+        "Subway realtime polling scheduler configured (00:00~03:49 10m / peak 15s / off-peak 20s)"
+    )
 
 
 def start_scheduler():
