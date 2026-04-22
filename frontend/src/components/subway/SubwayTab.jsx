@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TrainFront, ChevronLeft } from 'lucide-react'
 import { useSubwayTimetable, useSubwayRealtime } from '../../hooks/useSubway'
 import SubwayLineCard from './SubwayLineCard'
@@ -96,6 +96,7 @@ export default function SubwayTab() {
   const [stationTab, setStationTab] = useState(STATION_TABS[0])
   const [modeTab, setModeTab] = useState('realtime')
   const [selectedRealtimeItem, setSelectedRealtimeItem] = useState(null)
+  const didAutoSwitchRef = useRef(false)
   const { data: timetable, loading } = useSubwayTimetable()
   const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
   const lastTrainWarnings = useLastTrainWarnings(timetable)
@@ -109,10 +110,15 @@ export default function SubwayTab() {
     }
   }, [stationTab])
 
-  // 실시간 데이터가 없을 때 시간표 모드로 자동 전환 (초기 null 상태는 건너뜀)
+  // 실시간 데이터가 없을 때 시간표 모드로 자동 전환 (최초 1회만, 데이터 복구 시 리셋)
   useEffect(() => {
-    if (!realtimeLoading && realtimeArrivals !== null && realtimeArrivals.length === 0) {
-      setModeTab('timetable')
+    if (!realtimeLoading && realtimeArrivals !== null) {
+      if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
+        didAutoSwitchRef.current = true
+        setModeTab('timetable')
+      } else if (realtimeArrivals.length > 0) {
+        didAutoSwitchRef.current = false
+      }
     }
   }, [realtimeArrivals, realtimeLoading])
 

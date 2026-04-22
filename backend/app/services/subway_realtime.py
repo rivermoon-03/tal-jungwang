@@ -1,8 +1,8 @@
 """서울 지하철 실시간 도착정보 서비스.
 
 API 한도: 일 1,000회 (정왕역 단일 역)
-폴링 전략: 피크(07~09, 17~19) 30초 / 비피크 90초 / 새벽(01~05) OFF
-캐시 키: subway:realtime:정왕  TTL: 35초
+폴링 전략: 피크(07~09, 17~19) 30초 / 비피크 120초 / 새벽(01~05) OFF
+캐시 키: subway:realtime:정왕  TTL: 150초 (비피크 120초 간격보다 길게 유지해 cache-aside 추가 호출 방지)
 """
 
 import time
@@ -15,7 +15,7 @@ from app.core.config import settings
 
 _BASE_URL = "http://swopenAPI.seoul.go.kr/api/subway/{key}/xml/realtimeStationArrival/0/20/정왕"
 _CACHE_KEY = "subway:realtime:정왕"
-_CACHE_TTL = 35
+_CACHE_TTL = 150
 _LAST_FETCH_KEY = "subway:realtime:last_fetch"
 
 _LINE_MAP = {
