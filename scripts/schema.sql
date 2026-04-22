@@ -304,6 +304,7 @@ INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (12, '5602', '5602번', '이마트(학교)', '216000047', '등교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (10, '3401', NULL, '이마트 방면', '224000071', '등교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (14, '시흥33', '시흥33번', '한국공학대학교 방면', '224000062', '등교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (15, '99-2', '시흥99-2번', '월곶역방면', '224000034', '하교');
 
 
 --
@@ -319,13 +320,14 @@ INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (2,
 INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (1, '시화', NULL, 37.314800, 126.806000, NULL);
 INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (8, '구로디지털단지역', NULL, 37.485300, 126.901000, NULL);
 INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (13, '시흥시청역', '224000586', 37.381656, 126.805878, '서해선 환승');
+INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (17, '한국공학대학교 시흥터미널', '224000861', 37.342467, 126.735117, NULL);
 
 
 --
 -- Data for Name: bus_stop_routes; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (1, 1);
+INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (17, 1);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (2, 4);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (3, 2);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (3, 3);
@@ -340,129 +342,131 @@ INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (3, 13);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (13, 12);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (13, 10);
 INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (13, 14);
+INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (17, 15);
+INSERT INTO bus_stop_routes (bus_stop_id, bus_route_id) VALUES (2, 15);
 
 
 --
 -- Data for Name: bus_timetable_entries; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (1, 1, 1, 'weekday', '05:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (2, 1, 1, 'weekday', '06:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (3, 1, 1, 'weekday', '06:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (4, 1, 1, 'weekday', '06:35:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (5, 1, 1, 'weekday', '06:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (6, 1, 1, 'weekday', '07:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (7, 1, 1, 'weekday', '07:35:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (8, 1, 1, 'weekday', '08:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (9, 1, 1, 'weekday', '08:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (10, 1, 1, 'weekday', '09:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (11, 1, 1, 'weekday', '09:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (12, 1, 1, 'weekday', '10:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (13, 1, 1, 'weekday', '10:25:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (14, 1, 1, 'weekday', '10:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (15, 1, 1, 'weekday', '11:15:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (16, 1, 1, 'weekday', '11:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (17, 1, 1, 'weekday', '12:05:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (18, 1, 1, 'weekday', '12:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (19, 1, 1, 'weekday', '12:55:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (20, 1, 1, 'weekday', '13:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (21, 1, 1, 'weekday', '13:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (22, 1, 1, 'weekday', '14:15:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (23, 1, 1, 'weekday', '14:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (24, 1, 1, 'weekday', '15:05:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (25, 1, 1, 'weekday', '15:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (26, 1, 1, 'weekday', '15:55:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (27, 1, 1, 'weekday', '16:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (28, 1, 1, 'weekday', '16:45:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (29, 1, 1, 'weekday', '17:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (30, 1, 1, 'weekday', '17:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (31, 1, 1, 'weekday', '18:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (32, 1, 1, 'weekday', '18:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (33, 1, 1, 'weekday', '19:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (34, 1, 1, 'weekday', '19:35:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (35, 1, 1, 'weekday', '20:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (36, 1, 1, 'weekday', '20:25:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (37, 1, 1, 'weekday', '20:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (38, 1, 1, 'weekday', '21:15:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (39, 1, 1, 'weekday', '21:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (40, 1, 1, 'weekday', '22:05:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (41, 1, 1, 'weekday', '22:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (42, 1, 1, 'weekday', '22:55:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (43, 1, 1, 'weekday', '23:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (44, 1, 1, 'saturday', '05:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (45, 1, 1, 'sunday', '05:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (46, 1, 1, 'saturday', '06:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (47, 1, 1, 'sunday', '06:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (48, 1, 1, 'saturday', '06:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (49, 1, 1, 'sunday', '06:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (50, 1, 1, 'saturday', '07:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (51, 1, 1, 'sunday', '07:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (52, 1, 1, 'saturday', '07:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (53, 1, 1, 'sunday', '07:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (54, 1, 1, 'saturday', '08:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (55, 1, 1, 'sunday', '08:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (56, 1, 1, 'saturday', '08:35:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (57, 1, 1, 'sunday', '08:35:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (58, 1, 1, 'saturday', '09:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (59, 1, 1, 'sunday', '09:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (60, 1, 1, 'saturday', '09:25:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (61, 1, 1, 'sunday', '09:25:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (62, 1, 1, 'saturday', '09:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (63, 1, 1, 'sunday', '09:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (64, 1, 1, 'saturday', '10:15:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (65, 1, 1, 'sunday', '10:15:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (66, 1, 1, 'saturday', '10:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (67, 1, 1, 'sunday', '10:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (68, 1, 1, 'saturday', '11:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (69, 1, 1, 'sunday', '11:10:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (70, 1, 1, 'saturday', '11:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (71, 1, 1, 'sunday', '11:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (72, 1, 1, 'saturday', '12:05:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (73, 1, 1, 'sunday', '12:05:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (74, 1, 1, 'saturday', '12:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (75, 1, 1, 'sunday', '12:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (76, 1, 1, 'saturday', '13:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (77, 1, 1, 'sunday', '13:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (78, 1, 1, 'saturday', '13:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (79, 1, 1, 'sunday', '13:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (80, 1, 1, 'saturday', '14:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (81, 1, 1, 'sunday', '14:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (82, 1, 1, 'saturday', '14:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (83, 1, 1, 'sunday', '14:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (84, 1, 1, 'saturday', '15:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (85, 1, 1, 'sunday', '15:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (86, 1, 1, 'saturday', '15:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (87, 1, 1, 'sunday', '15:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (88, 1, 1, 'saturday', '16:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (89, 1, 1, 'sunday', '16:00:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (90, 1, 1, 'saturday', '16:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (91, 1, 1, 'sunday', '16:30:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (92, 1, 1, 'saturday', '17:05:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (93, 1, 1, 'sunday', '17:05:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (94, 1, 1, 'saturday', '17:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (95, 1, 1, 'sunday', '17:40:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (96, 1, 1, 'saturday', '18:15:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (97, 1, 1, 'sunday', '18:15:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (98, 1, 1, 'saturday', '18:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (99, 1, 1, 'sunday', '18:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (100, 1, 1, 'saturday', '19:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (101, 1, 1, 'sunday', '19:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (102, 1, 1, 'saturday', '19:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (103, 1, 1, 'sunday', '19:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (104, 1, 1, 'saturday', '20:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (105, 1, 1, 'sunday', '20:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (106, 1, 1, 'saturday', '20:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (107, 1, 1, 'sunday', '20:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (108, 1, 1, 'saturday', '21:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (109, 1, 1, 'sunday', '21:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (110, 1, 1, 'saturday', '21:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (111, 1, 1, 'sunday', '21:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (112, 1, 1, 'saturday', '22:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (113, 1, 1, 'sunday', '22:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (114, 1, 1, 'saturday', '22:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (115, 1, 1, 'sunday', '22:50:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (116, 1, 1, 'saturday', '23:20:00', NULL);
-INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (117, 1, 1, 'sunday', '23:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (1, 1, 3, 'weekday', '05:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (2, 1, 3, 'weekday', '06:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (3, 1, 3, 'weekday', '06:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (4, 1, 3, 'weekday', '06:35:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (5, 1, 3, 'weekday', '06:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (6, 1, 3, 'weekday', '07:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (7, 1, 3, 'weekday', '07:35:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (8, 1, 3, 'weekday', '08:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (9, 1, 3, 'weekday', '08:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (10, 1, 3, 'weekday', '09:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (11, 1, 3, 'weekday', '09:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (12, 1, 3, 'weekday', '10:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (13, 1, 3, 'weekday', '10:25:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (14, 1, 3, 'weekday', '10:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (15, 1, 3, 'weekday', '11:15:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (16, 1, 3, 'weekday', '11:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (17, 1, 3, 'weekday', '12:05:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (18, 1, 3, 'weekday', '12:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (19, 1, 3, 'weekday', '12:55:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (20, 1, 3, 'weekday', '13:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (21, 1, 3, 'weekday', '13:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (22, 1, 3, 'weekday', '14:15:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (23, 1, 3, 'weekday', '14:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (24, 1, 3, 'weekday', '15:05:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (25, 1, 3, 'weekday', '15:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (26, 1, 3, 'weekday', '15:55:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (27, 1, 3, 'weekday', '16:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (28, 1, 3, 'weekday', '16:45:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (29, 1, 3, 'weekday', '17:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (30, 1, 3, 'weekday', '17:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (31, 1, 3, 'weekday', '18:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (32, 1, 3, 'weekday', '18:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (33, 1, 3, 'weekday', '19:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (34, 1, 3, 'weekday', '19:35:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (35, 1, 3, 'weekday', '20:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (36, 1, 3, 'weekday', '20:25:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (37, 1, 3, 'weekday', '20:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (38, 1, 3, 'weekday', '21:15:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (39, 1, 3, 'weekday', '21:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (40, 1, 3, 'weekday', '22:05:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (41, 1, 3, 'weekday', '22:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (42, 1, 3, 'weekday', '22:55:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (43, 1, 3, 'weekday', '23:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (44, 1, 3, 'saturday', '05:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (45, 1, 3, 'sunday', '05:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (46, 1, 3, 'saturday', '06:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (47, 1, 3, 'sunday', '06:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (48, 1, 3, 'saturday', '06:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (49, 1, 3, 'sunday', '06:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (50, 1, 3, 'saturday', '07:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (51, 1, 3, 'sunday', '07:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (52, 1, 3, 'saturday', '07:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (53, 1, 3, 'sunday', '07:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (54, 1, 3, 'saturday', '08:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (55, 1, 3, 'sunday', '08:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (56, 1, 3, 'saturday', '08:35:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (57, 1, 3, 'sunday', '08:35:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (58, 1, 3, 'saturday', '09:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (59, 1, 3, 'sunday', '09:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (60, 1, 3, 'saturday', '09:25:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (61, 1, 3, 'sunday', '09:25:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (62, 1, 3, 'saturday', '09:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (63, 1, 3, 'sunday', '09:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (64, 1, 3, 'saturday', '10:15:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (65, 1, 3, 'sunday', '10:15:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (66, 1, 3, 'saturday', '10:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (67, 1, 3, 'sunday', '10:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (68, 1, 3, 'saturday', '11:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (69, 1, 3, 'sunday', '11:10:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (70, 1, 3, 'saturday', '11:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (71, 1, 3, 'sunday', '11:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (72, 1, 3, 'saturday', '12:05:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (73, 1, 3, 'sunday', '12:05:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (74, 1, 3, 'saturday', '12:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (75, 1, 3, 'sunday', '12:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (76, 1, 3, 'saturday', '13:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (77, 1, 3, 'sunday', '13:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (78, 1, 3, 'saturday', '13:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (79, 1, 3, 'sunday', '13:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (80, 1, 3, 'saturday', '14:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (81, 1, 3, 'sunday', '14:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (82, 1, 3, 'saturday', '14:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (83, 1, 3, 'sunday', '14:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (84, 1, 3, 'saturday', '15:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (85, 1, 3, 'sunday', '15:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (86, 1, 3, 'saturday', '15:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (87, 1, 3, 'sunday', '15:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (88, 1, 3, 'saturday', '16:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (89, 1, 3, 'sunday', '16:00:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (90, 1, 3, 'saturday', '16:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (91, 1, 3, 'sunday', '16:30:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (92, 1, 3, 'saturday', '17:05:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (93, 1, 3, 'sunday', '17:05:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (94, 1, 3, 'saturday', '17:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (95, 1, 3, 'sunday', '17:40:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (96, 1, 3, 'saturday', '18:15:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (97, 1, 3, 'sunday', '18:15:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (98, 1, 3, 'saturday', '18:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (99, 1, 3, 'sunday', '18:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (100, 1, 3, 'saturday', '19:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (101, 1, 3, 'sunday', '19:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (102, 1, 3, 'saturday', '19:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (103, 1, 3, 'sunday', '19:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (104, 1, 3, 'saturday', '20:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (105, 1, 3, 'sunday', '20:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (106, 1, 3, 'saturday', '20:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (107, 1, 3, 'sunday', '20:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (108, 1, 3, 'saturday', '21:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (109, 1, 3, 'sunday', '21:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (110, 1, 3, 'saturday', '21:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (111, 1, 3, 'sunday', '21:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (112, 1, 3, 'saturday', '22:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (113, 1, 3, 'sunday', '22:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (114, 1, 3, 'saturday', '22:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (115, 1, 3, 'sunday', '22:50:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (116, 1, 3, 'saturday', '23:20:00', NULL);
+INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (117, 1, 3, 'sunday', '23:20:00', NULL);
 INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (118, 6, 2, 'weekday', '05:00:00', NULL);
 INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (119, 6, 2, 'weekday', '05:30:00', NULL);
 INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_time, note) VALUES (120, 6, 2, 'weekday', '05:50:00', NULL);
@@ -1308,7 +1312,7 @@ INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, so
 -- Data for Name: map_marker_routes; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (1, 5, '3400', '#DC2626', 'G', 1, 6, '{"spineLeft": "시화", "spineRight": "강남", "inboundSegment": "정왕행", "inboundDirLabel": "강남 → 학교행", "outboundSegment": "서울행", "outboundDirLabel": "학교 → 강남행", "inboundActiveSide": "left", "outboundActiveSide": "right"}', 0);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (1, 5, '3400', '#DC2626', 'G', 17, 6, '{"spineLeft": "시화", "spineRight": "강남", "inboundSegment": "정왕행", "inboundDirLabel": "강남 → 학교행", "outboundSegment": "서울행", "outboundDirLabel": "학교 → 강남행", "inboundActiveSide": "left", "outboundActiveSide": "right"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (2, 6, '6502', '#DC2626', 'G', 2, 5, '{"spineLeft": "이마트", "spineRight": "사당", "inboundSegment": "정왕행", "inboundDirLabel": "사당 → 이마트행", "outboundSegment": "서울행", "outboundDirLabel": "이마트 → 사당행", "inboundActiveSide": "left", "outboundActiveSide": "right"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (3, 6, '3401', '#DC2626', 'G', 2, 7, '{"spineLeft": "이마트", "spineRight": "석수", "inboundSegment": "정왕행", "inboundDirLabel": "석수 → 이마트행", "outboundSegment": "서울행", "outboundDirLabel": "이마트 → 석수행", "inboundActiveSide": "left", "outboundActiveSide": "right"}', 10);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (4, 7, '3400', '#DC2626', 'G', 6, 1, '{"spineLeft": "시화", "spineRight": "강남", "inboundSegment": "서울행", "inboundDirLabel": "학교 → 강남행", "outboundSegment": "정왕행", "outboundDirLabel": "강남 → 학교행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
@@ -1317,6 +1321,8 @@ INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_t
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (7, 6, '5602', '#DC2626', 'G', 2, 8, '{"outboundDirLabel": "이마트 → 구로행"}', 20);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (8, 12, '5602', '#DC2626', 'G', 8, 2, '{"spineLeft": "이마트", "spineRight": "구로", "inboundSegment": "서울행", "inboundDirLabel": "이마트 → 구로행", "outboundSegment": "정왕행", "outboundDirLabel": "구로 → 이마트행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (9, 4, '11-A', '#0891B2', NULL, 3, NULL, '{"showLive": true}', 10);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (13, 6, '99-2', '#0D9488', 'L', 2, NULL, '{}', 30);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (14, 5, '99-2', '#0891B2', NULL, 17, NULL, '{}', 10);
 
 
 --
@@ -2623,7 +2629,7 @@ SELECT pg_catalog.setval('bus_routes_id_seq', 14, true);
 -- Name: bus_stops_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('bus_stops_id_seq', 16, true);
+SELECT pg_catalog.setval('bus_stops_id_seq', 17, true);
 
 
 --
@@ -2637,7 +2643,7 @@ SELECT pg_catalog.setval('bus_timetable_entries_id_seq', 937, true);
 -- Name: map_marker_routes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('map_marker_routes_id_seq', 12, true);
+SELECT pg_catalog.setval('map_marker_routes_id_seq', 14, true);
 
 
 --

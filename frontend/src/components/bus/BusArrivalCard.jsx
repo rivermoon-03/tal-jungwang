@@ -1,4 +1,6 @@
+import { Fragment } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { getRouteCardDisplay, ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
 
 const CROWDED_META = {
   1: { label: '여유', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
@@ -17,6 +19,48 @@ export function CrowdedBadge({ level }) {
   )
 }
 
+// 노선 경유 진행 표시 바
+export function RouteProgressStrip({ routeNo, stationId, hasArrival }) {
+  const waypoints = ROUTE_WAYPOINTS[routeNo]
+  if (!waypoints) return null
+
+  // 현재 조회 정류장 인덱스 → 그 앞 구간이 활성 버스 구간
+  const activeSegIdx = hasArrival ? waypoints.findIndex((w) => w.id === stationId) : -1
+
+  return (
+    <div className="px-4 pb-3">
+      <div className="flex items-start">
+        {/* 시작 연결선 */}
+        <div className="mt-[6px] w-3 shrink-0 h-px bg-slate-200 dark:bg-slate-600" />
+
+        {/* 각 구간 + 정류장 노드 */}
+        {waypoints.map((wp, i) => (
+          <Fragment key={wp.id}>
+            {/* 구간 선 (이 정류장에 도달하기 전 구간) */}
+            <div className="relative flex-1 flex items-center mt-[6px]">
+              <div className={`w-full h-px ${activeSegIdx === i ? 'bg-blue-400 dark:bg-blue-500' : 'bg-slate-200 dark:bg-slate-600'}`} />
+              {activeSegIdx === i && (
+                <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shadow animate-pulse" />
+              )}
+            </div>
+
+            {/* 정류장 노드 */}
+            <div className="flex flex-col items-center shrink-0">
+              <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-950' : 'border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-800'}`} />
+              <span className={`text-[9px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-semibold text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                {wp.label}
+              </span>
+            </div>
+          </Fragment>
+        ))}
+
+        {/* 끝 연결선 */}
+        <div className="flex-1 mt-[6px] h-px bg-slate-200 dark:bg-slate-600" />
+      </div>
+    </div>
+  )
+}
+
 const ROUTE_COLORS = {
   '6502':  '#E02020',
   '3400':  '#E02020',
@@ -25,6 +69,7 @@ const ROUTE_COLORS = {
   '시흥1':  '#33B5A5',
   '20-1':  '#5096E6',
   '5602':  '#5096E6',
+  '99-2':  '#8B5CF6',
 }
 const DEFAULT_COLOR = '#334155'
 
@@ -82,11 +127,12 @@ function TimetableChip({ arrival }) {
 }
 
 // arrivals: 같은 route_no를 가진 배열
-export default function BusArrivalCard({ arrivals, onTimetableClick }) {
+export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
   const color = getRouteColor(first.route_no)
   const shown = arrivals.slice(0, 3)
+  const desc = getRouteCardDisplay(first.route_no, first.category)
 
   const inner = (
     <>
@@ -97,9 +143,22 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
         >
           {first.route_no}
         </span>
-        <span className="flex-1 text-sm text-slate-500 dark:text-slate-400 truncate min-w-0">
-          {first.destination}
-        </span>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          {desc ? (
+            <>
+              <span className="text-xs text-slate-400 dark:text-slate-500 leading-tight">
+                {desc.origin} 출발
+              </span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-tight">
+                {desc.dest}
+              </span>
+            </>
+          ) : (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {first.destination}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-3 shrink-0">
           {shown.map((a, i) => (
             <span key={i} className="flex flex-col items-center gap-0.5">
@@ -118,7 +177,7 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
             </span>
           ))}
         </div>
-        {isTimetable && (
+        {(isTimetable || !!ROUTE_WAYPOINTS[first.route_no]) && (
           <ChevronRight size={16} className="text-slate-400 shrink-0" />
         )}
       </div>
@@ -152,11 +211,13 @@ export default function BusArrivalCard({ arrivals, onTimetableClick }) {
     </>
   )
 
-  if (isTimetable) {
+  const isClickable = isTimetable || !!ROUTE_WAYPOINTS[first.route_no]
+
+  if (isClickable) {
     return (
       <button
         className="w-full rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark text-left pressable"
-        onClick={() => onTimetableClick(first.route_id, first.route_no, first.destination)}
+        onClick={() => onTimetableClick(first.route_id, first.route_no, desc ? `${desc.origin} → ${desc.dest}` : first.destination)}
       >
         {inner}
       </button>

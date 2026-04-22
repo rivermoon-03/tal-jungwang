@@ -11,6 +11,8 @@ import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview } from '.
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import Skeleton from '../common/Skeleton'
+import { RouteProgressStrip } from '../bus/BusArrivalCard'
+import { ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -719,6 +721,12 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           className="flex-1 overflow-y-auto px-4 pt-2"
           style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
         >
+          {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
+            <div className="-mx-4 mb-4 border-b border-slate-100 dark:border-border-dark pb-2">
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 px-4 mb-3 uppercase tracking-wide">경유 노선</p>
+              <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
+            </div>
+          )}
           {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} />}
           {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
           {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
