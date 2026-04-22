@@ -100,17 +100,18 @@ export default function SubwayTab() {
   const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
   const lastTrainWarnings = useLastTrainWarnings(timetable)
 
-  // 역 탭이 정왕역 이외로 바뀔 때 modeTab과 selectedRealtimeItem 초기화
+  // 역 탭이 바뀔 때 상세뷰/모드 전체 초기화
   useEffect(() => {
     if (stationTab !== '정왕역') {
       setModeTab('realtime')
       setSelectedRealtimeItem(null)
+      setSelectedKey(null)
     }
   }, [stationTab])
 
-  // 실시간 데이터가 없을 때 시간표 모드로 자동 전환
+  // 실시간 데이터가 없을 때 시간표 모드로 자동 전환 (초기 null 상태는 건너뜀)
   useEffect(() => {
-    if (!realtimeLoading && (!realtimeArrivals || realtimeArrivals.length === 0)) {
+    if (!realtimeLoading && realtimeArrivals !== null && realtimeArrivals.length === 0) {
       setModeTab('timetable')
     }
   }, [realtimeArrivals, realtimeLoading])
@@ -250,7 +251,10 @@ export default function SubwayTab() {
           <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
             <SubwayRealtimeBoard
               arrivals={realtimeArrivals}
-              onRowClick={(item) => setSelectedRealtimeItem(item)}
+              onRowClick={(item) => {
+                setSelectedKey(null)
+                setSelectedRealtimeItem(item)
+              }}
             />
           </div>
         )
@@ -276,7 +280,10 @@ export default function SubwayTab() {
                         darkColor={card.darkColor}
                         lightColor={card.lightColor}
                         trains={timetable?.[card.key] ?? []}
-                        onClick={() => setSelectedKey(card.key)}
+                        onClick={() => {
+                          setSelectedRealtimeItem(null)
+                          setSelectedKey(card.key)
+                        }}
                       />
                     )
                   })}
