@@ -294,6 +294,7 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
   const { data, loading } = useSubwayNext()
   const { data: timetable } = useSubwayTimetable()
   const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
+  const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
   const [modeTab, setModeTab] = useState('realtime')
   const didAutoSwitchRef = useRef(false)
   const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
@@ -397,6 +398,7 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
                 color={dir.color}
                 upTrain={up}
                 downTrain={down}
+                onTrainClick={setSubwayLineSheet}
               />
             )
           })

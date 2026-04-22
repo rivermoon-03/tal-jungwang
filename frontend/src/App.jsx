@@ -176,6 +176,7 @@ export default function App() {
         <BottomDock />
       </div>
       <GlobalDetailModal />
+      <GlobalSubwayLineSheet />
     </>
   )
 }
