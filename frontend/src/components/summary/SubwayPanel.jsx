@@ -1,21 +1,14 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import useAppStore from '../../stores/useAppStore'
-import { useSubwayNext } from '../../hooks/useSubway'
+import { useSubwayNext, useSubwayRealtime } from '../../hooks/useSubway'
 import { useApi } from '../../hooks/useApi'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
 import EmptyState from '../common/EmptyState'
 import DualDirectionCard from '../common/DualDirectionCard'
-
-/**
- * SubwayPanel — 지하철 모드 패널.
- *
- * 한 노선당 DualDirectionCard 1장.
- *   - 정왕역: 수인분당선 + 4호선 2장 스택
- *   - 초지·시흥시청: 서해선 1장
- *
- * 운행 종료 시 내일 첫차 시간 표시.
- */
+import SubwayRealtimeBoard from '../subway/SubwayRealtimeBoard'
+import SubwayLineMap from '../subway/SubwayLineMap'
+import BottomSheet from '../transit/BottomSheet'
 
 const LINE_META = {
   수인분당선: { symbol: '수', color: '#F5A623' },
@@ -46,10 +39,35 @@ export default function SubwayPanel() {
   const selectedStation = useAppStore((s) => s.selectedSubwayStation)
   const setScheduleHint = useAppStore((s) => s.setScheduleHint)
   const { data, loading, error, refetch } = useSubwayNext()
+  const { data: realtimeArrivals, loading: realtimeLoading } = useSubwayRealtime()
+
+  const isJeongwang = selectedStation === '정왕'
+  const [modeTab, setModeTab] = useState('realtime')
+  const [sheetItem, setSheetItem] = useState(null)
+  const didAutoSwitchRef = useRef(false)
 
   const lines = STATION_LINES[selectedStation] ?? []
 
-  // 내일 시간표 — 운행 종료 시 첫차 표시용 (12h TTL, 항상 prefetch)
+  // 정왕역이 아닌 역으로 바뀌면 실시간 모드로 리셋
+  useEffect(() => {
+    if (!isJeongwang) {
+      setModeTab('realtime')
+      didAutoSwitchRef.current = false
+    }
+  }, [isJeongwang])
+
+  // 실시간 데이터가 없을 때 1회 자동 전환
+  useEffect(() => {
+    if (!realtimeLoading && realtimeArrivals !== null) {
+      if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
+        didAutoSwitchRef.current = true
+        setModeTab('timetable')
+      } else if (realtimeArrivals.length > 0) {
+        didAutoSwitchRef.current = false
+      }
+    }
+  }, [realtimeArrivals, realtimeLoading])
+
   const tom1 = useMemo(() => offsetDate(1), [])
   const { data: tmrData } = useApi(
     `/subway/timetable?date=${tom1}`,
@@ -79,47 +97,104 @@ export default function SubwayPanel() {
     )
   }
 
-  // 자정~첫차 사이(hour < 5): 막차가 끊긴 상태. 다음 열차는 오늘 시간표 기준 첫차.
   const isOvernight = new Date().getHours() < 5
   const emptyTitle = isOvernight ? '막차 끊김' : '오늘 운행 없음'
   const firstLabel = isOvernight ? '오늘 첫차' : '내일 첫차'
 
-  const handleClick = () => {
+  const handleTimetableClick = () => {
     setScheduleHint({ mode: 'subway', group: selectedStation })
     window.history.pushState({}, '', '/schedule')
     window.dispatchEvent(new PopStateEvent('popstate'))
   }
 
   return (
-    <div className="space-y-2">
-      {lines.map((line) => {
-        const meta = LINE_META[line.name] ?? { symbol: line.name.slice(0, 1), color: '#6b7280' }
-        const up = data[line.upKey]
-        const down = data[line.downKey]
-        // 자정~새벽: useSubwayNext가 오늘 첫차를 이미 반환하지만 trainToMinutes가 >1h 차단.
-        // 해당 데이터의 depart_at을 직접 사용. 평시엔 내일 시간표에서 첫차를 가져온다.
-        const upFirst = isOvernight
-          ? (up?.depart_at ?? null)
-          : (tmrData?.[line.upKey]?.[0]?.depart_at ?? null)
-        const downFirst = isOvernight
-          ? (down?.depart_at ?? null)
-          : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
-        return (
-          <DualDirectionCard
-            key={line.name}
-            symbol={meta.symbol}
-            symbolColor={meta.color}
-            lineName={line.name}
-            sub="다음 열차"
-            left={trainToSlot(up, '상행', upFirst)}
-            right={trainToSlot(down, '하행', downFirst)}
-            onClick={handleClick}
-            emptyTitle={emptyTitle}
-            firstLabel={firstLabel}
-          />
+    <>
+      {/* 정왕역 전용 실시간/시간표 탭 */}
+      {isJeongwang && (
+        <div className="flex gap-1.5 mb-2">
+          {['realtime', 'timetable'].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setModeTab(mode)}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                modeTab === mode
+                  ? 'bg-navy text-white'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-400'
+              }`}
+            >
+              {mode === 'realtime' ? '실시간' : '시간표'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 실시간 모드 (정왕역만) */}
+      {isJeongwang && modeTab === 'realtime' && (
+        realtimeLoading ? (
+          <div className="space-y-2">
+            <Skeleton height="4rem" rounded="rounded-xl" />
+            <Skeleton height="4rem" rounded="rounded-xl" />
+          </div>
+        ) : (
+          <div className="-mx-0 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
+            <SubwayRealtimeBoard
+              arrivals={realtimeArrivals}
+              onRowClick={(item) => setSheetItem(item)}
+            />
+          </div>
         )
-      })}
-    </div>
+      )}
+
+      {/* 시간표 모드 */}
+      {(!isJeongwang || modeTab === 'timetable') && (
+        <div className="space-y-2">
+          {lines.map((line) => {
+            const meta = LINE_META[line.name] ?? { symbol: line.name.slice(0, 1), color: '#6b7280' }
+            const up = data[line.upKey]
+            const down = data[line.downKey]
+            const upFirst = isOvernight
+              ? (up?.depart_at ?? null)
+              : (tmrData?.[line.upKey]?.[0]?.depart_at ?? null)
+            const downFirst = isOvernight
+              ? (down?.depart_at ?? null)
+              : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
+            return (
+              <DualDirectionCard
+                key={line.name}
+                symbol={meta.symbol}
+                symbolColor={meta.color}
+                lineName={line.name}
+                sub="다음 열차"
+                left={trainToSlot(up, '상행', upFirst)}
+                right={trainToSlot(down, '하행', downFirst)}
+                onClick={handleTimetableClick}
+                emptyTitle={emptyTitle}
+                firstLabel={firstLabel}
+              />
+            )
+          })}
+        </div>
+      )}
+
+      {/* 노선도 바텀시트 */}
+      {sheetItem && (
+        <BottomSheet
+          open={!!sheetItem}
+          onClose={() => setSheetItem(null)}
+          title={`${sheetItem.line} · ${sheetItem.destination} 방면`}
+        >
+          <div className="overflow-y-auto pb-4">
+            <SubwayLineMap
+              line={sheetItem.line}
+              direction={sheetItem.direction}
+              currentStation={sheetItem.current_station}
+              terminalStation={sheetItem.destination}
+              color={sheetItem.color}
+            />
+          </div>
+        </BottomSheet>
+      )}
+    </>
   )
 }
 
