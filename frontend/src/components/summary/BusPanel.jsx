@@ -83,6 +83,31 @@ export default function BusPanel() {
     }
   }
 
+  // 운행 정보가 있는 노선을 먼저, 없는 노선을 뒤로; 동일 그룹 내 도착이 임박한 순
+  const groupHasLive = (g) =>
+    g.some((a) => a.minutes != null || a.predict_sec != null || a.arrive_in_seconds != null)
+  const groupEarliest = (g) => {
+    let min = Infinity
+    for (const a of g) {
+      const m =
+        a.minutes != null
+          ? a.minutes
+          : a.predict_sec != null
+          ? Math.floor(a.predict_sec / 60)
+          : a.arrive_in_seconds != null
+          ? Math.floor(a.arrive_in_seconds / 60)
+          : null
+      if (m != null && m < min) min = m
+    }
+    return min === Infinity ? 9999 : min
+  }
+  routeGroups.sort((a, b) => {
+    const aHas = groupHasLive(a)
+    const bHas = groupHasLive(b)
+    if (aHas !== bHas) return aHas ? -1 : 1
+    return groupEarliest(a) - groupEarliest(b)
+  })
+
   return (
     <div className="space-y-2">
       {routeGroups.map((group) => {

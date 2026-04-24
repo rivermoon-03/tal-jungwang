@@ -12,6 +12,28 @@ function groupByRouteNo(arrivals) {
   return Array.from(map.values())
 }
 
+function hasLiveInfo(groupArrivals) {
+  return groupArrivals.some(
+    (a) => a.minutes != null || a.predict_sec != null || a.arrive_in_seconds != null,
+  )
+}
+
+function earliestMinutes(groupArrivals) {
+  let min = Infinity
+  for (const a of groupArrivals) {
+    const m =
+      a.minutes != null
+        ? a.minutes
+        : a.predict_sec != null
+        ? Math.floor(a.predict_sec / 60)
+        : a.arrive_in_seconds != null
+        ? Math.floor(a.arrive_in_seconds / 60)
+        : null
+    if (m != null && m < min) min = m
+  }
+  return min === Infinity ? 9999 : min
+}
+
 function groupByCategory(arrivals) {
   const map = new Map()
   for (const a of arrivals) {
@@ -54,6 +76,12 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
       <div className="p-4 space-y-4">
         {sections.map(({ category, arrivals: sectionArrivals }) => {
           const routeGroups = groupByRouteNo(sectionArrivals)
+          routeGroups.sort((a, b) => {
+            const aHas = hasLiveInfo(a)
+            const bHas = hasLiveInfo(b)
+            if (aHas !== bHas) return aHas ? -1 : 1
+            return earliestMinutes(a) - earliestMinutes(b)
+          })
           return (
             <div key={category}>
               {multiSection && (
