@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import MapView from './MapView'
+import MapLegendOnboarding from './MapLegendOnboarding'
 import Dashboard from '../dashboard/Dashboard'
 import useAppStore from '../../stores/useAppStore'
 
@@ -17,6 +18,8 @@ export default function MainTab() {
         onMarkerClick={(id) => setSelectedId((prev) => (prev === id ? null : id))}
         selectedId={selectedId}
       />
+
+      <MapLegendOnboarding />
 
       {/* PC 전용 플로팅 대시보드 — 모바일은 MainShell이 담당 */}
       <div className="hidden md:block absolute bottom-4 left-4 z-[40]">
