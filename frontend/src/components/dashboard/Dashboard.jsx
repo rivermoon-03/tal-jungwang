@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
+import useUserLocation, { getNearestStation } from '../../hooks/useUserLocation'
 import ModeTabs from './ModeTabs'
 import StationPills from './StationPills'
 import BusPanel from '../summary/BusPanel'
@@ -60,6 +62,18 @@ export default function Dashboard() {
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
   const selectedSubwayStation = useAppStore((s) => s.selectedSubwayStation)
   const selectedShuttleCampus = useAppStore((s) => s.selectedShuttleCampus)
+
+  const coords = useUserLocation()
+  const hasAutoSelected = useAppStore((s) => s.hasAutoSelectedStation)
+  const setHasAutoSelected = useAppStore((s) => s.setHasAutoSelectedStation)
+  const setBusStation = useAppStore((s) => s.setBusStation)
+
+  useEffect(() => {
+    if (!coords || hasAutoSelected) return
+    const nearest = getNearestStation(coords[0], coords[1])
+    if (nearest) setBusStation(nearest)
+    setHasAutoSelected(true)
+  }, [coords, hasAutoSelected, setBusStation, setHasAutoSelected])
 
   let stationValue = null
   if (selectedMode === 'bus') {

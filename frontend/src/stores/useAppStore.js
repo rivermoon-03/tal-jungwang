@@ -64,6 +64,8 @@ const useAppStore = create(
       setBusStation: (station) => set({ selectedBusStation: station }),
       selectedBusDirection: '하교',
       setBusDirection: (direction) => set({ selectedBusDirection: direction }),
+      hasAutoSelectedStation: false,
+      setHasAutoSelectedStation: (v) => set({ hasAutoSelectedStation: v }),
 
       // 셔틀 캠퍼스 ('main' = 본캠 direction 0/1, 'second' = 2캠 direction 2/3)
       selectedShuttleCampus: 'main',
