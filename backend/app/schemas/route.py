@@ -22,4 +22,5 @@ class DrivingRouteResponse(BaseModel):
     duration_seconds: int
     distance_meters: int
     toll_fee: int
+    taxi_fee: int | None = None
     coordinates: list

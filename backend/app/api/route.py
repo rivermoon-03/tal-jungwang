@@ -145,7 +145,7 @@ async def taxi_destinations(request: Request):
     """학교 정문 → 주요 목적지 자동차 소요 시간 목록 (카카오모빌리티, 20분 캐시)."""
 
     async def fetch_one(dest: dict) -> dict:
-        cache_key = f"route:taxi_dest:{dest['id']}"
+        cache_key = f"route:taxi_dest_v2:{dest['id']}"
         try:
             redis = await get_redis()
             cached = await redis.get(cache_key)
@@ -164,6 +164,7 @@ async def taxi_destinations(request: Request):
                 "name": dest["name"],
                 "duration_seconds": result["duration_seconds"],
                 "distance_meters": result["distance_meters"],
+                "taxi_fee": result["taxi_fee"],
                 "coordinates": result["coordinates"],
             }
         except Exception:
@@ -172,6 +173,7 @@ async def taxi_destinations(request: Request):
                 "name": dest["name"],
                 "duration_seconds": None,
                 "distance_meters": None,
+                "taxi_fee": None,
                 "coordinates": [],
             }
 
