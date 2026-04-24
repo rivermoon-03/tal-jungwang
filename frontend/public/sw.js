@@ -1,4 +1,4 @@
-const CACHE = 'transit-hub-v5'
+const CACHE = 'transit-hub-v6'
 const PRECACHE = ['/', '/index.html']
 
 // 해시되지 않은 루트 정적 파일 — 배포할 때마다 내용이 바뀔 수 있으므로
@@ -16,12 +16,13 @@ self.addEventListener('install', (e) => {
 })
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
-  )
-  self.clients.claim()
+  e.waitUntil((async () => {
+    const keys = await caches.keys()
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    await self.clients.claim()
+    const clients = await self.clients.matchAll({ type: 'window' })
+    for (const c of clients) c.postMessage({ type: 'SW_UPDATED' })
+  })())
 })
 
 self.addEventListener('fetch', (e) => {
