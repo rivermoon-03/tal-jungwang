@@ -29,7 +29,7 @@ function AboutModal({ onClose }) {
           <span className="text-slate-400">(수인분당 제대로 오는 꼬라지를 본 적이 없어요.)</span>
         </p>
         <p className="text-[12px] text-slate-400 leading-relaxed border-t border-slate-100 dark:border-border-dark pt-3">
-          아직 테스트 버전입니다. 실시간 버스 기능은 믿지 말아주세요.
+          아직 베타 버전입니다. 실시간 버스 기능은 참고용으로만 사용해 주세요.
         </p>
         <button
           onClick={onClose}

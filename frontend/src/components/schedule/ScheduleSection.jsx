@@ -121,9 +121,9 @@ export default function ScheduleSection({
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                   }}
-                  title="실험 중인 기능입니다. 정확성이 떨어지니 주의하세요"
+                  title="베타 중인 기능입니다. 정확성이 떨어지니 참고용으로만 사용해 주세요"
                 >
-                  테스트
+                  베타
                 </span>
               )}
               {!disabled && !loading && lastBus && (
