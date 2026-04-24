@@ -846,7 +846,10 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
         {/* 우상단 플로팅 버튼 */}
         {mapInstance && (
-          <div className="absolute top-4 right-4 flex flex-col gap-2 z-[50]">
+          <div
+            className="absolute right-4 flex flex-col gap-2 z-[50]"
+            style={{ top: 'calc(1rem + var(--banner-h, 0px))' }}
+          >
             {/* 내 위치 FAB */}
             <button
               className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
