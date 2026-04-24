@@ -87,7 +87,7 @@ function navigateSchedule({ type = null, route = null, stop = null } = {}) {
 const BUS_GROUP_IDS = [
   { id: '하교', label: '하교' },
   { id: '등교', label: '등교' },
-  { id: '기타', label: '기타' },
+  { id: '기타', label: '기타 노선' },
 ]
 
 const SUBWAY_GROUPS = [
