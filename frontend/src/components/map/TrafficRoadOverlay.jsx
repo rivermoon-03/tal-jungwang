@@ -211,7 +211,8 @@ export default function TrafficRoadOverlay({ map }) {
       )
       const color = CONGESTION_COLOR[worst] ?? '#94a3b8'
       item.circle.style.borderColor = color
-      item.label.textContent = CONGESTION_LABEL[worst] ?? ''
+      const statusText = CONGESTION_LABEL[worst] ?? ''
+      item.label.textContent = statusText ? `마유로 ${statusText}` : ''
       item.label.style.color = color
 
       // 툴팁이 열려있으면 내용도 함께 갱신
