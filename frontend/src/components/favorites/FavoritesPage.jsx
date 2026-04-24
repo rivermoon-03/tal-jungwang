@@ -219,14 +219,18 @@ function useFavoriteItems(favorites) {
         const next = subwayNext?.[key]
         const destLabel = next?.destination ? `${next.destination}행` : info.label
         let min = null
+        let sec = null
         if (next?.arrive_in_seconds != null) {
-          min = Math.max(0, Math.round(next.arrive_in_seconds / 60))
+          sec = Math.max(0, next.arrive_in_seconds)
+          min = Math.max(0, Math.round(sec / 60))
         } else if (next?.depart_at) {
           const [h, mn] = next.depart_at.split(':').map(Number)
           const d = new Date()
           d.setHours(h, mn, 0, 0)
-          min = Math.max(0, Math.round((d - new Date()) / 60000))
+          sec = Math.max(0, Math.floor((d - new Date()) / 1000))
+          min = Math.max(0, Math.round(sec / 60))
         }
+        const imminent = sec != null && sec < 60
         result.push({
           id: `route:${routeCode}`,
           type: 'subway',
@@ -234,6 +238,7 @@ function useFavoriteItems(favorites) {
           stationName: station,
           destination: destLabel,
           minutes: min,
+          imminentLabel: imminent ? '곧 도착' : null,
           walkMin: 10,
           status: getBoardingStatus(min, 10),
           commute: classifyCommute(routeCode),
@@ -253,15 +258,16 @@ function useFavoriteItems(favorites) {
         const label = routeCode.split(':')[1] ?? '등교'
         const direction = label === '하교' ? 1 : 0
         const next = direction === 0 ? shuttleUp : shuttleDown
-        const mins = next?.arrive_in_seconds != null
-          ? Math.max(0, Math.round(next.arrive_in_seconds / 60))
-          : null
+        const sec = next?.arrive_in_seconds
+        const mins = sec != null ? Math.max(0, Math.round(sec / 60)) : null
+        const imminent = sec != null && sec < 60
         result.push({
           id: `route:${routeCode}`,
           type: 'shuttle',
           routeCode: `${label}셔틀`,
           stationName: '본캠',
           minutes: mins,
+          imminentLabel: imminent ? '곧 출발' : null,
           walkMin: 3,
           status: getBoardingStatus(mins, 3),
           commute: classifyCommute(routeCode),

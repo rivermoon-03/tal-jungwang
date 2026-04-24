@@ -1,7 +1,7 @@
 """버스 도착정보 백그라운드 수집기.
 
-45초 간격으로 GBIS API를 폴링하여:
-1. Redis에 도착정보 캐시 (프론트 응답용)
+45초 간격으로 GBIS API를 폴링하여(02:00~03:59 제외):
+1. Redis에 도착정보 캐시 (프론트 응답용, TTL 100초 — 1회 미싱 버퍼)
 2. 이전 상태와 비교하여 도착 판정 → DB 기록
 """
 
@@ -177,17 +177,12 @@ async def poll_and_collect():
             prev_raw = await redis.get(prev_key)
             prev_state: dict[str, dict] = json.loads(prev_raw) if prev_raw else {}
 
-            # 중복 기록 방지용 plate 집합 (10분 TTL)
-            counted_key = f"bus:counted:{station_id}"
-            counted_raw = await redis.get(counted_key)
-            counted_plates: set[str] = set(json.loads(counted_raw)) if counted_raw else set()
-
             new_arrivals: list[BusArrivalHistory] = []
 
             # ── 2a. 이전에 있었는데 지금 없는 차량 → 도착 판정 ──
             arrived_plates = set(prev_state.keys()) - set(current_state.keys())
             for plate in arrived_plates:
-                if plate in counted_plates:
+                if await redis.exists(f"bus:counted:{station_id}:{plate}"):
                     continue
                 prev = prev_state[plate]
                 if prev.get("sec", 9999) <= ARRIVAL_THRESHOLD_SEC:
@@ -199,7 +194,7 @@ async def poll_and_collect():
                         day_type=_day_type(now),
                         source="detected",
                     ))
-                    counted_plates.add(plate)
+                    await redis.set(f"bus:counted:{station_id}:{plate}", "1", ex=600)
                     logger.info(
                         "도착 판정: %s → %s (이전 %d초)",
                         plate, target["stop_name"], prev["sec"],
@@ -207,7 +202,9 @@ async def poll_and_collect():
 
             # ── 2b. 이번 폴링에 처음 등장 + sec ≤ 30 → 도착 추정 ──
             for plate, state in current_state.items():
-                if plate in prev_state or plate in counted_plates:
+                if plate in prev_state:
+                    continue
+                if await redis.exists(f"bus:counted:{station_id}:{plate}"):
                     continue
                 if state["sec"] <= FIRST_SIGHT_ARRIVAL_SEC:
                     new_arrivals.append(BusArrivalHistory(
@@ -218,7 +215,7 @@ async def poll_and_collect():
                         day_type=_day_type(now),
                         source="estimated",
                     ))
-                    counted_plates.add(plate)
+                    await redis.set(f"bus:counted:{station_id}:{plate}", "1", ex=600)
                     logger.info(
                         "첫등장 도착 추정: %s → %s (sec %d)",
                         plate, target["stop_name"], state["sec"],
@@ -256,12 +253,5 @@ async def poll_and_collect():
 
             # 현재 상태를 이전 상태로 저장 (45초 폴링 × 3.7사이클 버퍼)
             await redis.set(prev_key, json.dumps(current_state, ensure_ascii=False), ex=170)
-            # 이미 집계한 plate 목록 저장 (중복 기록 방지)
-            if counted_plates:
-                await redis.set(
-                    counted_key,
-                    json.dumps(list(counted_plates), ensure_ascii=False),
-                    ex=600,
-                )
 
     logger.info("버스 폴링 완료 (%d 정류장)", len(targets))

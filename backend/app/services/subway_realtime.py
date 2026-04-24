@@ -20,6 +20,8 @@ import logging
 import re
 import time
 import xml.etree.ElementTree as ET
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -27,6 +29,8 @@ from app.core.cache import get_cached_json, get_redis, set_cached_json
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+_KST = ZoneInfo("Asia/Seoul")
 
 _BASE_URL = "http://swopenAPI.seoul.go.kr/api/subway/{key}/xml/realtimeStationArrival/0/20/{station}"
 _CACHE_TTL = 30
@@ -244,6 +248,22 @@ async def fetch_realtime(station: str) -> list[dict]:
         rows.append(row)
 
     parsed = parse_rows(rows)
+
+    # recptn_dt와 현재 시각의 차이만큼 arrive_seconds를 보정한다.
+    # Seoul API는 recptn_dt 기준으로 barvlDt를 산출하므로,
+    # 데이터가 오래됐을수록 카운트다운 기준이 실제보다 앞서게 된다.
+    now_kst = datetime.now(_KST)
+    for item in parsed:
+        if not item.get("arrive_seconds") or not item.get("recptn_dt"):
+            continue
+        try:
+            recptn = datetime.strptime(item["recptn_dt"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=_KST)
+            age = int((now_kst - recptn).total_seconds())
+            if 0 < age < 3600:
+                item["arrive_seconds"] = max(0, item["arrive_seconds"] - age)
+        except (ValueError, TypeError):
+            pass
+
     logger.debug("지하철 실시간 fetch: %s → %d건", station, len(parsed))
     return parsed
 

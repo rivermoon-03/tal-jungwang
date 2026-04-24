@@ -168,19 +168,20 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
 
   // 수시운행 창 밖(아직 시작 전)이면 일반 슬롯으로 표시 — "수시운행 중"으로 오해하지 않도록
   if (isFrequent && !isInsideFreqWindow) {
-    const minutes = data.arrive_in_seconds != null
-      ? Math.max(0, Math.ceil(data.arrive_in_seconds / 60))
-      : null
+    const sec = data.arrive_in_seconds
+    const minutes = sec != null ? Math.max(0, Math.ceil(sec / 60)) : null
     const nextMinutes = data.next_arrive_in_seconds != null
       ? Math.max(0, Math.ceil(data.next_arrive_in_seconds / 60))
       : null
+    const imminent = sec != null && sec >= 0 && sec < 60
     return {
       variant: 'normal',
       dir: dirText,
       route: `${meta.origin} → ${meta.dest}`,
       minutes,
       nextMinutes,
-      isUrgent: minutes != null && minutes <= 3,
+      imminentLabel: imminent ? '곧 출발' : null,
+      isUrgent: imminent || (minutes != null && minutes <= 3),
     }
   }
 
@@ -194,12 +195,12 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
     }
   }
 
-  const minutes = data.arrive_in_seconds != null
-    ? Math.max(0, Math.ceil(data.arrive_in_seconds / 60))
-    : null
+  const sec = data.arrive_in_seconds
+  const minutes = sec != null ? Math.max(0, Math.ceil(sec / 60)) : null
   const nextMinutes = data.next_arrive_in_seconds != null
     ? Math.max(0, Math.ceil(data.next_arrive_in_seconds / 60))
     : null
+  const imminent = sec != null && sec >= 0 && sec < 60
 
   return {
     variant: 'normal',
@@ -207,6 +208,7 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
     route: `${meta.origin} → ${meta.dest}`,
     minutes,
     nextMinutes,
-    isUrgent: minutes != null && minutes <= 3,
+    imminentLabel: imminent ? '곧 출발' : null,
+    isUrgent: imminent || (minutes != null && minutes <= 3),
   }
 }

@@ -9,6 +9,7 @@ export default function ArrivalRow({
   minutes,
   extraMinutes = [],
   isUrgent,
+  imminentLabel = null,
   lastTrain = false,
   returnTrip = false,
   status = null,
@@ -24,7 +25,7 @@ export default function ArrivalRow({
   const first = minsArr[0]
   const rest = minsArr.slice(1, 3)
   const hasFirst = first != null && Number.isFinite(first)
-  const urgent = isUrgent ?? (hasFirst && first <= 3)
+  const urgent = isUrgent ?? (!!imminentLabel || (hasFirst && first <= 3))
 
   const statusColor =
     status === 'ok'   ? 'var(--state-ok)' :
@@ -144,7 +145,19 @@ export default function ArrivalRow({
         }}
       >
         <div style={{ textAlign: 'right' }}>
-          {hasFirst ? (
+          {imminentLabel ? (
+            <span
+              style={{
+                fontSize: 16,
+                fontWeight: 900,
+                letterSpacing: '-0.02em',
+                lineHeight: 1,
+                color: '#dc2626',
+              }}
+            >
+              {imminentLabel}
+            </span>
+          ) : hasFirst ? (
             <>
               <div
                 style={{

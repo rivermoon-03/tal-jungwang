@@ -10,6 +10,7 @@ import {
   getPerRouteDisplay, getRoutesFor,
   getRouteDisplayConfig,
 } from '../dashboard/busStationConfig'
+import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
 
 const DEFAULT_ROUTE_COLOR = '#64748B'
 
@@ -114,24 +115,26 @@ export default function BusPanel() {
         const a = group[0]
         const a2 = group[1] ?? null
 
-        const toMinutes = (entry) => {
+        const toSeconds = (entry) => {
           if (!entry) return null
           if (entry.arrival_type === 'timetable') {
             if (!entry.is_tomorrow && entry.depart_at) {
               const [h, m] = entry.depart_at.split(':').map(Number)
               const t = new Date(now); t.setHours(h, m, 0, 0)
               const diffSec = Math.floor((t - now) / 1000)
-              return diffSec < 0 ? null : Math.ceil(diffSec / 60)
+              return diffSec < 0 ? null : diffSec
             }
             return null
           }
-          return entry.arrive_in_seconds != null
-            ? Math.max(0, Math.ceil(entry.arrive_in_seconds / 60))
-            : null
+          return entry.arrive_in_seconds ?? null
         }
+        const toMinutes = (sec) => (sec == null ? null : Math.max(0, Math.ceil(sec / 60)))
 
-        const minutes = toMinutes(a)
-        const minutes2 = toMinutes(a2)
+        const sec = toSeconds(a)
+        const sec2 = toSeconds(a2)
+        const minutes = toMinutes(sec)
+        const minutes2 = toMinutes(sec2)
+        const imminent = sec != null && sec < IMMINENT_THRESHOLD_SEC
 
         const perRoute = getPerRouteDisplay(selectedBusStation)?.[a.route_no]
         const cfg = getRouteDisplayConfig(a.route_no)
@@ -155,7 +158,8 @@ export default function BusPanel() {
             subdirection={originText && destText ? destText : ''}
             minutes={a.is_tomorrow ? '내일 첫차' : minutes}
             extraMinutes={minutes2 != null ? [minutes2] : []}
-            isUrgent={typeof minutes === 'number' && minutes <= 3}
+            imminentLabel={imminent ? '곧 도착' : null}
+            isUrgent={imminent || (typeof minutes === 'number' && minutes <= 3)}
             rightAddon={rightAddon}
             crowded={a.arrival_type === 'realtime' ? (a.crowded ?? 0) : 0}
             onClick={() => setDetailModal({
@@ -191,6 +195,8 @@ function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection, setDet
   const secondEntry = arrivals[1] ?? null
   const minutes = arrivalToMinutes(nextEntry)
   const secondMinutes = arrivalToMinutes(secondEntry)
+  const nextSec = arrivalToSeconds(nextEntry)
+  const imminent = nextSec != null && nextSec < IMMINENT_THRESHOLD_SEC
 
   const perRoute = getPerRouteDisplay(selectedBusStation)?.[route_number]
   const cfg = getRouteDisplayConfig(route_number)
@@ -205,7 +211,8 @@ function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection, setDet
       subdirection={originText && destText ? destText : ''}
       minutes={minutes}
       extraMinutes={secondMinutes != null ? [secondMinutes] : []}
-      isUrgent={minutes != null && minutes <= 3}
+      imminentLabel={imminent ? '곧 도착' : null}
+      isUrgent={imminent || (minutes != null && minutes <= 3)}
       onClick={() => setDetailModal({
         type: 'bus',
         routeCode: route_number,
@@ -245,10 +252,10 @@ function extractNext(data, n = 2) {
   return []
 }
 
-function arrivalToMinutes(entry) {
+function arrivalToSeconds(entry) {
   if (!entry) return null
   if (entry.arrive_in_seconds != null) {
-    return Math.max(0, Math.ceil(entry.arrive_in_seconds / 60))
+    return Math.max(0, entry.arrive_in_seconds)
   }
   if (entry.depart_at) {
     const [h, m] = entry.depart_at.split(':').map(Number)
@@ -256,9 +263,14 @@ function arrivalToMinutes(entry) {
       const now = new Date()
       const t = new Date(now)
       t.setHours(h, m, 0, 0)
-      const diff = Math.ceil((t - now) / 60000)
+      const diff = Math.floor((t - now) / 1000)
       return diff >= 0 ? diff : null
     }
   }
   return null
+}
+
+function arrivalToMinutes(entry) {
+  const sec = arrivalToSeconds(entry)
+  return sec == null ? null : Math.max(0, Math.ceil(sec / 60))
 }

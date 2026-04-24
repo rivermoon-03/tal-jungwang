@@ -36,3 +36,6 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Playwright evaluation screenshots
+tmp_screenshot/

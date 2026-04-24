@@ -1,4 +1,7 @@
+import { useMemo } from 'react'
 import { useApi } from './useApi'
+import { useNow } from './useNow'
+import { tickShuttleNext } from '../utils/tickArrivals'
 
 // 셔틀 시간표는 하루 단위로 정적(서버 Redis TTL 1h)이라 클라이언트에서 공유 캐시.
 // 11곳에서 useShuttleSchedule을 호출해도 네트워크 요청은 1회로 합쳐진다.
@@ -16,5 +19,11 @@ export function useShuttleSchedule(direction, dateStr, opts = {}) {
 
 export function useShuttleNext(direction) {
   const q = direction !== undefined && direction !== null ? `?direction=${direction}` : ''
-  return useApi(`/shuttle/next${q}`, { interval: 15_000 })
+  const { data, loading, error, fetchedAt, refetch } = useApi(`/shuttle/next${q}`, { interval: 15_000 })
+  const now = useNow(1000)
+  const ticked = useMemo(
+    () => tickShuttleNext(data, fetchedAt, now),
+    [data, fetchedAt, now]
+  )
+  return { data: ticked, loading, error, fetchedAt, refetch }
 }

@@ -177,17 +177,20 @@ export default function SubwayPanel() {
 
 function trainToSlot(train, fallbackDir, firstTomorrow = null) {
   if (!train) return { variant: 'empty', dir: fallbackDir, firstTomorrow }
-  const minutes = trainToMinutes(train.arrive_in_seconds)
+  const sec = train.arrive_in_seconds
+  const minutes = trainToMinutes(sec)
   const nextMinutes = trainToMinutes(train.next_arrive_in_seconds)
   if (minutes == null && nextMinutes == null) return { variant: 'empty', dir: fallbackDir, firstTomorrow }
   const route = train.destination ? `${train.destination} 방면` : fallbackDir
+  const imminent = sec != null && sec >= 0 && sec < 60
   return {
     variant: 'normal',
     dir: fallbackDir,
     route,
     minutes,
     nextMinutes,
-    isUrgent: minutes != null && minutes <= 3,
+    imminentLabel: imminent ? '곧 도착' : null,
+    isUrgent: imminent || (minutes != null && minutes <= 3),
   }
 }
 
