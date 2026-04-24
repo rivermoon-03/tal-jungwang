@@ -8,14 +8,16 @@ import useAppStore from '../../stores/useAppStore'
 const MODE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀', taxi: '택시' }
 
 export default function MainTab() {
-  const [selectedId, setSelectedId] = useState(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const selectedMode = useAppStore((s) => s.selectedMode)
+  const selectedId = useAppStore((s) => s.selectedMarkerId)
+  const setSelectedIdStore = useAppStore((s) => s.setSelectedMarkerId)
+  const handleMarkerClick = (id) => setSelectedIdStore(selectedId === id ? null : id)
 
   return (
     <div className="relative h-full w-full">
       <MapView
-        onMarkerClick={(id) => setSelectedId((prev) => (prev === id ? null : id))}
+        onMarkerClick={handleMarkerClick}
         selectedId={selectedId}
       />
 

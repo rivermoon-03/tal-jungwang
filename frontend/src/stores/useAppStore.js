@@ -80,6 +80,14 @@ const useAppStore = create(
       directionOverride: null,     // '등교' | '하교' | null
       setDirectionOverride: (dir) => set({ directionOverride: dir }),
 
+      // 지도 뷰 상태 (탭 전환 시 유지, persist 제외 — 새로고침 시 초기화)
+      mapView: null,               // { center: [lat, lng], level: number } | null
+      setMapView: (v) => set({ mapView: v }),
+
+      // 선택된 마커 ID (탭 전환 시 유지, persist 제외)
+      selectedMarkerId: null,      // string | null
+      setSelectedMarkerId: (id) => set({ selectedMarkerId: id }),
+
       // ── 2단 스냅 (지도 40% ↔ 대시보드 60%) ────────────────────────────
       snapMode: 'default',           // 'default' | 'dashboard' | 'map'
       setSnapMode: (m) => set({ snapMode: m }),

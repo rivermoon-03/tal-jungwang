@@ -809,9 +809,27 @@ export default function MapView({ onMarkerClick, selectedId }) {
     })
     mapRef.current = map
 
+    // 탭 전환 후 복귀 시 이전 중심/줌 복원 (초기 mount 1회만)
+    const savedView = useAppStore.getState().mapView
+    if (savedView) {
+      map.setCenter(new window.kakao.maps.LatLng(savedView.center[0], savedView.center[1]))
+      map.setLevel(savedView.level)
+    }
+
+    // idle 이벤트마다 현재 중심/줌을 스토어에 저장 (pan/zoom 종료 시점)
+    const onIdle = () => {
+      const c = map.getCenter()
+      useAppStore.getState().setMapView({
+        center: [c.getLat(), c.getLng()],
+        level: map.getLevel(),
+      })
+    }
+    window.kakao.maps.event.addListener(map, 'idle', onIdle)
+
     setMapInstance(map)
 
     return () => {
+      window.kakao.maps.event.removeListener(map, 'idle', onIdle)
       mapRef.current = null
       setMapInstance(null)
     }
