@@ -132,7 +132,12 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
   const color = getRouteColor(first.route_no)
-  const shown = arrivals.slice(0, 3)
+  // 실시간: arrive_in_seconds 없는 엔트리 제외 (2차 도착 '--' 방지)
+  // 시간표: depart_at 없는 엔트리 제외
+  const validArrivals = arrivals.filter((a) =>
+    isTimetable ? a.depart_at != null : a.arrive_in_seconds != null
+  )
+  const shown = validArrivals.slice(0, 3)
   const desc = getRouteCardDisplay(first.route_no, first.category)
 
   const inner = (
