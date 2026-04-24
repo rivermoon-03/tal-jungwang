@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Star } from 'lucide-react'
 import { getRouteCardDisplay, ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
+import useFavorites from '../../hooks/useFavorites'
 
 const CROWDED_META = {
   1: { label: '여유', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
@@ -140,6 +141,26 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
   const shown = validArrivals.slice(0, 3)
   const desc = getRouteCardDisplay(first.route_no, first.category)
 
+  const favKey = first.route_no
+  const { isFavorite, toggle: toggleFav } = useFavorites(favKey)
+  const starButton = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        toggleFav({ type: 'bus', label: first.route_no })
+      }}
+      aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+      className="absolute top-2 right-2 p-1 z-10"
+    >
+      <Star
+        size={16}
+        fill={isFavorite ? 'currentColor' : 'none'}
+        className={isFavorite ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-600'}
+      />
+    </button>
+  )
+
   const inner = (
     <>
       <div className="flex items-center gap-3 px-4 pt-3.5 pb-2">
@@ -216,19 +237,22 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
 
   if (isClickable) {
     return (
-      <button
-        data-route={first.route_no}
-        className="w-full rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark text-left pressable"
-        onClick={() => onTimetableClick(first.route_id, first.route_no, desc ? `${desc.origin} → ${desc.dest}` : first.destination)}
-      >
-        {inner}
-      </button>
+      <div data-route={first.route_no} className="relative">
+        <button
+          className="w-full rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark text-left pressable"
+          onClick={() => onTimetableClick(first.route_id, first.route_no, desc ? `${desc.origin} → ${desc.dest}` : first.destination)}
+        >
+          {inner}
+        </button>
+        {starButton}
+      </div>
     )
   }
 
   return (
-    <div data-route={first.route_no} className="rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark">
+    <div data-route={first.route_no} className="relative rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark">
       {inner}
+      {starButton}
     </div>
   )
 }

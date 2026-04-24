@@ -431,6 +431,7 @@ export default function SubwayTab() {
                       downTrain={down}
                       lastFetchedAt={fetchedAt}
                       onTrainClick={openRealtimeDetail}
+                      stationName={stationTab?.replace(/역$/, '')}
                     />
                   )
                 })}

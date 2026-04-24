@@ -1,4 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { Star } from 'lucide-react';
+import useFavorites from '../../hooks/useFavorites';
+
+// 노선 + 정류장 → 기본(등교 방향) favKey. FavoritesPage.SUBWAY_KEY_INFO와 정렬.
+function makeSubwayFavKey(lineName, stationName) {
+  if (!stationName) return null
+  if (lineName === '4호선') return `subway:${stationName}:line4_up`
+  if (lineName === '서해선') {
+    if (stationName === '초지' || stationName === '초지역') return `subway:${stationName}:choji_up`
+    if (stationName === '시흥시청' || stationName === '시흥시청역') return `subway:${stationName}:siheung_up`
+    return `subway:${stationName}:up`
+  }
+  // 수인분당선 기본
+  return `subway:${stationName}:up`
+}
 
 const ACCENT = '#dc2626'
 function getStatusInfo(code) {
@@ -170,7 +185,9 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
   )
 }
 
-export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrain, lastFetchedAt, onTrainClick }) {
+export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrain, lastFetchedAt, onTrainClick, stationName }) {
+  const favKey = makeSubwayFavKey(lineName, stationName)
+  const { isFavorite, toggle: toggleFav } = useFavorites(favKey)
   const upStatus = upTrain ? getStatusInfo(upTrain.status_code) : null
   const downStatus = downTrain ? getStatusInfo(downTrain.status_code) : null
   
@@ -194,8 +211,27 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
         background: 'transparent',
         boxShadow: isUrgent ? '0 0 0 1.5px var(--tj-accent) inset' : 'none',
         fontVariantNumeric: 'tabular-nums',
+        position: 'relative',
       }}
     >
+      {favKey && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleFav({ type: 'subway', label: `${lineName} ${stationName}` })
+          }}
+          aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          className="absolute top-2 right-2 p-1 z-10"
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+        >
+          <Star
+            size={16}
+            fill={isFavorite ? 'currentColor' : 'none'}
+            className={isFavorite ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-600'}
+          />
+        </button>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span
           style={{
