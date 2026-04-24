@@ -31,17 +31,18 @@ async def fetch_driving_route(
     data = resp.json()
     routes = data.get("routes", [])
     if not routes:
-        return {"duration_seconds": 0, "distance_meters": 0, "toll_fee": 0, "coordinates": []}
+        return {"duration_seconds": 0, "distance_meters": 0, "toll_fee": 0, "taxi_fee": 0, "coordinates": []}
 
     route = routes[0]
     if route.get("result_code") != 0:
-        return {"duration_seconds": 0, "distance_meters": 0, "toll_fee": 0, "coordinates": []}
+        return {"duration_seconds": 0, "distance_meters": 0, "toll_fee": 0, "taxi_fee": 0, "coordinates": []}
 
     summary = route.get("summary", {})
     duration = summary.get("duration", 0)
     distance = summary.get("distance", 0)
     fare = summary.get("fare", {})
     toll = fare.get("toll", 0)
+    taxi = fare.get("taxi", 0)
 
     # vertexes 좌표 추출 (flat array → [[lng, lat], ...])
     coordinates = []
@@ -55,6 +56,7 @@ async def fetch_driving_route(
         "duration_seconds": duration,
         "distance_meters": distance,
         "toll_fee": toll,
+        "taxi_fee": taxi,
         "coordinates": coordinates,
     }
 
