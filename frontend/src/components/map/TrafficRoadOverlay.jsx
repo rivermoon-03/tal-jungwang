@@ -36,7 +36,7 @@ const DIRECTION_LABEL = {
   to_station: '하교방향',
 }
 
-const CIRCLE_PX = 40
+const PILL_H = 28
 
 /** 오버레이 DOM 구조 생성. 반환값을 ref에 저장해 업데이트에 재사용한다. */
 function createOverlayDOM() {
@@ -47,7 +47,7 @@ function createOverlayDOM() {
   tooltip.style.cssText = [
     'display:none',
     'position:absolute',
-    `bottom:${CIRCLE_PX + 8}px`,
+    `bottom:${PILL_H + 8}px`,
     'left:50%',
     'transform:translateX(-50%)',
     'background:#fff',
@@ -62,19 +62,20 @@ function createOverlayDOM() {
 
   const circle = document.createElement('div')
   circle.style.cssText = [
-    `width:${CIRCLE_PX}px`,
-    `height:${CIRCLE_PX}px`,
-    'border-radius:50%',
+    `height:${PILL_H}px`,
+    'padding:0 10px',
+    'border-radius:9999px',
     'background:#fff',
-    'border:3px solid #cbd5e1',
+    'border:2px solid #cbd5e1',
     'box-shadow:0 2px 6px rgba(0,0,0,0.22)',
-    'display:flex',
+    'display:inline-flex',
     'align-items:center',
     'justify-content:center',
+    'white-space:nowrap',
   ].join(';')
 
   const label = document.createElement('span')
-  label.style.cssText = 'font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:-0.5px'
+  label.style.cssText = 'font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:-0.3px;line-height:1'
   circle.appendChild(label)
 
   wrapper.appendChild(tooltip)
