@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { ChevronRight, Star } from 'lucide-react'
 import { getRouteCardDisplay, ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
 import useFavorites from '../../hooks/useFavorites'
+import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
 
 const CROWDED_META = {
   1: { label: '여유', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
@@ -87,20 +88,34 @@ function minutesUntil(timeStr, isTomorrow = false) {
   return Math.ceil((target - now) / 60000)
 }
 
+function secondsUntil(timeStr, isTomorrow = false) {
+  const [hh, mm] = timeStr.split(':').map(Number)
+  const now = new Date()
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0)
+  if (isTomorrow) target.setDate(target.getDate() + 1)
+  return Math.floor((target - now) / 1000)
+}
+
 // 개별 도착 시간 칩
 function RealtimeChip({ arrival }) {
   const sec = arrival.arrive_in_seconds ?? 0
+  if (sec < IMMINENT_THRESHOLD_SEC) {
+    return (
+      <span className="time-num text-sm font-bold text-red-600 dark:text-red-400 tabular-nums whitespace-nowrap">
+        곧 도착
+      </span>
+    )
+  }
   const minutes = Math.ceil(sec / 60)
   return (
     <span className="time-num text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
-      {minutes === 0 ? '곧' : `${minutes}분`}
+      {`${minutes}분`}
     </span>
   )
 }
 
 function TimetableChip({ arrival }) {
   const isTomorrow = arrival.is_tomorrow === true
-  const diffMin = minutesUntil(arrival.depart_at, isTomorrow)
 
   if (isTomorrow) {
     return (
@@ -115,10 +130,18 @@ function TimetableChip({ arrival }) {
     )
   }
 
-  const label = diffMin <= 0 ? '곧' : `${diffMin}분`
+  const diffSec = secondsUntil(arrival.depart_at, isTomorrow)
+  const imminent = diffSec < IMMINENT_THRESHOLD_SEC
+  const label = imminent
+    ? '곧 도착'
+    : `${Math.ceil(diffSec / 60)}분`
   return (
     <>
-      <span className="text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
+      <span className={`font-bold tabular-nums whitespace-nowrap ${
+        imminent
+          ? 'text-sm text-red-600 dark:text-red-400'
+          : 'text-base text-slate-900 dark:text-slate-100'
+      }`}>
         {label}
       </span>
       <span className="text-micro text-slate-400 tabular-nums">

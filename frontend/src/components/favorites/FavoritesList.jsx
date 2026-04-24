@@ -27,7 +27,8 @@ function computeBoardingStatus(arrivalMin, walkMin) {
 
 // 새 형식 버스 즐겨찾기(detail.routeId 있음)의 다음 출발까지 남은 분.
 // 실시간 노선은 /bus/arrivals/{stopId}, 시간표 노선은 /bus/timetable/{routeId} 에서 계산.
-function useLiveBusMinutes(detail, routeNumber) {
+// 남은 초까지 반환 — imminent(60초 미만) 판정에 초 단위 필요.
+function useLiveBusArrival(detail, routeNumber) {
   const isRealtime = Boolean(detail?.isRealtime)
   const stopId = detail?.stopId != null ? String(detail.stopId) : null
   const routeId = detail?.routeId != null ? detail.routeId : null
@@ -38,21 +39,23 @@ function useLiveBusMinutes(detail, routeNumber) {
   return useMemo(() => {
     if (isRealtime) {
       const list = arrivals.data?.arrivals
-      if (!list?.length) return null
+      if (!list?.length) return { seconds: null, minutes: null }
       const a = list.find((x) => x.route_no === routeNumber)
-      if (!a || a.arrive_in_seconds == null) return null
-      return Math.max(0, Math.round(a.arrive_in_seconds / 60))
+      if (!a || a.arrive_in_seconds == null) return { seconds: null, minutes: null }
+      const seconds = Math.max(0, a.arrive_in_seconds)
+      return { seconds, minutes: Math.max(0, Math.round(seconds / 60)) }
     }
     const times = timetable.data?.times
-    if (!Array.isArray(times) || !times.length) return null
+    if (!Array.isArray(times) || !times.length) return { seconds: null, minutes: null }
     const now = new Date()
     const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
     const next = times.find((t) => t >= nowStr)
-    if (!next) return null
+    if (!next) return { seconds: null, minutes: null }
     const [h, m] = next.split(':').map(Number)
     const d = new Date()
     d.setHours(h, m, 0, 0)
-    return Math.max(0, Math.round((d - new Date()) / 60000))
+    const seconds = Math.max(0, Math.floor((d - new Date()) / 1000))
+    return { seconds, minutes: Math.max(0, Math.round(seconds / 60)) }
   }, [isRealtime, arrivals.data, timetable.data, routeNumber])
 }
 
@@ -77,11 +80,17 @@ function FavoriteRow({ item, menuOpen, onToggleMenu, onCloseMenu, onRemove, onOp
   // 새 형식 버스 즐겨찾기(detail.routeId 존재)는 실시간/시간표를 여기서 직접 fetch.
   // 그 외(지하철·셔틀·레거시 버스 fav)는 상위에서 계산한 item.minutes 사용.
   const isNewFormatBus = item.type === 'bus' && item.detail?.routeId != null
-  const liveMinutes = useLiveBusMinutes(
+  const liveArrival = useLiveBusArrival(
     isNewFormatBus ? item.detail : null,
     isNewFormatBus ? item.routeCode : null,
   )
-  const effectiveMinutes = isNewFormatBus ? liveMinutes : item.minutes
+  const effectiveMinutes = isNewFormatBus ? liveArrival.minutes : item.minutes
+  const liveSeconds = isNewFormatBus ? liveArrival.seconds : null
+  // 새 형식 버스는 여기서 직접 tick된 실시간 초를 보고, 그 외(지하철·셔틀·레거시)는
+  // 상위(FavoritesPage)에서 계산해 넘긴 imminentLabel을 사용한다.
+  const imminentLabel = isNewFormatBus
+    ? (liveSeconds != null && liveSeconds < 60 ? '곧 도착' : null)
+    : (item.imminentLabel ?? null)
   const direction = resolveDirection(item)
   const status = isNewFormatBus
     ? computeBoardingStatus(effectiveMinutes, item.walkMin ?? 5)
@@ -100,6 +109,7 @@ function FavoriteRow({ item, menuOpen, onToggleMenu, onCloseMenu, onRemove, onOp
         routeNumber={item.routeCode}
         direction={direction}
         minutes={effectiveMinutes}
+        imminentLabel={imminentLabel}
         lastTrain={item.lastTrain}
         status={status}
         onClick={onOpenDetail ? () => onOpenDetail(item.detail) : undefined}

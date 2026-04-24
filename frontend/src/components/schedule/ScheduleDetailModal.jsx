@@ -483,13 +483,13 @@ function BusHistoryContent({ routeNumber }) {
   if (error) return <ErrorMsg />
 
   const columns = data?.columns ?? []
-  if (columns.length === 0 || columns.every((c) => c.times.length === 0)) {
+  if (columns.length === 0) {
     return <EmptyMsg text="아직 쌓인 이력 데이터가 없어요" />
   }
 
   const stopName = data?.stop_name
 
-  const MAX_PAST = 2
+  const MAX_PAST = 4
 
   // 컬럼별 "지금 이후 첫 번째" 인덱스 + 이전 버스 MAX_PAST개만 남기도록 슬라이스
   const colViews = columns.map((col) => {
@@ -537,7 +537,7 @@ function BusHistoryContent({ routeNumber }) {
 
             {/* 시간 리스트 */}
             {col.totalCount === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">데이터 없음</p>
+              <p className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">데이터가 없습니다</p>
             ) : (
               col.times.map((t, i) => {
                 const isNext = i === col.nextIdx

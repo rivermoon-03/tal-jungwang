@@ -153,8 +153,11 @@ async def bus_history_preview(
 ):
     """실시간 노선 과거 도착 이력 조회 — 모달 예측 데이터용.
 
-    과거 28일 내 같은 요일 타입(평일/토/일) 날짜 중 이력이 있는 최근 3개를 동적으로 반환.
-    서비스 초기(이력 부족) 대응: 같은 요일 타입에서 가장 최근 3개를 선택.
+    오늘 요일 타입에 따라 고정 날짜를 반환:
+    - 평일: 어제, 이틀 전, 저번 주 금요일
+    - 토요일: 저번 주 토/일, 저저번 주 토/일
+    - 일요일: 저번 주 일/토, 저저번 주 일/토
+    데이터가 없는 날짜도 빈 컬럼으로 포함.
     """
     KST = ZoneInfo("Asia/Seoul")
     today = datetime.now(KST).date()
@@ -162,21 +165,33 @@ async def bus_history_preview(
     wd = today.weekday()  # 0=Mon … 6=Sun
     WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
 
-    def is_same_day_type(d: date) -> bool:
-        dw = d.weekday()
-        if wd <= 4:
-            return dw <= 4
-        return dw == wd
+    if wd <= 4:  # 평일
+        yesterday = today - timedelta(days=1)
+        two_days_ago = today - timedelta(days=2)
+        days_back_friday = (wd - 4) % 7 or 7
+        last_friday = today - timedelta(days=days_back_friday)
+        target_dates_labeled: list[tuple[date, str]] = [
+            (yesterday, "어제"),
+            (two_days_ago, "이틀 전"),
+            (last_friday, "저번 주 금요일"),
+        ]
+    elif wd == 5:  # 토요일
+        target_dates_labeled = [
+            (today - timedelta(days=7), "저번 주 토요일"),
+            (today - timedelta(days=6), "저번 주 일요일"),
+            (today - timedelta(days=14), "저저번 주 토요일"),
+            (today - timedelta(days=13), "저저번 주 일요일"),
+        ]
+    else:  # 일요일
+        target_dates_labeled = [
+            (today - timedelta(days=7), "저번 주 일요일"),
+            (today - timedelta(days=8), "저번 주 토요일"),
+            (today - timedelta(days=14), "저저번 주 일요일"),
+            (today - timedelta(days=15), "저저번 주 토요일"),
+        ]
 
-    def col_label(d: date) -> str:
-        diff = (today - d).days
-        if diff == 0:
-            return "오늘"
-        if diff == 1:
-            return "어제"
-        if diff <= 7:
-            return f"저번 주 {WEEKDAY_KR[d.weekday()]}요일"
-        return f"{d.month}/{d.day} ({WEEKDAY_KR[d.weekday()]})"
+    target_dates = [d for d, _ in target_dates_labeled]
+    label_map: dict[str, str] = {d.isoformat(): lbl for d, lbl in target_dates_labeled}
 
     routes_result = await db.execute(select(BusRoute).where(BusRoute.route_number == route_number))
     routes = routes_result.scalars().all()
@@ -185,38 +200,6 @@ async def bus_history_preview(
     route_ids = [r.id for r in routes]
 
     arrived_kst = func.timezone("Asia/Seoul", BusArrivalHistory.arrived_at)
-
-    # 오늘 포함 28일 내 같은 요일 타입 후보 날짜 (최대 12개 스캔)
-    candidate_dates: list[date] = []
-    for i in range(0, 29):
-        d = today - timedelta(days=i)
-        if is_same_day_type(d):
-            candidate_dates.append(d)
-        if len(candidate_dates) >= 12:
-            break
-
-    # 후보 날짜에서 실제 이력이 있는 날짜만 추출 (최근 3개)
-    if candidate_dates:
-        stmt_dates = (
-            select(func.date(arrived_kst).label("arr_date"))
-            .join(BusStop, BusStop.id == BusArrivalHistory.stop_id)
-            .where(BusArrivalHistory.route_id.in_(route_ids))
-            .where(func.date(arrived_kst).in_(candidate_dates))
-            .group_by(func.date(arrived_kst))
-            .order_by(func.date(arrived_kst).desc())
-            .limit(3)
-        )
-        date_rows = (await db.execute(stmt_dates)).all()
-        target_dates = [r.arr_date for r in date_rows]
-    else:
-        target_dates = []
-
-    if not target_dates:
-        return ApiResponse.ok({
-            "route_number": route_number,
-            "stop_name": "",
-            "columns": [],
-        })
 
     stmt = (
         select(
@@ -249,17 +232,15 @@ async def bus_history_preview(
                 last_min = cur
         return kept
 
-    # 최신 날짜가 왼쪽 컬럼에 오도록 정렬 (내림차순)
-    sorted_dates = sorted(target_dates, reverse=True)
     columns = [
         {
-            "label": col_label(d),
+            "label": label_map[d.isoformat()],
             "date": d.isoformat(),
             "day_label": f"{d.month}/{d.day}({WEEKDAY_KR[d.weekday()]})",
             "times": dedupe_within(times_by_date.get(d.isoformat(), [])),
             "totalCount": len(times_by_date.get(d.isoformat(), [])),
         }
-        for d in sorted_dates
+        for d in target_dates
     ]
 
     return ApiResponse.ok({

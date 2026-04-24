@@ -1,3 +1,32 @@
+// 남은 초가 이 값 미만이면 "곧 도착/출발" 라벨로 바꿔 표시한다.
+// (tick으로 매초 깎인 뒤에도 사용자가 "1분 → 0분 → 곧" 단계로 읽게 하기보다
+//  60초 이하에서 곧바로 임박 라벨을 띄워 직관을 맞춘다.)
+export const IMMINENT_THRESHOLD_SEC = 60
+
+export function isImminent(seconds) {
+  return seconds != null && seconds < IMMINENT_THRESHOLD_SEC
+}
+
+/**
+ * mode에 따라 "곧 도착"(버스/지하철) 또는 "곧 출발"(셔틀) 반환.
+ */
+export function imminentLabel(mode = 'arrive') {
+  return mode === 'depart' ? '곧 출발' : '곧 도착'
+}
+
+/**
+ * 남은 초 → 대시보드/카드에서 쓰는 통합 설명 객체.
+ * imminent일 땐 minutes=0으로 두고 label을 채워 컨슈머가 분기하기 쉽게 한다.
+ */
+export function describeArrival(seconds, { mode = 'arrive' } = {}) {
+  if (seconds == null) return { imminent: false, minutes: null, label: null }
+  if (seconds < IMMINENT_THRESHOLD_SEC) {
+    return { imminent: true, minutes: 0, label: imminentLabel(mode) }
+  }
+  const minutes = Math.max(1, Math.ceil(seconds / 60))
+  return { imminent: false, minutes, label: `${minutes}분` }
+}
+
 /**
  * arrivalTime.js — 도착 시간 표시 유틸
  *

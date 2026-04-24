@@ -1,4 +1,7 @@
+import { useMemo } from 'react'
 import { useApi } from './useApi'
+import { useNow } from './useNow'
+import { tickBusArrivals } from '../utils/tickArrivals'
 
 export function useBusStations() {
   return useApi('/bus/stations')
@@ -14,7 +17,15 @@ export function useBusArrivals(stationId) {
     interval: 60_000,
     enabled: stationId != null,
   })
-  return { data, loading, error, fetchedAt, refetch }
+  // 백엔드가 응답 시점 기준으로 arrive_in_seconds를 보정해 주지만,
+  // 다음 refetch(최대 60초)까지 값이 정지해 있어 "4분"이 그대로 고정된다.
+  // 1초 tick으로 fetchedAt 경과만큼 realtime 값을 깎아 화면이 실제 시간과 함께 흐르게 한다.
+  const now = useNow(1000)
+  const ticked = useMemo(
+    () => tickBusArrivals(data, fetchedAt, now),
+    [data, fetchedAt, now]
+  )
+  return { data: ticked, loading, error, fetchedAt, refetch }
 }
 
 export function useBusTimetable(routeId) {

@@ -227,7 +227,7 @@ function SlotHeader({ dir, align, extra = null }) {
 }
 
 function NormalSlot({ slot, align }) {
-  const { dir, route, minutes, nextMinutes, isUrgent } = slot
+  const { dir, route, minutes, nextMinutes, isUrgent, imminentLabel } = slot
   const hasMinutes = minutes != null && Number.isFinite(minutes)
   return (
     <div style={{ textAlign: align }}>
@@ -247,7 +247,40 @@ function NormalSlot({ slot, align }) {
           {route}
         </div>
       )}
-      {hasMinutes ? (
+      {imminentLabel ? (
+        <>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+              color: 'var(--tj-accent, #dc2626)',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 20,
+                fontWeight: 900,
+                letterSpacing: '-0.02em',
+                lineHeight: 1,
+              }}
+            >
+              {imminentLabel}
+            </span>
+          </div>
+          {nextMinutes != null && Number.isFinite(nextMinutes) && (
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--tj-mute)',
+                fontWeight: 600,
+                marginTop: 3,
+              }}
+            >
+              다음 {nextMinutes}분
+            </div>
+          )}
+        </>
+      ) : hasMinutes ? (
         <>
           <div
             style={{
