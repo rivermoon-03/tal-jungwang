@@ -396,7 +396,7 @@ export default function SubwayTab() {
               modeTab === mode ? 'bg-navy text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
             }`}
           >
-            {mode === 'realtime' ? '실시간 - 테스트' : '시간표'}
+            {mode === 'realtime' ? '실시간 (베타)' : '시간표'}
           </button>
         ))}
       </div>
@@ -415,7 +415,7 @@ export default function SubwayTab() {
         <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
           {realtimeArrivals && realtimeArrivals.length > 0 && (
             <div className="px-4 pt-3 pb-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">실시간 - 테스트 현황</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">실시간 현황 (베타)</p>
               <div className="flex flex-col gap-2">
                 {[...new Set(realtimeArrivals.map((a) => a.line))].map((lineName) => {
                   const meta = LINE_META_COMPACT[lineName] ?? { symbol: lineName[0], color: '#6b7280' }

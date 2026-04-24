@@ -211,7 +211,7 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
           {lineName}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--tj-mute)', fontWeight: 600 }}>
-          실시간 - 테스트
+          실시간 (베타)
         </span>
       </div>
 
