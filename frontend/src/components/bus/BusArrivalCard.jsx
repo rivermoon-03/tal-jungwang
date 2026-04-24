@@ -146,14 +146,9 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
         </span>
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           {desc ? (
-            <>
-              <span className="text-xs text-slate-400 dark:text-slate-500 leading-tight">
-                {desc.origin} 출발
-              </span>
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-tight">
-                {desc.dest}
-              </span>
-            </>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-tight">
+              {desc.dest}
+            </span>
           ) : (
             <span className="text-sm text-slate-500 dark:text-slate-400">
               {first.destination}
@@ -217,6 +212,7 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
   if (isClickable) {
     return (
       <button
+        data-route={first.route_no}
         className="w-full rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark text-left pressable"
         onClick={() => onTimetableClick(first.route_id, first.route_no, desc ? `${desc.origin} → ${desc.dest}` : first.destination)}
       >
@@ -226,7 +222,7 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark">
+    <div data-route={first.route_no} className="rounded-xl border border-slate-200 dark:border-border-dark shadow-sm bg-white dark:bg-surface-dark">
       {inner}
     </div>
   )
