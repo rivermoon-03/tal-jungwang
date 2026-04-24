@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BusFront, RefreshCw } from 'lucide-react'
 import { useBusStations, useBusArrivals } from '../../hooks/useBus'
+import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import ArrivalList from '../bus/ArrivalList'
 
 export default function BusCard({ setTimetableRoute }) {
   const { data: stationsData, loading: stationsLoading } = useBusStations()
   const stations = stationsData ?? []
   const [selectedId, setSelectedId] = useState(null)
+  const { direction } = useEffectiveDirection()
+  const selectedStation = stations.find((s) => s.station_id === selectedId)
 
   useEffect(() => {
     if (!selectedId && stations.length > 0) {
@@ -69,6 +72,8 @@ export default function BusCard({ setTimetableRoute }) {
         <ArrivalList
           arrivals={adjustedArrivals?.arrivals ?? []}
           stationId={selectedId}
+          stationLabel={selectedStation?.name}
+          direction={direction}
           onTimetableClick={(routeId, routeNo, destination) => setTimetableRoute({ routeId, routeNo, destination, stationId: selectedId })}
         />
       )}

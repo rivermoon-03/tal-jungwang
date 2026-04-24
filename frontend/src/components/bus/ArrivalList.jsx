@@ -30,7 +30,7 @@ function groupByCategory(arrivals) {
   return result
 }
 
-export default function ArrivalList({ arrivals, stationId, onTimetableClick }) {
+export default function ArrivalList({ arrivals, stationId, onTimetableClick, stationLabel, direction }) {
   if (!arrivals || arrivals.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-bg-dark">
@@ -44,6 +44,13 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
+      {stationLabel && direction && (
+        <div className="px-4 pt-3 pb-1">
+          <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+            {stationLabel} · {direction}
+          </p>
+        </div>
+      )}
       <div className="p-4 space-y-4">
         {sections.map(({ category, arrivals: sectionArrivals }) => {
           const routeGroups = groupByRouteNo(sectionArrivals)
