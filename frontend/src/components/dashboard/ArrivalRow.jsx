@@ -175,18 +175,20 @@ export default function ArrivalRow({
                   분
                 </span>
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: 'var(--tj-mute-2)',
-                  marginTop: 2,
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  textAlign: 'right',
-                }}
-              >
-                {rest[0] != null ? `${rest[0]}분` : '--'}
-              </div>
+              {rest[0] != null && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--tj-mute-2)',
+                    marginTop: 2,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    textAlign: 'right',
+                  }}
+                >
+                  {`${rest[0]}분`}
+                </div>
+              )}
             </>
           ) : (
             <span style={{ fontSize: 12, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
