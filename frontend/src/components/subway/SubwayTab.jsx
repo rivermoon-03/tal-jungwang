@@ -282,7 +282,7 @@ function UnifiedDetail({ card, realtimeTrain, directionArrivals = [], timetable,
 export default function SubwayTab() {
   const [selectedDetail, setSelectedDetail] = useState(null)
   const [stationTab, setStationTab] = useState(STATION_TABS[0])
-  const [modeTab, setModeTab] = useState('realtime')
+  const [modeTab, setModeTab] = useState('timetable')
   const [refreshCooldown, setRefreshCooldown] = useState(0)
   const didAutoSwitchRef = useRef(false)
   
@@ -294,22 +294,10 @@ export default function SubwayTab() {
   const activeGroup = STATION_GROUPS.find((g) => g.stationName === stationTab) ?? STATION_GROUPS[0]
 
   useEffect(() => {
-    setModeTab('realtime')
+    setModeTab('timetable')
     setSelectedDetail(null)
     didAutoSwitchRef.current = false
   }, [stationTab])
-
-  useEffect(() => {
-    if (realtimeLoading) return
-    const isEmpty = !realtimeArrivals || realtimeArrivals.length === 0
-    if (isEmpty && !didAutoSwitchRef.current) {
-      didAutoSwitchRef.current = true
-      setModeTab('timetable')
-    } else if (realtimeArrivals && realtimeArrivals.length > 0 && didAutoSwitchRef.current) {
-      didAutoSwitchRef.current = false
-      setModeTab('realtime')
-    }
-  }, [realtimeArrivals, realtimeLoading])
 
   const openRealtimeDetail = (item) => {
     const card = activeGroup.cards.find(

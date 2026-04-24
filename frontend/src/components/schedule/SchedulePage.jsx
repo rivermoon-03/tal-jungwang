@@ -309,13 +309,13 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
   const realtimeArrivals = realtimeAll?.[stationGroup] ?? null
   const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
-  const [modeTab, setModeTab] = useState('realtime')
+  const [modeTab, setModeTab] = useState('timetable')
   const didAutoSwitchRef = useRef(false)
   const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
   const now = new Date()
 
   useEffect(() => {
-    setModeTab('realtime')
+    setModeTab('timetable')
     didAutoSwitchRef.current = false
   }, [stationGroup])
 
