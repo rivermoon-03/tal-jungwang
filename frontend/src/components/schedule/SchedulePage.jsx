@@ -755,7 +755,7 @@ export default function SchedulePage() {
     : () => {}
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
       <PageHeader title="시간표" subtitle="노선·역·방향별 전체 시간표" />
 
       {/* top mode tabs + 즐겨찾기 필터 */}
