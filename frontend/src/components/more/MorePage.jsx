@@ -8,16 +8,15 @@
  * Sub-pages: dark-mode, notifications, notices, info
  */
 import { useState } from 'react'
-import { Bell, Moon, Heart } from 'lucide-react'
+import { Bell, Moon, Info } from 'lucide-react'
 import NoticeHighlights from './NoticeHighlights'
 import PageHeader from '../layout/PageHeader'
 import DarkModePage from './DarkModePage'
 import NotificationsPage from './NotificationsPage'
 import NoticesPage from './NoticesPage'
-import { useNotices, useAppInfo } from '../../hooks/useMore'
+import AppInfoPage from './AppInfoPage'
+import { useNotices } from '../../hooks/useMore'
 import useAppStore from '../../stores/useAppStore'
-
-const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '1.0.0'
 
 function fmtDateShort(s) {
   if (!s) return ''
@@ -63,10 +62,13 @@ function QuickCard({ icon, label, sub, onClick }) {
 }
 
 export default function MorePage() {
-  const [subPage, setSubPage] = useState(null)
+  const [subPage, setSubPage] = useState(() =>
+    typeof window !== 'undefined' && window.location.pathname === '/more/app-info'
+      ? 'app-info'
+      : null
+  )
 
   const { data: noticesData } = useNotices()
-  const { data: infoData } = useAppInfo()
   const themeMode = useAppStore((s) => s.themeMode)
   const notifPrefs = useAppStore((s) => s.notifPrefs)
 
@@ -74,11 +76,24 @@ export default function MorePage() {
   const leadMin = notifPrefs?.leadMin ?? 10
   const alarmSub = notifPrefs?.enabled === false ? '꺼짐' : `${leadMin}분 전`
 
+  const closeSubPage = () => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/more/app-info') {
+      window.history.pushState(null, '', '/more')
+    }
+    setSubPage(null)
+  }
+  const openAppInfo = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', '/more/app-info')
+    }
+    setSubPage('app-info')
+  }
+
   if (subPage === 'dark-mode')     return <DarkModePage        onBack={() => setSubPage(null)} />
   if (subPage === 'notifications') return <NotificationsPage   onBack={() => setSubPage(null)} />
   if (subPage === 'notices')       return <NoticesPage         onBack={() => setSubPage(null)} />
+  if (subPage === 'app-info')      return <AppInfoPage         onBack={closeSubPage} />
 
-  const version = infoData?.version ?? APP_VERSION
   const allNotices = Array.isArray(noticesData) ? noticesData : []
   const recent = allNotices.slice(0, 2)
   const hasMoreNotices = allNotices.length > recent.length
@@ -213,42 +228,45 @@ export default function MorePage() {
           </>
         )}
 
-        {/* Made by 소공 */}
-        <div
+        {/* 앱 정보 진입 */}
+        <button
+          type="button"
+          onClick={openAppInfo}
+          className="pressable w-full flex items-center justify-between bg-white dark:bg-surface-dark"
           style={{
-            background: 'transparent',
             borderRadius: 14,
             border: '1px solid var(--tj-line)',
             padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
           }}
-          className="bg-white dark:bg-surface-dark"
+          aria-label="앱 정보 보기"
         >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              background: 'var(--tj-bg-soft)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--tj-accent)',
-            }}
-          >
-            <Heart size={18} fill="currentColor" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tj-ink)' }} className="dark:text-slate-100">
-              Made by moonlandingplan
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                background: 'var(--tj-bg-soft)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--tj-accent)',
+              }}
+              aria-hidden="true"
+            >
+              <Info size={18} />
             </div>
-            <div style={{ fontSize: 10, color: 'var(--tj-mute)', fontWeight: 500, marginTop: 2 }}>
-              한국공대 · v{version}
+            <div
+              style={{ fontSize: 12, fontWeight: 800, color: 'var(--tj-ink)' }}
+              className="dark:text-slate-100"
+            >
+              앱 정보
             </div>
           </div>
-        </div>
+          <span style={{ fontSize: 14, color: 'var(--tj-mute)', fontWeight: 700 }}>→</span>
+        </button>
       </div>
     </div>
   )
