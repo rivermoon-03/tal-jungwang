@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import useAppStore from '../../stores/useAppStore'
 
@@ -139,9 +140,10 @@ function RealtimeRow({ item, lastFetchedAt, onClick }) {
 
   return (
     <div
-      className={`relative flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-800 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition-colors ${rowBg}`}
+      className={`flex flex-col gap-1 px-4 py-3 border-b border-slate-100 dark:border-slate-800 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition-colors ${rowBg}`}
       onClick={() => onClick?.(item)}
     >
+      <div className="flex items-center gap-3">
       {/* 좌: 노선 dot + 목적지 + 위치 */}
       <div className="flex items-start gap-2.5 flex-1 min-w-0">
         <div className="flex flex-col items-center gap-1 pt-0.5 flex-shrink-0">
@@ -178,16 +180,24 @@ function RealtimeRow({ item, lastFetchedAt, onClick }) {
       </div>
 
       <ArrivalTime item={item} />
-
-      {/* 우측 하단 업데이트 시간 + 폴링 시간 */}
-      <div className="absolute bottom-1 right-2 text-[9px] text-slate-300 dark:text-slate-600 font-medium flex items-center gap-1.5">
-        {lastFetchedAt && (
-          <span>{secondsAgo}초 전 폴링</span>
-        )}
-        {recptnTime && (
-          <span>{recptnTime} 기준</span>
-        )}
       </div>
+
+      {/* 하단 업데이트 시간 + 폴링 시간 (별도 행) */}
+      {(lastFetchedAt || recptnTime) && (
+        <div className="flex justify-end gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+          {lastFetchedAt && (
+            <span>{secondsAgo}초 전 폴링</span>
+          )}
+          {recptnTime && (() => {
+            const ageMin = item.recptn_dt
+              ? Math.floor((Date.now() - new Date(item.recptn_dt).getTime()) / 60000)
+              : 0
+            return ageMin >= 3
+              ? <span className="text-amber-500 dark:text-amber-400 font-bold">{recptnTime} 기준 · {ageMin}분 지연</span>
+              : <span>{recptnTime} 기준</span>
+          })()}
+        </div>
+      )}
     </div>
   )
 }
