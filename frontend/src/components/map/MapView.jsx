@@ -42,6 +42,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const mapPanTarget        = useAppStore((s) => s.mapPanTarget)
   const setMapPanTarget     = useAppStore((s) => s.setMapPanTarget)
   const activeTab           = useAppStore((s) => s.activeTab)
+  const selectedMode        = useAppStore((s) => s.selectedMode)
 
   // 실시간 데이터 훅
   const { data: shuttleToSchoolData }   = useShuttleNext(0) // 등교: 정왕역 → 학교
@@ -357,6 +358,19 @@ export default function MapView({ onMarkerClick, selectedId }) {
       return base
     })
   }, [markersData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, shuttleToCampus2Mins, shuttleFromCampus2Mins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, siheungUpMinutes, siheungDnMinutes, siheungEarliestBus, liveMinByRouteDir])
+
+  // selectedMode에 따라 학교방향 chip + G(extraPillText) chip 노출 필터링
+  // - taxi: 관리형 정류장 마커(학교방향 chip 포함) 전체 숨김
+  // - bus : 전부 노출 (현상 유지)
+  // - subway / shuttle : 마커는 노출하되 G (extraPillText) pill만 숨김
+  const visibleStations = useMemo(() => {
+    if (selectedMode === 'taxi') return []
+    if (selectedMode === 'bus') return managedStations
+    // subway / shuttle: extraPillText 제거
+    return managedStations.map((s) =>
+      s.extraPillText ? { ...s, extraPillText: null } : s
+    )
+  }, [managedStations, selectedMode])
 
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
@@ -983,7 +997,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           {/* 줌 레벨 기반 Chip ↔ Dot 하이브리드 마커 (주요 정류장) */}
           <ZoomAwareOverlayManager
             map={mapInstance}
-            stations={managedStations}
+            stations={visibleStations}
             onTap={handleMarkerTap}
           />
         </>
