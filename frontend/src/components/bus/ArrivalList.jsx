@@ -1,7 +1,7 @@
 import BusArrivalCard from './BusArrivalCard'
 
 const CATEGORY_ORDER = ['등교', '하교', '기타']
-const CATEGORY_LABEL = { '등교': '등교', '하교': '하교', '기타': '기타' }
+const CATEGORY_LABEL = { '등교': '등교', '하교': '하교', '기타': '기타 노선' }
 
 function groupByRouteNo(arrivals) {
   const map = new Map()
