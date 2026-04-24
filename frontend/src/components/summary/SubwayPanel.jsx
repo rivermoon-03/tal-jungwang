@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import useAppStore from '../../stores/useAppStore'
 import { useSubwayNext, useSubwayRealtime } from '../../hooks/useSubway'
 import { useApi } from '../../hooks/useApi'
@@ -40,27 +40,13 @@ export default function SubwayPanel() {
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
   const realtimeArrivals = realtimeAll?.[selectedStation] ?? null
 
-  const [modeTab, setModeTab] = useState('realtime')
-  const didAutoSwitchRef = useRef(false)
+  const [modeTab, setModeTab] = useState('timetable')
 
   const lines = STATION_LINES[selectedStation] ?? []
 
   useEffect(() => {
-    setModeTab('realtime')
-    didAutoSwitchRef.current = false
+    setModeTab('timetable')
   }, [selectedStation])
-
-  useEffect(() => {
-    if (realtimeLoading) return
-    const isEmpty = !realtimeArrivals || realtimeArrivals.length === 0
-    if (isEmpty && !didAutoSwitchRef.current) {
-      didAutoSwitchRef.current = true
-      setModeTab('timetable')
-    } else if (realtimeArrivals && realtimeArrivals.length > 0 && didAutoSwitchRef.current) {
-      didAutoSwitchRef.current = false
-      setModeTab('realtime')
-    }
-  }, [realtimeArrivals, realtimeLoading])
 
   const tom1 = useMemo(() => offsetDate(1), [])
   const { data: tmrData } = useApi(`/subway/timetable?date=${tom1}`, { ttl: 43_200_000 })
