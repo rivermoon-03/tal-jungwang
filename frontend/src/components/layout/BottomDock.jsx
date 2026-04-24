@@ -45,12 +45,18 @@ export default function BottomDock() {
             onClick={(e) => handleNav(e, href)}
             aria-label={label}
             aria-current={active ? 'page' : undefined}
-            className={`flex-1 min-h-[60px] flex flex-col items-center justify-center gap-1 pressable ${colorClass}`}
+            className={`relative flex-1 min-h-[60px] flex flex-col items-center justify-center gap-1 pressable ${colorClass}`}
             style={{
               transition:
                 'transform var(--dur-press) var(--ease-ios), color var(--dur-snap) var(--ease-ios)',
             }}
           >
+            {active && (
+              <span
+                aria-hidden="true"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-navy dark:bg-blue-500"
+              />
+            )}
             <Icon
               size={20}
               strokeWidth={active ? 2.2 : 1.9}
