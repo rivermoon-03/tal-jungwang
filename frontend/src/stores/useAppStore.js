@@ -37,6 +37,10 @@ const useAppStore = create(
       setTaxiOpen: (v) => set({ taxiOpen: v }),
       toggleTaxiOpen: () => set((s) => ({ taxiOpen: !s.taxiOpen })),
 
+      // 대시보드 스크롤 위치 보존 (탭 전환 시 유지)
+      dashboardScrollTop: 0,
+      setDashboardScrollTop: (v) => set({ dashboardScrollTop: v }),
+
       // 지하철 노선도 전역 시트 (SubwayPanel·SchedulePage → App 레벨 렌더링)
       subwayLineSheet: null, // { line, direction, currentStation, destination, color } | null
       setSubwayLineSheet: (item) => set({ subwayLineSheet: item }),
