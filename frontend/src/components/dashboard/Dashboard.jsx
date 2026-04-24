@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { ArrowUp, ArrowDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useUserLocation, { getNearestStation } from '../../hooks/useUserLocation'
@@ -35,21 +36,24 @@ function DirectionToggle() {
 
   return (
     <div className="flex items-center gap-1 shrink-0">
-      {['등', '하'].map((short) => {
-        const full = short === '등' ? '등교' : '하교'
+      {[
+        { full: '등교', Icon: ArrowUp },
+        { full: '하교', Icon: ArrowDown },
+      ].map(({ full, Icon }) => {
         const active = direction === full
         return (
           <button
-            key={short}
+            key={full}
             type="button"
             onClick={() => handleSelect(full)}
-            className={`w-8 h-8 rounded-full text-sm font-bold leading-none transition-colors pressable
+            className={`flex items-center gap-1 h-8 px-2.5 rounded-full text-[13px] font-bold leading-none transition-colors pressable
               ${active
                 ? 'bg-navy text-white dark:bg-blue-600'
                 : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
               }`}
           >
-            {short}
+            <Icon size={12} aria-hidden="true" />
+            <span>{full}</span>
           </button>
         )
       })}
