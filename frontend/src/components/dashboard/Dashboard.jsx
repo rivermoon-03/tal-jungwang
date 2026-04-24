@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
@@ -72,6 +72,16 @@ export default function Dashboard() {
   const setHasAutoSelected = useAppStore((s) => s.setHasAutoSelectedStation)
   const setBusStation = useAppStore((s) => s.setBusStation)
 
+  const scrollRef = useRef(null)
+  const savedScroll = useAppStore((s) => s.dashboardScrollTop)
+  const setSavedScroll = useAppStore((s) => s.setDashboardScrollTop)
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = savedScroll
+    // Only restore once on mount; avoid re-triggering on every savedScroll change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     if (!coords || hasAutoSelected) return
     const nearest = getNearestStation(coords[0], coords[1])
@@ -92,6 +102,8 @@ export default function Dashboard() {
 
   return (
     <section
+      ref={scrollRef}
+      onScroll={(e) => setSavedScroll(e.currentTarget.scrollTop)}
       className="h-full overflow-auto bg-white dark:bg-surface-dark"
       aria-label="대시보드"
     >

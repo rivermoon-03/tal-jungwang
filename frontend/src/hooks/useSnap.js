@@ -24,7 +24,7 @@ import useAppStore from '../stores/useAppStore'
  * (CSS 전환 duration이 0ms가 되어 즉시 전환될 뿐 로직은 동일.)
  */
 const HEIGHTS = {
-  default:   { map: 50,  dashboard: 50  },
+  default:   { map: 30,  dashboard: 65  },
   dashboard: { map:  0,  dashboard: 100 },
   map:       { map: 100, dashboard: 0   },
 }
