@@ -6,6 +6,18 @@ import { ChevronRight } from 'lucide-react'
 import Skeleton from '../common/Skeleton'
 import RouteBadge from '../common/RouteBadge'
 import { CrowdedBadge } from '../bus/BusArrivalCard'
+import { formatRelAbs } from '../../utils/trainTime'
+
+/**
+ * next/afterNext 프롭은 아래 두 가지 형태를 모두 허용한다.
+ *  - string: 기존 호환 ("곧 도착", "금일 종료", "수시운행 중" 등 상태 라벨)
+ *  - { minutes, hhmm }: 상대(분)/절대(HH:MM) 값을 함께 표시 → `${minutes}분 뒤 · ${hhmm}`
+ */
+function renderTimeValue(value) {
+  if (value == null) return '—'
+  if (typeof value === 'object') return formatRelAbs(value.minutes, value.hhmm)
+  return value
+}
 
 export default function ScheduleSection({
   title,
@@ -171,11 +183,11 @@ export default function ScheduleSection({
             ) : (
               <>
                 <span style={{ fontWeight: 800, color: 'var(--tj-ink)' }} className="dark:text-slate-100">
-                  다음 {next ?? '—'}
+                  다음 {renderTimeValue(next)}
                 </span>
                 {afterNext && (
                   <span style={{ color: 'var(--tj-mute-2)', fontWeight: 500, marginLeft: 8 }}>
-                    그 다음 {afterNext}
+                    그 다음 {renderTimeValue(afterNext)}
                   </span>
                 )}
               </>

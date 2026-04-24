@@ -73,3 +73,23 @@ export function getLastTrainStatus(trains, nowMin) {
 
   return { nextTrain, isLast }
 }
+
+/**
+ * 상대(분) + 절대(HH:MM) 시간 포맷을 통일하여 표시.
+ *
+ * - 둘 다 있으면: "5분 뒤 · 10:25"
+ * - 상대만 있으면: "5분 뒤"
+ * - 절대만 있으면: "10:25"
+ * - 아무것도 없으면: "—"
+ *
+ * @param {number|null|undefined} minutes  남은 분
+ * @param {string|null|undefined} hhmm     "HH:MM" 포맷 출발 시각
+ * @returns {string}
+ */
+export function formatRelAbs(minutes, hhmm) {
+  const hasMin = minutes != null && !Number.isNaN(minutes)
+  const hasAbs = typeof hhmm === 'string' && hhmm.length > 0
+  if (!hasMin && !hasAbs) return '—'
+  if (hasMin && hasAbs) return `${minutes}분 뒤 · ${hhmm}`
+  return hasMin ? `${minutes}분 뒤` : hhmm
+}

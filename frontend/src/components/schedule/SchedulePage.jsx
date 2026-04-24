@@ -171,7 +171,13 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
     if (firstMin == null) {
       nextLabel = null
     } else if (firstMin <= 0) nextLabel = '곧 도착'
-    else nextLabel = `${firstMin}분 뒤`
+    else nextLabel = { minutes: firstMin, hhmm: null }
+
+    const afterNextLabel = secondMin == null
+      ? null
+      : secondMin <= 0
+        ? '곧 도착'
+        : { minutes: secondMin, hhmm: null }
 
     const favKey = favCode ?? routeCode
     return (
@@ -182,7 +188,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
         routeCode={routeCode}
         destLabel={null}
         next={nextLabel}
-        afterNext={secondMin != null ? (secondMin <= 0 ? '곧 도착' : `${secondMin}분 뒤`) : null}
+        afterNext={afterNextLabel}
         minutesUntil={firstMin}
         loading={arrivalsLoading && matches.length === 0}
         crowded={first?.crowded ?? 0}
@@ -238,9 +244,15 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
     nextStr = getFirstBusLabel(allTimes, now)
     mins = nextMin
   } else {
-    nextStr = toStr(future[0]) ?? getFirstBusLabel(allTimes, now)
+    const hhmm = toStr(future[0])
+    nextStr = hhmm ? { minutes: nextMin, hhmm } : getFirstBusLabel(allTimes, now)
     mins = nextMin
   }
+  const secondHhmm = isEndOfDay ? toStr(future[0]) : toStr(future[1])
+  const secondMin = !isEndOfDay && future[1] ? Math.round((future[1] - now) / 60000) : null
+  const afterNextVal = secondHhmm
+    ? (secondMin != null ? { minutes: secondMin, hhmm: secondHhmm } : secondHhmm)
+    : null
 
   // 지금 잡힌 버스가 오늘의 마지막 차인지
   const isLastBus = !isEndOfDay && !isLateNightGap && future[0] != null &&
@@ -255,7 +267,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
       routeCode={routeCode}
       destLabel={null}
       next={nextStr}
-      afterNext={isEndOfDay ? toStr(future[0]) : toStr(future[1])}
+      afterNext={afterNextVal}
       minutesUntil={mins}
       endOfDay={isEndOfDay}
       lastBus={isLastBus}
@@ -413,7 +425,11 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
           const mins = depart ? timeStrToMinutes(depart, now) : null
           const validMins = mins != null && mins >= 0 ? mins : null
           const secondDepart = secondDepartStr(key)
+          const secondMins = secondDepart ? timeStrToMinutes(secondDepart, now) : null
+          const validSecondMins = secondMins != null && secondMins >= 0 ? secondMins : null
           const isLastTrain = depart != null && timetable != null && secondDepart == null
+          const nextVal = depart ? { minutes: validMins, hhmm: depart } : null
+          const afterNextVal = secondDepart ? { minutes: validSecondMins, hhmm: secondDepart } : null
           const favCode = `subway:${stationGroup}:${key}`
           if (favoritesOnly && !favCodes.includes(favCode)) return null
           const handleClick = () => setSubwayDetailSheet({
@@ -433,8 +449,8 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
               subtitle={dir.subtitle}
               type="subway"
               routeCode={dir.subtitle}
-              next={depart}
-              afterNext={secondDepart}
+              next={nextVal}
+              afterNext={afterNextVal}
               minutesUntil={validMins}
               onClick={handleClick}
               loading={loading}
@@ -590,8 +606,8 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
       subtitle={subtitleText}
       type="shuttle"
       routeCode={routeCode}
-      next={first?.statusLabel ?? first?.departStr ?? null}
-      afterNext={second?.statusLabel ?? second?.departStr ?? null}
+      next={first?.statusLabel ?? (first?.departStr ? { minutes: first.mins, hhmm: first.departStr } : null)}
+      afterNext={second?.statusLabel ?? (second?.departStr ? { minutes: second.mins, hhmm: second.departStr } : null)}
       minutesUntil={first?.mins ?? null}
       onClick={handleClick}
       loading={loading}
