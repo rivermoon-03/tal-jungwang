@@ -51,7 +51,14 @@ function DestRow({ dest, origin }) {
     <div className="flex items-center gap-3 py-2.5">
       <div className="flex-1 min-w-0">
         <p className="text-[14px] font-bold text-[#0f172a] dark:text-[#f1f5f9]">{dest.name}</p>
-        {result && <p className="text-[11px] text-[#94a3b8]">{fmtKm(result.distance_meters)}</p>}
+        {result && (
+          <p className="text-[11px] text-[#94a3b8]">
+            {fmtKm(result.distance_meters)}
+            {result.taxi_fee > 0 && (
+              <span className="ml-2">약 {result.taxi_fee.toLocaleString()}원</span>
+            )}
+          </p>
+        )}
       </div>
       <span className="text-[16px] font-extrabold tabular-nums text-navy dark:text-blue-300 whitespace-nowrap">
         {loading
