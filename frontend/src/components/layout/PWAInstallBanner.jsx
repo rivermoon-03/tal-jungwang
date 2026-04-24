@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, X, Share } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
@@ -17,6 +17,17 @@ export default function PWAInstallBanner() {
   const { canInstall, isInstalled, isDismissed, isIOS, promptInstall, dismiss } =
     usePWAInstall();
   const [showIOSModal, setShowIOSModal] = useState(false);
+
+  // 배너가 실제로 렌더링되는 동안 --banner-h CSS 변수를 설정해
+  // 지도 FAB 등 다른 요소가 배너 높이만큼 아래로 밀리도록 한다.
+  useEffect(() => {
+    if (isInstalled || isDismissed || (!canInstall && !isIOS)) {
+      document.documentElement.style.setProperty('--banner-h', '0px');
+      return;
+    }
+    document.documentElement.style.setProperty('--banner-h', '44px');
+    return () => document.documentElement.style.setProperty('--banner-h', '0px');
+  }, [isInstalled, isDismissed, canInstall, isIOS]);
 
   // 이미 설치되었거나, 7일 내 dismiss한 경우 렌더링 불필요
   if (isInstalled || isDismissed) return null;
@@ -43,7 +54,7 @@ export default function PWAInstallBanner() {
       <div
         role="banner"
         aria-label="앱 설치 배너"
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 text-white"
+        className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-2 text-white"
         style={{ backgroundColor: '#102c4c', minHeight: '44px' }}
       >
         <button
