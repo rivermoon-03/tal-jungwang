@@ -30,12 +30,18 @@ export function usePWAInstall() {
       window.matchMedia('(display-mode: standalone)').matches) ||
     (typeof navigator !== 'undefined' && !!navigator.standalone);
 
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isIOSDevice =
+    /iPad|iPhone|iPod/.test(ua) &&
+    !(typeof window !== 'undefined' && window.MSStream);
+  const isIOSSafari =
+    isIOSDevice &&
+    /Safari/.test(ua) &&
+    !/CriOS|FxiOS|EdgiOS|OPiOS|mercury/i.test(ua);
+  // Public name kept as `isIOS` for backward compat; semantically "iOS Safari only".
   const isIOS =
-    typeof navigator !== 'undefined' &&
-    /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
-    !('MSStream' in window) &&
-    !/CriOS|FxiOS|OPiOS|mercury/i.test(navigator.userAgent) &&
-    !navigator.standalone;
+    isIOSSafari &&
+    !(typeof navigator !== 'undefined' && navigator.standalone);
 
   useEffect(() => {
     const handler = (e) => {
