@@ -73,6 +73,9 @@ function arrivalLabel(train) {
 
   // 3. 실시간 시간 데이터가 있는 경우
   const secs = train.arrive_seconds
+  if (secs != null && secs > 0 && secs < 60) {
+    return '곧 도착'
+  }
   if (secs != null && secs > 0) {
     const mins = Math.ceil(secs / 60)
     return mins <= 0 ? '곧 도착' : `${mins}분 후`

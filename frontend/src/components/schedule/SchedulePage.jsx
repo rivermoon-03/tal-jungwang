@@ -160,22 +160,20 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
       .sort((a, b) => (a.arrive_in_seconds ?? 0) - (b.arrive_in_seconds ?? 0))
     const first = matches[0]
     const second = matches[1]
-    const firstMin = first?.arrive_in_seconds != null
-      ? Math.max(0, Math.round(first.arrive_in_seconds / 60))
-      : null
-    const secondMin = second?.arrive_in_seconds != null
-      ? Math.max(0, Math.round(second.arrive_in_seconds / 60))
-      : null
+    const firstSec = first?.arrive_in_seconds ?? null
+    const secondSec = second?.arrive_in_seconds ?? null
+    const firstMin = firstSec != null ? Math.max(0, Math.round(firstSec / 60)) : null
+    const secondMin = secondSec != null ? Math.max(0, Math.round(secondSec / 60)) : null
 
     let nextLabel
     if (firstMin == null) {
       nextLabel = null
-    } else if (firstMin <= 0) nextLabel = '곧 도착'
+    } else if (firstSec != null && firstSec < 60) nextLabel = '곧 도착'
     else nextLabel = { minutes: firstMin, hhmm: null }
 
     const afterNextLabel = secondMin == null
       ? null
-      : secondMin <= 0
+      : secondSec != null && secondSec < 60
         ? '곧 도착'
         : { minutes: secondMin, hhmm: null }
 

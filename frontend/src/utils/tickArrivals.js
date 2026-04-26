@@ -9,9 +9,12 @@ function decrement(sec, elapsedSec) {
   return Math.max(0, sec - elapsedSec)
 }
 
+// 정수초 단위로 내려준다 — MM:SS / 분 계산에서 소수점이 새어 나오면
+// "02:59.3" 같은 깨진 표기가 발생하고, useSecondsCountdown 같은 소비자가
+// 정수 입력을 가정하기 때문에 반드시 floor.
 function elapsedSince(fetchedAt, now) {
   if (!fetchedAt) return 0
-  return Math.max(0, (now - fetchedAt) / 1000)
+  return Math.max(0, Math.floor((now - fetchedAt) / 1000))
 }
 
 // 버스 도착정보 응답 (BusArrivalsResponse): { arrivals: [...], ... }

@@ -110,8 +110,12 @@ export default function GlobalSubwayDetailSheet() {
           } else if (rtTrain.status_code === 0) {
             etaLabel = '진입 중'
           } else if (typeof secs === 'number' && secs > 0) {
-            const mins = Math.ceil(secs / 60)
-            etaLabel = mins <= 0 ? '이미 도착' : `${mins}분 후`
+            if (secs < 60) {
+              etaLabel = '곧 도착'
+            } else {
+              const mins = Math.ceil(secs / 60)
+              etaLabel = `${mins}분 후`
+            }
           } else if ([3, 4, 5].includes(rtTrain.status_code)) {
             if (displayed.lineName === '4호선' && displayed.direction === '상행' && rtTrain.status_code === 5 && (rtTrain.location_msg?.includes('오이도') || rtTrain.current_station === '오이도')) {
               etaLabel = '오이도'
