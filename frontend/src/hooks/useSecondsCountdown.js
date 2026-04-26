@@ -1,38 +1,28 @@
-import { useState, useEffect } from 'react'
-
 function pad(n) {
   return String(Math.abs(n)).padStart(2, '0')
 }
 
 /**
- * Counts down from `initialSeconds` (from API's arrive_in_seconds).
- * Resets whenever initialSeconds changes.
+ * `initialSeconds`를 그대로 MM:SS / H시간 M분 포맷으로 변환한다.
+ *
+ * 이전에는 내부 setInterval로 매초 직접 1씩 깎았지만, 현재는
+ * useBus/useSubway/useShuttle 훅이 useNow(1000) 기반으로 arrive_seconds를
+ * 이미 매초 tick 해 준다. 내부 타이머를 또 돌리면 렌더 phase 사이에
+ * "두 카운터"가 경쟁해 표시가 튀거나 1초씩 어긋나는 증상이 생긴다.
+ *
+ * 따라서 이 훅은 이제 **순수 포매터**다. 입력이 변할 때마다 즉시 새 표시.
  */
 export function useSecondsCountdown(initialSeconds) {
-  const [remaining, setRemaining] = useState(initialSeconds ?? null)
-
-  useEffect(() => {
-    if (initialSeconds == null) {
-      setRemaining(null)
-      return
-    }
-    setRemaining(initialSeconds)
-    const id = setInterval(() => {
-      setRemaining((prev) => (prev != null ? prev - 1 : null))
-    }, 1000)
-    return () => clearInterval(id)
-  }, [initialSeconds])
-
-  if (remaining == null) {
+  if (initialSeconds == null) {
     return { display: '--:--', totalSeconds: null, isUrgent: false }
   }
 
+  const remaining = Math.floor(initialSeconds)
   const clamped = Math.max(0, remaining)
   const hours = Math.floor(clamped / 3600)
   const mins = Math.floor((clamped % 3600) / 60)
   const secs = clamped % 60
 
-  // 60분 이상이면 H시간 M분, 아니면 MM:SS
   const display = hours > 0
     ? `${hours}시간 ${pad(mins)}분`
     : `${pad(mins)}:${pad(secs)}`
