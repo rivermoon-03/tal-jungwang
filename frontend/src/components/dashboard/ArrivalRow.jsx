@@ -48,7 +48,7 @@ export default function ArrivalRow({
         padding: '14px 12px',
         borderRadius: 12,
         border: '1px solid var(--tj-line)',
-        background: urgent ? '#fafafa' : 'transparent',
+        background: urgent ? 'var(--tj-bg-soft)' : 'transparent',
         boxShadow: 'none',
       }}
     >
