@@ -107,9 +107,13 @@ export default function Dashboard() {
       className="h-full overflow-auto bg-white dark:bg-surface-dark"
       aria-label="대시보드"
     >
-      <ModeTabs rightAddon={selectedMode === 'bus' ? <DirectionToggle /> : null} />
+      <ModeTabs />
 
-      <StationPills mode={selectedMode} value={stationValue} />
+      <StationPills
+        mode={selectedMode}
+        value={stationValue}
+        rightAddon={selectedMode === 'bus' ? <DirectionToggle /> : null}
+      />
 
       <div className="px-4 pb-6">
         {selectedMode === 'bus' && (

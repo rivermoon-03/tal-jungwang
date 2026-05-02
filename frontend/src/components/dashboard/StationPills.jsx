@@ -15,7 +15,7 @@ const SHUTTLE_CAMPUS_OPTIONS = [
   { id: 'second', label: '2캠' },
 ]
 
-export default function StationPills({ mode, value, onChange, options }) {
+export default function StationPills({ mode, value, onChange, options, rightAddon = null }) {
   const selectedBusStation     = useAppStore((s) => s.selectedBusStation)
   const selectedShuttleCampus  = useAppStore((s) => s.selectedShuttleCampus)
   const setBusStation          = useAppStore((s) => s.setBusStation)
@@ -67,19 +67,22 @@ export default function StationPills({ mode, value, onChange, options }) {
     }
 
     return (
-      <div
-        role="group"
-        aria-label="정류장 선택"
-        className="flex gap-1.5 px-4 pb-1.5 overflow-x-auto scrollbar-hide"
-      >
-        {items.map((label) => (
-          <StationPillButton
-            key={label}
-            label={getBusStationDisplay(label)}
-            active={stationValue === label}
-            onClick={() => handleSelectStation(label)}
-          />
-        ))}
+      <div className="flex items-center gap-2 px-4 pb-1.5">
+        <div
+          role="group"
+          aria-label="정류장 선택"
+          className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto scrollbar-hide"
+        >
+          {items.map((label) => (
+            <StationPillButton
+              key={label}
+              label={getBusStationDisplay(label)}
+              active={stationValue === label}
+              onClick={() => handleSelectStation(label)}
+            />
+          ))}
+        </div>
+        {rightAddon && <div className="shrink-0">{rightAddon}</div>}
       </div>
     )
   }

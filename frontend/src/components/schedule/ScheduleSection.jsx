@@ -70,14 +70,18 @@ export default function ScheduleSection({
         <RouteBadge route={badgeRoute} variant="badge" size="sm" />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
             <span
               style={{
                 fontSize: 13,
                 fontWeight: 800,
                 color: 'var(--tj-ink)',
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 letterSpacing: '-0.01em',
+                flexShrink: 1,
+                minWidth: 0,
               }}
               className="dark:text-slate-100"
             >
@@ -90,6 +94,10 @@ export default function ScheduleSection({
                   fontWeight: 700,
                   color: 'var(--tj-mute-2)',
                   whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  flexShrink: 999,
+                  minWidth: 0,
                 }}
               >
                 {destLabel}
