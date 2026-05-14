@@ -3,6 +3,15 @@ import { ArrowUp, ArrowDown, MapPin } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import useUserLocation, { getNearestStationInfo } from '../../hooks/useUserLocation'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
+
+// 지도(UserLocationMarker)가 watchPosition으로 store에 채워주는 좌표를 1차로 사용.
+// 지도가 마운트되기 전 잠시 비어있을 수 있으므로, useUserLocation을 fallback으로.
+function useUserCoords() {
+  const stored = useAppStore((s) => s.userLocation) // { lat, lng } | null
+  const fallback = useUserLocation()                 // [lat, lng] | null
+  if (stored?.lat != null && stored?.lng != null) return [stored.lat, stored.lng]
+  return fallback
+}
 import {
   BUS_STATION_LABELS,
   getAllowedDirections,
@@ -21,7 +30,7 @@ export default function PCStationPicker() {
   const setAutoMode          = useAppStore((s) => s.setBusStationAutoMode)
   const setDirectionOverride = useAppStore((s) => s.setDirectionOverride)
   const { direction } = useEffectiveDirection()
-  const coords = useUserLocation()
+  const coords = useUserCoords()
 
   // 현재 방향에 허용되는 정류장만 칩으로 표시
   const allowedStations = useMemo(
