@@ -129,13 +129,14 @@ const useAppStore = create(
 
       notifPrefs: { enabled: false, leadMin: 10 },
 
-      // ── 다크모드 레거시 (하위호환) ─────────────────────────────────────
-      // App.jsx의 기존 useAppStore((s) => s.darkMode) 구독자들을 위해 유지.
-      // useTheme 훅이 themeMode를 정식으로 처리하므로 이 값은 참고용.
+      // ── 다크모드 토글 ─────────────────────────────────────────────────
+      // darkMode는 useTheme이 themeMode + 시스템 설정을 종합해 실제 화면 상태로 동기화.
+      // toggleDarkMode는 visible 상태(darkMode) 기준으로 반대로 explicit 전환한다
+      // — themeMode가 'system'이어도 사용자가 보는 상태에서 명확히 뒤집힌다.
       darkMode: false, // useTheme에서 실시간 업데이트
       toggleDarkMode: () =>
         set((s) => ({
-          themeMode: s.themeMode === 'dark' ? 'light' : 'dark',
+          themeMode: s.darkMode ? 'light' : 'dark',
         })),
 
     }),

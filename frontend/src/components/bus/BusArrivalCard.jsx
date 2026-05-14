@@ -202,7 +202,7 @@ function Eta({ value, imminent }) {
   const baseCls = `inline-flex items-baseline font-black leading-none tracking-[-0.03em] tabular-nums text-eta-mob md:text-eta-pc ${
     imminent
       ? 'text-imminent dark:text-imminent-dark'
-      : 'text-ink dark:text-ink-dark'
+      : 'text-ink dark:text-white'
   }`
   if (isText) {
     return (
