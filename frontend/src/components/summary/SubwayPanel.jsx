@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import useAppStore from '../../stores/useAppStore'
 import { useSubwayNext, useSubwayRealtime } from '../../hooks/useSubway'
 import { useApi } from '../../hooks/useApi'
@@ -33,20 +33,14 @@ function offsetDate(days) {
   return d.toISOString().slice(0, 10)
 }
 
-export default function SubwayPanel() {
+export default function SubwayPanel({ dataMode = 'timetable' }) {
   const selectedStation = useAppStore((s) => s.selectedSubwayStation)
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
   const { data, loading, error, refetch } = useSubwayNext()
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
   const realtimeArrivals = realtimeAll?.[selectedStation] ?? null
 
-  const [modeTab, setModeTab] = useState('timetable')
-
   const lines = STATION_LINES[selectedStation] ?? []
-
-  useEffect(() => {
-    setModeTab('timetable')
-  }, [selectedStation])
 
   const tom1 = useMemo(() => offsetDate(1), [])
   const { data: tmrData } = useApi(`/subway/timetable?date=${tom1}`, { ttl: 43_200_000 })
@@ -95,29 +89,7 @@ export default function SubwayPanel() {
 
   return (
     <>
-      <div className="flex gap-1.5 mb-2">
-        {['realtime', 'timetable'].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setModeTab(mode)}
-            style={{
-              padding: '4px 12px',
-              borderRadius: 999,
-              fontSize: 11,
-              fontWeight: 700,
-              border: modeTab === mode ? '1.5px solid var(--tj-pill-active-bg)' : '1.5px solid var(--tj-line)',
-              background: modeTab === mode ? 'var(--tj-pill-active-bg)' : 'transparent',
-              color: modeTab === mode ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-              cursor: 'pointer',
-              transition: 'background 0.12s, color 0.12s, border-color 0.12s',
-            }}
-          >
-            {mode === 'realtime' ? '실시간' : '시간표'}
-          </button>
-        ))}
-      </div>
-
-      {modeTab === 'realtime' && (
+      {dataMode === 'realtime' && (
         realtimeLoading ? (
           <div className="space-y-2">
             <Skeleton height="5.5rem" rounded="rounded-xl" /><Skeleton height="5.5rem" rounded="rounded-xl" />
@@ -144,7 +116,7 @@ export default function SubwayPanel() {
         )
       )}
 
-      {modeTab === 'timetable' && (
+      {dataMode === 'timetable' && (
         <div className="space-y-2">
           {lines.map((line) => {
             const meta = LINE_META[line.name] ?? { symbol: line.name[0], color: '#6b7280', darkColor: '#6b7280', lightColor: '#f8f8f8' }
