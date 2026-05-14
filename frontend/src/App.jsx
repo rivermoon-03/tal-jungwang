@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import useAppStore from './stores/useAppStore'
 import { useTheme } from './hooks/useTheme'
-import PCNavbar from './components/layout/PCNavbar'
-import MainTab from './components/map/MainTab'
-import SubwayTab from './components/subway/SubwayTab'
-import TransitTab from './components/transit/TransitTab'
-import MoreTab from './components/more/MoreTab'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
-import BottomDock from './components/layout/BottomDock'
+import PCMainShell from './components/layout/PCMainShell'
+import Dashboard from './components/dashboard/Dashboard'
+import FloatingDock from './components/common/FloatingDock'
+import PCDock from './components/common/PCDock'
 import SchedulePage from './pages/SchedulePage'
 import CafeteriaPage from './pages/CafeteriaPage'
 import MorePage from './pages/MorePage'
@@ -78,106 +76,46 @@ export default function App() {
     }
   }, [activeTab, currentPage])
 
+  // 좌측 패널 (PC) / 메인 본문 (모바일)에 들어갈 페이지 콘텐츠
+  let pageContent
+  let mobileContent
   if (currentPage === 'schedule') {
-    return (
-      <>
-        <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
-          <PWAInstallBanner />
-          <div className="hidden md:block">
-            <PCNavbar />
-          </div>
-          <main className="flex-1 overflow-auto min-h-0">
-            <SchedulePage />
-          </main>
-          <BottomDock />
-        </div>
-        <GlobalDetailModal />
-        <GlobalSubwayLineSheet />
-        <GlobalSubwayDetailSheet />
-      </>
-    )
-  }
-
-  if (currentPage === 'cafeteria') {
-    return (
-      <>
-        <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
-          <PWAInstallBanner />
-          <div className="hidden md:block">
-            <PCNavbar />
-          </div>
-          <main className="flex-1 overflow-auto min-h-0">
-            <CafeteriaPage />
-          </main>
-          <BottomDock />
-        </div>
-        <GlobalDetailModal />
-        <GlobalSubwayLineSheet />
-        <GlobalSubwayDetailSheet />
-      </>
-    )
-  }
-
-  if (currentPage === 'more-page') {
-    return (
-      <>
-        <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
-          <PWAInstallBanner />
-          <div className="hidden md:block">
-            <PCNavbar />
-          </div>
-          <main className="flex-1 overflow-auto min-h-0">
-            <MorePage />
-          </main>
-          <BottomDock />
-        </div>
-        <GlobalDetailModal />
-        <GlobalSubwayLineSheet />
-        <GlobalSubwayDetailSheet />
-      </>
-    )
+    pageContent = <SchedulePage />
+    mobileContent = <SchedulePage />
+  } else if (currentPage === 'cafeteria') {
+    pageContent = <CafeteriaPage />
+    mobileContent = <CafeteriaPage />
+  } else if (currentPage === 'more-page') {
+    pageContent = <MorePage />
+    mobileContent = <MorePage />
+  } else {
+    // 지도(기본) 페이지 — PC 좌측에는 Dashboard, 모바일에는 MainShell (2단 스냅)
+    pageContent = <Dashboard />
+    mobileContent = <MainShell />
   }
 
   return (
     <>
-      <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
+      <div className="flex flex-col h-dvh bg-bg dark:bg-bg-dark transition-colors duration-snap ease-ios">
         <PWAInstallBanner />
 
-        <div className="hidden md:block">
-          <PCNavbar />
-        </div>
-
         <main className="flex-1 overflow-hidden min-h-0 relative">
-          {/* 모바일: 2단 스냅 MainShell (기본 랜딩) */}
-          {(activeTab === 'map' || activeTab === 'main') && <MainShell />}
-
-          {/* PC: 기존 MainTab 유지 (md:block) */}
-          <div
-            className={`hidden md:block h-full ${
-              activeTab === 'map' || activeTab === 'main' ? '' : 'md:hidden'
-            }`}
-          >
-            <MainTab />
+          {/* 모바일 (≤ md) */}
+          <div className="md:hidden h-full overflow-auto">
+            {mobileContent}
           </div>
 
-          {activeTab === 'transit' && (
-            <div key="transit" className="h-full overflow-hidden animate-fade-in">
-              <TransitTab />
-            </div>
-          )}
-          {activeTab === 'subway' && (
-            <div key="subway" className="h-full overflow-hidden animate-fade-in">
-              <SubwayTab />
-            </div>
-          )}
-          {activeTab === 'more' && (
-            <div key="more" className="h-full overflow-hidden animate-fade-in">
-              <MoreTab />
-            </div>
-          )}
+          {/* PC (≥ md): Tesla MCU — 좌 패널 + 우 영구 지도 */}
+          <div className="hidden md:block h-full">
+            <PCMainShell>{pageContent}</PCMainShell>
+          </div>
         </main>
 
-        <BottomDock />
+        {/* 모바일 floating dock (md:hidden 내부 처리) */}
+        <FloatingDock />
+
+        {/* PC 풀너비 검정 dock (hidden md:flex 내부 처리) */}
+        <PCDock />
       </div>
       <GlobalDetailModal />
       <GlobalSubwayLineSheet />

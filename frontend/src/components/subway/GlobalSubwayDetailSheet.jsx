@@ -173,7 +173,7 @@ export default function GlobalSubwayDetailSheet() {
   return (
     <>
       <div
-        className="fixed inset-0 z-[90]"
+        className="fixed inset-0 z-[90] md:hidden"
         style={{
           background: 'rgba(0,0,0,0.4)',
           opacity: visible ? 1 : 0,
@@ -183,10 +183,13 @@ export default function GlobalSubwayDetailSheet() {
         onClick={handleClose}
       />
       <div
-        className="fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-[#272a33] rounded-t-[18px] flex flex-col overflow-hidden"
+        className="fixed bottom-0 left-0 right-0 h-[82vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[56px] md:top-0 z-[100] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-t-none md:rounded-r-card-pc md:border-r md:border-line dark:md:border-line-dark flex flex-col overflow-hidden"
         style={{
-          height: '82vh',
-          transform: visible ? 'translateY(0)' : 'translateY(100%)',
+          transform: visible
+            ? 'translate(0, 0)'
+            : (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+              ? 'translateX(-100%)'
+              : 'translateY(100%)'),
           transition: `transform 0.3s ${EASE}`,
           boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
         }}

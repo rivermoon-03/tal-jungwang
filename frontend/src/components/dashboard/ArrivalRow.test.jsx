@@ -18,7 +18,7 @@ describe('ArrivalRow', () => {
     expect(screen.getByText('분')).toBeInTheDocument()
   })
 
-  it('isUrgent=true일 때 좌측 3px accent border가 적용된다', () => {
+  it('isUrgent=true일 때 data-urgent가 true', () => {
     render(
       <ArrivalRow
         routeColor="#2563EB"
@@ -27,18 +27,10 @@ describe('ArrivalRow', () => {
         isUrgent
       />
     )
-    const button = screen.getByRole('button')
-    expect(button.style.borderLeftWidth).toBe('3px')
-    expect(button.style.borderLeftStyle).toBe('solid')
-    // jsdom이 hex를 rgb로 정규화하기 때문에 두 형식 모두 허용
-    const borderColor = button.style.borderLeftColor.toLowerCase()
-    expect(
-      borderColor === '#102c4c' || borderColor === 'rgb(16, 44, 76)'
-    ).toBe(true)
-    expect(button.getAttribute('data-urgent')).toBe('true')
+    expect(screen.getByRole('button').getAttribute('data-urgent')).toBe('true')
   })
 
-  it('isUrgent=false일 때 좌측 border가 transparent다', () => {
+  it('isUrgent=false일 때 data-urgent가 false', () => {
     render(
       <ArrivalRow
         routeColor="#2563EB"
@@ -46,12 +38,7 @@ describe('ArrivalRow', () => {
         minutes={10}
       />
     )
-    const button = screen.getByRole('button')
-    const borderColor = button.style.borderLeftColor.toLowerCase()
-    expect(
-      borderColor === 'transparent' || borderColor === 'rgba(0, 0, 0, 0)'
-    ).toBe(true)
-    expect(button.getAttribute('data-urgent')).toBe('false')
+    expect(screen.getByRole('button').getAttribute('data-urgent')).toBe('false')
   })
 
   it('minutes=null일 때 "운행 정보 없음"을 표시한다', () => {

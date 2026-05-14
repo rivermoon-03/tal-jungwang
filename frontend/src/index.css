@@ -246,6 +246,16 @@ body {
   animation: slideUp var(--dur-sheet) var(--ease-ios);
 }
 
+/* PC 좌측 패널 슬라이드 인 (ScheduleDetailModal 등) */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0.4; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.md\:animate-slide-in-left,
+.animate-slide-in-left {
+  animation: slideInLeft var(--dur-sheet) var(--ease-ios);
+}
+
 /* ── Toast slide-up ──────────────────────────── */
 @keyframes toastSlideUp {
   from { opacity: 0; transform: translateX(-50%) translateY(16px); }
