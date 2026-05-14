@@ -29,6 +29,7 @@ def apply_safety_margin(raw_sec: int | None) -> int | None:
     """
     if raw_sec is None or raw_sec <= 0:
         return raw_sec
+    raw_sec = int(raw_sec)
     margin = max(SAFETY_MIN_SEC, min(SAFETY_MAX_SEC, int(raw_sec * SAFETY_RATIO)))
     return max(0, raw_sec - margin)
 

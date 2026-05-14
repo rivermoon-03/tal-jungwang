@@ -42,5 +42,6 @@ def test_margin_application(raw, expected):
 
 
 def test_never_below_zero():
+    assert apply_safety_margin(1) == 0
     assert apply_safety_margin(10) >= 0
     assert apply_safety_margin(29) >= 0
