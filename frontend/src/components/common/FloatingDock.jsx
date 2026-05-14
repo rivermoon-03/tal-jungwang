@@ -1,4 +1,5 @@
 import { Map, CalendarDays, Utensils, MoreHorizontal } from 'lucide-react'
+import usePathname from '../../hooks/usePathname'
 
 // 모바일 floating black dock. 라벨 없음, 아이콘만.
 // 활성 = accent #4f9fff, 비활성 = mute-dark #6b7280.
@@ -19,7 +20,7 @@ function getActiveId(pathname) {
 }
 
 export default function FloatingDock() {
-  const pathname = window.location.pathname
+  const pathname = usePathname()
   const activeId = getActiveId(pathname)
 
   const handleNav = (e, href) => {
