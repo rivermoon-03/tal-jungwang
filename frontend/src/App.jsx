@@ -5,6 +5,7 @@ import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
 import PCMainShell from './components/layout/PCMainShell'
 import Dashboard from './components/dashboard/Dashboard'
+import PCMapDashboard from './components/dashboard/PCMapDashboard'
 import FloatingDock from './components/common/FloatingDock'
 import PCDock from './components/common/PCDock'
 import SchedulePage from './pages/SchedulePage'
@@ -89,8 +90,9 @@ export default function App() {
     pageContent = <MorePage />
     mobileContent = <MorePage />
   } else {
-    // 지도(기본) 페이지 — PC 좌측에는 Dashboard, 모바일에는 MainShell (2단 스냅)
-    pageContent = <Dashboard />
+    // 지도(기본) 페이지 — PC 좌측에는 PCMapDashboard (2-row 분할: 버스 + 셔틀/지하철),
+    // 모바일에는 MainShell (2단 스냅 + 모드 탭 Dashboard)
+    pageContent = <PCMapDashboard />
     mobileContent = <MainShell />
   }
 
