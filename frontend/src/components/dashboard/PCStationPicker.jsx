@@ -1,31 +1,29 @@
 import { useEffect, useMemo } from 'react'
-import { ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUp, ArrowDown, MapPin } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import useUserLocation, { STATION_COORDS, getNearestStationInfo } from '../../hooks/useUserLocation'
+import useUserLocation, { getNearestStationInfo } from '../../hooks/useUserLocation'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import {
   BUS_STATION_LABELS,
   getAllowedDirections,
   getBusStationDisplay,
 } from './busStationConfig'
-import MiniKakaoMap from './MiniKakaoMap'
 
-// PC 전용 정류장 picker. spec B (Glass Map) 톤.
-// - 미니 지도 (SVG) 위에 사용자 위치 핀 + 가장 가까운 정류장 핀
-// - 하단 glass overlay: "자동 · 68m" + 정류장 이름 + 등교/하교 토글
-// - 카드 밖 horizontal chip row: "자동 / 한국공학대 / 시화터미널 / …"
-// - 모바일에는 노출 안 됨 (md:block in caller)
+// PC 전용 정류장 picker. 미니맵 없이 텍스트·칩만으로 깔끔하게.
+// - 헤더 카드: 현재 정류장 + GPS 자동/거리 + 등교/하교 토글
+// - 그 아래 horizontal chip row: 자동/한국공학대/시화터미널/…
+// - 모바일에는 노출 안 됨 (caller가 PCMapDashboard 안에서만 렌더)
 
 export default function PCStationPicker() {
-  const selectedBusStation = useAppStore((s) => s.selectedBusStation)
-  const setBusStation       = useAppStore((s) => s.setBusStation)
-  const autoMode            = useAppStore((s) => s.busStationAutoMode)
-  const setAutoMode         = useAppStore((s) => s.setBusStationAutoMode)
+  const selectedBusStation   = useAppStore((s) => s.selectedBusStation)
+  const setBusStation        = useAppStore((s) => s.setBusStation)
+  const autoMode             = useAppStore((s) => s.busStationAutoMode)
+  const setAutoMode          = useAppStore((s) => s.setBusStationAutoMode)
   const setDirectionOverride = useAppStore((s) => s.setDirectionOverride)
   const { direction } = useEffectiveDirection()
   const coords = useUserLocation()
 
-  // 현재 방향에 허용되는 정류장만 표시
+  // 현재 방향에 허용되는 정류장만 칩으로 표시
   const allowedStations = useMemo(
     () => BUS_STATION_LABELS.filter((s) => getAllowedDirections(s).includes(direction)),
     [direction],
@@ -45,7 +43,6 @@ export default function PCStationPicker() {
     setBusStation(nearestInfo.name)
   }, [autoMode, nearestInfo, selectedBusStation, setBusStation])
 
-  // 사용자가 칩 클릭 → 수동 lock
   const handlePickStation = (label) => {
     if (label === '자동') {
       setAutoMode(true)
@@ -63,84 +60,54 @@ export default function PCStationPicker() {
 
   const handleDirection = (dir) => setDirectionOverride(dir)
 
-  // 미니맵 중심: 사용자 ↔ 가장 가까운 정류장의 중간점.
-  // 둘 중 하나만 있으면 그것 기준. 둘 다 없으면 한국공학대 기본.
-  const mapCenter = useMemo(() => {
-    const userLat = coords?.[0]
-    const userLng = coords?.[1]
-    const stCoord = nearestInfo ? STATION_COORDS[nearestInfo.name] : null
-    if (userLat != null && userLng != null && stCoord) {
-      return { lat: (userLat + stCoord[0]) / 2, lng: (userLng + stCoord[1]) / 2 }
-    }
-    if (userLat != null && userLng != null) return { lat: userLat, lng: userLng }
-    if (stCoord) return { lat: stCoord[0], lng: stCoord[1] }
-    const home = STATION_COORDS['한국공학대']
-    return { lat: home[0], lng: home[1] }
-  }, [coords, nearestInfo])
-
-  // 줌 레벨 — 사용자와 정류장 거리에 따라 자동 조정 (가까우면 더 줌인)
-  const mapLevel = useMemo(() => {
-    if (!nearestInfo) return 4
-    const d = nearestInfo.distanceM
-    if (d < 100)   return 2
-    if (d < 300)   return 3
-    if (d < 800)   return 4
-    if (d < 2000)  return 5
-    if (d < 5000)  return 6
-    return 7
-  }, [nearestInfo])
-
-  const userPos = coords ? { lat: coords[0], lng: coords[1] } : null
-  const stationCoord = nearestInfo ? STATION_COORDS[nearestInfo.name] : null
-  const stationPos = stationCoord ? { lat: stationCoord[0], lng: stationCoord[1] } : null
-
   const distLabel = nearestInfo
     ? (nearestInfo.distanceM < 1000
         ? `${nearestInfo.distanceM}m`
         : `${(nearestInfo.distanceM / 1000).toFixed(1)}km`)
     : null
 
+  const stationLabel = getBusStationDisplay(selectedBusStation) || selectedBusStation
+  const statusLabel = autoMode
+    ? (coords ? `자동${distLabel ? ' · ' + distLabel : ''}` : 'GPS 대기 중')
+    : '수동'
+
   return (
     <div className="px-3 pt-3 pb-2">
-      {/* Glass Map Card */}
-      <div className="relative h-[150px] rounded-card overflow-hidden shadow-card-md">
-        {/* 실제 Kakao 미니맵 */}
-        <MiniKakaoMap
-          center={mapCenter}
-          userPos={userPos}
-          stationPos={stationPos}
-          level={mapLevel}
-        />
-
-        {/* Glass info overlay */}
+      {/* 정류장 카드 */}
+      <div className="relative rounded-card bg-surface dark:bg-surface-dark dark:border dark:border-line-dark shadow-card-md overflow-hidden">
+        {/* 좌측 액센트 바 */}
         <div
-          className="absolute left-3 right-3 bottom-3 rounded-mini px-3 py-2.5 flex items-center gap-2.5"
-          style={{
-            background: 'rgba(255, 255, 255, 0.92)',
-            backdropFilter: 'blur(12px)',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
-          }}
-        >
+          aria-hidden="true"
+          className="absolute left-0 top-0 bottom-0 w-1"
+          style={{ background: autoMode ? '#4f9fff' : '#94a3b8' }}
+        />
+        <div className="flex items-center gap-3 px-4 py-3 pl-5">
+          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-accent/10 text-accent shrink-0">
+            <MapPin size={18} strokeWidth={2.4} />
+          </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[8px] font-extrabold tracking-[0.15em] uppercase text-accent">
-              {autoMode ? `자동${distLabel ? ' · ' + distLabel : ''}` : '수동'}
+            <div className="text-[9px] font-extrabold tracking-[0.15em] uppercase text-accent leading-none">
+              {statusLabel}
             </div>
-            <div className="text-[14px] font-black text-ink leading-tight mt-0.5 truncate">
-              {getBusStationDisplay(selectedBusStation) || selectedBusStation}
+            <div className="text-[18px] font-black text-ink dark:text-ink-dark tracking-[-0.03em] leading-tight mt-1 truncate">
+              {stationLabel}
             </div>
-            <div className="text-[9px] font-semibold text-mute mt-0.5">
-              {autoMode
-                ? '가장 가까운 정류장'
-                : '수동 선택됨'}
+            <div className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">
+              {autoMode ? '가장 가까운 정류장' : '수동 선택됨'}
             </div>
           </div>
           <DirectionToggle direction={direction} onPick={handleDirection} />
         </div>
       </div>
 
-      {/* Manual override chip row */}
+      {/* 정류장 칩 row */}
       <div className="flex gap-1.5 overflow-x-auto scrollbar-hide mt-2.5 pb-0.5">
-        <Chip label="자동" active={autoMode} onClick={() => handlePickStation('자동')} accent />
+        <Chip
+          label="자동"
+          active={autoMode}
+          onClick={() => handlePickStation('자동')}
+          accent
+        />
         {allowedStations.map((s) => (
           <Chip
             key={s}
@@ -156,28 +123,36 @@ export default function PCStationPicker() {
 
 function DirectionToggle({ direction, onPick }) {
   return (
-    <div className="flex bg-surface-alt dark:bg-surface-dark-alt rounded-pill p-[2px]" role="group" aria-label="방향">
+    <div
+      className="flex bg-surface-alt dark:bg-surface-dark-alt rounded-pill p-[2px] shrink-0"
+      role="group"
+      aria-label="방향"
+    >
       <button
         type="button"
         onClick={() => onPick('등교')}
-        className={`flex items-center justify-center w-7 h-6 rounded-pill text-[10px] font-extrabold pressable ${
-          direction === '등교' ? 'bg-ink text-white dark:bg-accent dark:text-black' : 'text-mute dark:text-mute-dark'
+        className={`flex items-center justify-center w-8 h-7 rounded-pill text-[10px] font-extrabold pressable ${
+          direction === '등교'
+            ? 'bg-ink text-white dark:bg-accent dark:text-black'
+            : 'text-mute dark:text-mute-dark'
         }`}
         aria-pressed={direction === '등교'}
         aria-label="등교"
       >
-        <ArrowUp size={12} strokeWidth={2.5} />
+        <ArrowUp size={13} strokeWidth={2.5} />
       </button>
       <button
         type="button"
         onClick={() => onPick('하교')}
-        className={`flex items-center justify-center w-7 h-6 rounded-pill text-[10px] font-extrabold pressable ${
-          direction === '하교' ? 'bg-ink text-white dark:bg-accent dark:text-black' : 'text-mute dark:text-mute-dark'
+        className={`flex items-center justify-center w-8 h-7 rounded-pill text-[10px] font-extrabold pressable ${
+          direction === '하교'
+            ? 'bg-ink text-white dark:bg-accent dark:text-black'
+            : 'text-mute dark:text-mute-dark'
         }`}
         aria-pressed={direction === '하교'}
         aria-label="하교"
       >
-        <ArrowDown size={12} strokeWidth={2.5} />
+        <ArrowDown size={13} strokeWidth={2.5} />
       </button>
     </div>
   )
