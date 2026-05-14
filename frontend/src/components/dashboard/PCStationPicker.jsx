@@ -8,6 +8,7 @@ import {
   getAllowedDirections,
   getBusStationDisplay,
 } from './busStationConfig'
+import MiniKakaoMap from './MiniKakaoMap'
 
 // PC 전용 정류장 picker. spec B (Glass Map) 톤.
 // - 미니 지도 (SVG) 위에 사용자 위치 핀 + 가장 가까운 정류장 핀
@@ -62,25 +63,36 @@ export default function PCStationPicker() {
 
   const handleDirection = (dir) => setDirectionOverride(dir)
 
-  // 미니맵에서 사용자 위치 / 정류장 핀 표시할 위치 계산
-  // 좌표를 SVG 비례로 변환 (간단한 normalize: bounding box 기반)
-  const positions = useMemo(() => {
-    if (!coords) return null
-    const allStations = Object.entries(STATION_COORDS)
-    const lats = [coords[0], ...allStations.map(([, c]) => c[0])]
-    const lngs = [coords[1], ...allStations.map(([, c]) => c[1])]
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
-    const pad = 0.12
-    const toXY = ([lat, lng]) => ({
-      x: ((lng - minLng) / (maxLng - minLng || 1)) * (100 - pad * 200) + pad * 100,
-      y: 100 - (((lat - minLat) / (maxLat - minLat || 1)) * (100 - pad * 200) + pad * 100),
-    })
-    return {
-      user: toXY(coords),
-      stations: allStations.map(([name, c]) => ({ name, ...toXY(c) })),
+  // 미니맵 중심: 사용자 ↔ 가장 가까운 정류장의 중간점.
+  // 둘 중 하나만 있으면 그것 기준. 둘 다 없으면 한국공학대 기본.
+  const mapCenter = useMemo(() => {
+    const userLat = coords?.[0]
+    const userLng = coords?.[1]
+    const stCoord = nearestInfo ? STATION_COORDS[nearestInfo.name] : null
+    if (userLat != null && userLng != null && stCoord) {
+      return { lat: (userLat + stCoord[0]) / 2, lng: (userLng + stCoord[1]) / 2 }
     }
-  }, [coords])
+    if (userLat != null && userLng != null) return { lat: userLat, lng: userLng }
+    if (stCoord) return { lat: stCoord[0], lng: stCoord[1] }
+    const home = STATION_COORDS['한국공학대']
+    return { lat: home[0], lng: home[1] }
+  }, [coords, nearestInfo])
+
+  // 줌 레벨 — 사용자와 정류장 거리에 따라 자동 조정 (가까우면 더 줌인)
+  const mapLevel = useMemo(() => {
+    if (!nearestInfo) return 4
+    const d = nearestInfo.distanceM
+    if (d < 100)   return 2
+    if (d < 300)   return 3
+    if (d < 800)   return 4
+    if (d < 2000)  return 5
+    if (d < 5000)  return 6
+    return 7
+  }, [nearestInfo])
+
+  const userPos = coords ? { lat: coords[0], lng: coords[1] } : null
+  const stationCoord = nearestInfo ? STATION_COORDS[nearestInfo.name] : null
+  const stationPos = stationCoord ? { lat: stationCoord[0], lng: stationCoord[1] } : null
 
   const distLabel = nearestInfo
     ? (nearestInfo.distanceM < 1000
@@ -92,41 +104,13 @@ export default function PCStationPicker() {
     <div className="px-3 pt-3 pb-2">
       {/* Glass Map Card */}
       <div className="relative h-[150px] rounded-card overflow-hidden shadow-card-md">
-        {/* 미니맵 배경 */}
-        <MiniMapBg />
-
-        {/* 정류장 핀들 */}
-        {positions && positions.stations.map((s) => {
-          const isNearest = nearestInfo?.name === s.name
-          if (!isNearest) return null  // 가장 가까운 정류장만 (시각 단순화)
-          return (
-            <div
-              key={s.name}
-              className="absolute z-[2]"
-              style={{ left: `${s.x}%`, top: `${s.y}%`, transform: 'translate(-50%, -100%)' }}
-            >
-              <div
-                className="w-[22px] h-[22px] bg-ink dark:bg-white rounded-tl-full rounded-tr-full rounded-br-full"
-                style={{ transform: 'rotate(45deg)', boxShadow: '0 3px 8px rgba(0,0,0,0.3)', border: '3px solid #fff' }}
-                aria-label={`가장 가까운 정류장 ${s.name}`}
-              />
-            </div>
-          )
-        })}
-
-        {/* 사용자 핀 */}
-        {positions && (
-          <div
-            className="absolute z-[2] w-[14px] h-[14px] bg-accent border-[3px] border-white rounded-full"
-            style={{
-              left: `${positions.user.x}%`,
-              top: `${positions.user.y}%`,
-              transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 0 6px rgba(79, 159, 255, 0.25), 0 2px 6px rgba(0,0,0,0.2)',
-              animation: 'userPulse 2.5s ease-out infinite',
-            }}
-          />
-        )}
+        {/* 실제 Kakao 미니맵 */}
+        <MiniKakaoMap
+          center={mapCenter}
+          userPos={userPos}
+          stationPos={stationPos}
+          level={mapLevel}
+        />
 
         {/* Glass info overlay */}
         <div
@@ -166,34 +150,6 @@ export default function PCStationPicker() {
           />
         ))}
       </div>
-    </div>
-  )
-}
-
-function MiniMapBg() {
-  return (
-    <div
-      className="absolute inset-0"
-      style={{
-        background: 'linear-gradient(135deg, #e0e8f0 0%, #d2dde8 35%, #cfd8e3 60%, #d8e0ea 100%)',
-      }}
-    >
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(105deg, transparent 38%, #fff 38.4%, #fff 40%, transparent 40.4%), linear-gradient(20deg, transparent 52%, #fff 52.3%, #fff 53.4%, transparent 53.7%)',
-          opacity: 0.55,
-        }}
-      />
     </div>
   )
 }
