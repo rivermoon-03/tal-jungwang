@@ -6,27 +6,29 @@
    Phase A (2026-04-19): --ease-spring 제거. iOS ease 단일화. */
 :root {
   --ease-ios:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-press: 120ms;
   --dur-snap:  240ms;
   --dur-page:  260ms;
   --dur-sheet: 280ms;
+  --dur-slot:  400ms;
 
-  /* ── 디자인 번들 (tokens.css) 통합 ─────────────────── */
-  --tj-accent:      #102c4c;
-  --tj-accent-2:    #1b3a6e;
-  --tj-accent-dark: #7aa7e3;
-  --tj-ink:         #111111;
-  --tj-mute:        #6b7280;
-  --tj-mute-2:      #9aa3af;
-  --tj-line:        #e5e8ee;
+  /* ── BMW iDrive / Tesla OS 톤 (2026-05 리디자인) ─────── */
+  --tj-accent:      #4f9fff;     /* iDrive Blue */
+  --tj-accent-2:    #1b3a6e;     /* 짙은 마린 (보조) */
+  --tj-accent-dark: #4f9fff;
+  --tj-ink:         #0b0d10;
+  --tj-mute:        #94a3b8;
+  --tj-mute-2:      #cbd2db;
+  --tj-line:        #f1f3f5;     /* 헤어라인 */
   --tj-line-soft:   #eef1f5;
-  --tj-bg-soft:     #f6f7f9;
+  --tj-bg-soft:     #f7f8fa;
 
-  /* 활성 pill(SegmentTabs / StationPill) — 라이트에선 잉크 블랙, 다크에선 별도 */
-  --tj-pill-active-bg: #111111;
+  /* 활성 pill — 라이트: 잉크 블랙, 다크: 액센트 블루 */
+  --tj-pill-active-bg: #0b0d10;
   --tj-pill-active-fg: #ffffff;
 
-  /* 노선색 (단일 소스) */
+  /* 노선색 (지도 마커용 — 진한 단색 유지) */
   --line-201:     #2563eb;
   --line-33:      #0891b2;
   --line-1:       #f97316;
@@ -37,28 +39,31 @@
   --line-seohae:  #75bf43;
   --line-shuttle: var(--tj-accent);
 
-  /* 상태 */
-  --state-ok:   #16a34a;
-  --state-warn: #f59e0b;
-  --state-bad:  #dc2626;
+  /* 상태 (Muted iDrive) */
+  --state-ok:   #4a9d6a;
+  --state-warn: #d4a14a;
+  --state-bad:  #c8553d;
+  --imminent:   #e26a4d;
 
   /* 모양 */
-  --r-card: 18px;
-  --r-pill: 14px;
-  --sh-card: 0 4px 14px rgba(0,0,0,.06);
+  --r-card: 14px;
+  --r-pill: 999px;
+  --sh-card: 0 2px 8px rgba(0,0,0,.04);
 }
 
 .dark {
-  --tj-accent:    #7aa7e3;
-  --tj-ink:       #f5f5f5;
-  --tj-mute:      #94a3b8;
-  --tj-mute-2:    #6b7280;
-  --tj-line:      #222222;
-  --tj-line-soft: #1a1a1a;
-  --tj-bg-soft:   #141414;
-  /* 활성 pill 다크모드: 흰색 pill이 아닌 중간-톤 슬레이트 pill + 밝은 텍스트 */
-  --tj-pill-active-bg: #374151;
-  --tj-pill-active-fg: #f5f5f5;
+  --tj-accent:    #4f9fff;
+  --tj-ink:       #ffffff;
+  --tj-mute:      #6b7280;
+  --tj-mute-2:    #4b5563;
+  --tj-line:      #1a1a1a;
+  --tj-line-soft: #0f0f0f;
+  --tj-bg-soft:   #0a0a0a;
+  /* 활성 pill 다크: iDrive Blue + 잉크 텍스트 */
+  --tj-pill-active-bg: #4f9fff;
+  --tj-pill-active-fg: #000000;
+  --imminent:     #f87171;
+  --sh-card:      none;
 }
 
 /* ── 긴급 펄스 (디자인 번들) ──────────────────────────── */
@@ -246,15 +251,9 @@ body {
   animation: slideUp var(--dur-sheet) var(--ease-ios);
 }
 
-/* PC 좌측 패널 슬라이드 인 (ScheduleDetailModal 등) */
-@keyframes slideInLeft {
-  from { transform: translateX(-100%); opacity: 0.4; }
-  to   { transform: translateX(0); opacity: 1; }
-}
-.md\:animate-slide-in-left,
-.animate-slide-in-left {
-  animation: slideInLeft var(--dur-sheet) var(--ease-ios);
-}
+/* slide-in-left 애니메이션은 tailwind.config의 animation/keyframes에 등록됨.
+   여기서 글로벌 클래스를 정의하면 md: 미디어쿼리가 우회되어 모바일에도 적용되는 버그가 생기므로
+   글로벌 정의는 두지 않는다. */
 
 /* ── Toast slide-up ──────────────────────────── */
 @keyframes toastSlideUp {
