@@ -71,6 +71,12 @@ const useAppStore = create(
       hasAutoSelectedStation: false,
       setHasAutoSelectedStation: (v) => set({ hasAutoSelectedStation: v }),
 
+      // PC 대시보드 정류장 GPS auto 모드. true면 useUserLocation 좌표 기준으로
+      // 가장 가까운 정류장을 자동 선택. 사용자가 수동 chip 클릭 시 false로 전환.
+      // "자동" chip 클릭 시 다시 true로 복귀.
+      busStationAutoMode: true,
+      setBusStationAutoMode: (v) => set({ busStationAutoMode: v }),
+
       // 셔틀 캠퍼스 ('main' = 본캠 direction 0/1, 'second' = 2캠 direction 2/3)
       selectedShuttleCampus: 'main',
       setShuttleCampus: (campus) => set({ selectedShuttleCampus: campus }),
@@ -208,6 +214,7 @@ const useAppStore = create(
         selectedShuttleCampus: state.selectedShuttleCampus,
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
         notifPrefs: state.notifPrefs,
+        busStationAutoMode: state.busStationAutoMode,
       }),
     }
   )
