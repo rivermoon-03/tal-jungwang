@@ -6,6 +6,7 @@ import App from './App'
 vi.mock('./components/layout/MainShell',       () => ({ default: () => <div>MainShell</div> }))
 vi.mock('./components/layout/PCMainShell',     () => ({ default: ({ children }) => <div data-testid="pc-main-shell">{children}</div> }))
 vi.mock('./components/dashboard/Dashboard',    () => ({ default: () => <div>Dashboard</div> }))
+vi.mock('./components/dashboard/PCMapDashboard', () => ({ default: () => <div>PCMapDashboard</div> }))
 vi.mock('./components/common/FloatingDock',    () => ({ default: () => <nav>FloatingDock</nav> }))
 vi.mock('./components/common/PCDock',          () => ({ default: () => <nav>PCDock</nav> }))
 vi.mock('./components/layout/PWAInstallBanner', () => ({ default: () => null }))
@@ -35,12 +36,12 @@ describe('App', () => {
     setPath('/')
   })
 
-  it('지도(기본) 페이지: 모바일은 MainShell, PC는 PCMainShell+Dashboard 렌더링', () => {
+  it('지도(기본) 페이지: 모바일은 MainShell, PC는 PCMainShell+PCMapDashboard 렌더링', () => {
     render(<App />)
     expect(screen.getByText('MainShell')).toBeInTheDocument()
     const pcShell = screen.getByTestId('pc-main-shell')
     expect(pcShell).toBeInTheDocument()
-    expect(pcShell).toHaveTextContent('Dashboard')
+    expect(pcShell).toHaveTextContent('PCMapDashboard')
   })
 
   it('FloatingDock과 PCDock은 항상 렌더링됨', () => {
