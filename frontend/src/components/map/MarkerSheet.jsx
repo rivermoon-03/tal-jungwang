@@ -89,13 +89,20 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
   if (!station) return null
 
   const sheetHeight = expanded ? '90vh' : directionControl ? '54vh' : relatedMarkers.length > 0 ? '50vh' : '42vh'
-  const translateY = visible ? '0%' : '100%'
+
+  // 디바이스에 따라 transform 방향이 다름.
+  // 모바일: 하단에서 위로 (translateY)
+  // PC: 좌측에서 우로 (translateX)
+  const isPC = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  const transform = visible
+    ? 'translate(0, 0)'
+    : (isPC ? 'translateX(-100%)' : 'translateY(100%)')
 
   return (
     <>
-      {/* 백드롭 */}
+      {/* 백드롭 (모바일만) */}
       <div
-        className="fixed inset-0 z-[90]"
+        className="fixed inset-0 z-[90] md:hidden"
         style={{
           background: 'rgba(0,0,0,0.3)',
           opacity: visible ? 1 : 0,
@@ -104,23 +111,24 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
         onClick={handleClose}
       />
 
-      {/* 시트 */}
+      {/* 시트 — 모바일: 하단 sheet. PC: 좌측 38%, 하단 dock 56px 위. */}
       <div
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-[#272a33] rounded-t-[18px] flex flex-col overflow-hidden"
+        className="fixed bottom-0 left-0 right-0 md:right-auto md:w-[38%] md:bottom-[56px] md:top-0 z-[100] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-t-none md:rounded-r-card-pc md:border-r md:border-line dark:md:border-line-dark flex flex-col overflow-hidden"
         style={{
           height: sheetHeight,
-          transform: `translateY(${translateY})`,
+          ...(isPC ? { height: 'auto' } : {}),
+          transform,
           transition: `transform 0.3s ${EASE}, height 0.3s ${EASE}`,
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+          boxShadow: isPC ? '0 6px 24px rgba(0,0,0,0.12)' : '0 -4px 24px rgba(0,0,0,0.12)',
         }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onTouchStart={handlePointerDown}
         onTouchEnd={handlePointerUp}
       >
-        {/* 드래그 핸들 */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+        {/* 드래그 핸들 (모바일만) */}
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0 md:hidden">
           <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-600" />
         </div>
 
