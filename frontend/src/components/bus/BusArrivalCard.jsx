@@ -3,6 +3,7 @@ import { ChevronRight, Star } from 'lucide-react'
 import { getRouteCardDisplay, ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
 import useFavorites from '../../hooks/useFavorites'
 import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
+import { realtimeSecToMinutes } from './busArrivalDisplay'
 
 const CROWDED_META = {
   1: { label: '여유', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
@@ -106,7 +107,7 @@ function RealtimeChip({ arrival }) {
       </span>
     )
   }
-  const minutes = Math.ceil(sec / 60)
+  const minutes = realtimeSecToMinutes(sec)
   return (
     <span className="time-num text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
       {`${minutes}분`}

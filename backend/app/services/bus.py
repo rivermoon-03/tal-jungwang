@@ -13,6 +13,26 @@ from app.models.bus import BusRoute, BusStop, BusTimetableEntry
 _KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
 
+# ── 보수 안전 마진 ────────────────────────────────────────────────────────
+# 실시간 도착 표시값을 raw 대비 깎아서 "약간 일찍 도착하는 것처럼" 보이게 한다.
+# raw에서 max(MIN, min(MAX, raw*RATIO))초를 차감.
+SAFETY_RATIO = 0.20
+SAFETY_MIN_SEC = 30
+SAFETY_MAX_SEC = 150
+
+
+def apply_safety_margin(raw_sec: int | None) -> int | None:
+    """realtime arrive_in_seconds에 보수 마진 적용. None/0/음수는 통과.
+
+    정책 결정은 docs/superpowers/specs/2026-05-14-bus-arrival-conservative-margin-design.md
+    의 §3.3 참조 — 1주 운영 후 SAFETY_RATIO 조정 가능.
+    """
+    if raw_sec is None or raw_sec <= 0:
+        return raw_sec
+    raw_sec = int(raw_sec)
+    margin = max(SAFETY_MIN_SEC, min(SAFETY_MAX_SEC, int(raw_sec * SAFETY_RATIO)))
+    return max(0, raw_sec - margin)
+
 
 def _day_type(d: date) -> str:
     wd = d.weekday()
@@ -192,6 +212,14 @@ async def get_arrivals(
                     if elapsed_sec > 0 and arrival.get("arrive_in_seconds") is not None:
                         arrival["arrive_in_seconds"] = max(
                             0, arrival["arrive_in_seconds"] - elapsed_sec
+                        )
+                    # ── 보수 안전 마진: realtime 항목에만 적용 ──
+                    if (
+                        arrival.get("arrival_type") == "realtime"
+                        and arrival.get("arrive_in_seconds") is not None
+                    ):
+                        arrival["arrive_in_seconds"] = apply_safety_margin(
+                            arrival["arrive_in_seconds"]
                         )
                     route_id = arrival.get("route_id")
                     if isinstance(route_id, int):
