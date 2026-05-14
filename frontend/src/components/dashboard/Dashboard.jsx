@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
@@ -9,6 +9,7 @@ import BusPanel from '../summary/BusPanel'
 import SubwayPanel from '../summary/SubwayPanel'
 import ShuttlePanel from '../summary/ShuttlePanel'
 import TaxiPanel from '../summary/TaxiPanel'
+import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
 import { BUS_STATION_LABELS, getAllowedDirections, getDefaultDirection } from './busStationConfig'
 
 /**
@@ -76,6 +77,9 @@ export default function Dashboard() {
   const savedScroll = useAppStore((s) => s.dashboardScrollTop)
   const setSavedScroll = useAppStore((s) => s.setDashboardScrollTop)
 
+  const [subwayDataMode, setSubwayDataMode] = useState('timetable')
+  useEffect(() => { setSubwayDataMode('timetable') }, [selectedSubwayStation])
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = savedScroll
     // Only restore once on mount; avoid re-triggering on every savedScroll change.
@@ -112,7 +116,13 @@ export default function Dashboard() {
       <StationPills
         mode={selectedMode}
         value={stationValue}
-        rightAddon={selectedMode === 'bus' ? <DirectionToggle /> : null}
+        rightAddon={
+          selectedMode === 'bus'
+            ? <DirectionToggle />
+            : selectedMode === 'subway'
+              ? <SubwayDataModeToggle value={subwayDataMode} onChange={setSubwayDataMode} />
+              : null
+        }
       />
 
       <div className="px-4 pb-6">
@@ -120,7 +130,7 @@ export default function Dashboard() {
           <div key="bus" className="animate-fade-in"><BusPanel /></div>
         )}
         {selectedMode === 'subway' && (
-          <div key="subway" className="animate-fade-in"><SubwayPanel /></div>
+          <div key="subway" className="animate-fade-in"><SubwayPanel dataMode={subwayDataMode} /></div>
         )}
         {selectedMode === 'shuttle' && (
           <div key="shuttle" className="animate-fade-in"><ShuttlePanel /></div>
