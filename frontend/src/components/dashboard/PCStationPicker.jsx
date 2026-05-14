@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from 'react'
-import { ArrowUp, ArrowDown, MapPin } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import useUserLocation, { getNearestStationInfo } from '../../hooks/useUserLocation'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
@@ -81,36 +80,25 @@ export default function PCStationPicker() {
     : '수동'
 
   return (
-    <div className="px-3 pt-3 pb-2">
-      {/* 정류장 카드 */}
-      <div className="relative rounded-card bg-surface dark:bg-surface-dark dark:border dark:border-line-dark shadow-card-md overflow-hidden">
-        {/* 좌측 액센트 바 */}
-        <div
-          aria-hidden="true"
-          className="absolute left-0 top-0 bottom-0 w-1"
-          style={{ background: autoMode ? '#4f9fff' : '#94a3b8' }}
-        />
-        <div className="flex items-center gap-3 px-4 py-3 pl-5">
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-accent/10 text-accent shrink-0">
-            <MapPin size={18} strokeWidth={2.4} />
+    <div className="px-4 pt-4 pb-2">
+      {/* 헤더 — 카드 없이 텍스트만 */}
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] font-extrabold tracking-[0.15em] uppercase text-accent leading-none">
+            {statusLabel}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[9px] font-extrabold tracking-[0.15em] uppercase text-accent leading-none">
-              {statusLabel}
-            </div>
-            <div className="text-[18px] font-black text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1 truncate">
-              {stationLabel}
-            </div>
-            <div className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">
-              {autoMode ? '가장 가까운 정류장' : '수동 선택됨'}
-            </div>
+          <div className="text-[22px] font-black text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1.5 truncate">
+            {stationLabel}
           </div>
-          <DirectionToggle direction={direction} onPick={handleDirection} />
+          <div className="text-[11px] font-semibold text-mute dark:text-mute-dark mt-1">
+            {autoMode ? '가장 가까운 정류장' : '수동 선택됨'}
+          </div>
         </div>
+        <DirectionToggle direction={direction} onPick={handleDirection} />
       </div>
 
       {/* 정류장 칩 row */}
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide mt-2.5 pb-0.5">
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide mt-3 pb-0.5">
         <Chip
           label="자동"
           active={autoMode}
@@ -133,36 +121,29 @@ export default function PCStationPicker() {
 function DirectionToggle({ direction, onPick }) {
   return (
     <div
-      className="flex bg-surface-alt dark:bg-surface-dark-alt rounded-pill p-[2px] shrink-0"
+      className="flex bg-surface-alt dark:bg-surface-dark-alt rounded-pill p-[3px] shrink-0"
       role="group"
       aria-label="방향"
     >
-      <button
-        type="button"
-        onClick={() => onPick('등교')}
-        className={`flex items-center justify-center w-8 h-7 rounded-pill text-[10px] font-extrabold pressable ${
-          direction === '등교'
-            ? 'bg-ink text-white dark:bg-accent dark:text-black'
-            : 'text-mute dark:text-mute-dark'
-        }`}
-        aria-pressed={direction === '등교'}
-        aria-label="등교"
-      >
-        <ArrowUp size={13} strokeWidth={2.5} />
-      </button>
-      <button
-        type="button"
-        onClick={() => onPick('하교')}
-        className={`flex items-center justify-center w-8 h-7 rounded-pill text-[10px] font-extrabold pressable ${
-          direction === '하교'
-            ? 'bg-ink text-white dark:bg-accent dark:text-black'
-            : 'text-mute dark:text-mute-dark'
-        }`}
-        aria-pressed={direction === '하교'}
-        aria-label="하교"
-      >
-        <ArrowDown size={13} strokeWidth={2.5} />
-      </button>
+      {['등교', '하교'].map((d) => {
+        const active = direction === d
+        return (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onPick(d)}
+            aria-pressed={active}
+            aria-label={d}
+            className={`px-3 py-1.5 rounded-pill text-[11px] font-extrabold tracking-[-0.01em] pressable transition-colors duration-press ease-ios ${
+              active
+                ? 'bg-ink text-white dark:bg-accent dark:text-black'
+                : 'text-mute dark:text-mute-dark'
+            }`}
+          >
+            {d}
+          </button>
+        )
+      })}
     </div>
   )
 }
