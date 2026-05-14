@@ -89,7 +89,7 @@ export default function PCStationPicker() {
             <div className="text-[9px] font-extrabold tracking-[0.15em] uppercase text-accent leading-none">
               {statusLabel}
             </div>
-            <div className="text-[18px] font-black text-ink dark:text-ink-dark tracking-[-0.03em] leading-tight mt-1 truncate">
+            <div className="text-[18px] font-black text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1 truncate">
               {stationLabel}
             </div>
             <div className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">

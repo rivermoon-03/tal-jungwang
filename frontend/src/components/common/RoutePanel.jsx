@@ -25,7 +25,7 @@ export default function RoutePanel({
             </div>
           )}
           {title && (
-            <h2 className="mt-[2px] text-panel-ttl text-ink dark:text-ink-dark">{title}</h2>
+            <h2 className="mt-[2px] text-panel-ttl text-ink dark:text-white">{title}</h2>
           )}
         </div>
         {meta && (
