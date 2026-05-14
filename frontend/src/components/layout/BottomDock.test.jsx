@@ -21,7 +21,7 @@ describe('BottomDock', () => {
     render(<BottomDock />)
     expect(screen.getByText('지도')).toBeInTheDocument()
     expect(screen.getByText('시간표')).toBeInTheDocument()
-    expect(screen.getByText('통계')).toBeInTheDocument()
+    expect(screen.getByText('학식')).toBeInTheDocument()
     expect(screen.getByText('더보기')).toBeInTheDocument()
   })
 
@@ -37,10 +37,10 @@ describe('BottomDock', () => {
     expect(screen.getByRole('link', { name: '시간표' })).not.toHaveAttribute('aria-current')
   })
 
-  it('pathname=/stats 이면 통계 탭이 active', () => {
-    setPathname('/stats')
+  it('pathname=/cafeteria 이면 학식 탭이 active', () => {
+    setPathname('/cafeteria')
     render(<BottomDock />)
-    expect(screen.getByRole('link', { name: '통계' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: '학식' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: '지도' })).not.toHaveAttribute('aria-current')
   })
 
@@ -61,17 +61,17 @@ describe('BottomDock', () => {
     const pushSpy = vi.spyOn(window.history, 'pushState')
     render(<BottomDock />)
 
-    fireEvent.click(screen.getByRole('link', { name: '통계' }))
+    fireEvent.click(screen.getByRole('link', { name: '학식' }))
 
-    expect(pushSpy).toHaveBeenCalledWith({}, '', '/stats')
+    expect(pushSpy).toHaveBeenCalledWith({}, '', '/cafeteria')
   })
 
   it('현재 경로와 동일한 탭 클릭 시 pushState가 호출되지 않는다', () => {
-    setPathname('/stats')
+    setPathname('/cafeteria')
     const pushSpy = vi.spyOn(window.history, 'pushState')
     render(<BottomDock />)
 
-    fireEvent.click(screen.getByRole('link', { name: '통계' }))
+    fireEvent.click(screen.getByRole('link', { name: '학식' }))
 
     expect(pushSpy).not.toHaveBeenCalled()
   })
