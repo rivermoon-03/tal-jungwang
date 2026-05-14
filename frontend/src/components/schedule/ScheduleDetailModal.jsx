@@ -630,22 +630,26 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end md:items-center justify-center"
-      onClick={handleBackdrop}
+      className="fixed inset-0 z-[100] md:left-0 md:right-auto md:w-[38%] md:bottom-[56px] flex items-end md:items-stretch justify-center md:justify-stretch pointer-events-none"
       aria-modal="true"
       role="dialog"
       aria-label={`${title} 시간표`}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
+      {/* 모바일: 검정 backdrop. PC: backdrop 없음 (좌측 패널 영역만 차지) */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in pointer-events-auto md:hidden"
+        onClick={handleBackdrop}
+      />
 
       <div
         ref={sheetRef}
-        className="relative z-10 w-full md:max-w-md bg-white dark:bg-surface-dark rounded-t-[28px] md:rounded-[24px] shadow-2xl flex flex-col animate-slide-up"
+        className="relative z-10 w-full md:max-w-none md:w-full bg-surface dark:bg-surface-dark rounded-t-[28px] md:rounded-none md:rounded-r-card-pc shadow-2xl md:shadow-card-md flex flex-col pointer-events-auto md:border-r md:border-line dark:md:border-line-dark md:h-full md:animate-slide-in-left animate-slide-up"
         style={{
           maxHeight: '88dvh',
           transform: `translateY(${dragY}px)`,
           transition: startY.current == null ? 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* drag handle — tap/swipe to dismiss */}
         <button

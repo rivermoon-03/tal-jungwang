@@ -2,20 +2,21 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import App from './App'
 
-// 탭 컴포넌트 mock (테스트 속도 + 의존성 격리)
-vi.mock('./components/map/MainTab',      () => ({ default: () => <div>MainTab</div> }))
-vi.mock('./components/transit/TransitTab', () => ({ default: () => <div>TransitTab</div> }))
-vi.mock('./components/subway/SubwayTab',  () => ({ default: () => <div>SubwayTab</div> }))
-vi.mock('./components/more/MoreTab',      () => ({ default: () => <div>MoreTab</div> }))
-vi.mock('./components/layout/MainShell',  () => ({ default: () => <div>MainShell</div> }))
-vi.mock('./components/layout/BottomDock', () => ({ default: () => <nav>BottomDock</nav> }))
-vi.mock('./components/layout/PCNavbar',   () => ({ default: () => <nav>PCNavbar</nav> }))
+// 새 셸 구조에 맞춘 mock (PCMainShell·Dashboard·FloatingDock·PCDock).
+vi.mock('./components/layout/MainShell',       () => ({ default: () => <div>MainShell</div> }))
+vi.mock('./components/layout/PCMainShell',     () => ({ default: ({ children }) => <div data-testid="pc-main-shell">{children}</div> }))
+vi.mock('./components/dashboard/Dashboard',    () => ({ default: () => <div>Dashboard</div> }))
+vi.mock('./components/common/FloatingDock',    () => ({ default: () => <nav>FloatingDock</nav> }))
+vi.mock('./components/common/PCDock',          () => ({ default: () => <nav>PCDock</nav> }))
 vi.mock('./components/layout/PWAInstallBanner', () => ({ default: () => null }))
-vi.mock('./pages/FavoritesPage', () => ({ default: () => <div>FavoritesPage</div> }))
 vi.mock('./pages/SchedulePage',  () => ({ default: () => <div>SchedulePage</div> }))
+vi.mock('./pages/CafeteriaPage', () => ({ default: () => <div>CafeteriaPage</div> }))
 vi.mock('./pages/MorePage',      () => ({ default: () => <div>MorePage</div> }))
-vi.mock('./hooks/useTheme',      () => ({ useTheme: () => {} }))
-vi.mock('./hooks/useMore',       () => ({ useNotices: () => ({ data: [] }) }))
+vi.mock('./components/schedule/GlobalDetailModal',          () => ({ default: () => null }))
+vi.mock('./components/subway/GlobalSubwayLineSheet',        () => ({ default: () => null }))
+vi.mock('./components/subway/GlobalSubwayDetailSheet',      () => ({ default: () => null }))
+vi.mock('./hooks/useTheme', () => ({ useTheme: () => {} }))
+vi.mock('./hooks/useMore',  () => ({ useNotices: () => ({ data: [] }) }))
 
 vi.mock('./stores/useAppStore', () => ({
   default: vi.fn((selector) => selector({
@@ -34,43 +35,37 @@ describe('App', () => {
     setPath('/')
   })
 
-  it('메인 탭에서 MainShell(모바일)·MainTab(PC) 모두 렌더링', () => {
+  it('지도(기본) 페이지: 모바일은 MainShell, PC는 PCMainShell+Dashboard 렌더링', () => {
     render(<App />)
     expect(screen.getByText('MainShell')).toBeInTheDocument()
-    expect(screen.getByText('MainTab')).toBeInTheDocument()
+    const pcShell = screen.getByTestId('pc-main-shell')
+    expect(pcShell).toBeInTheDocument()
+    expect(pcShell).toHaveTextContent('Dashboard')
   })
 
-  it('BottomDock 은 항상 렌더링됨', () => {
+  it('FloatingDock과 PCDock은 항상 렌더링됨', () => {
     render(<App />)
-    expect(screen.getByText('BottomDock')).toBeInTheDocument()
+    expect(screen.getByText('FloatingDock')).toBeInTheDocument()
+    expect(screen.getByText('PCDock')).toBeInTheDocument()
   })
 
-  it('/favorites 경로에서 FavoritesPage 렌더링', () => {
-    setPath('/favorites')
-    render(<App />)
-    expect(screen.getByText('FavoritesPage')).toBeInTheDocument()
-  })
-
-  it('/schedule 경로에서 SchedulePage 렌더링', () => {
+  it('/schedule: 모바일은 SchedulePage, PC는 좌측 패널에 SchedulePage', () => {
     setPath('/schedule')
     render(<App />)
-    expect(screen.getByText('SchedulePage')).toBeInTheDocument()
+    // 모바일 + PC 둘 다 렌더 (CSS로 md:hidden / hidden md:block 토글)
+    const all = screen.getAllByText(/SchedulePage/)
+    expect(all.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('/more 경로에서 MorePage 렌더링', () => {
+  it('/cafeteria: CafeteriaPage 렌더링', () => {
+    setPath('/cafeteria')
+    render(<App />)
+    expect(screen.getAllByText(/CafeteriaPage/).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('/more: MorePage 렌더링', () => {
     setPath('/more')
     render(<App />)
-    expect(screen.getByText('MorePage')).toBeInTheDocument()
-  })
-
-  it('activeTab=subway 일 때 SubwayTab 렌더링', async () => {
-    const useAppStore = (await import('./stores/useAppStore')).default
-    vi.mocked(useAppStore).mockImplementation((selector) => selector({
-      activeTab: 'subway',
-      setActiveTab: vi.fn(),
-      setTabBadges: vi.fn(),
-    }))
-    render(<App />)
-    expect(screen.getByText('SubwayTab')).toBeInTheDocument()
+    expect(screen.getAllByText(/MorePage/).length).toBeGreaterThanOrEqual(1)
   })
 })
