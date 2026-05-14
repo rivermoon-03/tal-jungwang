@@ -389,7 +389,7 @@ export default function FavoritesPage({ onGoSchedule }) {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-bg-dark animate-fade-in-up">
-      <PageHeader title="즐겨찾기" subtitle="등교 / 하교 · 15초마다 갱신" />
+      <PageHeader title="즐겨찾기" />
 
       <div className="flex items-center justify-between gap-2 px-4 pb-2">
         <SegmentTabs
