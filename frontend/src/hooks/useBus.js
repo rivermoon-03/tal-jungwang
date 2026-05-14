@@ -14,7 +14,9 @@ export function useBusRoutesByCategory(category) {
 
 export function useBusArrivals(stationId) {
   const { data, loading, error, fetchedAt, refetch } = useApi(`/bus/arrivals/${stationId}`, {
-    interval: 60_000,
+    // 백엔드 GBIS 폴링은 45s 주기 — refetch 30s는 캐시 hit으로 GBIS 호출량은 늘리지
+    // 않으면서 stale gap을 60s → 30s로 절반.
+    interval: 30_000,
     enabled: stationId != null,
   })
   // 백엔드가 응답 시점 기준으로 arrive_in_seconds를 보정해 주지만,
