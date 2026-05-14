@@ -84,6 +84,10 @@ const useAppStore = create(
       mapView: null,               // { center: [lat, lng], level: number } | null
       setMapView: (v) => set({ mapView: v }),
 
+      // PC 좌측 패널 영역 접기/펴기 (지도 풀스크린 토글). persist 안 함.
+      mapFullscreen: false,
+      toggleMapFullscreen: () => set((s) => ({ mapFullscreen: !s.mapFullscreen })),
+
       // 선택된 마커 ID (탭 전환 시 유지, persist 제외)
       selectedMarkerId: null,      // string | null
       setSelectedMarkerId: (id) => set({ selectedMarkerId: id }),
