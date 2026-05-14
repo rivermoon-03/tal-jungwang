@@ -251,15 +251,9 @@ body {
   animation: slideUp var(--dur-sheet) var(--ease-ios);
 }
 
-/* PC 좌측 패널 슬라이드 인 (ScheduleDetailModal 등) */
-@keyframes slideInLeft {
-  from { transform: translateX(-100%); opacity: 0.4; }
-  to   { transform: translateX(0); opacity: 1; }
-}
-.md\:animate-slide-in-left,
-.animate-slide-in-left {
-  animation: slideInLeft var(--dur-sheet) var(--ease-ios);
-}
+/* slide-in-left 애니메이션은 tailwind.config의 animation/keyframes에 등록됨.
+   여기서 글로벌 클래스를 정의하면 md: 미디어쿼리가 우회되어 모바일에도 적용되는 버그가 생기므로
+   글로벌 정의는 두지 않는다. */
 
 /* ── Toast slide-up ──────────────────────────── */
 @keyframes toastSlideUp {
