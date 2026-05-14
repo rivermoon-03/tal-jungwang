@@ -47,9 +47,26 @@ function dayLabelFromMonth(monthNum, dayKey) {
   return `${d}일 (${wd})`
 }
 
+// "*복수메뉴*" 같은 안내 마커는 xlsx 원본에서 메뉴 셀에 그대로 들어 있다.
+// 메뉴 항목이 아닌 메타 안내라 헤더 옆 배지로 빼서 보여준다.
+const NOTE_MARKER_RE = /^\*([^*]+)\*$/
+
+function partitionItems(items) {
+  const notes = []
+  const cleaned = []
+  for (const it of items) {
+    const m = NOTE_MARKER_RE.exec(it)
+    if (m) notes.push(m[1].trim())
+    else cleaned.push(it)
+  }
+  return { notes, cleaned }
+}
+
 function MealCard({ meal, dayKey }) {
-  const items = meal.by_day?.[dayKey] ?? []
-  const isOff = items.length === 0 || (items.length === 1 && items[0] === '미운영')
+  const rawItems = meal.by_day?.[dayKey] ?? []
+  const { notes, cleaned } = partitionItems(rawItems)
+  const isOff = cleaned.length === 0 && notes.length === 0
+    || (cleaned.length === 1 && cleaned[0] === '미운영')
 
   return (
     <section
@@ -60,20 +77,37 @@ function MealCard({ meal, dayKey }) {
         background: 'transparent',
       }}
     >
-      <header style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+      <header style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--tj-ink)', letterSpacing: '-0.01em' }}>
           {meal.type}
         </span>
         {meal.time && (
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tj-mute)' }}>{meal.time}</span>
         )}
+        {notes.map((note) => (
+          <span
+            key={note}
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              padding: '2px 7px',
+              borderRadius: 999,
+              background: 'var(--tj-line-soft)',
+              color: 'var(--tj-mute)',
+              letterSpacing: '-0.01em',
+              lineHeight: 1.4,
+            }}
+          >
+            {note}
+          </span>
+        ))}
       </header>
 
       {isOff ? (
         <p style={{ fontSize: 13, color: 'var(--tj-mute-2)' }}>미운영</p>
       ) : (
         <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: 0, padding: 0, listStyle: 'none' }}>
-          {items.map((item, i) => (
+          {cleaned.map((item, i) => (
             <li
               key={`${item}-${i}`}
               style={{ fontSize: 13, fontWeight: 600, color: 'var(--tj-ink)', lineHeight: 1.4 }}
