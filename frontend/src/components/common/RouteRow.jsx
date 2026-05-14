@@ -45,7 +45,7 @@ function Eta({ value, imminent }) {
   const cls = `inline-flex items-baseline font-black leading-none tracking-[-0.03em] tabular-nums ${
     imminent
       ? 'text-imminent dark:text-imminent-dark relative'
-      : 'text-ink dark:text-ink-dark'
+      : 'text-ink dark:text-white'
   }`
   if (isText) {
     return (
