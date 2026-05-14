@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Map, CalendarDays, Utensils, MoreHorizontal,
-  Locate, PanelLeftClose, PanelLeftOpen, Sun, Moon, Bell,
+  PanelLeftClose, PanelLeftOpen, Sun, Moon, Bell,
   Cloud, CloudSun, CloudRain, CloudSnow,
 } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useWeather } from '../../hooks/useWeather'
+import { useNotices } from '../../hooks/useMore'
+import NoticesPopover from './NoticesPopover'
 
 // PC 풀너비 검정 dock. 좌측 4탭 + 시각/요일/날씨 + 우측 빠른 액션.
 // 차량 인포테인먼트 톤 — 큼직한 아이콘, 넉넉한 spacing.
@@ -61,6 +63,12 @@ export default function PCDock() {
 
   const { weather } = useWeather()
   const WeatherIcon = WEATHER_ICONS[weather?.icon] ?? Sun
+
+  // 공지사항 팝오버
+  const { data: notices } = useNotices()
+  const hasNotices = Array.isArray(notices) && notices.length > 0
+  const [noticesOpen, setNoticesOpen] = useState(false)
+  const bellRef = useRef(null)
 
   const handleNav = (e, href) => {
     e.preventDefault()
@@ -148,19 +156,29 @@ export default function PCDock() {
           : <Moon size={18} aria-hidden="true" />}
       </button>
       <button
+        ref={bellRef}
         type="button"
-        title="GPS 재중심"
-        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-ios"
-      >
-        <Locate size={18} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        title="알림"
-        className="flex items-center justify-center w-10 h-10 rounded-btn bg-accent text-black pressable"
+        title="공지사항"
+        aria-haspopup="dialog"
+        aria-expanded={noticesOpen}
+        onClick={() => setNoticesOpen((v) => !v)}
+        className={`relative flex items-center justify-center w-10 h-10 rounded-btn pressable transition-colors duration-snap ease-ios ${
+          noticesOpen ? 'bg-white text-black' : 'bg-accent text-black hover:opacity-90'
+        }`}
       >
         <Bell size={18} aria-hidden="true" />
+        {hasNotices && !noticesOpen && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-imminent border border-dock-bg"
+          />
+        )}
       </button>
+      <NoticesPopover
+        open={noticesOpen}
+        onClose={() => setNoticesOpen(false)}
+        anchorRef={bellRef}
+      />
     </nav>
   )
 }
