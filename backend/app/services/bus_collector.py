@@ -32,6 +32,18 @@ FIRST_SIGHT_ARRIVAL_SEC = 30
 
 CACHE_TTL = 100  # 캐시 TTL (초) — 폴링 간격(45초)의 2.2배 (1회 미싱 버퍼)
 
+def _predict_sec_from_item(item: dict, suffix: str) -> int:
+    """GBIS 응답 한 건에서 predictTimeSec(suffix) 추출. 누락 시 분 단위 폴백.
+
+    분 단위 폴백은 중간값 보정으로 평균 +30s bias 제거 → max(0, minutes*60 - 30).
+    """
+    sec = int(item.get(f"predict_time_sec{suffix}", 0) or 0)
+    if sec:
+        return sec
+    minutes = item.get(f"predict_time{suffix}", 0) or 0
+    return max(0, int(minutes) * 60 - 30)
+
+
 # 노선번호별 최소 폴링 간격 (초). 빈 dict = 전 노선 매 사이클 처리.
 ROUTE_POLL_INTERVALS: dict[str, int] = {}
 
@@ -110,12 +122,8 @@ async def poll_and_collect():
                 if not route:
                     continue
 
-                sec1 = item.get("predict_time_sec1", 0)
-                sec2 = item.get("predict_time_sec2", 0)
-                if not sec1:
-                    sec1 = item.get("predict_time1", 0) * 60
-                if not sec2:
-                    sec2 = item.get("predict_time2", 0) * 60
+                sec1 = _predict_sec_from_item(item, "1")
+                sec2 = _predict_sec_from_item(item, "2")
 
                 if sec1:
                     arrivals_for_cache.append({
@@ -164,7 +172,7 @@ async def poll_and_collect():
                 if not route:
                     continue
                 plate = item.get("plate_no1", "")
-                sec = item.get("predict_time_sec1", 0) or item.get("predict_time1", 0) * 60
+                sec = _predict_sec_from_item(item, "1")
                 if plate and sec:
                     current_state[plate] = {
                         "route_id": item["route_id"],
@@ -236,7 +244,7 @@ async def poll_and_collect():
                     ("crowded2", "predict_time_sec2", "plate_no2"),
                 ]:
                     crowded = item.get(crowded_key, 0)
-                    sec = item.get(sec_key, 0) or 0
+                    sec = _predict_sec_from_item(item, "1" if sec_key.endswith("1") else "2")
                     plate = item.get(plate_key, "") or ""
                     if crowded and sec:
                         crowding_logs.append(BusCrowdingLog(
