@@ -105,7 +105,12 @@ def _find_date_columns(ws, row: int) -> list[tuple[int, str]]:
 
 
 def _meal_row_ranges(ws, start: int, end: int) -> list[tuple[int, int, str, str | None]]:
-    """식사 헤더의 (시작행, 끝행, 식사타입, 시간) 리스트."""
+    """식사 헤더의 (시작행, 끝행, 식사타입, 시간) 리스트.
+
+    천원의 아침밥처럼 A열에 두 개의 merged 셀(헤더 + 시간 표기)이 인접해 있는
+    경우, 두 영역을 한 식사로 묶는다. 그렇지 않으면 ②코너(R5~R6) 같은 후행 행이
+    어떤 식사에도 속하지 않게 된다.
+    """
     merged_by_top = {(m.min_row, m.min_col): m for m in ws.merged_cells.ranges}
     result = []
     for r in range(start, end + 1):
@@ -118,6 +123,17 @@ def _meal_row_ranges(ws, start: int, end: int) -> list[tuple[int, int, str, str 
             end_row = merged_by_top[(r, 1)].max_row
         else:
             end_row = r
+
+        # 헤더 직후에 또 다른 A열 merged 셀이 있고 그 텍스트가 시간 표기면
+        # 같은 식사의 메타 영역으로 보고 범위를 확장한다.
+        next_r = end_row + 1
+        if (next_r, 1) in merged_by_top:
+            next_text = _clean(ws.cell(row=next_r, column=1).value)
+            if _TIME_RE.search(next_text):
+                if not time:
+                    time = _extract_time(next_text)
+                end_row = merged_by_top[(next_r, 1)].max_row
+
         result.append((r, end_row, mtype, time))
     return result
 
