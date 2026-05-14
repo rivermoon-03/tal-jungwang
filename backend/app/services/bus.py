@@ -213,6 +213,14 @@ async def get_arrivals(
                         arrival["arrive_in_seconds"] = max(
                             0, arrival["arrive_in_seconds"] - elapsed_sec
                         )
+                    # ── 보수 안전 마진: realtime 항목에만 적용 ──
+                    if (
+                        arrival.get("arrival_type") == "realtime"
+                        and arrival.get("arrive_in_seconds") is not None
+                    ):
+                        arrival["arrive_in_seconds"] = apply_safety_margin(
+                            arrival["arrive_in_seconds"]
+                        )
                     route_id = arrival.get("route_id")
                     if isinstance(route_id, int):
                         if route_id not in interval_cache:
