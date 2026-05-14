@@ -6,6 +6,7 @@ import MainShell from './components/layout/MainShell'
 import PCMainShell from './components/layout/PCMainShell'
 import Dashboard from './components/dashboard/Dashboard'
 import PCMapDashboard from './components/dashboard/PCMapDashboard'
+import { useIsDesktop } from './hooks/useMediaQuery'
 import FloatingDock from './components/common/FloatingDock'
 import PCDock from './components/common/PCDock'
 import SchedulePage from './pages/SchedulePage'
@@ -35,6 +36,8 @@ export default function App() {
   const activeTab     = useAppStore((s) => s.activeTab)
   const setActiveTab  = useAppStore((s) => s.setActiveTab)
   const setTabBadges  = useAppStore((s) => s.setTabBadges)
+
+  const isDesktop = useIsDesktop()
 
   useTheme()
 
@@ -102,15 +105,18 @@ export default function App() {
         <PWAInstallBanner />
 
         <main className="flex-1 overflow-hidden min-h-0 relative">
-          {/* 모바일 (≤ md) */}
-          <div className="md:hidden h-full overflow-auto">
-            {mobileContent}
-          </div>
-
-          {/* PC (≥ md): Tesla MCU — 좌 패널 + 우 영구 지도 */}
-          <div className="hidden md:block h-full">
-            <PCMainShell>{pageContent}</PCMainShell>
-          </div>
+          {/* 모바일 ↔ PC 레이아웃을 JS 미디어쿼리로 분기.
+              CSS hidden만 쓰면 양쪽이 동시에 마운트되어, 숨겨진 쪽의 useEffect가
+              계속 돌면서 store를 덮어쓰는 부작용이 발생함 (PCStationPicker auto-sync 등). */}
+          {isDesktop ? (
+            <div className="h-full">
+              <PCMainShell>{pageContent}</PCMainShell>
+            </div>
+          ) : (
+            <div className="h-full overflow-auto">
+              {mobileContent}
+            </div>
+          )}
         </main>
 
         {/* 모바일 floating dock (md:hidden 내부 처리) */}
