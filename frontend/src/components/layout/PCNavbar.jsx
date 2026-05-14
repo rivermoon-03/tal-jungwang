@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react'
-import { BarChart2, Map, CalendarDays, MoreHorizontal, Moon, Sun } from 'lucide-react'
+import { Utensils, Map, CalendarDays, MoreHorizontal, Moon, Sun } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const TABS = [
-  { id: 'map',      label: '지도',   Icon: Map,            href: '/'         },
-  { id: 'schedule', label: '시간표', Icon: CalendarDays,   href: '/schedule' },
-  { id: 'stats',    label: '통계',   Icon: BarChart2,      href: '/stats'    },
-  { id: 'more',     label: '더보기', Icon: MoreHorizontal, href: '/more'     },
+  { id: 'map',       label: '지도',   Icon: Map,            href: '/'          },
+  { id: 'schedule',  label: '시간표', Icon: CalendarDays,   href: '/schedule'  },
+  { id: 'cafeteria', label: '학식',   Icon: Utensils,       href: '/cafeteria' },
+  { id: 'more',      label: '더보기', Icon: MoreHorizontal, href: '/more'      },
 ]
 
 function getActiveId(pathname) {
-  if (pathname.startsWith('/stats'))     return 'stats'
+  if (pathname.startsWith('/cafeteria')) return 'cafeteria'
   if (pathname.startsWith('/schedule'))  return 'schedule'
   if (pathname.startsWith('/more'))      return 'more'
   return 'map'
