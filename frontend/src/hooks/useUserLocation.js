@@ -21,6 +21,12 @@ function distanceMeters([lat1, lng1], [lat2, lng2]) {
 }
 
 export function getNearestStation(lat, lng, allowed = null) {
+  const info = getNearestStationInfo(lat, lng, allowed)
+  return info ? info.name : null
+}
+
+// 가장 가까운 정류장 + 거리(meters) 반환. PCStationPicker 등 거리 표시용.
+export function getNearestStationInfo(lat, lng, allowed = null) {
   const candidates = Object.entries(STATION_COORDS).filter(
     ([name]) => !allowed || allowed.includes(name),
   )
@@ -33,7 +39,7 @@ export function getNearestStation(lat, lng, allowed = null) {
       best = name
     }
   }
-  return best
+  return best ? { name: best, distanceM: Math.round(bestD) } : null
 }
 
 export default function useUserLocation() {
