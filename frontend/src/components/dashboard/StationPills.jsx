@@ -97,19 +97,22 @@ export default function StationPills({ mode, value, onChange, options, rightAddo
   }
 
   return (
-    <div
-      role="group"
-      aria-label="역 선택"
-      className="flex gap-1.5 px-4 pb-1.5 overflow-x-auto scrollbar-hide"
-    >
-      {items.map((label) => (
-        <StationPillButton
-          key={label}
-          label={label}
-          active={value === label}
-          onClick={() => handleSelect(label)}
-        />
-      ))}
+    <div className="flex items-center gap-2 px-4 pb-1.5">
+      <div
+        role="group"
+        aria-label="역 선택"
+        className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto scrollbar-hide"
+      >
+        {items.map((label) => (
+          <StationPillButton
+            key={label}
+            label={label}
+            active={value === label}
+            onClick={() => handleSelect(label)}
+          />
+        ))}
+      </div>
+      {rightAddon && <div className="shrink-0">{rightAddon}</div>}
     </div>
   )
 }
