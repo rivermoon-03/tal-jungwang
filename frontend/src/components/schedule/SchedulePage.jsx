@@ -19,10 +19,9 @@ import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute } from '../dashboard/busStationConfig'
-import StatusChips from '../stats/StatusChips'
-import TrafficFlowCard from '../stats/TrafficFlowCard'
-import CrowdingCard from '../stats/CrowdingCard'
-import WeatherCard from '../stats/WeatherCard'
+import { BarChart3 } from 'lucide-react'
+import StatsSheet from './StatsSheet'
+import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
 
 // ─── map marker lookup ──────────────────────────────────────────────────────
 function distanceMeters(lat1, lng1, lat2, lng2) {
@@ -304,33 +303,29 @@ const SUBWAY_DIRECTIONS = {
 }
 
 // ─── subway section ──────────────────────────────────────────────────────────
-function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCodes = [] }) {
+function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCodes = [], dataMode = 'timetable', setDataMode }) {
   const { data, loading } = useSubwayNext()
   const { data: timetable } = useSubwayTimetable()
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
   const realtimeArrivals = realtimeAll?.[stationGroup] ?? null
   const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
-  const [modeTab, setModeTab] = useState('timetable')
   const didAutoSwitchRef = useRef(false)
   const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
   const now = new Date()
 
-  useEffect(() => {
-    setModeTab('timetable')
-    didAutoSwitchRef.current = false
-  }, [stationGroup])
+  useEffect(() => { didAutoSwitchRef.current = false }, [stationGroup])
 
   useEffect(() => {
     if (!realtimeLoading && realtimeArrivals !== null) {
       if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
         didAutoSwitchRef.current = true
-        setModeTab('timetable')
+        setDataMode?.('timetable')
       } else if (realtimeArrivals.length > 0) {
         didAutoSwitchRef.current = false
       }
     }
-  }, [realtimeArrivals, realtimeLoading])
+  }, [realtimeArrivals, realtimeLoading, setDataMode])
 
   function secondDepartStr(key) {
     const list = timetable?.[key]
@@ -367,31 +362,10 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
     )
   }
 
-  const toggleStyle = (active) => ({
-    padding: '5px 12px',
-    borderRadius: 999,
-    fontSize: 11,
-    fontWeight: 700,
-    border: active ? '1.5px solid var(--tj-pill-active-bg)' : '1.5px solid var(--tj-line)',
-    background: active ? 'var(--tj-pill-active-bg)' : 'transparent',
-    color: active ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-    cursor: 'pointer',
-    transition: 'background 0.12s, color 0.12s, border-color 0.12s',
-  })
-
   return (
     <>
-      {/* 실시간/시간표 토글 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-        {['realtime', 'timetable'].map((m) => (
-          <button key={m} onClick={() => setModeTab(m)} style={toggleStyle(modeTab === m)}>
-            {m === 'realtime' ? '실시간' : '시간표'}
-          </button>
-        ))}
-      </div>
-
       {/* 실시간 모드 */}
-      {modeTab === 'realtime' && (
+      {dataMode === 'realtime' && (
         realtimeLoading ? (
           <>
             <div style={{ height: 90, borderRadius: 12, background: 'var(--tj-line)', opacity: 0.4 }} />
@@ -417,7 +391,7 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
       )}
 
       {/* 시간표 모드 */}
-      {modeTab === 'timetable' && directions.flatMap((dir) => [
+      {dataMode === 'timetable' && directions.flatMap((dir) => [
         ...[
           { key: dir.upKey, label: dir.upLabel },
           { key: dir.downKey, label: dir.downLabel },
@@ -689,12 +663,6 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
   ))
 }
 
-// ─── primary section tabs (시간표 / 통계) ─────────────────────────────────────
-const SECTION_TABS = [
-  { id: 'schedule', label: '시간표' },
-  { id: 'stats',    label: '통계'   },
-]
-
 // ─── main component ──────────────────────────────────────────────────────────
 export default function SchedulePage() {
   const [query, setQuery] = useState(readQuery)
@@ -719,12 +687,14 @@ export default function SchedulePage() {
     ? query.type
     : (isValidMode(storedMode) ? storedMode : 'bus')
 
-  const [section, setSection] = useState('schedule')
   const [mode, setMode] = useState(initialMode)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
+  const [subwayDataMode, setSubwayDataMode] = useState('timetable')
   const favCodes = favorites.routes ?? []
   const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
+  useEffect(() => { setSubwayDataMode('timetable') }, [subwayGroup])
   const [selectedDetail, setSelectedDetail] = useState(null)
 
   useEffect(() => {
@@ -781,49 +751,27 @@ export default function SchedulePage() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
-      <PageHeader
-        title={section === 'stats' ? '오늘의 교통' : '시간표'}
-        subtitle={section === 'stats' ? '지금 · 이후 흐름' : '노선·역·방향별 전체 시간표'}
+      <PageHeader title="시간표" />
+
+      <ScheduleSectionView
+        mode={mode}
+        handleModeChange={handleModeChange}
+        favoritesOnly={favoritesOnly}
+        setFavoritesOnly={setFavoritesOnly}
+        groups={groups}
+        activeGroupId={activeGroupId}
+        setActiveGroup={setActiveGroup}
+        busGroup={busGroup}
+        subwayGroup={subwayGroup}
+        shuttleCampus={shuttleCampus}
+        handleCardClick={handleCardClick}
+        favCodes={favCodes}
+        onOpenStats={() => setStatsOpen(true)}
+        subwayDataMode={subwayDataMode}
+        setSubwayDataMode={setSubwayDataMode}
       />
 
-      {/* primary section tabs: 시간표 / 통계 */}
-      <div className="px-4 pb-2 flex-shrink-0">
-        <SegmentTabs
-          tabs={SECTION_TABS}
-          active={section}
-          onChange={setSection}
-          size="sm"
-        />
-      </div>
-
-      {section === 'stats' ? (
-        <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6">
-          <StatusChips />
-          <div className="space-y-4">
-            <TrafficFlowCard />
-            <CrowdingCard />
-            <WeatherCard />
-          </div>
-          <p className="mt-5 text-center text-xs text-slate-400 dark:text-slate-500">
-            교통 흐름 · 혼잡도는 과거 데이터 기반 예측입니다
-          </p>
-        </div>
-      ) : (
-        <ScheduleSectionView
-          mode={mode}
-          handleModeChange={handleModeChange}
-          favoritesOnly={favoritesOnly}
-          setFavoritesOnly={setFavoritesOnly}
-          groups={groups}
-          activeGroupId={activeGroupId}
-          setActiveGroup={setActiveGroup}
-          busGroup={busGroup}
-          subwayGroup={subwayGroup}
-          shuttleCampus={shuttleCampus}
-          handleCardClick={handleCardClick}
-          favCodes={favCodes}
-        />
-      )}
+      <StatsSheet open={statsOpen} onClose={() => setStatsOpen(false)} />
 
       <ScheduleDetailModal
         open={selectedDetail != null}
@@ -856,7 +804,7 @@ export default function SchedulePage() {
   )
 }
 
-// ─── schedule section view (시간표 sub-tab 렌더) ─────────────────────────────
+// ─── schedule section view ──────────────────────────────────────────────────
 function ScheduleSectionView({
   mode,
   handleModeChange,
@@ -870,45 +818,72 @@ function ScheduleSectionView({
   shuttleCampus,
   handleCardClick,
   favCodes,
+  onOpenStats,
+  subwayDataMode,
+  setSubwayDataMode,
 }) {
   return (
     <>
-      {/* top mode tabs + 즐겨찾기 필터 */}
+      {/* top mode tabs + 통계 / 즐겨찾기 필터 */}
       <div className="px-4 pb-2 flex items-center justify-between gap-2 flex-shrink-0">
         <SegmentTabs
           tabs={MODES}
           active={mode}
           onChange={handleModeChange}
         />
-        <button
-          type="button"
-          onClick={() => setFavoritesOnly((v) => !v)}
-          aria-pressed={favoritesOnly}
-          className="pressable flex-shrink-0"
-          style={{
-            padding: '5px 11px',
-            borderRadius: 999,
-            border: favoritesOnly
-              ? '1.5px solid var(--tj-pill-active-bg)'
-              : '1.5px solid var(--tj-line)',
-            background: favoritesOnly ? 'var(--tj-pill-active-bg)' : 'transparent',
-            color: favoritesOnly ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-            fontSize: 11,
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            transition:
-              'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
-          }}
-        >
-          ★ 즐겨찾기
-        </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onOpenStats}
+            aria-label="오늘의 교통 통계 보기"
+            className="pressable"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 999,
+              border: '1.5px solid var(--tj-line)',
+              background: 'transparent',
+              color: 'var(--tj-mute)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition:
+                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+            }}
+          >
+            <BarChart3 size={14} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setFavoritesOnly((v) => !v)}
+            aria-pressed={favoritesOnly}
+            className="pressable"
+            style={{
+              padding: '5px 11px',
+              borderRadius: 999,
+              border: favoritesOnly
+                ? '1.5px solid var(--tj-pill-active-bg)'
+                : '1.5px solid var(--tj-line)',
+              background: favoritesOnly ? 'var(--tj-pill-active-bg)' : 'transparent',
+              color: favoritesOnly ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
+              fontSize: 11,
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              transition:
+                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+            }}
+          >
+            ★ 즐겨찾기
+          </button>
+        </div>
       </div>
 
-      {/* group secondary pills */}
+      {/* group secondary pills (+ subway 데이터 모드 토글) */}
       {groups.length > 0 && (
-        <div className="px-4 pb-2 flex-shrink-0">
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
+        <div className="px-4 pb-2 flex items-center gap-2 flex-shrink-0">
+          <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
             {groups.map((g) => {
               const isActive = activeGroupId === g.id
               return (
@@ -937,6 +912,11 @@ function ScheduleSectionView({
               )
             })}
           </div>
+          {mode === 'subway' && (
+            <div className="shrink-0">
+              <SubwayDataModeToggle value={subwayDataMode} onChange={setSubwayDataMode} />
+            </div>
+          )}
         </div>
       )}
 
@@ -957,6 +937,8 @@ function ScheduleSectionView({
               onCardClick={handleCardClick}
               favoritesOnly={favoritesOnly}
               favCodes={favCodes}
+              dataMode={subwayDataMode}
+              setDataMode={setSubwayDataMode}
             />
           )}
           {mode === 'shuttle' && (SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main).map((g) => (
