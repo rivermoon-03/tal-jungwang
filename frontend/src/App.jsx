@@ -10,7 +10,7 @@ import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
 import BottomDock from './components/layout/BottomDock'
 import SchedulePage from './pages/SchedulePage'
-import StatsPage from './pages/StatsPage'
+import CafeteriaPage from './pages/CafeteriaPage'
 import MorePage from './pages/MorePage'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
 import GlobalSubwayLineSheet from './components/subway/GlobalSubwayLineSheet'
@@ -27,7 +27,7 @@ function hashToTab(hash) {
 
 function pathnameToPage(pathname) {
   if (pathname.startsWith('/schedule'))  return 'schedule'
-  if (pathname.startsWith('/stats'))     return 'stats'
+  if (pathname.startsWith('/cafeteria')) return 'cafeteria'
   if (pathname.startsWith('/more'))      return 'more-page'
   return null
 }
@@ -98,7 +98,7 @@ export default function App() {
     )
   }
 
-  if (currentPage === 'stats') {
+  if (currentPage === 'cafeteria') {
     return (
       <>
         <div className="flex flex-col h-dvh bg-white dark:bg-bg-dark transition-colors duration-snap ease-ios">
@@ -107,7 +107,7 @@ export default function App() {
             <PCNavbar />
           </div>
           <main className="flex-1 overflow-auto min-h-0">
-            <StatsPage />
+            <CafeteriaPage />
           </main>
           <BottomDock />
         </div>
