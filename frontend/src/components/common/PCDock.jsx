@@ -7,6 +7,7 @@ import {
 import useAppStore from '../../stores/useAppStore'
 import { useWeather } from '../../hooks/useWeather'
 import { useNotices } from '../../hooks/useMore'
+import usePathname from '../../hooks/usePathname'
 import NoticesPopover from './NoticesPopover'
 
 // PC 풀너비 검정 dock. 좌측 4탭 + 시각/요일/날씨 + 우측 빠른 액션.
@@ -49,7 +50,7 @@ function dayTypeLabel(d) {
 }
 
 export default function PCDock() {
-  const pathname = window.location.pathname
+  const pathname = usePathname()
   const activeId = getActiveId(pathname)
   const now = useClock()
   const hh = String(now.getHours()).padStart(2, '0')
