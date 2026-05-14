@@ -19,10 +19,8 @@ import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute } from '../dashboard/busStationConfig'
-import StatusChips from '../stats/StatusChips'
-import TrafficFlowCard from '../stats/TrafficFlowCard'
-import CrowdingCard from '../stats/CrowdingCard'
-import WeatherCard from '../stats/WeatherCard'
+import { BarChart3 } from 'lucide-react'
+import StatsSheet from './StatsSheet'
 
 // ─── map marker lookup ──────────────────────────────────────────────────────
 function distanceMeters(lat1, lng1, lat2, lng2) {
@@ -689,12 +687,6 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
   ))
 }
 
-// ─── primary section tabs (시간표 / 통계) ─────────────────────────────────────
-const SECTION_TABS = [
-  { id: 'schedule', label: '시간표' },
-  { id: 'stats',    label: '통계'   },
-]
-
 // ─── main component ──────────────────────────────────────────────────────────
 export default function SchedulePage() {
   const [query, setQuery] = useState(readQuery)
@@ -719,9 +711,9 @@ export default function SchedulePage() {
     ? query.type
     : (isValidMode(storedMode) ? storedMode : 'bus')
 
-  const [section, setSection] = useState('schedule')
   const [mode, setMode] = useState(initialMode)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
   const favCodes = favorites.routes ?? []
   const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
@@ -781,49 +773,25 @@ export default function SchedulePage() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
-      <PageHeader
-        title={section === 'stats' ? '오늘의 교통' : '시간표'}
-        subtitle={section === 'stats' ? '지금 · 이후 흐름' : '노선·역·방향별 전체 시간표'}
+      <PageHeader title="시간표" subtitle="노선·역·방향별 전체 시간표" />
+
+      <ScheduleSectionView
+        mode={mode}
+        handleModeChange={handleModeChange}
+        favoritesOnly={favoritesOnly}
+        setFavoritesOnly={setFavoritesOnly}
+        groups={groups}
+        activeGroupId={activeGroupId}
+        setActiveGroup={setActiveGroup}
+        busGroup={busGroup}
+        subwayGroup={subwayGroup}
+        shuttleCampus={shuttleCampus}
+        handleCardClick={handleCardClick}
+        favCodes={favCodes}
+        onOpenStats={() => setStatsOpen(true)}
       />
 
-      {/* primary section tabs: 시간표 / 통계 */}
-      <div className="px-4 pb-2 flex-shrink-0">
-        <SegmentTabs
-          tabs={SECTION_TABS}
-          active={section}
-          onChange={setSection}
-          size="sm"
-        />
-      </div>
-
-      {section === 'stats' ? (
-        <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6">
-          <StatusChips />
-          <div className="space-y-4">
-            <TrafficFlowCard />
-            <CrowdingCard />
-            <WeatherCard />
-          </div>
-          <p className="mt-5 text-center text-xs text-slate-400 dark:text-slate-500">
-            교통 흐름 · 혼잡도는 과거 데이터 기반 예측입니다
-          </p>
-        </div>
-      ) : (
-        <ScheduleSectionView
-          mode={mode}
-          handleModeChange={handleModeChange}
-          favoritesOnly={favoritesOnly}
-          setFavoritesOnly={setFavoritesOnly}
-          groups={groups}
-          activeGroupId={activeGroupId}
-          setActiveGroup={setActiveGroup}
-          busGroup={busGroup}
-          subwayGroup={subwayGroup}
-          shuttleCampus={shuttleCampus}
-          handleCardClick={handleCardClick}
-          favCodes={favCodes}
-        />
-      )}
+      <StatsSheet open={statsOpen} onClose={() => setStatsOpen(false)} />
 
       <ScheduleDetailModal
         open={selectedDetail != null}
@@ -856,7 +824,7 @@ export default function SchedulePage() {
   )
 }
 
-// ─── schedule section view (시간표 sub-tab 렌더) ─────────────────────────────
+// ─── schedule section view ──────────────────────────────────────────────────
 function ScheduleSectionView({
   mode,
   handleModeChange,
@@ -870,39 +838,64 @@ function ScheduleSectionView({
   shuttleCampus,
   handleCardClick,
   favCodes,
+  onOpenStats,
 }) {
   return (
     <>
-      {/* top mode tabs + 즐겨찾기 필터 */}
+      {/* top mode tabs + 통계 / 즐겨찾기 필터 */}
       <div className="px-4 pb-2 flex items-center justify-between gap-2 flex-shrink-0">
         <SegmentTabs
           tabs={MODES}
           active={mode}
           onChange={handleModeChange}
         />
-        <button
-          type="button"
-          onClick={() => setFavoritesOnly((v) => !v)}
-          aria-pressed={favoritesOnly}
-          className="pressable flex-shrink-0"
-          style={{
-            padding: '5px 11px',
-            borderRadius: 999,
-            border: favoritesOnly
-              ? '1.5px solid var(--tj-pill-active-bg)'
-              : '1.5px solid var(--tj-line)',
-            background: favoritesOnly ? 'var(--tj-pill-active-bg)' : 'transparent',
-            color: favoritesOnly ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-            fontSize: 11,
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            transition:
-              'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
-          }}
-        >
-          ★ 즐겨찾기
-        </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onOpenStats}
+            aria-label="오늘의 교통 통계 보기"
+            className="pressable"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 999,
+              border: '1.5px solid var(--tj-line)',
+              background: 'transparent',
+              color: 'var(--tj-mute)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition:
+                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+            }}
+          >
+            <BarChart3 size={14} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setFavoritesOnly((v) => !v)}
+            aria-pressed={favoritesOnly}
+            className="pressable"
+            style={{
+              padding: '5px 11px',
+              borderRadius: 999,
+              border: favoritesOnly
+                ? '1.5px solid var(--tj-pill-active-bg)'
+                : '1.5px solid var(--tj-line)',
+              background: favoritesOnly ? 'var(--tj-pill-active-bg)' : 'transparent',
+              color: favoritesOnly ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
+              fontSize: 11,
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              transition:
+                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+            }}
+          >
+            ★ 즐겨찾기
+          </button>
+        </div>
       </div>
 
       {/* group secondary pills */}
