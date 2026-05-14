@@ -18,6 +18,12 @@ vi.mock('./components/subway/GlobalSubwayLineSheet',        () => ({ default: ()
 vi.mock('./components/subway/GlobalSubwayDetailSheet',      () => ({ default: () => null }))
 vi.mock('./hooks/useTheme', () => ({ useTheme: () => {} }))
 vi.mock('./hooks/useMore',  () => ({ useNotices: () => ({ data: [] }) }))
+vi.mock('./hooks/useMediaQuery', () => ({
+  default: () => false,
+  useIsDesktop: () => isDesktopMock,
+}))
+
+let isDesktopMock = false
 
 vi.mock('./stores/useAppStore', () => ({
   default: vi.fn((selector) => selector({
@@ -34,11 +40,20 @@ function setPath(pathname) {
 describe('App', () => {
   beforeEach(() => {
     setPath('/')
+    isDesktopMock = false
   })
 
-  it('지도(기본) 페이지: 모바일은 MainShell, PC는 PCMainShell+PCMapDashboard 렌더링', () => {
+  it('지도(기본) 페이지 · 모바일: MainShell만 마운트', () => {
+    isDesktopMock = false
     render(<App />)
     expect(screen.getByText('MainShell')).toBeInTheDocument()
+    expect(screen.queryByTestId('pc-main-shell')).not.toBeInTheDocument()
+  })
+
+  it('지도(기본) 페이지 · PC: PCMainShell+PCMapDashboard만 마운트', () => {
+    isDesktopMock = true
+    render(<App />)
+    expect(screen.queryByText('MainShell')).not.toBeInTheDocument()
     const pcShell = screen.getByTestId('pc-main-shell')
     expect(pcShell).toBeInTheDocument()
     expect(pcShell).toHaveTextContent('PCMapDashboard')
