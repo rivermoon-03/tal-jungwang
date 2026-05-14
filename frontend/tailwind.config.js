@@ -21,6 +21,7 @@ export default {
         'surface-dark-alt':  '#050505',  // 보조 surface
         'line-dark':         '#1a1a1a',  // 헤어라인 (구 border-dark)
         'border-dark':       '#1a1a1a',  // 후방 호환 alias
+        'ink-dark':          '#ffffff',  // primary text (다크)
         'text-dark':         '#d1d5db',
         'mute-dark':         '#6b7280',
         'mute-2-dark':       '#4b5563',
