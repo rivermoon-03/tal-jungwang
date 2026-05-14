@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import StatusChips from '../stats/StatusChips'
@@ -7,12 +7,6 @@ import CrowdingCard from '../stats/CrowdingCard'
 import WeatherCard from '../stats/WeatherCard'
 
 export default function StatsSheet({ open, onClose }) {
-  const [mounted, setMounted] = useState(open)
-
-  useEffect(() => {
-    if (open) setMounted(true)
-  }, [open])
-
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -20,7 +14,7 @@ export default function StatsSheet({ open, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  if (!mounted && !open) return null
+  if (!open) return null
 
   return createPortal(
     <div
