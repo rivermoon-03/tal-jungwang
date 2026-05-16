@@ -6,7 +6,7 @@
  *
  * 동작:
  *   - useNotices()로 공지 fetch
- *   - 첫 번째 공지를 navy 그라데이션 + 좌측 4px 액센트 스트라이프 + 📌 PINNED 배지로 강조
+ *   - 첫 번째 공지를 shuttle(#1b3a6e) 그라데이션 + 좌측 4px accent 스트라이프 + 📌 PINNED 배지로 강조
  *   - 데이터 없음/로딩/에러이면 null
  */
 import { useNotices } from '../../hooks/useMore'
