@@ -12,8 +12,9 @@ import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import Skeleton from '../common/Skeleton'
 import { RouteProgressStrip } from '../bus/BusArrivalCard'
-import { ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
+import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStationConfig'
 import BusStatsHeader from '../bus/BusStatsHeader'
+import BusEtaCard from '../bus/BusEtaCard'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -532,7 +533,10 @@ function EmptyMsg({ text }) {
 // ─── realtime bus history ────────────────────────────────────────────────
 
 function BusHistoryContent({ routeNumber }) {
-  const { data, loading, error } = useBusHistoryPreview(routeNumber)
+  // 카드(SchedulePage → useBusArrivals)가 보는 GBIS 추적 정류장과 동일한 stop을
+  // backend에도 명시해 realtime_eta 응답이 카드와 같은 정류장 기준이 되게 한다.
+  const trackedStopId = getGbisStationIdForRoute(routeNumber)
+  const { data, loading, error } = useBusHistoryPreview(routeNumber, trackedStopId)
   const routeId = data?.route_id
   const stopId = data?.stop_id
   const { data: statsRes } = useBusArrivalStats(routeId, stopId)
@@ -584,6 +588,7 @@ function BusHistoryContent({ routeNumber }) {
 
   return (
     <div>
+      <BusEtaCard realtimeEta={data?.realtime_eta} predictedEta={data?.predicted_eta} />
       <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-3 leading-relaxed">
         실시간 GBIS 기반 노선 · 시간표 없음{stopName ? ` · ${stopName}` : ''}

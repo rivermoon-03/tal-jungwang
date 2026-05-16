@@ -144,11 +144,107 @@ async def bus_timetable(
     return ApiResponse[BusTimetableResponse].ok(result)
 
 
+_HISTORY_PREVIEW_CACHE_TTL = 30  # 초 — realtime_eta 포함, 짧은 캐시로 시트 재오픈 보호
+
+
+async def _compute_realtime_eta(
+    db: AsyncSession,
+    route_ids: list[int],
+    stop_id: int | str | None,
+    now_kst: datetime,
+) -> dict | None:
+    """`bus:arrivals:{stop_id}` 캐시 기반으로 (route_id IN route_ids) 도착 정보 추출.
+
+    arrive_in_seconds > 0 인 항목 최대 2건을 시간 오름차순으로 반환.
+    0건이면 None.
+
+    stop_id는 GBIS station id 문자열 또는 internal PK 정수 모두 허용
+    (get_arrivals 내부에서 두 경로 모두 처리).
+    """
+    if stop_id is None or not route_ids:
+        return None
+    try:
+        result = await get_arrivals(db, stop_id, now_kst.date(), now_kst.time())
+    except Exception:
+        return None
+    if not result:
+        return None
+    arrivals = result.get("arrivals", []) or []
+    route_id_set = set(route_ids)
+    filtered = [
+        a for a in arrivals
+        if a.get("route_id") in route_id_set
+        and isinstance(a.get("arrive_in_seconds"), int)
+        and a["arrive_in_seconds"] > 0
+    ]
+    if not filtered:
+        return None
+    filtered.sort(key=lambda a: a["arrive_in_seconds"])
+    top = filtered[:2]
+
+    def _entry(sec: int) -> dict:
+        arrive_at = now_kst + timedelta(seconds=sec)
+        return {
+            "arrive_in_seconds": sec,
+            "arrive_at_hhmm": arrive_at.strftime("%H:%M"),
+        }
+
+    out: dict = {"primary": _entry(top[0]["arrive_in_seconds"])}
+    if len(top) >= 2:
+        out["secondary"] = _entry(top[1]["arrive_in_seconds"])
+    else:
+        out["secondary"] = None
+    return out
+
+
+def _compute_predicted_eta(
+    columns: list[dict],
+    now_kst: datetime,
+) -> dict | None:
+    """이미 dedupe된 columns 데이터에서 현재 시각 이후 첫 도착 시각의 중앙값.
+
+    화면에 표시되는 컬럼과 동일 데이터를 사용해 display ↔ prediction이 항상 일치.
+    raw bus_arrival_history는 동일 차량의 중복 폴링·양방향 route_id가 섞여 있을 수 있어,
+    dedupe된 표시 데이터가 사용자 신뢰와 가장 잘 맞는다.
+
+    매칭 ≥ 2건이면 dict, 미만이면 None.
+    """
+    now_hhmm = now_kst.strftime("%H:%M")
+    firsts_min: list[int] = []
+    for col in columns:
+        for t in col.get("times") or []:
+            if t > now_hhmm:
+                h, m = t.split(":")
+                firsts_min.append(int(h) * 60 + int(m))
+                break
+    if len(firsts_min) < 2:
+        return None
+
+    firsts_min.sort()
+    n = len(firsts_min)
+    mid = n // 2
+    if n % 2 == 1:
+        median_min = firsts_min[mid]
+    else:
+        median_min = (firsts_min[mid - 1] + firsts_min[mid]) // 2
+
+    hh, mm = divmod(median_min, 60)
+    wd = now_kst.weekday()
+    day_label = "평일" if wd <= 4 else "주말"
+
+    return {
+        "hhmm": f"{hh:02d}:{mm:02d}",
+        "sample_size": n,
+        "day_label": day_label,
+    }
+
+
 @router.get("/history-preview/{route_number}")
 @limiter.limit("30/minute")
 async def bus_history_preview(
     request: Request,
     route_number: str,
+    stop_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     """실시간 노선 과거 도착 이력 조회 — 모달 예측 데이터용.
@@ -156,9 +252,21 @@ async def bus_history_preview(
     오늘 요일 타입에 따라 고정 날짜를 반환:
     - 평일: 어제, 이틀 전, 저번 주 금요일
     - 토요일: 저번 주 토/일, 저저번 주 토/일
-    - 일요일: 저번 주 일/토, 저저번 주 일/토
+    - 일요일: 저번 주 일/토, 저저번 주 토/일
     데이터가 없는 날짜도 빈 컬럼으로 포함.
+
+    응답에 `realtime_eta`(GBIS 캐시 기반 1~2건)와 `predicted_eta`(과거 이력 median)
+    필드를 포함한다. realtime_eta가 있으면 predicted_eta는 항상 null.
+
+    `stop_id` 쿼리: 카드가 보는 GBIS 추적 정류장(gbis_station_id 또는 internal PK).
+    주어지면 realtime_eta 계산에 우선 사용 — 카드와 모달이 같은 정류장 ETA를 보게 한다.
     """
+    # stop_id는 GBIS station id 문자열로 올 수 있어 캐시 키에 그대로 포함
+    cache_key = f"bus:history_preview:{route_number}:{stop_id or 'auto'}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return ApiResponse.ok(cached)
+
     KST = ZoneInfo("Asia/Seoul")
     today = datetime.now(KST).date()
 
@@ -260,13 +368,27 @@ async def bus_history_preview(
         if sid_row is not None:
             primary_stop_id = sid_row[0]
 
-    return ApiResponse.ok({
+    # ── realtime_eta / predicted_eta 산출 ──────────────────────────────────
+    now_kst = datetime.now(KST)
+    # 카드와 모달이 같은 정류장 ETA를 보도록, 명시된 stop_id(GBIS 추적 정류장)를 우선 사용.
+    # 미전달 시 fallback으로 history 빈도 기반 primary_stop_id 사용.
+    realtime_stop = stop_id if stop_id is not None else primary_stop_id
+    realtime_eta = await _compute_realtime_eta(db, route_ids, realtime_stop, now_kst)
+    predicted_eta = None
+    if realtime_eta is None:
+        predicted_eta = _compute_predicted_eta(columns, now_kst)
+
+    payload = {
         "route_number": route_number,
         "route_id": primary_route_id,
         "stop_id": primary_stop_id,
         "stop_name": stop_name or "",
         "columns": columns,
-    })
+        "realtime_eta": realtime_eta,
+        "predicted_eta": predicted_eta,
+    }
+    await set_cached_json(cache_key, payload, ttl=_HISTORY_PREVIEW_CACHE_TTL)
+    return ApiResponse.ok(payload)
 
 
 @router.get("/arrival-stats/{route_id}/{stop_id}")

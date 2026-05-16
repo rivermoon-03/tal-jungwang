@@ -81,6 +81,16 @@ const FROM_COLOR = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// head label 정규화 — "방면"은 "행"으로, 이미 "행"으로 끝나면 중복 추가 금지.
+// (예: destination="학교행"이면 "학교행행"이 되는 버그 방지)
+// ─────────────────────────────────────────────────────────────────────────────
+function toHeadLabel(label) {
+  if (!label) return ''
+  if (/방면/.test(label)) return label.replace(/\s*방면/g, '행')
+  return label.endsWith('행') ? label : `${label}행`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 시간 계산
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -95,8 +105,13 @@ function secondsUntil(timeStr, isTomorrow = false) {
 function computeDisplay(arrivals) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
+  // realtime: 0초 이하 항목은 "이미 출발"로 보고 제외 — tick 카운트다운이 0에 도달한
+  // 차량이 "곧 0초 후"로 영원히 멈춰 있는 현상 방지. 다음 차가 있으면 그게 primary로
+  // 올라오고, 없으면 placeholder "—" 표시. backend _compute_realtime_eta(>0 필터)와 통일.
   const valid = arrivals.filter((a) =>
-    isTimetable ? a.depart_at != null : a.arrive_in_seconds != null
+    isTimetable
+      ? a.depart_at != null
+      : a.arrive_in_seconds != null && a.arrive_in_seconds > 0
   )
   const shown = valid.slice(0, 2)
   if (shown.length === 0) {
@@ -121,12 +136,18 @@ function computeDisplay(arrivals) {
     return { etaValue: '곧', etaSub: `${Math.max(0, sec0)}초 후`, imminent: true, stats }
   }
   const min0 = realtimeSecToMinutes(sec0)
-  let sub
-  if (stats?.tolerance_min != null) {
+  // sub 표시 우선순위: (1) 다음 한 대(secondary) > (2) stats 분포 > (3) 없음.
+  // GBIS가 두 번째 버스를 잡았는데 stats 라벨에 가려져 "다음 한 대" 정보가 사라지는 버그 방지.
+  // 시간표 분기 (line 115)의 "다음 HH:MM"과 표기를 통일.
+  const sec1 = shown[1]?.arrive_in_seconds
+  let sub = null
+  if (sec1 != null) {
+    const arriveAt = new Date(Date.now() + sec1 * 1000)
+    const hh = String(arriveAt.getHours()).padStart(2, '0')
+    const mm = String(arriveAt.getMinutes()).padStart(2, '0')
+    sub = `다음 ${hh}:${mm}`
+  } else if (stats?.tolerance_min != null) {
     sub = `보통 ±${stats.tolerance_min}분`
-  } else {
-    const sec1 = shown[1]?.arrive_in_seconds
-    sub = sec1 != null ? `다음 +${realtimeSecToMinutes(sec1)}분` : null
   }
   return { etaValue: min0, etaSub: sub, imminent: false, stats }
 }
@@ -145,7 +166,9 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
   const origin = path?.origin ?? first.origin ?? ''
   const waypoints = path?.waypoints ?? []
   const terminus = path?.terminus ?? first.destination ?? ''
-  const headLabel = path?.label ?? `${first.destination ?? ''}행`
+  // path.label / destination 어느 쪽이든 이미 "행"으로 끝나는 케이스에서 "학교행행"
+  // 같은 중복이 발생하지 않도록 toHeadLabel로 정규화.
+  const headLabel = toHeadLabel(path?.label ?? first.destination ?? '')
 
   const { etaValue, etaSub, imminent } = computeDisplay(arrivals)
   const crowdedLevel = !isTimetable ? arrivals[0]?.crowded : 0
