@@ -76,31 +76,12 @@ export const BUS_STATIONS = {
   },
 }
 
-// 노선+방향별 카드 표시용 출발/도착 레이블 (BusArrivalCard 두 줄 표시에 사용)
-const ROUTE_CARD_DISPLAY = {
-  '11-A':   { 하교: { origin: '한국공대', dest: '정왕역 경유' } },
-  '20-1':   { 하교: { origin: '한국공대', dest: '정왕역 경유' } },
-  '시흥33': {
-    하교: { origin: '한국공대',   dest: '정왕역 경유 시흥시청행' },
-    등교: { origin: '시흥시청역', dest: '학교행' },
-  },
-  '3400': { 하교: { origin: '시화터미널', dest: '사당 경유 강남행' } },
-  '3401': {
-    하교: { origin: '이마트',    dest: '서울행' },
-    등교: { origin: '시흥시청역', dest: '이마트 경유 학교행' },
-  },
-  '5602': {
-    하교: { origin: '이마트',    dest: '구로행' },
-    등교: { origin: '시흥시청역', dest: '이마트 경유 학교행' },
-  },
-  '6502':  { 하교: { origin: '이마트', dest: '사당행' } },
-  '99-2':  { 하교: { origin: '이마트', dest: '월곶역 방면' } },
-  '시흥1': { 하교: { origin: '이마트', dest: '신천역 경유 개봉행' } },
-  '5200':  { 하교: { origin: '이마트', dest: '신천역 경유 신도림행' } },
-}
-
 export function getRouteCardDisplay(routeNo, category) {
-  return ROUTE_CARD_DISPLAY[routeNo]?.[category] ?? null
+  const p = getRoutePath(routeNo, category)
+  if (!p) return null
+  const via = p.waypoints.length ? `${p.waypoints.join(' 경유 ')} 경유 ` : ''
+  const destTail = p.label.endsWith('행') || p.label.endsWith('방면') ? p.label : `${p.label}행`
+  return { origin: p.origin, dest: `${via}${destTail}` }
 }
 
 export function getAllowedDirections(station) {
@@ -132,20 +113,63 @@ export function getPerRouteDisplay(station) {
 // 노선별 표시 색상 + 방향 레이블 (단일 소스)
 // BusPanel과 MarkerSheet 양쪽에서 동일하게 사용
 export const ROUTE_DISPLAY_CONFIG = {
-  '3400':  { color: '#DC2626', direction: '사당 경유 · 강남행' },
-  '5200':  { color: '#DC2626', direction: '신천역 경유 · 신도림행' },
-  '6502':  { color: '#DC2626', direction: '사당행' },
-  '3401':  { color: '#DC2626', direction: '시흥시청 경유 · 석수행' },
-  '5602':  { color: '#2563EB', direction: '시흥시청 경유 · 구로행' },
-  '시흥33': { color: '#0891B2', direction: null },
-  '20-1':  { color: '#2563EB', direction: null },
-  '11-A':  { color: '#0891B2', direction: null },
-  '99-2':  { color: '#0891B2', direction: null },
-  '시흥1':  { color: '#0891B2', direction: null },
+  '3400':  { color: '#DC2626', category: 'express', direction: '사당 경유 · 강남행' },
+  '5200':  { color: '#DC2626', category: 'express', direction: '신천역 경유 · 신도림행' },
+  '6502':  { color: '#DC2626', category: 'express', direction: '사당행' },
+  '3401':  { color: '#DC2626', category: 'express', direction: '시흥시청 경유 · 석수행' },
+  '5602':  { color: '#2563EB', category: 'trunk',   direction: '시흥시청 경유 · 구로행' },
+  '시흥33': { color: '#0891B2', category: 'local',   direction: null },
+  '20-1':  { color: '#2563EB', category: 'trunk',   direction: null },
+  '11-A':  { color: '#0891B2', category: 'local',   direction: null },
+  '99-2':  { color: '#0891B2', category: 'local',   direction: null },
+  '시흥1':  { color: '#0891B2', category: 'local',   direction: null },
 }
 
 export function getRouteDisplayConfig(routeNo) {
   return ROUTE_DISPLAY_CONFIG[routeNo] ?? null
+}
+
+export const ROUTE_CATEGORY_ORDER = ['express', 'trunk', 'local']
+export const ROUTE_CATEGORY_LABEL = {
+  express: '광역버스',
+  trunk:   '간선버스',
+  local:   '시내·마을',
+}
+export const ROUTE_CATEGORY_SWATCH = {
+  express: '광역',
+  trunk:   '간선',
+  local:   '시내',
+}
+
+export function getRouteCategory(routeNo) {
+  return ROUTE_DISPLAY_CONFIG[routeNo]?.category ?? 'local'
+}
+
+// 노선·방향별 경로 — 미니 트랙 시각화의 데이터 소스
+export const ROUTE_PATH = {
+  '11-A':   { 하교: { origin: '한국공대', waypoints: [], terminus: '정왕역', label: '정왕역행' } },
+  '20-1':   { 하교: { origin: '한국공대', waypoints: ['정왕역'], terminus: '아이파크', label: '아이파크아파트행' } },
+  '시흥33': {
+    하교: { origin: '한국공대',   waypoints: ['정왕역'], terminus: '시흥시청', label: '시흥시청행' },
+    등교: { origin: '시흥시청역', waypoints: [],         terminus: '한국공대', label: '학교행' },
+  },
+  '3400':  { 하교: { origin: '시화터미널', waypoints: ['사당'],   terminus: '강남',       label: '강남행' } },
+  '3401':  {
+    하교: { origin: '이마트',      waypoints: [],         terminus: '서울',     label: '서울행' },
+    등교: { origin: '시흥시청역', waypoints: ['이마트'], terminus: '한국공대', label: '학교행' },
+  },
+  '5602':  {
+    하교: { origin: '이마트',      waypoints: [],         terminus: '구로디지털', label: '구로디지털단지행' },
+    등교: { origin: '시흥시청역', waypoints: ['이마트'], terminus: '한국공대',   label: '학교행' },
+  },
+  '5200':  { 하교: { origin: '시화터미널', waypoints: ['신천역'], terminus: '신도림',   label: '신도림행' } },
+  '99-2':  { 하교: { origin: '시화터미널', waypoints: ['이마트'], terminus: '월곶역',   label: '월곶역 방면' } },
+  '6502':  { 하교: { origin: '이마트',      waypoints: [],         terminus: '사당',     label: '사당행' } },
+  '시흥1': { 하교: { origin: '이마트',      waypoints: ['신천역'], terminus: '개봉',     label: '개봉행' } },
+}
+
+export function getRoutePath(routeNo, category) {
+  return ROUTE_PATH[routeNo]?.[category] ?? null
 }
 
 // 노선별 경유 정류장 순서 (내부 stop PK 기준).
