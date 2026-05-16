@@ -73,30 +73,42 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
 
   if (!arrivals || arrivals.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white dark:bg-bg-dark">
-        <p className="text-base text-slate-400">도착 정보가 없습니다.</p>
+      <div className="flex-1 flex items-center justify-center bg-surface dark:bg-bg-dark">
+        <p className="text-meta font-semibold text-mute dark:text-mute-dark">도착 정보가 없습니다.</p>
       </div>
     )
   }
 
   const multiSection = sections.length > 1
 
+  // 등교(accent) / 하교(imminent) / 기타(mute) 좌측 액센트 바
+  const categoryAccent = (cat) => {
+    if (cat === '등교') return 'bg-accent dark:bg-accent-dark'
+    if (cat === '하교') return 'bg-imminent dark:bg-imminent-dark'
+    return 'bg-mute-2 dark:bg-mute-2-dark'
+  }
+
   return (
     <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
       {stationLabel && direction && (
-        <div className="px-4 pt-3 pb-1">
-          <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
-            {stationLabel} · {direction}
-          </p>
+        <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
+          <h3 className="text-panel-ttl text-ink dark:text-ink-dark">{stationLabel}</h3>
+          <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full tracking-tight">
+            {direction}
+          </span>
         </div>
       )}
       <div className="p-4 space-y-4">
         {sections.map(({ category, routeGroups }) => (
           <div key={category}>
             {multiSection && (
-              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2 px-1">
-                {CATEGORY_LABEL[category] ?? category}
-              </p>
+              <div className="flex items-center gap-2 mb-2.5 px-1">
+                <span aria-hidden className={`w-1 h-3.5 rounded-full ${categoryAccent(category)}`} />
+                <p className="text-meta font-extrabold text-ink dark:text-ink-dark uppercase tracking-wider">
+                  {CATEGORY_LABEL[category] ?? category}
+                </p>
+                <span className="text-meta font-semibold text-mute dark:text-mute-dark">{routeGroups.length}개 노선</span>
+              </div>
             )}
             <div className="space-y-3">
               {routeGroups.map((group) => (
