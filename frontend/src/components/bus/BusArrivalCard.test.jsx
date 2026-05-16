@@ -42,18 +42,27 @@ describe('BusArrivalCard — v5 layout', () => {
     expect(screen.getByText('—')).toBeInTheDocument()
   })
 
-  it('shows "다음 +N분" when stats absent', () => {
-    render(
-      <BusArrivalCard
-        arrivals={[
-          baseRealtime({ arrive_in_seconds: 180 }),
-          baseRealtime({ arrive_in_seconds: 540 }),
-        ]}
-        stationId="x"
-        onTimetableClick={() => {}}
-      />
-    )
-    expect(screen.getByText(/다음 \+9분/)).toBeInTheDocument()
+  it('shows "다음 HH:MM" (absolute time) when stats absent', () => {
+    // 540초(9분) 뒤의 절대 도착 시각으로 표시 — "+N분"은 첫 차에 누적된다고 오해될 소지.
+    const fixedNow = new Date('2026-05-16T21:00:00+09:00')
+    vi.useFakeTimers()
+    vi.setSystemTime(fixedNow)
+    try {
+      render(
+        <BusArrivalCard
+          arrivals={[
+            baseRealtime({ arrive_in_seconds: 180 }),
+            baseRealtime({ arrive_in_seconds: 540 }),
+          ]}
+          stationId="x"
+          onTimetableClick={() => {}}
+        />
+      )
+      // 21:00 + 540s = 21:09
+      expect(screen.getByText(/다음 21:09/)).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows "보통 ±N분" when stats present', () => {
@@ -83,6 +92,34 @@ describe('BusArrivalCard — v5 layout', () => {
     expect(screen.getByText('곧')).toBeInTheDocument()
     const eta = container.querySelector('[data-eta]')
     expect(eta.className).toMatch(/imminent/)
+  })
+
+  it('skips departed bus (arrive_in_seconds <= 0) and promotes next bus to primary', () => {
+    // tick으로 0에 도달한 첫 차량은 "이미 출발"로 무시하고, 두 번째 차량이 primary가 된다.
+    render(
+      <BusArrivalCard
+        arrivals={[
+          baseRealtime({ arrive_in_seconds: 0 }),    // 이미 출발 — 표시 제외
+          baseRealtime({ arrive_in_seconds: 600 }),  // 다음 차 → primary로 승격
+        ]}
+        stationId="x"
+        onTimetableClick={() => {}}
+      />
+    )
+    // ceil(600/60) = 10
+    expect(screen.getByText('10')).toBeInTheDocument()
+    expect(screen.queryByText('곧')).not.toBeInTheDocument()
+  })
+
+  it('shows "—" when all realtime arrivals are <=0', () => {
+    render(
+      <BusArrivalCard
+        arrivals={[baseRealtime({ arrive_in_seconds: 0 })]}
+        stationId="x"
+        onTimetableClick={() => {}}
+      />
+    )
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 
   it('renders category swatch color for express chip', () => {

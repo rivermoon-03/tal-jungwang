@@ -38,12 +38,16 @@ class BusRouteSummary(BaseModel):
 
 
 class ArrivalStats(BaseModel):
-    tolerance_min: int
-    p10_min: int
-    p50_min: int
-    p90_min: int
+    # 사전 집계(bus_arrival_stats) 풀 페이로드는 분위수·tolerance까지 모두 채운다.
+    # ±2시간 윈도우 fallback(bus_arrival_history)은 mean_min + sample_size만 채우고
+    # is_low_sample=True 플래그를 단다. 프론트는 is_low_sample로 표시 분기를 선택.
+    tolerance_min: int | None = None
+    p10_min: int | None = None
+    p50_min: int | None = None
+    p90_min: int | None = None
     mean_min: int
     sample_size: int
+    is_low_sample: bool = False
     computed_at: datetime | None = None
 
 
@@ -57,7 +61,7 @@ class BusArrival(BaseModel):
     arrive_in_seconds: int | None = None
     is_tomorrow: bool = False  # 오늘 시간표 소진 후 내일 첫차인 경우 True
     crowded: int = 0  # 혼잡도 (0=정보없음, 1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
-    avg_interval_minutes: int | None = None  # 현재 시각 ±60분 윈도우 평균 배차 간격(분)
+    avg_interval_minutes: int | None = None  # 현재 시각 ±120분 윈도우 평균 배차 간격(분)
     stats: ArrivalStats | None = None
 
 
