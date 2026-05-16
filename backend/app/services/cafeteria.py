@@ -7,7 +7,7 @@
   3) GET file_url → xlsx 바이너리
   4) openpyxl 파싱 → JSON
 
-캐시 키 `cafeteria:menu` TTL 6시간. APScheduler가 매주 월요일 06:00 KST에 강제 갱신.
+캐시 키 `cafeteria:menu` TTL 6시간. APScheduler가 매일 07:00·11:00 KST에 강제 갱신.
 """
 import logging
 import re

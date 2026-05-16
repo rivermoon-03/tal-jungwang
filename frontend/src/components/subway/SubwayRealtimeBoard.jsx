@@ -40,7 +40,7 @@ export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
   return (
     <span className={`inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 ${className}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-      {prefix}실시간 {ageMin}분 지연
+      {prefix}데이터 {ageMin}분 지연
     </span>
   )
 }
@@ -244,7 +244,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
               ? Math.floor((Date.now() - new Date(item.recptn_dt).getTime()) / 60000)
               : 0
             return ageMin >= 3
-              ? <span className="text-state-warn dark:text-amber-400 font-extrabold">{recptnTime} 기준 · {ageMin}분 지연</span>
+              ? <span className="text-state-warn dark:text-amber-400 font-extrabold">{recptnTime} 기준 · 데이터 {ageMin}분 지연</span>
               : <span>{recptnTime} 기준</span>
           })()}
         </div>

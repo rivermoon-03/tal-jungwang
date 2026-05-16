@@ -1,6 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Star } from 'lucide-react';
 import useFavorites from '../../hooks/useFavorites';
+
+// 실시간 데이터가 N분 전 수신된 값임을 알리는 배지 + 탭/호버 시 안내 툴팁.
+// "지하철이 지연됐다"가 아니라 "데이터가 지연됐다"는 점을 명시한다.
+function StaleHintBadge({ ageMin, stale }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDocPointer = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocPointer)
+    document.addEventListener('touchstart', onDocPointer)
+    return () => {
+      document.removeEventListener('mousedown', onDocPointer)
+      document.removeEventListener('touchstart', onDocPointer)
+    }
+  }, [open])
+
+  const label = stale ? '실시간 일시 끊김' : `데이터 ${ageMin}분 지연`
+  const minLabel = stale ? '수 분' : `${ageMin}분`
+
+  return (
+    <span ref={ref} className="relative inline-flex items-center ml-1">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
+        aria-label="실시간 데이터 지연 안내"
+        aria-expanded={open}
+        className="inline-flex items-center gap-1 text-[10px] font-bold text-state-warn dark:text-amber-400 cursor-pointer underline decoration-dotted decoration-amber-400/70 underline-offset-2"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+        {label}
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          className="absolute left-0 top-full mt-1.5 z-30 w-[240px] px-3 py-2 rounded-lg bg-slate-900/95 dark:bg-slate-100 text-white dark:text-slate-900 text-[11px] font-medium leading-relaxed shadow-lg"
+        >
+          외부 API의 데이터 지연으로 실시간 정보의 정확성을 보장할 수 없는 상태예요.
+          화면에 보이는 도착 정보는 약 {minLabel} 전 수신된 데이터로,
+          실제 열차 위치와 차이가 있을 수 있어요. 시간표를 함께 확인해 주세요.
+        </div>
+      )}
+    </span>
+  )
+}
 
 // 노선 + 정류장 → 기본(등교 방향) favKey. FavoritesPage.SUBWAY_KEY_INFO와 정렬.
 function makeSubwayFavKey(lineName, stationName) {
@@ -252,12 +300,7 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
         <span className={`${demoted ? 'text-[12px] font-bold' : 'text-[13px] font-extrabold'} ${titleColorClass}`}>
           {lineName}
         </span>
-        {isTimeStale ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-state-warn dark:text-amber-400 ml-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            {stale ? '실시간 일시 끊김' : `${ageMin}분 지연`}
-          </span>
-        ) : null}
+        {isTimeStale ? <StaleHintBadge ageMin={ageMin} stale={stale} /> : null}
         <span className={`ml-auto font-semibold text-mute dark:text-mute-dark ${demoted ? 'text-[10px]' : 'text-[11px]'}`}>
           {demoted ? '참고 · 실시간 (베타)' : '실시간 (베타)'}
         </span>
