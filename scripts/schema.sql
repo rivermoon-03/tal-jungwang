@@ -100,7 +100,27 @@ CREATE INDEX idx_bus_arrival_route_stop_day
     ON bus_arrival_history (route_id, stop_id, day_type, arrived_at);
 
 -- ────────────────────────────────────────────────────────────
--- 6. bus_crowding_logs — 버스 혼잡도 이력
+-- 6. bus_arrival_stats — 분포 사전 집계 (p10/p50/p90/mean)
+-- ────────────────────────────────────────────────────────────
+-- bus_arrival_stats is derivative (recomputed nightly from bus_arrival_history).
+-- ON DELETE CASCADE on both FKs intentional: if a route/stop is removed,
+-- precomputed stats should be removed too — they'll be recreated on next refresh.
+CREATE TABLE IF NOT EXISTS bus_arrival_stats (
+    route_id          INTEGER      NOT NULL REFERENCES bus_routes(id) ON DELETE CASCADE,
+    stop_id           INTEGER      NOT NULL REFERENCES bus_stops(id) ON DELETE CASCADE,
+    day_type          VARCHAR(10)  NOT NULL CHECK (day_type IN ('weekday','saturday','sunday')),
+    hour_of_day       SMALLINT     NOT NULL CHECK (hour_of_day BETWEEN 0 AND 23),
+    p10_interval_sec  INTEGER      NOT NULL CHECK (p10_interval_sec >= 0),
+    p50_interval_sec  INTEGER      NOT NULL CHECK (p50_interval_sec >= 0),
+    p90_interval_sec  INTEGER      NOT NULL CHECK (p90_interval_sec >= 0),
+    mean_interval_sec INTEGER      NOT NULL CHECK (mean_interval_sec >= 0),
+    sample_size       INTEGER      NOT NULL CHECK (sample_size > 0),
+    computed_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (route_id, stop_id, day_type, hour_of_day)
+);
+
+-- ────────────────────────────────────────────────────────────
+-- 7. bus_crowding_logs — 버스 혼잡도 이력
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE bus_crowding_logs (
     id                SERIAL       PRIMARY KEY,
@@ -116,7 +136,7 @@ CREATE INDEX idx_crowding_route_stop_at
     ON bus_crowding_logs (route_id, stop_id, recorded_at);
 
 -- ────────────────────────────────────────────────────────────
--- 7. schedule_periods — 셔틀 운행 기간
+-- 8. schedule_periods — 셔틀 운행 기간
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE schedule_periods (
     id              SERIAL       PRIMARY KEY,
@@ -133,7 +153,7 @@ CREATE TABLE schedule_periods (
 CREATE INDEX idx_schedule_periods_dates ON schedule_periods (start_date, end_date);
 
 -- ────────────────────────────────────────────────────────────
--- 8. shuttle_routes — 셔틀 노선 (방면)
+-- 9. shuttle_routes — 셔틀 노선 (방면)
 --    direction: 0=등교, 1=하교
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE shuttle_routes (
@@ -143,7 +163,7 @@ CREATE TABLE shuttle_routes (
 );
 
 -- ────────────────────────────────────────────────────────────
--- 9. shuttle_timetable_entries — 셔틀 시간표
+-- 10. shuttle_timetable_entries — 셔틀 시간표
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE shuttle_timetable_entries (
     id                  SERIAL      PRIMARY KEY,
@@ -158,7 +178,7 @@ CREATE INDEX idx_shuttle_tt_period_route_day
     ON shuttle_timetable_entries (schedule_period_id, shuttle_route_id, day_type);
 
 -- ────────────────────────────────────────────────────────────
--- 10. subway_timetable_entries — 지하철 시간표 (admin API로 갱신)
+-- 11. subway_timetable_entries — 지하철 시간표 (admin API로 갱신)
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE subway_timetable_entries (
     id              SERIAL      PRIMARY KEY,
@@ -178,7 +198,7 @@ CREATE INDEX idx_subway_tt_train_no
     ON subway_timetable_entries (train_no);
 
 -- ────────────────────────────────────────────────────────────
--- 11. traffic_history — 도로 교통정보 이력
+-- 12. traffic_history — 도로 교통정보 이력
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE traffic_history (
     id               SERIAL        PRIMARY KEY,
@@ -195,7 +215,7 @@ CREATE INDEX idx_traffic_road_dir_time ON traffic_history (road_name, direction,
 CREATE INDEX idx_traffic_collected_at  ON traffic_history (collected_at);
 
 -- ────────────────────────────────────────────────────────────
--- 12. map_markers — 지도 마커 정의
+-- 13. map_markers — 지도 마커 정의
 --    marker_type: 'shuttle' | 'subway' | 'bus' | 'bus_seoul' | 'seohae'
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE map_markers (
@@ -211,7 +231,7 @@ CREATE TABLE map_markers (
 );
 
 -- ────────────────────────────────────────────────────────────
--- 13. map_marker_routes — 마커 ↔ 노선 연결
+-- 14. map_marker_routes — 마커 ↔ 노선 연결
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE map_marker_routes (
     id                SERIAL        PRIMARY KEY,
@@ -228,7 +248,7 @@ CREATE TABLE map_marker_routes (
 CREATE INDEX idx_map_marker_routes_marker ON map_marker_routes (marker_id);
 
 -- ────────────────────────────────────────────────────────────
--- 14. notices — 공지사항
+-- 15. notices — 공지사항
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE notices (
     id          SERIAL       PRIMARY KEY,
@@ -249,7 +269,7 @@ BEFORE UPDATE ON notices
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ────────────────────────────────────────────────────────────
--- 15. app_links — 앱 내 외부 링크
+-- 16. app_links — 앱 내 외부 링크
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE app_links (
     id          SERIAL       PRIMARY KEY,
@@ -261,7 +281,7 @@ CREATE TABLE app_links (
 );
 
 -- ────────────────────────────────────────────────────────────
--- 16. app_info — 앱 메타 정보 (id=1 단일 행)
+-- 17. app_info — 앱 메타 정보 (id=1 단일 행)
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE app_info (
     id                        SERIAL       PRIMARY KEY,

@@ -1,8 +1,9 @@
 import { useRef, useEffect } from 'react'
 import { ChevronLeft, BusFront, MapPin, Clock } from 'lucide-react'
-import { useBusTimetable, useBusHistoryPreview } from '../../hooks/useBus'
+import { useBusTimetable, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
 import { RouteProgressStrip } from './BusArrivalCard'
+import BusStatsHeader from './BusStatsHeader'
 
 const BOARDING_INFO = {
   '6502': { stop: '이마트', desc: '육교 건너 이마트 정류장에서 탑승하세요' },
@@ -19,6 +20,14 @@ function timeToMinutes(t) {
 function RealtimeWaypointDetail({ routeNo, stationId }) {
   const { data, loading } = useBusHistoryPreview(routeNo)
   const columns = data?.columns ?? []
+  const routeId = data?.route_id
+  const stopId = data?.stop_id
+  const { data: statsRes } = useBusArrivalStats(routeId, stopId)
+  const stats = statsRes?.stats ?? null
+  const dayLabel = statsRes ? ({
+    weekday: '평일', saturday: '토요일', sunday: '일/공휴일',
+  }[statsRes.day_type] ?? null) : null
+  const hourLabel = statsRes?.hour_of_day != null ? `${statsRes.hour_of_day}시` : null
 
   return (
     <div className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-16 md:pb-0">
@@ -36,6 +45,7 @@ function RealtimeWaypointDetail({ routeNo, stationId }) {
 
       {/* 과거 도착 이력 */}
       <div className="px-4 pt-4">
+        <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
         <div className="flex items-center gap-1.5 mb-3">
           <Clock size={13} className="text-slate-400" />
           <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">

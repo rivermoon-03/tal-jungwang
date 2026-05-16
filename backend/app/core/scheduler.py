@@ -79,6 +79,22 @@ async def _cafeteria_refresh_job():
         logger.exception("학식 메뉴 캐시 갱신 실패")
 
 
+async def _bus_arrival_stats_refresh_job():
+    """매일 03:30 KST에 bus_arrival_stats 전체 재계산.
+
+    버스 폴링 휴식(02:00~03:59) 안쪽에서 동작해 운영 트래픽과 겹치지 않는다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.bus_stats import refresh_all_stats
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await refresh_all_stats(session)
+            logger.info("bus_arrival_stats refresh: %s", result)
+    except Exception:
+        logger.exception("bus_arrival_stats refresh failed")
+
+
 async def _subway_realtime_poll_job():
     """서울 지하철 실시간 도착정보 폴링 (정왕·시흥시청·초지).
 
@@ -214,6 +230,19 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info("Cafeteria menu refresh scheduler configured (07:00·11:00 KST)")
+
+    # ── 버스 도착 통계 재계산 (매일 03:30 KST) ──
+    # bus_arrival_history 28일치를 (route, stop, day_type, hour) 버킷별 분위수로 사전 집계.
+    # 02:00~03:59는 GBIS 폴링 휴식 구간이라 트래픽 충돌 없음.
+    scheduler.add_job(
+        _bus_arrival_stats_refresh_job,
+        CronTrigger(hour=3, minute=30, timezone="Asia/Seoul"),
+        id="bus_arrival_stats_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("Bus arrival stats refresh scheduler configured (daily 03:30 KST)")
 
 
 def start_scheduler():

@@ -243,10 +243,66 @@ async def bus_history_preview(
         for d in target_dates
     ]
 
+    # 통계 조회용 primary (route_id, stop_id) — 매칭 routes 중 첫 번째 + 이 노선군에서
+    # 같은 target_dates 윈도우 안에 가장 빈도 높은 stop_id (단일 정류장 통계 단위).
+    primary_route_id = route_ids[0] if route_ids else None
+    primary_stop_id: int | None = None
+    if route_ids and rows:
+        sid_stmt = (
+            select(BusArrivalHistory.stop_id, func.count().label("c"))
+            .where(BusArrivalHistory.route_id.in_(route_ids))
+            .where(func.date(arrived_kst).in_(target_dates))
+            .group_by(BusArrivalHistory.stop_id)
+            .order_by(func.count().desc())
+            .limit(1)
+        )
+        sid_row = (await db.execute(sid_stmt)).first()
+        if sid_row is not None:
+            primary_stop_id = sid_row[0]
+
     return ApiResponse.ok({
         "route_number": route_number,
+        "route_id": primary_route_id,
+        "stop_id": primary_stop_id,
         "stop_name": stop_name or "",
         "columns": columns,
+    })
+
+
+@router.get("/arrival-stats/{route_id}/{stop_id}")
+@limiter.limit("60/minute")
+async def bus_arrival_stats_lookup(
+    request: Request,
+    route_id: int,
+    stop_id: int,
+    hour: int | None = Query(None, ge=0, le=23),
+    day_type: str | None = Query(None, pattern="^(weekday|saturday|sunday)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """특정 (route_id, stop_id) 페어의 이 시간대 도착 분포 통계.
+
+    hour/day_type 미지정 시 현재 KST 시각·요일에서 도출.
+    데이터 없으면 stats=None (200).
+    """
+    from app.services.bus_stats import get_arrival_stats
+
+    KST = ZoneInfo("Asia/Seoul")
+    now = datetime.now(KST)
+    resolved_hour = hour if hour is not None else now.hour
+    if day_type is None:
+        wd = now.weekday()
+        resolved_day = "weekday" if wd <= 4 else ("saturday" if wd == 5 else "sunday")
+    else:
+        resolved_day = day_type
+
+    stats = await get_arrival_stats(db, route_id, stop_id, resolved_day, resolved_hour)
+
+    return ApiResponse.ok({
+        "route_id": route_id,
+        "stop_id": stop_id,
+        "day_type": resolved_day,
+        "hour_of_day": resolved_hour,
+        "stats": stats,
     })
 
 
