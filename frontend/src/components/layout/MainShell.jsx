@@ -36,7 +36,7 @@ export default function MainShell() {
       className="h-dvh w-full flex flex-col md:hidden bg-white dark:bg-bg-dark overflow-hidden"
       style={{
         touchAction: 'pan-y',
-        // 하단 BottomDock(60px)과 iOS safe area가 MainShell 영역을 덮지 않도록
+        // 하단 FloatingDock(60px) + iOS safe area가 MainShell 영역을 덮지 않도록
         // 해당만큼 내부 컨텐츠 영역을 축소한다. 핸들·대시보드가 항상 보이게.
         paddingBottom: 'calc(60px + env(safe-area-inset-bottom))',
       }}

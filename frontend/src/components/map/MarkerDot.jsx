@@ -3,10 +3,10 @@
  * 타입별 색상과 아이콘(흰색 SVG)이 함께 표시된다.
  *
  * 타입별 색상 기본값:
- *   bus / bus_seoul → navy  (#1b3a6e)
+ *   bus / bus_seoul → shuttle  (#1b3a6e)
  *   subway          → suinbundang yellow (#F5A623)
  *   seohae          → seohae green (#75bf43)
- *   shuttle         → navy  (#1b3a6e)
+ *   shuttle         → shuttle  (#1b3a6e)
  *
  * 두 가지 형태로 export:
  *   1. React 컴포넌트 (JSX)
