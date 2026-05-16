@@ -54,10 +54,14 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
   const visible = stations.slice(startIdx, endIdx + 1)
   const visibleStart = startIdx
 
+  // 라인·도트의 회색 톤은 라이트/다크 모드별 mute 토큰값을 인라인 style로 사용
+  const PAST_COLOR = darkMode ? '#4b5563' /* mute-2-dark */ : '#cbd2db' /* mute-2 */
+  const FUTURE_COLOR = darkMode ? '#6b7280' /* mute-dark */ : '#94a3b8' /* mute */
+
   return (
-    <div className="bg-white dark:bg-surface-dark rounded-xl mx-4 mb-4 border border-slate-100 dark:border-border-dark overflow-hidden">
-      <div className="px-4 pt-3 pb-1">
-        <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">노선도</span>
+    <div className="bg-surface dark:bg-surface-dark rounded-card mx-4 mb-4 shadow-card overflow-hidden">
+      <div className="px-4 pt-3.5 pb-1.5">
+        <span className="text-meta font-bold text-mute dark:text-mute-dark uppercase tracking-wider">노선도</span>
       </div>
       <div className="px-4 pb-3">
         {visible.map((stationName, i) => {
@@ -74,19 +78,19 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                 {i > 0 && (
                   <div
                     className="w-0.5 h-3"
-                    style={{ background: isPast ? (darkMode ? '#334155' : '#e2e8f0') : color, opacity: isPast ? 0.4 : 1 }}
+                    style={{ background: isPast ? PAST_COLOR : color, opacity: isPast ? 0.4 : 1 }}
                   />
                 )}
                 {/* 역 dot */}
                 {isTrain ? (
                   <div
-                    className="flex items-center justify-center rounded-full bg-white dark:bg-surface-dark z-10"
+                    className="flex items-center justify-center rounded-full bg-surface dark:bg-surface-dark z-10"
                     style={{
-                      width: 24,
-                      height: 24,
-                      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
-                      border: '2px solid #f59e0b',
-                      color: '#f59e0b'
+                      width: 26,
+                      height: 26,
+                      boxShadow: '0 0 0 4px rgba(226, 106, 77, 0.18)',
+                      border: '2px solid #e26a4d',
+                      color: '#e26a4d',
                     }}
                   >
                     <TrainFront size={14} strokeWidth={2.5} />
@@ -100,8 +104,8 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                       background: isView
                         ? color
                         : isPast
-                          ? (darkMode ? '#334155' : '#e2e8f0')
-                          : (darkMode ? '#475569' : '#cbd5e1'),
+                          ? PAST_COLOR
+                          : FUTURE_COLOR,
                       outline: isView ? `2px solid ${color}` : 'none',
                       outlineOffset: 1,
                       opacity: isPast ? 0.35 : 1,
@@ -114,7 +118,7 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                     className="w-0.5 h-3"
                     style={{
                       background: isView || (viewIdx !== -1 && absoluteIdx >= viewIdx)
-                        ? (darkMode ? '#334155' : '#e2e8f0')
+                        ? PAST_COLOR
                         : color,
                       opacity: isPast ? 0.4 : 1,
                     }}
@@ -127,31 +131,31 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                 <span
                   className={`leading-none ${
                     isView
-                      ? 'text-sm font-extrabold'
+                      ? 'text-[15px] font-black tracking-tight'
                       : isTrain
-                        ? 'text-sm font-bold'
-                        : 'text-xs'
+                        ? 'text-[14px] font-extrabold tracking-tight'
+                        : 'text-meta font-semibold'
                   } ${
                     isView
-                      ? 'text-slate-900 dark:text-slate-100'
+                      ? 'text-ink dark:text-ink-dark'
                       : isTrain
-                        ? 'text-amber-600 dark:text-amber-400'
+                        ? 'text-imminent dark:text-imminent-dark'
                         : isPast
-                          ? 'text-slate-300 dark:text-slate-700'
-                          : 'text-slate-500 dark:text-slate-400'
+                          ? 'text-mute-2 dark:text-mute-2-dark'
+                          : 'text-mute dark:text-mute-dark'
                   }`}
                   style={isView ? { color } : {}}
                 >
                   {stationName}
                 </span>
                 {isView && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: color }}>
+                  <span className="text-chip font-extrabold px-2 py-0.5 rounded-chip text-white" style={{ background: color }}>
                     현위치
                   </span>
                 )}
                 {isTrain && (
-                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                    🚇 접근 중
+                  <span className="text-chip font-extrabold text-white bg-imminent dark:bg-imminent-dark px-2 py-0.5 rounded-full">
+                    접근 중
                   </span>
                 )}
               </div>

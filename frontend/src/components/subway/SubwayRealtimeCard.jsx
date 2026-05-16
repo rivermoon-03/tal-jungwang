@@ -15,7 +15,8 @@ function makeSubwayFavKey(lineName, stationName) {
   return `subway:${stationName}:up`
 }
 
-const ACCENT = '#dc2626'
+// 임박 상태 강조 색 — imminent 토큰값과 동일.
+const ACCENT = '#e26a4d'
 function getStatusInfo(code) {
   // 0:진입, 1:도착, 2:출발, 3:전역출발, 4:전역진입, 5:전역도착
   const map = {
@@ -117,70 +118,55 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
   // 타이포그래피 강조: labelSize
   const labelSize = (isUrgent || isNear) ? 20 : isRunning ? 14 : 18
 
-  // 색상 결정
-  const labelColor = isUrgent 
-    ? ACCENT 
-    : (isNear || !isRunning) 
-      ? 'var(--tj-ink)' 
-      : 'var(--tj-mute)'
+  // 색상 클래스 결정 (Tesla 토큰)
+  const labelColorClass = isUrgent
+    ? 'text-imminent dark:text-imminent-dark'
+    : (isNear || !isRunning)
+      ? 'text-ink dark:text-ink-dark'
+      : 'text-mute dark:text-mute-dark'
+
+  const destColorClass = isUrgent
+    ? 'text-imminent dark:text-imminent-dark'
+    : 'text-ink dark:text-ink-dark'
 
   return (
     <div
-      style={{ textAlign: align, cursor: train && onClick ? 'pointer' : 'default', padding: '2px 0' }}
+      className={`py-0.5 ${train && onClick ? 'cursor-pointer' : ''}`}
+      style={{ textAlign: align }}
       onClick={train && onClick ? onClick : undefined}
     >
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tj-mute)', marginBottom: 4 }}>
+      <div className="text-[11px] font-bold text-mute dark:text-mute-dark mb-1 tracking-wide">
         {dir}
       </div>
       {train ? (
         <>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
-            flexWrap: 'wrap', marginBottom: 6,
-          }}>
-            <div style={{
-              fontSize: 14,
-              color: isUrgent ? ACCENT : 'var(--tj-ink)',
-              fontWeight: 800,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              letterSpacing: '-0.01em',
-            }}>
+          <div
+            className="flex items-center gap-1 flex-wrap mb-1.5"
+            style={{ justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}
+          >
+            <div className={`text-[14px] font-extrabold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${destColorClass}`}>
               {train.destination}행
             </div>
             {train.is_last_train && (
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', background: ACCENT, padding: '1px 5px', borderRadius: 999, lineHeight: 1.4, flexShrink: 0 }}>
+              <span className="text-[9px] font-extrabold text-white bg-imminent dark:bg-imminent-dark px-1.5 py-px rounded-full leading-tight flex-shrink-0">
                 막차
               </span>
             )}
           </div>
-          <div style={{
-            fontSize: labelSize,
-            fontWeight: 900,
-            letterSpacing: '-0.03em',
-            lineHeight: 1.1,
-            color: labelColor,
-          }}>
+          <div
+            className={`font-black leading-tight tracking-tight ${labelColorClass}`}
+            style={{ fontSize: labelSize }}
+          >
             {label}
           </div>
           {sub && (
-            <div style={{ 
-              fontSize: 12, 
-              color: 'var(--tj-mute-2)', 
-              marginTop: 6, 
-              overflow: 'hidden', 
-              textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap',
-              fontWeight: 500 
-            }}>
+            <div className="text-meta font-medium text-mute-2 dark:text-mute-2-dark mt-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
               {sub}
             </div>
           )}
         </>
       ) : (
-        <div style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 700 }}>
+        <div className="text-[13px] font-bold text-mute dark:text-mute-dark">
           정보 없음
         </div>
       )}
@@ -221,25 +207,19 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
 
   // demoted: 시간표 모드의 보조 카드 → 옅은 배경 + 점선 보더 + dim
   // urgent는 demoted여도 약한 강조 유지 (사용자가 임박 정보를 놓치지 않게)
-  const baseBorder = demoted
-    ? '1px dashed var(--tj-line)'
-    : (isUrgent ? '1px solid transparent' : '1px solid var(--tj-line)')
-  const baseBackground = demoted ? 'var(--tj-bg-mute, rgba(148,163,184,0.06))' : 'transparent'
-  const baseOpacity = demoted && isTimeStale ? 0.7 : 1
-  const titleColor = demoted ? 'var(--tj-mute)' : 'var(--tj-ink)'
+  const borderClass = demoted
+    ? 'border border-dashed border-line dark:border-line-dark'
+    : (isUrgent ? 'border border-transparent' : 'border border-line dark:border-line-dark')
+  const bgClass = demoted ? 'bg-surface-alt dark:bg-surface-dark-alt' : 'bg-transparent'
+  const paddingClass = demoted ? 'px-3 py-2.5' : 'px-3.5 py-3'
+  const titleColorClass = demoted ? 'text-mute dark:text-mute-dark' : 'text-ink dark:text-ink-dark'
 
   return (
     <div
+      className={`relative rounded-card-pc tabular-nums transition-opacity duration-200 ${paddingClass} ${borderClass} ${bgClass}`}
       style={{
-        padding: demoted ? '10px 12px' : '12px 14px',
-        borderRadius: 12,
-        border: baseBorder,
-        background: baseBackground,
-        boxShadow: !demoted && isUrgent ? '0 0 0 1.5px var(--tj-accent) inset' : 'none',
-        fontVariantNumeric: 'tabular-nums',
-        position: 'relative',
-        opacity: baseOpacity,
-        transition: 'opacity 0.2s',
+        boxShadow: !demoted && isUrgent ? '0 0 0 1.5px #4f9fff inset' : 'none',
+        opacity: demoted && isTimeStale ? 0.7 : 1,
       }}
     >
       {favKey && !demoted && (
@@ -260,34 +240,31 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
           />
         </button>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: demoted ? 8 : 10, flexWrap: 'wrap' }}>
+      <div className={`flex items-center gap-2 flex-wrap ${demoted ? 'mb-2' : 'mb-2.5'}`}>
         <span
-          style={{
-            width: demoted ? 18 : 22, height: demoted ? 18 : 22, borderRadius: 999, background: color,
-            color: '#fff', display: 'inline-flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: demoted ? 10 : 11, fontWeight: 900,
-            flexShrink: 0, lineHeight: 1,
-            opacity: demoted ? 0.85 : 1,
-          }}
+          className={`inline-flex items-center justify-center rounded-full text-white flex-shrink-0 font-black leading-none ${
+            demoted ? 'w-[18px] h-[18px] text-[10px] opacity-85' : 'w-[22px] h-[22px] text-[11px]'
+          }`}
+          style={{ background: color }}
         >
           {symbol}
         </span>
-        <span style={{ fontSize: demoted ? 12 : 13, fontWeight: demoted ? 700 : 800, color: titleColor }}>
+        <span className={`${demoted ? 'text-[12px] font-bold' : 'text-[13px] font-extrabold'} ${titleColorClass}`}>
           {lineName}
         </span>
         {isTimeStale ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 ml-1">
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-state-warn dark:text-amber-400 ml-1">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             {stale ? '실시간 일시 끊김' : `${ageMin}분 지연`}
           </span>
         ) : null}
-        <span style={{ marginLeft: 'auto', fontSize: demoted ? 10 : 11, color: 'var(--tj-mute)', fontWeight: 600 }}>
+        <span className={`ml-auto font-semibold text-mute dark:text-mute-dark ${demoted ? 'text-[10px]' : 'text-[11px]'}`}>
           {demoted ? '참고 · 실시간 (베타)' : '실시간 (베타)'}
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', alignItems: 'stretch' }}>
-        <div style={{ padding: '2px 10px 2px 0' }}>
+      <div className="grid items-stretch" style={{ gridTemplateColumns: '1fr 1px 1fr' }}>
+        <div className="pr-2.5 py-0.5">
           <RealtimeSlot
             train={upTrain}
             dir="상행"
@@ -295,8 +272,8 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
             onClick={upTrain && onTrainClick ? () => onTrainClick(upTrain) : null}
           />
         </div>
-        <div aria-hidden style={{ background: 'var(--tj-line)', width: 1 }} />
-        <div style={{ padding: '2px 0 2px 10px' }}>
+        <div aria-hidden className="w-px bg-line dark:bg-line-dark" />
+        <div className="pl-2.5 py-0.5">
           <RealtimeSlot
             train={downTrain}
             dir="하행"
@@ -306,7 +283,7 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
         </div>
       </div>
       {(upTrain?.recptn_dt || downTrain?.recptn_dt || lastFetchedAt) && (
-        <div style={{ marginTop: 8, textAlign: 'right', fontSize: 9, color: 'var(--tj-mute)', fontWeight: 500, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+        <div className="mt-2 flex justify-end gap-1.5 text-[9px] font-medium text-mute dark:text-mute-dark">
           {lastFetchedAt && <span>{secondsAgo}초 전 폴링</span>}
           {(upTrain?.recptn_dt || downTrain?.recptn_dt) && (
             <span>{(upTrain?.recptn_dt || downTrain?.recptn_dt).substring(11, 16)} 기준</span>
