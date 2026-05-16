@@ -302,7 +302,9 @@ function ShuttleContent({ direction, accentColor }) {
   const usingFallback = weekend && todayEmpty && fallbackHasData
 
   const data = usingFallback ? fallback.data : today.data
-  const loading = today.loading || (usingFallback && fallback.loading)
+  // 폴백 fetch가 끝나기 전엔 EmptyMsg가 잠깐 깜빡일 수 있으므로,
+  // 주말이면 fallback.loading도 함께 봐서 둘 다 끝나야 EmptyMsg를 보여준다.
+  const loading = today.loading || (weekend && fallback.loading)
   const error = today.error && (!weekend || fallback.error)
 
   const nextRef = useRef(null)
@@ -405,17 +407,31 @@ function ShuttleContent({ direction, accentColor }) {
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
-  if (!times.length) return <EmptyMsg text="오늘 셔틀 정보가 없어요" />
+  if (!times.length) {
+    // 주말·공휴일에 폴백 평일 시간표도 없는 진짜 빈 케이스 (학기 외 등) 명시.
+    return <EmptyMsg text={weekend ? '주말·공휴일에는 셔틀이 운행하지 않고, 평일 시간표도 아직 준비되지 않았어요.' : '오늘 셔틀 정보가 없어요'} />
+  }
 
   const allDone = displayEntries.length === 0
 
   return (
     <div className="flex flex-col gap-2">
       {usingFallback && (
-        <div className="flex items-start gap-2.5 px-3.5 py-2.5 mb-1 bg-chip-yellow-bg dark:bg-chip-yellow-bg-dark rounded-mini">
-          <span className="text-base leading-none mt-0.5">🛈</span>
-          <div className="text-meta font-semibold text-chip-yellow-fg dark:text-chip-yellow-fg-dark leading-relaxed">
-            <span className="font-extrabold">평일 기준 시간표</span>입니다.<br />주말·공휴일에는 셔틀이 운행하지 않습니다.
+        <div
+          className="-mx-4 mb-2 px-5 py-3.5 flex items-start gap-3"
+          style={{
+            background: 'linear-gradient(135deg, #fef6e6 0%, #fdebcb 100%)',
+            borderLeft: '4px solid #d4a14a',
+          }}
+        >
+          <span className="text-[20px] leading-none mt-0.5 flex-shrink-0">⚠</span>
+          <div className="dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
+            <div className="text-[15px] font-black tracking-tight leading-tight">
+              주말·공휴일엔 셔틀버스가 운행하지 않습니다
+            </div>
+            <div className="text-meta font-semibold mt-1 opacity-90">
+              아래는 <span className="font-extrabold">평일 기준 시간표</span>입니다.
+            </div>
           </div>
         </div>
       )}
