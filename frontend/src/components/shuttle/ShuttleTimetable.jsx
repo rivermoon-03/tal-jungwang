@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 
 function toMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -47,7 +47,9 @@ export default function ShuttleTimetable({ times }) {
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
   const nextRef = useRef(null)
 
-  const displayList = buildDisplayList(times)
+  // times reference 가 안 바뀌면 displayList 재계산 안 함.
+  // (nowMinutes 는 표시 상태 계산용이라 displayList 의존성 아님)
+  const displayList = useMemo(() => buildDisplayList(times), [times])
 
   // 첫 번째 아직 지나지 않은 항목 인덱스
   const nextIndex = displayList.findIndex((item) => {
