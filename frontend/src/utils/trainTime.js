@@ -80,6 +80,10 @@ export function getLastTrainStatus(trains, nowMin) {
  * 사용처: 실시간 응답에 `arrive_seconds`가 없거나 음수일 때의 fallback.
  * 자정을 넘는 열차(예: 00:15)는 +24h로 보정한다.
  *
+ * 비고: 시간 계산은 `Date#getHours/setHours` 즉 사용자 로컬 시각 기준이다.
+ * 본 서비스는 한국(KST) 사용자를 가정하므로 실용상 KST 와 동일하지만,
+ * 브라우저 TZ 가 다른 환경에서는 결과가 달라질 수 있다.
+ *
  * @param {Array<{depart_at: string}>} trains
  * @param {Date} [now=new Date()]
  * @returns {number|null}  남은 초 (현재 시각 이후 가장 가까운 열차). 없으면 null.
