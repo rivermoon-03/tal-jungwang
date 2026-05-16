@@ -5,7 +5,7 @@
  *   leftLabel   — 좌측 종단점 라벨 (예: '시화')
  *   rightLabel  — 우측 종단점 라벨 (예: '강남')
  *   activeSide  — 'left' | 'right'
- *                 도착지(화살표가 가리키는 쪽). 해당 라벨/원이 coral로 강조됨.
+ *                 도착지(화살표가 가리키는 쪽). 해당 라벨/원이 accent-ink(#102c4c)로 강조됨.
  */
 
 const ACCENT = '#102c4c'

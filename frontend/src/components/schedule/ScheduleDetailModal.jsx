@@ -2,7 +2,7 @@
  * ScheduleDetailModal — bottom-sheet modal with full upcoming schedule.
  * - 세로 리스트 + "다음" 배지 + "N분 뒤"
  * - 드래그 손잡이로 스와이프 다운 닫기
- * - BottomDock 위로 띄워지도록 bottom padding 확보
+ * - FloatingDock 위로 띄워지도록 bottom padding 확보
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -720,7 +720,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           </p>
         </div>
 
-        {/* scrollable content — bottom padding 확보해 BottomDock 위로 */}
+        {/* scrollable content — bottom padding 확보해 FloatingDock 위로 */}
         <div
           className="flex-1 overflow-y-auto px-4 pt-2"
           style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
