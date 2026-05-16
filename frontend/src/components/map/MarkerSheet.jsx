@@ -18,10 +18,11 @@ import useAppStore from '../../stores/useAppStore'
 import RouteSpine from './RouteSpine'
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
+// state 토큰값과 동일 (state-ok / state-warn / state-bad)
 const STATUS_DOT = {
-  green:  { bg: '#22c55e', label: '여유' },
-  yellow: { bg: '#f59e0b', label: '빠듯' },
-  red:    { bg: '#ef4444', label: '서두르세요' },
+  green:  { bg: '#4a9d6a', label: '여유' },
+  yellow: { bg: '#d4a14a', label: '빠듯' },
+  red:    { bg: '#c8553d', label: '서두르세요' },
 }
 
 function resolveColor(routeCode, routeColor) {
@@ -128,17 +129,17 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
         onTouchEnd={handlePointerUp}
       >
         {/* 드래그 핸들 (모바일만) */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0 md:hidden">
-          <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-600" />
+        <div className="flex justify-center pt-3.5 pb-1.5 flex-shrink-0 md:hidden">
+          <div className="w-11 h-1 rounded-full bg-mute-2 dark:bg-mute-2-dark" />
         </div>
 
         {/* 헤더 */}
-        <div className="flex items-start justify-between px-5 pt-2 pb-3 flex-shrink-0 border-b border-[#ebebeb] dark:border-[#3a3e48]">
+        <div className="flex items-start justify-between px-5 pt-2 pb-3.5 flex-shrink-0 border-b border-line dark:border-line-dark">
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {/* 정류장명 + 탑승 상태 */}
             <div className="flex items-center gap-2">
-              <MapPin size={15} className="text-accent dark:text-accent-dark flex-shrink-0" />
-              <span className="text-[15px] font-bold text-[#0f172a] dark:text-[#f1f5f9] truncate">
+              <MapPin size={16} className="text-accent dark:text-accent-dark flex-shrink-0" />
+              <span className="text-panel-ttl text-ink dark:text-ink-dark truncate">
                 {station.name}
               </span>
               {station.boardingStatus && STATUS_DOT[station.boardingStatus] && (
@@ -152,7 +153,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
 
             {/* 도보 정보 */}
             {(station.walkMinutes != null || station.walkMeters != null) && (
-              <span className="text-[12px] text-[#717171] dark:text-[#94a3b8] pl-5">
+              <span className="text-meta font-semibold text-mute dark:text-mute-dark pl-6">
                 도보{' '}
                 {station.walkMinutes != null ? `${station.walkMinutes}분` : ''}
                 {station.walkMinutes != null && station.walkMeters != null ? ' · ' : ''}
@@ -161,38 +162,38 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
             )}
           </div>
 
-          <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
             {/* 즐겨찾기 토글 */}
             <button
-              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-line dark:hover:bg-line-dark transition-colors"
               onClick={() => station.id && toggleFavoriteStation(String(station.id))}
               aria-label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
             >
               {isFav
-                ? <Star size={18} className="text-accent fill-accent dark:text-accent-dark dark:fill-accent-dark" />
-                : <StarOff size={18} className="text-slate-400" />
+                ? <Star size={18} className="text-state-warn fill-state-warn" />
+                : <StarOff size={18} className="text-mute dark:text-mute-dark" />
               }
             </button>
             {/* 닫기 */}
             <button
-              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-line dark:hover:bg-line-dark transition-colors"
               onClick={handleClose}
               aria-label="닫기"
             >
-              <X size={18} className="text-slate-400" />
+              <X size={18} className="text-text dark:text-text-dark" />
             </button>
           </div>
         </div>
 
         {/* 방향 토글 + RouteSpine (bus_seoul 전용) */}
         {directionControl && (
-          <div className="px-5 pt-3 pb-1 flex-shrink-0 border-b border-[#ebebeb] dark:border-[#3a3e48]">
+          <div className="px-5 pt-3 pb-1 flex-shrink-0 border-b border-line dark:border-line-dark">
             <RouteSpine
               leftLabel={directionControl.leftLabel}
               rightLabel={directionControl.rightLabel}
               activeSide={directionControl.activeSide}
             />
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-700 mt-1">
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-line dark:bg-line-dark mt-1">
               {[
                 { key: 'outbound', label: directionControl.outboundLabel },
                 { key: 'inbound',  label: directionControl.inboundLabel },
@@ -202,12 +203,11 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                   <button
                     key={seg.key}
                     onClick={() => directionControl.onChange(seg.key)}
-                    className="py-2 rounded-lg text-[12px] font-semibold transition-colors"
-                    style={{
-                      background: active ? 'var(--tj-pill-active-bg)' : 'transparent',
-                      color: active ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-                      boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    }}
+                    className={`py-2 rounded-lg text-meta transition-colors ${
+                      active
+                        ? 'bg-surface dark:bg-surface-dark text-ink dark:text-ink-dark font-black shadow-card'
+                        : 'text-mute dark:text-mute-dark font-bold'
+                    }`}
                   >
                     {seg.label}
                   </button>
@@ -219,17 +219,17 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
 
         {/* 여기로 오는 버스 (로컬 허브 전용) */}
         {relatedMarkers.length > 0 && (
-          <div className="px-5 pt-3 pb-2 flex-shrink-0 border-b border-[#ebebeb] dark:border-[#3a3e48]">
-            <p className="text-[11px] font-medium text-[#94a3b8] mb-2">여기로 오는 버스</p>
-            <div className="flex gap-2 flex-wrap">
+          <div className="px-5 pt-3 pb-2.5 flex-shrink-0 border-b border-line dark:border-line-dark">
+            <p className="text-meta font-bold text-mute dark:text-mute-dark mb-2 tracking-wide">여기로 오는 버스</p>
+            <div className="flex gap-1.5 flex-wrap">
               {relatedMarkers.map((rm) => (
                 <button
                   key={rm.key}
                   onClick={() => onRelatedMarker?.(rm.key)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[12px] font-semibold text-[#0f172a] dark:text-[#f1f5f9] active:bg-slate-200 dark:active:bg-slate-600 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-alt dark:bg-surface-dark-alt text-meta font-bold text-ink dark:text-ink-dark active:bg-line dark:active:bg-line-dark transition-colors"
                 >
                   {rm.name}
-                  <ChevronRight size={12} className="text-slate-400" />
+                  <ChevronRight size={12} className="text-mute dark:text-mute-dark" />
                 </button>
               ))}
             </div>
@@ -239,11 +239,11 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
         {/* 도착 리스트 */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {arrivals.length === 0 ? (
-            <p className="text-[13px] text-[#717171] dark:text-[#94a3b8] text-center py-4">
+            <p className="text-meta font-semibold text-mute dark:text-mute-dark text-center py-4">
               {directionControl?.placeholder ?? '도착 정보가 없습니다'}
             </p>
           ) : (
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-0.5">
               {groupArrivalsByRoute(arrivals).map((group) => {
                 const color = resolveColor(group.routeCode, group.routeColor)
                 const clickable = !!(onArrivalClick && group.detail)
@@ -251,14 +251,14 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                   <>
                     {/* 노선 색 원 */}
                     <span
-                      className="flex-shrink-0 inline-flex items-center justify-center min-w-[1.75rem] h-7 rounded-full px-1 text-white text-micro font-bold"
+                      className="flex-shrink-0 inline-flex items-center justify-center min-w-[1.75rem] h-7 rounded-full px-1 text-white text-micro font-extrabold"
                       style={{ background: color }}
                     >
                       {(group.routeCode ?? '').split(':')[0]}
                     </span>
 
                     {/* 방향 */}
-                    <span className="flex-1 text-[13px] text-[#0f172a] dark:text-[#f1f5f9] truncate text-left">
+                    <span className="flex-1 text-[14px] font-semibold text-ink dark:text-ink-dark truncate text-left">
                       {group.direction ?? ''}
                     </span>
 
@@ -267,12 +267,12 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                       {group.allMinutes.slice(0, 3).map((min, i) => (
                         <span
                           key={i}
-                          className={`text-[13px] font-bold tabular-nums ${
+                          className={`text-[14px] font-extrabold tabular-nums tracking-tight ${
                             typeof min === 'number' && min <= 3
-                              ? 'text-[#ef4444]'
+                              ? 'text-imminent dark:text-imminent-dark'
                               : typeof min === 'number' && min <= 7
-                                ? 'text-[#f59e0b]'
-                                : 'text-[#1b3a6e] dark:text-[#f1f5f9]'
+                                ? 'text-state-warn dark:text-amber-400'
+                                : 'text-ink dark:text-ink-dark'
                           }`}
                         >
                           {typeof min === 'number' ? `${min}분` : (min ?? '—')}
@@ -280,7 +280,7 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                       ))}
                     </div>
                     {clickable && (
-                      <ChevronRight size={14} className="text-slate-300 dark:text-slate-500 flex-shrink-0" />
+                      <ChevronRight size={14} className="text-mute-2 dark:text-mute-2-dark flex-shrink-0" />
                     )}
                   </>
                 )
@@ -290,13 +290,13 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
                       <button
                         type="button"
                         onClick={() => onArrivalClick(group.detail)}
-                        className="w-full flex items-center gap-3 py-2 px-1 -mx-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/40 active:bg-slate-100 dark:active:bg-slate-700 transition-colors"
+                        className="w-full flex items-center gap-3 py-2.5 px-1 -mx-1 rounded-mini hover:bg-surface-alt dark:hover:bg-surface-dark-alt active:bg-line dark:active:bg-line-dark transition-colors"
                         aria-label={`${group.routeCode} 상세 시간표 보기`}
                       >
                         {content}
                       </button>
                     ) : (
-                      <div className="flex items-center gap-3 py-2 px-1">
+                      <div className="flex items-center gap-3 py-2.5 px-1">
                         {content}
                       </div>
                     )}
@@ -308,20 +308,19 @@ export default function MarkerSheet({ station, arrivals = [], onClose, onNavigat
         </div>
 
         {/* 액션 버튼 */}
-        <div className="flex gap-3 px-5 pb-6 pt-2 flex-shrink-0 border-t border-[#ebebeb] dark:border-[#3a3e48]">
+        <div className="flex gap-2.5 px-5 pb-6 pt-3 flex-shrink-0 border-t border-line dark:border-line-dark">
           <button
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-navy text-white text-[14px] font-semibold"
-            style={{ background: '#1b3a6e' }}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-mini bg-ink dark:bg-accent-dark text-white dark:text-ink text-[14px] font-black tracking-tight transition-colors pressable"
             onClick={onNavigate}
           >
-            <Navigation size={15} />
+            <Navigation size={15} strokeWidth={2.4} />
             걸어가기
           </button>
           <button
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-[#ebebeb] dark:border-[#3a3e48] text-[#0f172a] dark:text-[#f1f5f9] text-[14px] font-semibold bg-white dark:bg-[#272a33]"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-mini bg-line dark:bg-line-dark text-ink dark:text-ink-dark text-[14px] font-black tracking-tight transition-colors pressable"
             onClick={onDetail}
           >
-            <Info size={15} />
+            <Info size={15} strokeWidth={2.4} />
             상세 보기
           </button>
         </div>
