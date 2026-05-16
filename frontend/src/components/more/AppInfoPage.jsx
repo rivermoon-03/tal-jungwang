@@ -10,44 +10,49 @@ const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '
 
 export default function AppInfoPage({ onBack }) {
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-slide-in-right">
-      {/* header — DarkModePage와 통일된 스타일 */}
-      <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-white dark:bg-surface-dark border-b border-slate-100 dark:border-border-dark flex-shrink-0">
+    <div className="flex flex-col h-full bg-bg dark:bg-bg-dark animate-slide-in-right">
+      <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
         <button
           onClick={onBack}
           aria-label="뒤로"
-          className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+          className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line-dark transition-colors"
         >
-          <ChevronLeft size={22} className="text-slate-600 dark:text-slate-300" />
+          <ChevronLeft size={22} className="text-ink dark:text-ink-dark" />
         </button>
-        <h1 className="text-base font-bold text-slate-900 dark:text-slate-100">앱 정보</h1>
+        <h1 className="text-panel-ttl text-ink dark:text-ink-dark">앱 정보</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 pb-28 md:pb-6 flex flex-col gap-4">
-        <section
-          className="bg-white dark:bg-surface-dark rounded-2xl p-4 flex items-center gap-3"
-          style={{ border: '1px solid var(--tj-line)' }}
-        >
+      <div className="flex-1 overflow-y-auto px-4 py-3 pb-28 md:pb-6 flex flex-col gap-4">
+        {/* 히어로 */}
+        <section className="bg-surface dark:bg-surface-dark rounded-card shadow-card px-5 py-6 flex flex-col items-center text-center">
           <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              background: 'var(--tj-bg-soft)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--tj-accent)',
-            }}
+            className="w-14 h-14 rounded-card flex items-center justify-center text-white mb-3"
+            style={{ background: 'linear-gradient(160deg, #102c4c, #1b3a6e)' }}
             aria-hidden="true"
           >
-            <Heart size={18} fill="currentColor" />
+            <Heart size={22} fill="currentColor" />
           </div>
-          <div>
-            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Made by moonlandingplan
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">한국공대 · v{APP_VERSION}</p>
+          <p className="text-panel-ttl text-ink dark:text-ink-dark">정왕 교통 허브</p>
+          <span className="text-meta font-extrabold text-chip-blue-fg dark:text-chip-blue-fg-dark bg-chip-blue-bg dark:bg-chip-blue-bg-dark px-2.5 py-1 rounded-full mt-2 tracking-wider">
+            v{APP_VERSION} · BETA
+          </span>
+        </section>
+
+        {/* 정보 행 */}
+        <section className="bg-surface dark:bg-surface-dark rounded-card shadow-card overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-line dark:border-line-dark">
+            <Heart size={16} className="text-mute dark:text-mute-dark flex-shrink-0" aria-hidden="true" />
+            <div>
+              <p className="text-meta font-bold text-mute dark:text-mute-dark">Made by</p>
+              <p className="text-[15px] font-extrabold text-ink dark:text-ink-dark tracking-tight mt-0.5">moonlandingplan</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3.5">
+            <span className="text-mute dark:text-mute-dark flex-shrink-0 w-4 text-center">🏫</span>
+            <div>
+              <p className="text-meta font-bold text-mute dark:text-mute-dark">기관</p>
+              <p className="text-[15px] font-extrabold text-ink dark:text-ink-dark tracking-tight mt-0.5">한국공학대학교</p>
+            </div>
           </div>
         </section>
       </div>
