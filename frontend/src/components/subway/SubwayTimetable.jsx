@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import useAppStore from '../../stores/useAppStore'
 
 function timeToMinutes(t) {
@@ -9,6 +10,13 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
   const darkMode = useAppStore((s) => s.darkMode)
 
+  // entries 의 depart_at 을 분 단위로 미리 변환해 캐싱.
+  // entries reference 가 안 바뀌면 재계산 안 함 (timeToMinutes 매 렌더 호출 회피).
+  const departMinutes = useMemo(
+    () => entries.map((train) => timeToMinutes(train.depart_at)),
+    [entries],
+  )
+
   // 이전 열차 2개 + 현재부터 표시 (스크롤 없이 리스트 자체가 현재 시각 근처에서 시작)
   const startIdx = nextIndex >= 0
     ? Math.max(0, nextIndex - 2)
@@ -18,11 +26,12 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
     <ul className="flex-1 overflow-y-auto bg-surface dark:bg-bg-dark pb-28 md:pb-0">
       {entries.slice(startIdx).map((train, di) => {
         const i = di + startIdx
-        const isPast = timeToMinutes(train.depart_at) <= nowMin
+        const departMin = departMinutes[i]
+        const isPast = departMin <= nowMin
         const isNext = i === nextIndex
         const isLast  = i === lastIdx
         const isFirst = i === firstIdx
-        const diffMin = Math.round(timeToMinutes(train.depart_at) - nowMin)
+        const diffMin = Math.round(departMin - nowMin)
         const accent = darkMode ? (lineDarkColor ?? lineColor) : lineColor
 
         return (

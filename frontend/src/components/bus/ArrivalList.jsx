@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import BusArrivalCard from './BusArrivalCard'
 
 const CATEGORY_ORDER = ['등교', '하교', '기타']
@@ -53,6 +54,23 @@ function groupByCategory(arrivals) {
 }
 
 export default function ArrivalList({ arrivals, stationId, onTimetableClick, stationLabel, direction }) {
+  // 카테고리별 그룹핑 + 각 섹션 내 노선별 그룹핑·정렬을 한 번에 메모.
+  // arrivals reference 가 안 바뀌면 재계산하지 않음.
+  const sections = useMemo(() => {
+    if (!arrivals || arrivals.length === 0) return []
+    const categorized = groupByCategory(arrivals)
+    return categorized.map(({ category, arrivals: sectionArrivals }) => {
+      const routeGroups = groupByRouteNo(sectionArrivals)
+      routeGroups.sort((a, b) => {
+        const aHas = hasLiveInfo(a)
+        const bHas = hasLiveInfo(b)
+        if (aHas !== bHas) return aHas ? -1 : 1
+        return earliestMinutes(a) - earliestMinutes(b)
+      })
+      return { category, routeGroups }
+    })
+  }, [arrivals])
+
   if (!arrivals || arrivals.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-bg-dark">
@@ -61,7 +79,6 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
     )
   }
 
-  const sections = groupByCategory(arrivals)
   const multiSection = sections.length > 1
 
   return (
@@ -74,34 +91,25 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
         </div>
       )}
       <div className="p-4 space-y-4">
-        {sections.map(({ category, arrivals: sectionArrivals }) => {
-          const routeGroups = groupByRouteNo(sectionArrivals)
-          routeGroups.sort((a, b) => {
-            const aHas = hasLiveInfo(a)
-            const bHas = hasLiveInfo(b)
-            if (aHas !== bHas) return aHas ? -1 : 1
-            return earliestMinutes(a) - earliestMinutes(b)
-          })
-          return (
-            <div key={category}>
-              {multiSection && (
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2 px-1">
-                  {CATEGORY_LABEL[category] ?? category}
-                </p>
-              )}
-              <div className="space-y-3">
-                {routeGroups.map((group) => (
-                  <BusArrivalCard
-                    key={group[0].route_no}
-                    arrivals={group}
-                    stationId={stationId}
-                    onTimetableClick={onTimetableClick}
-                  />
-                ))}
-              </div>
+        {sections.map(({ category, routeGroups }) => (
+          <div key={category}>
+            {multiSection && (
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2 px-1">
+                {CATEGORY_LABEL[category] ?? category}
+              </p>
+            )}
+            <div className="space-y-3">
+              {routeGroups.map((group) => (
+                <BusArrivalCard
+                  key={group[0].route_no}
+                  arrivals={group}
+                  stationId={stationId}
+                  onTimetableClick={onTimetableClick}
+                />
+              ))}
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
     </div>
   )
