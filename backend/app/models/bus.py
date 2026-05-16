@@ -1,7 +1,7 @@
 from datetime import datetime, time
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -109,3 +109,22 @@ class BusArrivalHistory(Base):
     __table_args__ = (
         Index("idx_bus_arrival_route_stop_day", "route_id", "stop_id", "day_type", "arrived_at"),
     )
+
+
+class BusArrivalStats(Base):
+    __tablename__ = "bus_arrival_stats"
+
+    route_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_routes.id", ondelete="CASCADE"), primary_key=True
+    )
+    stop_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_stops.id", ondelete="CASCADE"), primary_key=True
+    )
+    day_type: Mapped[str] = mapped_column(String(10), primary_key=True)
+    hour_of_day: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    p10_interval_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    p50_interval_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    p90_interval_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    mean_interval_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

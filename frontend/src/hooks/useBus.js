@@ -49,3 +49,11 @@ export function useBusHistoryPreview(routeNumber) {
     enabled: routeNumber != null,
   })
 }
+
+export function useBusArrivalStats(routeId, stopId) {
+  const ready = routeId != null && stopId != null
+  return useApi(ready ? `/bus/arrival-stats/${routeId}/${stopId}` : null, {
+    enabled: ready,
+    ttl: 5 * 60_000,
+  })
+}

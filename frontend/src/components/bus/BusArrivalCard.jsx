@@ -6,6 +6,7 @@ import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
 import { realtimeSecToMinutes } from './busArrivalDisplay'
 import RouteChip from '../common/RouteChip'
 import SlotNumber from '../common/SlotNumber'
+import ArrivalDistributionBar from './ArrivalDistributionBar'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Exports kept for compatibility with other components (Dashboard ArrivalRow, etc.)
@@ -86,36 +87,38 @@ function computeDisplay(arrivals) {
   )
   const shown = valid.slice(0, 2)
   if (shown.length === 0) {
-    return { etaValue: '—', etaSub: null, imminent: false }
+    return { etaValue: '—', etaSub: null, imminent: false, stats: null }
   }
 
   if (isTimetable) {
     const a0 = shown[0]
     if (a0.is_tomorrow) {
-      return { etaValue: '내일', etaSub: a0.depart_at, imminent: false }
+      return { etaValue: '내일', etaSub: a0.depart_at, imminent: false, stats: null }
     }
     const sec = secondsUntil(a0.depart_at)
     if (sec < IMMINENT_THRESHOLD_SEC) {
-      return { etaValue: '곧', etaSub: a0.depart_at, imminent: true }
+      return { etaValue: '곧', etaSub: a0.depart_at, imminent: true, stats: null }
     }
     const min = Math.ceil(sec / 60)
     const sub = shown[1]?.depart_at ? `다음 ${shown[1].depart_at}` : a0.depart_at
-    return { etaValue: min, etaSub: sub, imminent: false }
+    return { etaValue: min, etaSub: sub, imminent: false, stats: null }
   }
 
   // realtime
+  const stats = arrivals[0]?.stats ?? null
   const sec0 = shown[0].arrive_in_seconds ?? 0
   if (sec0 < IMMINENT_THRESHOLD_SEC) {
-    return { etaValue: '곧', etaSub: `${Math.max(0, sec0)}초 후`, imminent: true }
+    return { etaValue: '곧', etaSub: `${Math.max(0, sec0)}초 후`, imminent: true, stats }
   }
   const min0 = realtimeSecToMinutes(sec0)
-  let sub = null
-  const sec1 = shown[1]?.arrive_in_seconds
-  if (sec1 != null) {
-    const min1 = realtimeSecToMinutes(sec1)
-    sub = `다음 +${min1}분`
+  let sub
+  if (stats?.tolerance_min != null) {
+    sub = `보통 ±${stats.tolerance_min}분`
+  } else {
+    const sec1 = shown[1]?.arrive_in_seconds
+    sub = sec1 != null ? `다음 +${realtimeSecToMinutes(sec1)}분` : null
   }
-  return { etaValue: min0, etaSub: sub, imminent: false }
+  return { etaValue: min0, etaSub: sub, imminent: false, stats }
 }
 
 export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }) {
@@ -124,7 +127,7 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
   const desc = getRouteCardDisplay(first.route_no, first.category)
   const destination = desc ? desc.dest : first.destination
 
-  const { etaValue, etaSub, imminent } = computeDisplay(arrivals)
+  const { etaValue, etaSub, imminent, stats } = computeDisplay(arrivals)
   const crowdedLevel = !isTimetable ? arrivals[0]?.crowded : 0
 
   const favKey = first.route_no
@@ -152,6 +155,22 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
         <ChevronRight size={14} aria-hidden="true" className="text-mute dark:text-mute-dark shrink-0" />
       )}
     </div>
+  )
+
+  const body = (
+    <>
+      {inner}
+      {stats?.p50_min != null && (
+        <div className="px-3 pb-2 -mt-0.5">
+          <ArrivalDistributionBar
+            p10Min={stats.p10_min}
+            p50Min={stats.p50_min}
+            p90Min={stats.p90_min}
+            variant="mini"
+          />
+        </div>
+      )}
+    </>
   )
 
   const starButton = (
@@ -182,7 +201,7 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
           className={`w-full text-left pressable ${wrapperBase}`}
           onClick={() => onTimetableClick(first.route_id, first.route_no, desc ? `${desc.origin} → ${desc.dest}` : first.destination)}
         >
-          {inner}
+          {body}
         </button>
         {starButton}
       </div>
@@ -191,7 +210,7 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
 
   return (
     <div data-route={first.route_no} className={wrapperBase}>
-      {inner}
+      {body}
       {starButton}
     </div>
   )
