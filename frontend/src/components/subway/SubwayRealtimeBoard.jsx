@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import useAppStore from '../../stores/useAppStore'
+import { nextTimetableSeconds } from '../../utils/trainTime'
 
 // arvlCd 0,1,3,4,5 → 임박 (빨간색)
 function isImminent(statusCode) {
@@ -14,6 +15,34 @@ function getStationCount(ordkey) {
   const countStr = ordkey.substring(2, 5)
   const count = parseInt(countStr, 10)
   return isNaN(count) ? null : count
+}
+
+/**
+ * recptn_dt(실시간 API 생성 시각) 또는 last_successful_realtime_at 기준 age(초).
+ * 3분(180s) 이상이면 stale로 간주한다.
+ */
+export function isRealtimeStale(reference) {
+  if (!reference) return false
+  const ms = new Date(reference).getTime()
+  if (Number.isNaN(ms)) return false
+  return (Date.now() - ms) >= 180_000
+}
+
+/**
+ * 시간표 모드 / 실시간 모드 양쪽에서 재사용하는 공통 stale 배지.
+ */
+export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
+  if (!reference) return null
+  const ms = new Date(reference).getTime()
+  if (Number.isNaN(ms)) return null
+  const ageMin = Math.floor((Date.now() - ms) / 60000)
+  if (ageMin < 3) return null
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 ${className}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+      {prefix}실시간 {ageMin}분 지연
+    </span>
+  )
 }
 
 // arvlCd에 따른 한국어 상태 레이블 (fallback용)
@@ -45,13 +74,19 @@ function formatSubtext(item) {
   return msg || statusLabel(status_code)
 }
 
-function ArrivalTime({ item }) {
+function ArrivalTime({ item, timetableTrains }) {
   const imminent = isImminent(item.status_code)
   const color = imminent ? '#dc2626' : item.color
 
-  // arrive_seconds를 초 단위 카운트다운으로 표시
+  // 실시간 arrive_seconds 우선. 없거나 0 이하면 시간표 fallback으로 계산.
+  const realtimeSecs = imminent ? null : item.arrive_seconds
+  const hasRealtimeSecs = typeof realtimeSecs === 'number' && realtimeSecs > 0
+  const timetableSecs = hasRealtimeSecs
+    ? null
+    : nextTimetableSeconds(timetableTrains)
+
   const { display, totalSeconds, isUrgent } = useSecondsCountdown(
-    imminent ? null : item.arrive_seconds
+    hasRealtimeSecs ? realtimeSecs : timetableSecs
   )
 
   // 임박 상태
@@ -82,9 +117,10 @@ function ArrivalTime({ item }) {
     )
   }
 
-  // arrive_seconds 있음 → MM:SS 카운트다운
+  // 실시간 또는 시간표 fallback 카운트다운
   if (totalSeconds != null && totalSeconds > 0) {
     const timerColor = isUrgent ? '#dc2626' : color
+    const sourceLabel = hasRealtimeSecs ? '후 도착' : '시간표 기준'
     if (isUrgent) {
       return (
         <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
@@ -101,24 +137,32 @@ function ArrivalTime({ item }) {
         >
           {display}
         </span>
-        <span className="text-[10px] text-slate-400 mt-0.5">후 도착</span>
+        <span className="text-[10px] text-slate-400 mt-0.5">{sourceLabel}</span>
       </div>
     )
   }
 
-  // arrive_seconds 없음 → N전 역 또는 "—"
-  const count = getStationCount(item)
+  // arrive_seconds도, 시간표도 없음 → N전 역 (실시간 ordkey만 활용)
+  const count = getStationCount(item.ordkey)
+  if (count) {
+    return (
+      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
+        <span className="text-xl font-black leading-none tabular-nums text-slate-700 dark:text-slate-300">
+          {count}
+        </span>
+        <span className="text-[10px] text-slate-400 mt-0.5">전 역</span>
+      </div>
+    )
+  }
   return (
     <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
-      <span className={`text-${count ? 'xl' : '2xl'} font-black leading-none tabular-nums ${count ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>
-        {count ? count : '—'}
-      </span>
-      <span className="text-[10px] text-slate-400 mt-0.5">{count ? '전 역' : '운행중'}</span>
+      <span className="text-2xl font-black leading-none tabular-nums text-slate-300 dark:text-slate-600">—</span>
+      <span className="text-[10px] text-slate-400 mt-0.5">운행중</span>
     </div>
   )
 }
 
-function RealtimeRow({ item, lastFetchedAt, onClick }) {
+function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
   const imminent = isImminent(item.status_code)
   const darkMode = useAppStore((s) => s.darkMode)
   const [secondsAgo, setSecondsAgo] = useState(0)
@@ -179,7 +223,10 @@ function RealtimeRow({ item, lastFetchedAt, onClick }) {
         </div>
       </div>
 
-      <ArrivalTime item={item} />
+      <ArrivalTime
+        item={item}
+        timetableTrains={timetableLookup?.(item.line, item.direction) ?? null}
+      />
       </div>
 
       {/* 하단 업데이트 시간 + 폴링 시간 (별도 행) */}
@@ -202,7 +249,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick }) {
   )
 }
 
-function Section({ lineName, color, items, lastFetchedAt, onRowClick }) {
+function Section({ lineName, color, items, lastFetchedAt, onRowClick, timetableLookup }) {
   if (items.length === 0) return null
   return (
     <div>
@@ -211,13 +258,28 @@ function Section({ lineName, color, items, lastFetchedAt, onRowClick }) {
         <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{lineName}</span>
       </div>
       {items.map((item) => (
-        <RealtimeRow key={item.train_no} item={item} lastFetchedAt={lastFetchedAt} onClick={onRowClick} />
+        <RealtimeRow
+          key={item.train_no}
+          item={item}
+          lastFetchedAt={lastFetchedAt}
+          onClick={onRowClick}
+          timetableLookup={timetableLookup}
+        />
       ))}
     </div>
   )
 }
 
-export default function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClick }) {
+/**
+ * @param {Array} arrivals  실시간 도착 목록
+ * @param {number|null} lastFetchedAt
+ * @param {Function} onRowClick
+ * @param {Function} [timetableLookup]  (lineName, direction) → trains[] | null
+ *                                       arrive_seconds 없을 때 fallback 카운트다운에 사용.
+ * @param {boolean} [stale]  envelope.stale: 직전 성공 응답을 fallback으로 보여주는 상태.
+ * @param {string|null} [lastSuccessfulRealtimeAt]  ISO8601 KST.
+ */
+export default function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClick, timetableLookup, stale, lastSuccessfulRealtimeAt }) {
   if (!arrivals || arrivals.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-slate-400 text-sm">
@@ -232,9 +294,17 @@ export default function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClic
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <Section lineName="4호선" color="#1B5FAD" items={line4} lastFetchedAt={lastFetchedAt} onRowClick={onRowClick} />
-      <Section lineName="수인분당선" color="#F5A623" items={suinbundang} lastFetchedAt={lastFetchedAt} onRowClick={onRowClick} />
-      <Section lineName="서해선" color="#75bf43" items={seohae} lastFetchedAt={lastFetchedAt} onRowClick={onRowClick} />
+      {(stale || isRealtimeStale(lastSuccessfulRealtimeAt)) && (
+        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60">
+          <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 leading-tight">
+            실시간 데이터가 {stale ? '잠시 끊겼습니다' : '지연되고 있습니다'}. 시간표 정보를 우선 확인하세요.
+          </p>
+        </div>
+      )}
+      <Section lineName="4호선" color="#1B5FAD" items={line4} lastFetchedAt={lastFetchedAt} onRowClick={onRowClick} timetableLookup={timetableLookup} />
+      <Section lineName="수인분당선" color="#F5A623" items={suinbundang} lastFetchedAt={lastFetchedAt} onRowClick={onRowClick} timetableLookup={timetableLookup} />
+      <Section lineName="서해선" color="#75bf43" items={seohae} lastFetchedAt={lastFetchedAt} onRowClick={onRowClick} timetableLookup={timetableLookup} />
     </div>
   )
 }

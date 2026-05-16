@@ -188,14 +188,28 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
   )
 }
 
-export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrain, lastFetchedAt, onTrainClick, stationName }) {
+/**
+ * @param {object} props
+ * @param {boolean} [props.demoted]  시간표 모드에서 보조 정보로 표시할 때 true.
+ *                                    배경/폰트가 dim 처리되고 "참고" 라벨이 붙는다.
+ * @param {boolean} [props.stale]     실시간 데이터가 3분 이상 지연됐거나 fallback인 상태.
+ * @param {string}  [props.staleSource]  stale 판정용 ISO8601 시각 (recptn_dt 또는 last_success).
+ */
+export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrain, lastFetchedAt, onTrainClick, stationName, demoted = false, stale = false, staleSource = null }) {
   const favKey = makeSubwayFavKey(lineName, stationName)
   const { isFavorite, toggle: toggleFav } = useFavorites(favKey)
   const upStatus = upTrain ? getStatusInfo(upTrain.status_code) : null
   const downStatus = downTrain ? getStatusInfo(downTrain.status_code) : null
-  
+
   const isUrgent = upStatus?.level === 'urgent' || downStatus?.level === 'urgent'
   const [secondsAgo, setSecondsAgo] = useState(0)
+
+  // staleSource(예: upTrain.recptn_dt or last_successful_realtime_at) 기준 age(분)
+  const staleRef = staleSource || upTrain?.recptn_dt || downTrain?.recptn_dt
+  const ageMin = staleRef
+    ? Math.floor((Date.now() - new Date(staleRef).getTime()) / 60000)
+    : 0
+  const isTimeStale = stale || ageMin >= 3
 
   useEffect(() => {
     if (!lastFetchedAt) return
@@ -205,19 +219,30 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
     return () => clearInterval(id)
   }, [lastFetchedAt])
 
+  // demoted: 시간표 모드의 보조 카드 → 옅은 배경 + 점선 보더 + dim
+  // urgent는 demoted여도 약한 강조 유지 (사용자가 임박 정보를 놓치지 않게)
+  const baseBorder = demoted
+    ? '1px dashed var(--tj-line)'
+    : (isUrgent ? '1px solid transparent' : '1px solid var(--tj-line)')
+  const baseBackground = demoted ? 'var(--tj-bg-mute, rgba(148,163,184,0.06))' : 'transparent'
+  const baseOpacity = demoted && isTimeStale ? 0.7 : 1
+  const titleColor = demoted ? 'var(--tj-mute)' : 'var(--tj-ink)'
+
   return (
     <div
       style={{
-        padding: '12px 14px',
+        padding: demoted ? '10px 12px' : '12px 14px',
         borderRadius: 12,
-        border: isUrgent ? '1px solid transparent' : '1px solid var(--tj-line)',
-        background: 'transparent',
-        boxShadow: isUrgent ? '0 0 0 1.5px var(--tj-accent) inset' : 'none',
+        border: baseBorder,
+        background: baseBackground,
+        boxShadow: !demoted && isUrgent ? '0 0 0 1.5px var(--tj-accent) inset' : 'none',
         fontVariantNumeric: 'tabular-nums',
         position: 'relative',
+        opacity: baseOpacity,
+        transition: 'opacity 0.2s',
       }}
     >
-      {favKey && (
+      {favKey && !demoted && (
         <button
           type="button"
           onClick={(e) => {
@@ -235,22 +260,29 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
           />
         </button>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: demoted ? 8 : 10, flexWrap: 'wrap' }}>
         <span
           style={{
-            width: 22, height: 22, borderRadius: 999, background: color,
+            width: demoted ? 18 : 22, height: demoted ? 18 : 22, borderRadius: 999, background: color,
             color: '#fff', display: 'inline-flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 11, fontWeight: 900,
+            justifyContent: 'center', fontSize: demoted ? 10 : 11, fontWeight: 900,
             flexShrink: 0, lineHeight: 1,
+            opacity: demoted ? 0.85 : 1,
           }}
         >
           {symbol}
         </span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tj-ink)' }}>
+        <span style={{ fontSize: demoted ? 12 : 13, fontWeight: demoted ? 700 : 800, color: titleColor }}>
           {lineName}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--tj-mute)', fontWeight: 600 }}>
-          실시간 (베타)
+        {isTimeStale ? (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 ml-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            {stale ? '실시간 일시 끊김' : `${ageMin}분 지연`}
+          </span>
+        ) : null}
+        <span style={{ marginLeft: 'auto', fontSize: demoted ? 10 : 11, color: 'var(--tj-mute)', fontWeight: 600 }}>
+          {demoted ? '참고 · 실시간 (베타)' : '실시간 (베타)'}
         </span>
       </div>
 

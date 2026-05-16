@@ -14,7 +14,7 @@ import { CrowdedBadge } from '../bus/BusArrivalCard'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
-import { useSubwayNext, useSubwayTimetable, useSubwayRealtime } from '../../hooks/useSubway'
+import { useSubwayNext, useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
 import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
@@ -307,7 +307,8 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
   const { data, loading } = useSubwayNext()
   const { data: timetable } = useSubwayTimetable()
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
-  const realtimeArrivals = realtimeAll?.[stationGroup] ?? null
+  // 백엔드 envelope({items, stale, last_successful_realtime_at})를 정규화.
+  const { items: realtimeArrivals } = normalizeRealtimeStation(realtimeAll?.[stationGroup])
   const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
   const didAutoSwitchRef = useRef(false)
@@ -317,7 +318,7 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
   useEffect(() => { didAutoSwitchRef.current = false }, [stationGroup])
 
   useEffect(() => {
-    if (!realtimeLoading && realtimeArrivals !== null) {
+    if (!realtimeLoading) {
       if (realtimeArrivals.length === 0 && !didAutoSwitchRef.current) {
         didAutoSwitchRef.current = true
         setDataMode?.('timetable')

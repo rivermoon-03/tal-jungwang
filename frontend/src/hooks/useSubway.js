@@ -27,3 +27,24 @@ export function useSubwayRealtime() {
   )
   return { data: ticked, loading, error, fetchedAt, refetch }
 }
+
+/**
+ * 실시간 응답을 envelope({items, stale, last_successful_realtime_at})
+ * 또는 레거시 배열 둘 다에서 받아, 일관된 형태로 정규화.
+ *
+ * @param {object|array|null} stationPayload
+ * @returns {{items: array, stale: boolean, lastSuccessfulRealtimeAt: string|null}}
+ */
+export function normalizeRealtimeStation(stationPayload) {
+  if (!stationPayload) {
+    return { items: [], stale: false, lastSuccessfulRealtimeAt: null }
+  }
+  if (Array.isArray(stationPayload)) {
+    return { items: stationPayload, stale: false, lastSuccessfulRealtimeAt: null }
+  }
+  return {
+    items: Array.isArray(stationPayload.items) ? stationPayload.items : [],
+    stale: Boolean(stationPayload.stale),
+    lastSuccessfulRealtimeAt: stationPayload.last_successful_realtime_at ?? null,
+  }
+}

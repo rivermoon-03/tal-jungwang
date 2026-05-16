@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import useAppStore from '../../stores/useAppStore'
-import { useSubwayNext, useSubwayRealtime } from '../../hooks/useSubway'
+import { useSubwayNext, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
 import { useApi } from '../../hooks/useApi'
 import Skeleton from '../common/Skeleton'
 import ErrorState from '../common/ErrorState'
@@ -38,7 +38,8 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
   const { data, loading, error, refetch } = useSubwayNext()
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
-  const realtimeArrivals = realtimeAll?.[selectedStation] ?? null
+  // envelope({items, stale, last_successful_realtime_at})에서 items만 추출.
+  const { items: realtimeArrivals } = normalizeRealtimeStation(realtimeAll?.[selectedStation])
 
   const lines = STATION_LINES[selectedStation] ?? []
 
