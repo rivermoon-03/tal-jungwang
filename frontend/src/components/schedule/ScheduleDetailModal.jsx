@@ -297,8 +297,12 @@ function ShuttleContent({ direction, accentColor }) {
   const fallbackDate = weekend ? nextWeekdayDateStr() : null
   const fallback = useShuttleSchedule(undefined, fallbackDate, { enabled: weekend })
 
-  const todayEmpty = !today.loading && (today.error || !today.data || (today.data.directions ?? []).length === 0)
-  const fallbackHasData = !!(fallback.data && (fallback.data.directions ?? []).length > 0)
+  // 요청한 direction에 시간 데이터가 있는지로 todayEmpty 판정.
+  // (백엔드 응답의 directions 배열에는 다른 방향 데이터가 있을 수 있어서
+  //  단순 length 체크로는 본캠 0번이 비었는데도 2캠 2번 데이터 때문에 폴백이 안 켜졌음.)
+  const findDirTimes = (apiData) => apiData?.directions?.find((d) => d.direction === direction)?.times ?? []
+  const todayEmpty = !today.loading && (today.error || findDirTimes(today.data).length === 0)
+  const fallbackHasData = findDirTimes(fallback.data).length > 0
   const usingFallback = weekend && todayEmpty && fallbackHasData
 
   const data = usingFallback ? fallback.data : today.data
