@@ -274,13 +274,41 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
   )
 }
 
+// 셔틀이 주말·공휴일에 빈 응답이면 다음 평일(월~금) 시간표를 폴백으로 보여줌.
+function isWeekend(d = new Date()) {
+  const day = d.getDay()
+  return day === 0 || day === 6
+}
+
+function nextWeekdayDateStr() {
+  const d = new Date()
+  const day = d.getDay()
+  const offset = day === 0 ? 1 : day === 6 ? 2 : 0
+  d.setDate(d.getDate() + offset)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function ShuttleContent({ direction, accentColor }) {
   // 등교 회차편의 하교 출발 시각 판정을 위해 양 방향을 한 번에 조회.
   // (direction 쿼리를 생략하면 백엔드가 양 방향을 함께 반환 — 로딩 경합 제거)
-  const { data, loading, error } = useShuttleSchedule()
+  const today = useShuttleSchedule()
+  // 주말이면 다음 평일 시간표를 폴백으로 fetch.
+  const weekend = isWeekend()
+  const fallbackDate = weekend ? nextWeekdayDateStr() : null
+  const fallback = useShuttleSchedule(undefined, fallbackDate, { enabled: weekend })
+
+  const todayEmpty = !today.loading && (today.error || !today.data || (today.data.directions ?? []).length === 0)
+  const fallbackHasData = !!(fallback.data && (fallback.data.directions ?? []).length > 0)
+  const usingFallback = weekend && todayEmpty && fallbackHasData
+
+  const data = usingFallback ? fallback.data : today.data
+  const loading = today.loading || (usingFallback && fallback.loading)
+  const error = today.error && (!weekend || fallback.error)
+
   const nextRef = useRef(null)
   const now = new Date()
-  const nowStr = toHHMM(now)
+  // 폴백 모드: 평일 시간표 전체를 보여주기 위해 모든 시각을 "미래"로 취급.
+  const nowStr = usingFallback ? '00:00' : toHHMM(now)
   const dirData = data?.directions?.find((d) => d.direction === direction)
   const times = dirData?.times ?? []
 
@@ -383,15 +411,28 @@ function ShuttleContent({ direction, accentColor }) {
 
   return (
     <div className="flex flex-col gap-2">
-      {data?.schedule_name && (
-        <p className="text-xs text-slate-400 mb-1">
+      {usingFallback && (
+        <div className="flex items-start gap-2.5 px-3.5 py-2.5 mb-1 bg-chip-yellow-bg dark:bg-chip-yellow-bg-dark rounded-mini">
+          <span className="text-base leading-none mt-0.5">🛈</span>
+          <div className="text-meta font-semibold text-chip-yellow-fg dark:text-chip-yellow-fg-dark leading-relaxed">
+            <span className="font-extrabold">평일 기준 시간표</span>입니다.<br />주말·공휴일에는 셔틀이 운행하지 않습니다.
+          </div>
+        </div>
+      )}
+      {data?.schedule_name && !usingFallback && (
+        <p className="text-meta font-semibold text-mute dark:text-mute-dark mb-1">
           {data.schedule_name} · 총 {times.length}회 · 남은 {future.length}회
+        </p>
+      )}
+      {data?.schedule_name && usingFallback && (
+        <p className="text-meta font-semibold text-mute dark:text-mute-dark mb-1">
+          {data.schedule_name} · 총 {times.length}회
         </p>
       )}
       {allDone ? (
         <>
           <div className="flex items-center gap-2 px-1 mb-1">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+            <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full">
               금일 운행 종료
             </span>
           </div>
