@@ -1,15 +1,16 @@
-import { Fragment } from 'react'
-import { ChevronRight, Star } from 'lucide-react'
-import { getRouteCardDisplay, ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
+import { Star } from 'lucide-react'
+import {
+  getRouteDisplayConfig,
+  getRouteCategory,
+  getRoutePath,
+} from '../dashboard/busStationConfig'
 import useFavorites from '../../hooks/useFavorites'
 import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
 import { realtimeSecToMinutes } from './busArrivalDisplay'
-import RouteChip from '../common/RouteChip'
-import SlotNumber from '../common/SlotNumber'
-import ArrivalDistributionBar from './ArrivalDistributionBar'
+import MiniTrack from './MiniTrack'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Exports kept for compatibility with other components (Dashboard ArrivalRow, etc.)
+// CrowdedBadge / RouteProgressStrip — 외부 호환을 위해 유지
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CROWDED_META = {
@@ -23,43 +24,31 @@ export function CrowdedBadge({ level }) {
   const meta = CROWDED_META[level]
   if (!meta) return null
   return (
-    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-chip ${meta.cls}`}>
+    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${meta.cls}`}>
       {meta.label}
     </span>
   )
 }
 
-// 노선 경유 진행 표시 바 — 기존 사용처(ArrivalRow 등) 호환 유지
-export function RouteProgressStrip({ routeNo, stationId, hasArrival }) {
-  const waypoints = ROUTE_WAYPOINTS[routeNo]
-  if (!waypoints) return null
+// Legacy export — RouteProgressStrip은 다른 컴포넌트(ArrivalRow 등)가 import할 수 있어 호환만 유지.
+// v5 카드는 MiniTrack을 사용한다.
+export function RouteProgressStrip() {
+  return null
+}
 
-  const activeSegIdx = hasArrival ? waypoints.findIndex((w) => w.id === stationId) : -1
+// ─────────────────────────────────────────────────────────────────────────────
+// chip · 카테고리 컬러
+// ─────────────────────────────────────────────────────────────────────────────
 
-  return (
-    <div className="px-4 pb-3">
-      <div className="flex items-start">
-        <div className="mt-[6px] w-3 shrink-0 h-px bg-line dark:bg-line-dark" />
-        {waypoints.map((wp, i) => (
-          <Fragment key={wp.id}>
-            <div className="relative flex-1 flex items-center mt-[6px]">
-              <div className={`w-full h-px ${activeSegIdx === i ? 'bg-accent' : 'bg-line dark:bg-line-dark'}`} />
-              {activeSegIdx === i && (
-                <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-accent shadow" />
-              )}
-            </div>
-            <div className="flex flex-col items-center shrink-0">
-              <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-accent bg-surface dark:bg-surface-dark' : 'border-mute-2 dark:border-mute-2-dark bg-surface dark:bg-surface-dark-alt'}`} />
-              <span className={`text-[9px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute-dark'}`}>
-                {wp.label}
-              </span>
-            </div>
-          </Fragment>
-        ))}
-        <div className="flex-1 mt-[6px] h-px bg-line dark:bg-line-dark" />
-      </div>
-    </div>
-  )
+const CHIP_BG = {
+  express: 'bg-line-express',
+  trunk:   'bg-line-201',
+  local:   'bg-line-33',
+}
+const FROM_COLOR = {
+  express: 'text-line-express',
+  trunk:   'text-line-201',
+  local:   'text-line-33',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,11 +63,6 @@ function secondsUntil(timeStr, isTomorrow = false) {
   return Math.floor((target - now) / 1000)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 새 디자인: 단일 row 카드. 노선 chip + dest + 큰 ETA + 작은 sub.
-// 2번째/3번째 ETA, 평균 간격, route progress strip은 카드에서 제거 (상세 sheet로 이동).
-// ─────────────────────────────────────────────────────────────────────────────
-
 function computeDisplay(arrivals) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
@@ -89,7 +73,6 @@ function computeDisplay(arrivals) {
   if (shown.length === 0) {
     return { etaValue: '—', etaSub: null, imminent: false, stats: null }
   }
-
   if (isTimetable) {
     const a0 = shown[0]
     if (a0.is_tomorrow) {
@@ -103,8 +86,6 @@ function computeDisplay(arrivals) {
     const sub = shown[1]?.depart_at ? `다음 ${shown[1].depart_at}` : a0.depart_at
     return { etaValue: min, etaSub: sub, imminent: false, stats: null }
   }
-
-  // realtime
   const stats = arrivals[0]?.stats ?? null
   const sec0 = shown[0].arrive_in_seconds ?? 0
   if (sec0 < IMMINENT_THRESHOLD_SEC) {
@@ -121,56 +102,107 @@ function computeDisplay(arrivals) {
   return { etaValue: min0, etaSub: sub, imminent: false, stats }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 카드
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
-  const desc = getRouteCardDisplay(first.route_no, first.category)
-  const destination = desc ? desc.dest : first.destination
+  const cfg = getRouteDisplayConfig(first.route_no)
+  const category = cfg?.category ?? getRouteCategory(first.route_no)
+  const path = getRoutePath(first.route_no, first.category) ?? null
 
-  const { etaValue, etaSub, imminent, stats } = computeDisplay(arrivals)
+  const origin = path?.origin ?? first.origin ?? ''
+  const waypoints = path?.waypoints ?? []
+  const terminus = path?.terminus ?? first.destination ?? ''
+  const headLabel = path?.label ?? `${first.destination ?? ''}행`
+
+  const { etaValue, etaSub, imminent } = computeDisplay(arrivals)
   const crowdedLevel = !isTimetable ? arrivals[0]?.crowded : 0
 
   const favKey = first.route_no
   const { isFavorite, toggle: toggleFav } = useFavorites(favKey)
-  const isClickable = isTimetable || !!ROUTE_WAYPOINTS[first.route_no]
 
-  const inner = (
-    <div className="flex items-center gap-2.5 px-3 py-[9px]">
-      <RouteChip route={first.route_no} />
-      <div className="flex-1 min-w-0 flex items-center gap-1.5">
-        <span className="block truncate text-dest-mob md:text-dest text-text dark:text-text-dark">
-          {destination}
-        </span>
-        {crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
+  // 정보 없음 상태 — 트랙 / from-line 회색 처리
+  const muted = etaValue === '—'
+
+  const chipBg = CHIP_BG[category] ?? CHIP_BG.local
+  const fromCol = FROM_COLOR[category] ?? FROM_COLOR.local
+
+  const wrapperBase =
+    'relative rounded-card bg-surface shadow-card dark:bg-surface-dark dark:border dark:border-line-dark dark:shadow-none'
+
+  const content = (
+    <div className="flex items-center gap-[14px] px-[18px] pt-[14px] pb-4">
+      {/* chip */}
+      <span
+        data-route-chip
+        className={`shrink-0 h-8 min-w-[60px] px-2.5 inline-flex items-center justify-center rounded-[9px] text-white text-[13px] font-extrabold tracking-[-.01em] tabular-nums shadow-[inset_0_-2px_0_rgba(0,0,0,.08)] ${chipBg}`}
+      >
+        {first.route_no}
+      </span>
+
+      {/* body */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-1.5 leading-none mb-0.5">
+          <span className={`text-[12px] font-extrabold tracking-[-.005em] ${muted ? 'text-mute-2 dark:text-mute-2-dark' : fromCol}`}>
+            {origin}
+          </span>
+          <span className="text-[9.5px] font-bold uppercase tracking-[.04em] text-mute dark:text-mute-dark">
+            에서 출발
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 leading-tight">
+          <span className={`truncate text-[15px] font-extrabold tracking-[-.01em] ${muted ? 'text-text-2 dark:text-mute-dark' : 'text-ink dark:text-ink-dark'}`}>
+            {headLabel}
+          </span>
+          {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
+          {isTimetable && (
+            <span className="text-[10px] font-bold uppercase tracking-[.06em] text-mute dark:text-mute-dark">
+              {first.depart_at ?? ''}
+            </span>
+          )}
+        </div>
+
+        <MiniTrack
+          origin={origin}
+          waypoints={waypoints}
+          terminus={terminus}
+          category={category}
+          muted={muted}
+        />
       </div>
-      <span className="text-right whitespace-nowrap shrink-0">
-        <Eta value={etaValue} imminent={imminent} />
-        {etaSub && (
-          <span className="block mt-[1px] text-[9px] font-medium text-mute dark:text-mute-dark tabular-nums">
+
+      {/* eta */}
+      <span
+        data-eta
+        className={`text-right shrink-0 leading-none tabular-nums ${imminent ? 'imminent' : ''}`}
+      >
+        <span className="inline-flex items-baseline">
+          <span
+            className={`font-black tracking-[-.05em] ${
+              imminent
+                ? 'text-imminent dark:text-imminent-dark text-[30px]'
+                : muted
+                ? 'text-mute-2 dark:text-mute-2-dark font-extrabold text-[24px]'
+                : 'text-ink dark:text-ink-dark text-[30px]'
+            }`}
+          >
+            {etaValue}
+          </span>
+          {typeof etaValue === 'number' && (
+            <span className={`ml-[2px] text-[11px] font-extrabold ${imminent ? 'text-imminent dark:text-imminent-dark opacity-70' : 'text-mute dark:text-mute-dark'}`}>분</span>
+          )}
+        </span>
+        {etaSub && !muted && (
+          <span className="block mt-[5px] text-[10px] font-semibold text-mute dark:text-mute-dark tracking-[-.005em]">
             {etaSub}
           </span>
         )}
       </span>
-      {isClickable && (
-        <ChevronRight size={14} aria-hidden="true" className="text-mute dark:text-mute-dark shrink-0" />
-      )}
     </div>
-  )
-
-  const body = (
-    <>
-      {inner}
-      {stats?.p50_min != null && (
-        <div className="px-3 pb-2 -mt-0.5">
-          <ArrivalDistributionBar
-            p10Min={stats.p10_min}
-            p50Min={stats.p50_min}
-            p90Min={stats.p90_min}
-            variant="mini"
-          />
-        </div>
-      )}
-    </>
   )
 
   const starButton = (
@@ -191,57 +223,15 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
     </button>
   )
 
-  const wrapperBase =
-    'relative rounded-card bg-surface shadow-card dark:bg-surface-dark dark:border dark:border-line-dark dark:shadow-none'
-
-  if (isClickable) {
-    return (
-      <div data-route={first.route_no} className="relative">
-        <button
-          className={`w-full text-left pressable ${wrapperBase}`}
-          onClick={() => onTimetableClick(first.route_id, first.route_no, desc ? `${desc.origin} → ${desc.dest}` : first.destination)}
-        >
-          {body}
-        </button>
-        {starButton}
-      </div>
-    )
-  }
-
   return (
-    <div data-route={first.route_no} className={wrapperBase}>
-      {body}
+    <div data-route={first.route_no} className="relative">
+      <button
+        className={`w-full text-left pressable ${wrapperBase}`}
+        onClick={() => onTimetableClick && onTimetableClick(first.route_id, first.route_no, path ? `${origin} → ${terminus}` : (first.destination ?? ''))}
+      >
+        {content}
+      </button>
       {starButton}
     </div>
-  )
-}
-
-function Eta({ value, imminent }) {
-  const isText = typeof value === 'string' && !/^\d+$/.test(value)
-  const baseCls = `inline-flex items-baseline font-black leading-none tracking-[-0.03em] tabular-nums text-eta-mob md:text-eta-pc ${
-    imminent
-      ? 'text-imminent dark:text-imminent-dark'
-      : 'text-ink dark:text-white'
-  }`
-  if (isText) {
-    return (
-      <span className={baseCls}>
-        <span className={imminent ? 'relative inline-block' : 'inline-block'}>
-          {value}
-          {imminent && (
-            <span
-              aria-hidden="true"
-              className="absolute -inset-2 rounded-[14px] pointer-events-none animate-halo-pulse dark:animate-halo-pulse-dark"
-            />
-          )}
-        </span>
-      </span>
-    )
-  }
-  return (
-    <span className={baseCls}>
-      <SlotNumber value={value} />
-      <span className="ml-[1px] text-[10px] font-bold text-mute dark:text-mute-dark">분</span>
-    </span>
   )
 }
