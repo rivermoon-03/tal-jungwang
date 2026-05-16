@@ -131,16 +131,8 @@ export default function ScheduleSection({
               )}
               {!disabled && !loading && testBadge && (
                 <span
-                  style={{
-                    fontSize: 9,
-                    padding: '1px 5px',
-                    borderRadius: 4,
-                    fontWeight: 700,
-                    background: 'rgba(37, 99, 235, 0.12)',
-                    color: '#2563eb',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
+                  className="text-[9px] font-bold whitespace-nowrap flex-shrink-0 bg-chip-blue-bg dark:bg-chip-blue-bg-dark text-chip-blue-fg dark:text-chip-blue-fg-dark"
+                  style={{ padding: '1px 5px', borderRadius: 4 }}
                   title="베타 중인 기능입니다. 정확성이 떨어지니 참고용으로만 사용해 주세요"
                 >
                   베타
@@ -148,16 +140,8 @@ export default function ScheduleSection({
               )}
               {!disabled && !loading && lastBus && (
                 <span
-                  style={{
-                    fontSize: 9,
-                    padding: '1px 5px',
-                    borderRadius: 4,
-                    fontWeight: 700,
-                    background: 'rgba(220, 38, 38, 0.12)',
-                    color: '#dc2626',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
+                  className="text-[9px] font-bold whitespace-nowrap flex-shrink-0 bg-chip-red-bg dark:bg-chip-red-bg-dark text-chip-red-fg dark:text-chip-red-fg-dark"
+                  style={{ padding: '1px 5px', borderRadius: 4 }}
                 >
                   막차
                 </span>
@@ -172,14 +156,10 @@ export default function ScheduleSection({
               <span style={{ color: 'var(--tj-mute-2)', fontWeight: 600 }}>오늘 버스가 끊겼어요</span>
             ) : realtimeOnly ? (
               <span
+                className="inline-flex items-center font-extrabold bg-chip-blue-bg dark:bg-chip-blue-bg-dark text-chip-blue-fg dark:text-chip-blue-fg-dark"
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
                   padding: '1.5px 7px',
                   borderRadius: 999,
-                  background: 'rgba(37, 99, 235, 0.12)',
-                  color: '#2563eb',
-                  fontWeight: 800,
                   fontSize: 10,
                   letterSpacing: '0.04em',
                 }}
