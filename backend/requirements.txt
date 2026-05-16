@@ -15,5 +15,6 @@ chardet>=5.2.0
 apscheduler>=3.10.0
 openpyxl>=3.1.0
 prometheus-fastapi-instrumentator>=7.0.0
+holidays>=0.50
 pytest>=7.0.0
 pytest-asyncio>=0.21.0

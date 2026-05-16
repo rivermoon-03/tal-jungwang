@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SubwayTime(BaseModel):
@@ -8,8 +8,10 @@ class SubwayTime(BaseModel):
 
 class SubwayTimetableResponse(BaseModel):
     station: str
-    day_type: str  # weekday | saturday | sunday
+    day_type: str  # weekday | saturday | sunday (공휴일은 sunday 로 매핑)
     updated_at: str | None
+    is_holiday: bool = Field(default=False)
+    holiday_name: str | None = Field(default=None)
     up: list[SubwayTime]          # 수인분당선 상행 (왕십리)
     down: list[SubwayTime]        # 수인분당선 하행 (인천)
     line4_up: list[SubwayTime]    # 4호선 상행 (당고개/진접)
