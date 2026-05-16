@@ -15,7 +15,7 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
     : Math.max(0, entries.length - 2)
 
   return (
-    <ul className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-28 md:pb-0">
+    <ul className="flex-1 overflow-y-auto bg-surface dark:bg-bg-dark pb-28 md:pb-0">
       {entries.slice(startIdx).map((train, di) => {
         const i = di + startIdx
         const isPast = timeToMinutes(train.depart_at) <= nowMin
@@ -23,23 +23,25 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
         const isLast  = i === lastIdx
         const isFirst = i === firstIdx
         const diffMin = Math.round(timeToMinutes(train.depart_at) - nowMin)
+        const accent = darkMode ? (lineDarkColor ?? lineColor) : lineColor
 
         return (
           <li
             key={i}
-            className={`flex items-center px-5 py-3 border-b border-slate-100 dark:border-slate-800
+            className={`relative flex items-center px-5 py-3.5 border-b border-line dark:border-line-dark
               ${isPast ? 'opacity-35 pointer-events-none' : ''}`}
             style={isNext ? { backgroundColor: darkMode ? 'rgba(30,41,59,0.8)' : lineLightColor } : {}}
           >
+            {isNext && (
+              <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: accent }} />
+            )}
             <span
-              className="time-num text-lg font-semibold min-w-[56px]"
-              style={isNext ? { color: darkMode ? (lineDarkColor ?? lineColor) : lineColor } : undefined}
+              className={`tabular-nums min-w-[60px] tracking-tight ${isNext ? 'text-eta-mob font-black' : 'text-eta-mob font-bold text-ink dark:text-ink-dark'}`}
+              style={isNext ? { color: accent } : undefined}
             >
-              <span className={!isNext ? 'text-slate-800 dark:text-slate-200' : ''}>
-                {train.depart_at}
-              </span>
+              {train.depart_at}
             </span>
-            <span className="flex-1 text-base text-slate-500 dark:text-slate-400 ml-3">{train.destination}행</span>
+            <span className={`flex-1 text-meta font-medium ml-3 ${isNext ? 'text-text dark:text-text-dark font-bold' : 'text-mute dark:text-mute-dark'}`}>{train.destination}행</span>
             <div className="flex items-center gap-1.5">
               {isLast && (
                 <span className="text-micro font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
@@ -52,7 +54,7 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
                 </span>
               )}
               {isNext && (
-                <span className="text-base font-bold" style={{ color: darkMode ? (lineDarkColor ?? lineColor) : lineColor }}>
+                <span className="text-panel-ttl tracking-tight" style={{ color: accent }}>
                   {diffMin}분 후
                 </span>
               )}
