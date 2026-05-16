@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ShuttleTime(BaseModel):
@@ -16,6 +16,8 @@ class ShuttleScheduleResponse(BaseModel):
     schedule_name: str
     valid_from: str  # "YYYY-MM-DD"
     valid_until: str  # "YYYY-MM-DD"
+    is_holiday: bool = Field(default=False)
+    holiday_name: str | None = Field(default=None)
     directions: list[ShuttleDirection]
 
 

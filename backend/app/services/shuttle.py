@@ -4,20 +4,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_cached_json, set_cached_json
+from app.core.calendar import get_day_type, get_holiday_name, is_holiday
 from app.models.shuttle import SchedulePeriod, ShuttleRoute, ShuttleTimetableEntry
 
 _PERIOD_TTL = 3600       # 1시간 — 운행 기간은 자주 안 바뀜
 _SCHEDULE_TTL = 3600     # 1시간
 _ENTRIES_TTL = 3600      # 1시간
-
-
-def _day_type(d: date) -> str:
-    wd = d.weekday()
-    if wd < 5:
-        return "weekday"
-    if wd == 5:
-        return "saturday"
-    return "sunday"
 
 
 async def _load_period(db: AsyncSession, d: date) -> dict | None:
@@ -95,7 +87,7 @@ async def get_schedule(
     if not period:
         return None
 
-    day = _day_type(d)
+    day = get_day_type(d)
     entries = await _load_entries(db, period["id"], day)
 
     directions_map: dict[int, list[dict]] = {}
@@ -112,6 +104,8 @@ async def get_schedule(
         "schedule_name": period["name"],
         "valid_from": period["start_date"],
         "valid_until": period["end_date"],
+        "is_holiday": is_holiday(d),
+        "holiday_name": get_holiday_name(d),
         "directions": [
             {"direction": dir_key, "times": times}
             for dir_key, times in directions_map.items()
@@ -126,7 +120,7 @@ async def get_next(
     if not period:
         return None
 
-    day = _day_type(d)
+    day = get_day_type(d)
     entries = await _load_entries(db, period["id"], day)
 
     now_str = now_time.strftime("%H:%M:%S")

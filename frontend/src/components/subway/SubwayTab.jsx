@@ -7,6 +7,7 @@ import SubwayCountdown from './SubwayCountdown'
 import SubwayTimetable from './SubwayTimetable'
 import SubwayRealtimeBoard from './SubwayRealtimeBoard'
 import { RealtimeCompactCard } from './SubwayRealtimeCard'
+import HolidayBanner from '../common/HolidayBanner'
 import { getLastTrainStatus, getSpecialTrainIndices } from '../../utils/trainTime'
 
 function timeToMinutes(t) {
@@ -425,7 +426,11 @@ export default function SubwayTab() {
         <div className="flex-1 flex items-center justify-center"><p className="text-base text-slate-400">불러오는 중...</p></div>
       ) : (
         <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
-          {/* 시간표 = Primary. 위에 막차 임박 배너 → 큰 시간표 카드들 */}
+          {/* 시간표 = Primary. 위에 공휴일 안내 → 막차 임박 배너 → 큰 시간표 카드들 */}
+          <HolidayBanner
+            isHoliday={Boolean(timetable?.is_holiday)}
+            holidayName={timetable?.holiday_name ?? null}
+          />
           <LastTrainBanner warnings={lastTrainWarnings} />
           <div className="p-4 flex flex-col gap-3">
             {activeGroup.cards.map((card) => {
