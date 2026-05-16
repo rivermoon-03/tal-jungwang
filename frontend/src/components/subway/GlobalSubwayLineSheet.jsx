@@ -40,9 +40,9 @@ export default function GlobalSubwayLineSheet() {
 
   return (
     <>
-      {/* 백드롭 (모바일만) */}
+      {/* 백드롭 (모바일만) — DetailSheet(시간표) 위에 올라와야 하므로 z-[110] */}
       <div
-        className="fixed inset-0 z-[90] md:hidden"
+        className="fixed inset-0 z-[110] md:hidden"
         style={{
           background: 'rgba(0,0,0,0.4)',
           opacity: visible ? 1 : 0,
@@ -53,9 +53,10 @@ export default function GlobalSubwayLineSheet() {
         aria-hidden="true"
       />
 
-      {/* 시트 — 모바일: 하단 70vh. PC: 좌측 38%, 하단 dock 위 */}
+      {/* 시트 — 모바일: 하단 70vh. PC: 좌측 38%, 하단 dock 위.
+          GlobalSubwayDetailSheet(z-[100]) 위로 슬라이드 인 되어야 하므로 z-[120] */}
       <div
-        className="fixed bottom-0 left-0 right-0 h-[70vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[56px] md:top-0 z-[100] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-t-none md:rounded-r-card-pc md:border-r md:border-line dark:md:border-line-dark flex flex-col overflow-hidden"
+        className="fixed bottom-0 left-0 right-0 h-[70vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[56px] md:top-0 z-[120] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-t-none md:rounded-r-card-pc md:border-r md:border-line dark:md:border-line-dark flex flex-col overflow-hidden"
         style={{
           transform: visible
             ? 'translate(0, 0)'
@@ -68,7 +69,7 @@ export default function GlobalSubwayLineSheet() {
       >
         {/* 핸들 */}
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-600" />
+          <div className="w-11 h-1 rounded-full bg-mute-2 dark:bg-mute-2-dark" />
         </div>
 
         {/* 헤더 */}
