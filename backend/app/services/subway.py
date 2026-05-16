@@ -12,6 +12,18 @@ from app.models.subway import SubwayTimetableEntry
 _TIMETABLE_TTL = 43200  # 12시간 — 시간표는 하루 단위로 갱신
 
 
+def _subway_day_type(d: date) -> str:
+    """지하철 시간표용 day_type 매핑.
+
+    subway_timetable_entries 시드는 weekday/sunday 만 존재하고 saturday 행이 0건이라,
+    토요일도 sunday 시간표를 그대로 사용한다 (운영 합의된 quirk).
+    공용 ``get_day_type`` 은 표준 매핑(saturday → "saturday") 을 유지하고,
+    이 헬퍼에서만 saturday → sunday 로 다시 매핑한다.
+    """
+    day = get_day_type(d)
+    return "sunday" if day == "saturday" else day
+
+
 async def _load_entries(db: AsyncSession, day: str) -> list[dict]:
     """지하철 시간표 엔트리를 Redis 캐시에서 읽거나 DB에서 로드 후 캐시."""
     cache_key = f"subway:entries:{day}"
@@ -43,7 +55,7 @@ async def _load_entries(db: AsyncSession, day: str) -> list[dict]:
 async def get_timetable(
     db: AsyncSession, d: date, direction: str | None = None
 ) -> dict:
-    day = get_day_type(d)
+    day = _subway_day_type(d)
     entries = await _load_entries(db, day)
 
     groups: dict[str, list[dict]] = {
@@ -79,7 +91,7 @@ async def get_timetable(
 
 
 async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
-    day = get_day_type(d)
+    day = _subway_day_type(d)
     entries = await _load_entries(db, day)
 
     directions = (
