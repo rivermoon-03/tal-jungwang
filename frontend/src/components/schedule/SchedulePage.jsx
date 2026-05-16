@@ -10,7 +10,7 @@ import PageHeader from '../layout/PageHeader'
 import SegmentTabs from '../common/SegmentTabs'
 import RouteBadge from '../common/RouteBadge'
 import Skeleton from '../common/Skeleton'
-import { CrowdedBadge } from '../bus/BusArrivalCard'
+import BusArrivalCard, { CrowdedBadge } from '../bus/BusArrivalCard'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
@@ -142,10 +142,6 @@ function withHaeng(label) {
 // ─── per-route bus section ───────────────────────────────────────────────────
 function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, onCardClick }) {
   const now = new Date()
-  const dest = busGroup === '하교' ? withHaeng(destLabel) : destLabel
-  const titleText = originLabel
-    ? (dest ? `${originLabel} 출발 · ${dest}` : `${originLabel} 출발`)
-    : (dest ?? routeCode)
 
   const stationId = isRealtime ? getGbisStationIdForRoute(routeCode) : null
   const { data: timetableByIdData, loading: timetableByIdLoading } = useBusTimetable(routeId ?? null)
@@ -155,61 +151,54 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
   )
   const timetableData = routeId != null ? timetableByIdData : timetableByRouteData
   const timetableLoading = routeId != null ? timetableByIdLoading : timetableByRouteLoading
-  const { data: arrivalsData, loading: arrivalsLoading } = useBusArrivals(stationId)
+  const { data: arrivalsData } = useBusArrivals(stationId)
+
+  // onClick adapter: BusArrivalCard의 onTimetableClick(route_id, route_no, label) →
+  // 기존 onCardClick({ type:'bus', ... }) 형태로 변환
+  const handleCardClick = (rid, rno, _lbl) => {
+    onCardClick({
+      type: 'bus',
+      routeCode: rno ?? routeCode,
+      routeId: rid ?? routeId,
+      stopId,
+      favCode: favCode ?? rno ?? routeCode,
+      mapLat,
+      mapLng,
+      isRealtime,
+      title: destLabel ? `${rno ?? routeCode} · ${destLabel}` : `${rno ?? routeCode}번 버스`,
+      accentColor: (['3400', '5200', '6502', '3401'].includes(rno ?? routeCode)) ? '#DC2626' : undefined,
+    })
+  }
 
   if (isRealtime) {
     const list = Array.isArray(arrivalsData) ? arrivalsData : arrivalsData?.arrivals ?? []
     const matches = list
       .filter((a) => a.route_no === routeCode && a.arrival_type === 'realtime')
       .sort((a, b) => (a.arrive_in_seconds ?? 0) - (b.arrive_in_seconds ?? 0))
-    const first = matches[0]
-    const second = matches[1]
-    const firstSec = first?.arrive_in_seconds ?? null
-    const secondSec = second?.arrive_in_seconds ?? null
-    const firstMin = firstSec != null ? Math.max(0, Math.round(firstSec / 60)) : null
-    const secondMin = secondSec != null ? Math.max(0, Math.round(secondSec / 60)) : null
 
-    let nextLabel
-    if (firstMin == null) {
-      nextLabel = null
-    } else if (firstSec != null && firstSec < 60) nextLabel = '곧 도착'
-    else nextLabel = { minutes: firstMin, hhmm: null }
+    // arrivals 어댑터: matches가 있으면 그대로, 없으면 muted placeholder 1개
+    const arrivals = matches.length > 0
+      ? matches
+      : [{
+          route_no: routeCode,
+          route_id: routeId,
+          destination: destLabel,
+          category: busGroup,
+          arrival_type: 'realtime',
+          // arrive_in_seconds 없음 → computeDisplay에서 etaValue='—'
+        }]
 
-    const afterNextLabel = secondMin == null
-      ? null
-      : secondSec != null && secondSec < 60
-        ? '곧 도착'
-        : { minutes: secondMin, hhmm: null }
-
-    const favKey = favCode ?? routeCode
     return (
-      <ScheduleSection
-        title={titleText}
-        subtitle={firstMin == null ? '정보 없음' : (first?.destination ? `실시간 · ${withHaeng(first.destination)}` : '실시간')}
-        type="bus"
-        routeCode={routeCode}
-        destLabel={null}
-        next={nextLabel}
-        afterNext={afterNextLabel}
-        minutesUntil={firstMin}
-        loading={arrivalsLoading && matches.length === 0}
-        crowded={first?.crowded ?? 0}
-        testBadge
-        onClick={() => onCardClick({
-          type: 'bus',
-          routeCode,
-          routeId,
-          stopId,
-          favCode: favKey,
-          mapLat,
-          mapLng,
-          isRealtime: true,
-          title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
-          accentColor: (['3400', '5200', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
-        })}
+      <BusArrivalCard
+        arrivals={arrivals}
+        stationId={stopId}
+        onTimetableClick={handleCardClick}
       />
     )
   }
+
+  const toStr = (d) =>
+    d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : null
 
   const allTimes = timetableData?.times ?? []
   const future = allTimes
@@ -227,64 +216,31 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
     .filter((d) => (d - now) < 12 * 60 * 60 * 1000)
     .sort((a, b) => a - b)
 
-  const toStr = (d) =>
-    d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : null
+  // arrivals 어댑터: future 배열에서 최대 2개 항목, 없으면 muted placeholder
+  const arrivals = future.length > 0
+    ? future.slice(0, 2).map((d) => ({
+        route_no: routeCode,
+        route_id: routeId,
+        destination: destLabel,
+        category: busGroup,
+        arrival_type: 'timetable',
+        depart_at: toStr(d),
+        is_tomorrow: d.getDate() !== now.getDate(),
+      }))
+    : [{
+        route_no: routeCode,
+        route_id: routeId,
+        destination: destLabel,
+        category: busGroup,
+        arrival_type: 'timetable',
+        // depart_at 없음 → computeDisplay에서 etaValue='—'
+      }]
 
-  const nextMin = !future[0] ? null : Math.round((future[0] - now) / 60000)
-  const _hour = now.getHours()
-  const isTomorrow = future[0] != null && future[0].getDate() !== now.getDate()
-  // 막차 지남 + 아직 자정 전(또는 새벽 5시 이후): 금일 종료
-  const isEndOfDay = isTomorrow && _hour >= 5
-  // 자정 ~ 새벽 4시: 첫차까지 카운트다운
-  const isLateNightGap = isTomorrow && _hour < 5
-
-  let nextStr, mins
-  if (isEndOfDay) {
-    nextStr = '금일 종료'
-    mins = null
-  } else if (isLateNightGap) {
-    nextStr = getFirstBusLabel(allTimes, now)
-    mins = nextMin
-  } else {
-    const hhmm = toStr(future[0])
-    nextStr = hhmm ? { minutes: nextMin, hhmm } : getFirstBusLabel(allTimes, now)
-    mins = nextMin
-  }
-  const secondHhmm = isEndOfDay ? toStr(future[0]) : toStr(future[1])
-  const secondMin = !isEndOfDay && future[1] ? Math.round((future[1] - now) / 60000) : null
-  const afterNextVal = secondHhmm
-    ? (secondMin != null ? { minutes: secondMin, hhmm: secondHhmm } : secondHhmm)
-    : null
-
-  // 지금 잡힌 버스가 오늘의 마지막 차인지
-  const isLastBus = !isEndOfDay && !isLateNightGap && future[0] != null &&
-    (future[1] == null || future[1].getDate() !== now.getDate())
-
-  const favKey = favCode ?? routeCode
   return (
-    <ScheduleSection
-      title={titleText}
-      subtitle={destLabel ? null : '버스'}
-      type="bus"
-      routeCode={routeCode}
-      destLabel={null}
-      next={nextStr}
-      afterNext={afterNextVal}
-      minutesUntil={mins}
-      endOfDay={isEndOfDay}
-      lastBus={isLastBus}
-      onClick={() => onCardClick({
-        type: 'bus',
-        routeCode,
-        routeId,
-        stopId,
-        favCode: favKey,
-        mapLat,
-        mapLng,
-        title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
-        accentColor: (['3400', '5200', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
-      })}
-      loading={timetableLoading}
+    <BusArrivalCard
+      arrivals={arrivals}
+      stationId={stopId}
+      onTimetableClick={handleCardClick}
     />
   )
 }
