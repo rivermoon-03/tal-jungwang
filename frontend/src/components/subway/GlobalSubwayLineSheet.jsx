@@ -38,6 +38,23 @@ export default function GlobalSubwayLineSheet() {
 
   const lineColor = displayed?.color ?? '#1B5FAD'
 
+  // trains 배열을 우선 사용. 없으면 legacy 단일 train 필드에서 합성.
+  const trainsList = Array.isArray(displayed?.trains) && displayed.trains.length > 0
+    ? displayed.trains
+    : (displayed?.current_station
+        ? [{
+            current_station: displayed.current_station,
+            destination: displayed.destination,
+            train_no: displayed.train_no,
+          }]
+        : [])
+  const uniqueDests = Array.from(new Set(trainsList.map((t) => t.destination).filter(Boolean)))
+  const headerLabel = displayed
+    ? (uniqueDests.length <= 1
+        ? `${displayed.line} · ${uniqueDests[0] ?? displayed.destination ?? ''} 방면`
+        : `${displayed.line} · ${displayed.direction}`)
+    : ''
+
   return (
     <>
       {/* 백드롭 (모바일만) — DetailSheet(시간표) 위에 올라와야 하므로 z-[110] */}
@@ -79,7 +96,7 @@ export default function GlobalSubwayLineSheet() {
         >
           <TrainFront size={18} strokeWidth={2} className="text-white flex-shrink-0" />
           <span className="flex-1 text-[15px] font-bold text-white truncate">
-            {displayed ? `${displayed.line} · ${displayed.destination} 방면` : ''}
+            {headerLabel}
           </span>
           <button
             onClick={handleClose}
@@ -96,6 +113,7 @@ export default function GlobalSubwayLineSheet() {
             <SubwayLineMap
               line={displayed.line}
               direction={displayed.direction}
+              trains={trainsList}
               currentStation={displayed.current_station}
               terminalStation={displayed.destination}
               color={lineColor}

@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { ChevronLeft, BusFront, MapPin, Clock } from 'lucide-react'
 import { useBusTimetable, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
-import { ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
+import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStationConfig'
 import { RouteProgressStrip } from './BusArrivalCard'
 import BusStatsHeader from './BusStatsHeader'
 
@@ -18,7 +18,9 @@ function timeToMinutes(t) {
 
 // 실시간 waypoint 노선 상세 뷰: route strip + 과거 도착 이력
 function RealtimeWaypointDetail({ routeNo, stationId }) {
-  const { data, loading } = useBusHistoryPreview(routeNo)
+  // 카드와 동일 GBIS 추적 정류장을 명시해 realtime_eta가 카드와 같은 stop을 보게 한다.
+  const trackedStopId = getGbisStationIdForRoute(routeNo)
+  const { data, loading } = useBusHistoryPreview(routeNo, trackedStopId)
   const columns = data?.columns ?? []
   const routeId = data?.route_id
   const stopId = data?.stop_id

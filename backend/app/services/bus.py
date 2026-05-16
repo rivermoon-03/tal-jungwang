@@ -51,7 +51,7 @@ async def _compute_avg_interval(
     day_type: str,
     hour: int,
 ) -> int | None:
-    """현재 시각 ±60분 윈도우의 bus_timetable_entries 기반 평균 배차 간격(분).
+    """현재 시각 ±120분 윈도우의 bus_timetable_entries 기반 평균 배차 간격(분).
 
     entries 수 < 3이면 None 반환 (통계적으로 불충분).
     결과는 Redis에 TTL 3600으로 캐시. None은 캐시하지 않음 (다음 갱신 때 재계산).
@@ -70,10 +70,10 @@ async def _compute_avg_interval(
         elif isinstance(cached, int):
             return cached
 
-    # ±60분 윈도우: (hour-1)시 00분 ~ (hour+1)시 59분
+    # ±120분 윈도우: (hour-2)시 00분 ~ (hour+2)시 59분
     # 자정 경계는 clamp (자정 이후 entries는 다음날 day_type이라 이 윈도우에서 제외)
-    lower_hour = max(0, hour - 1)
-    upper_hour = min(23, hour + 1)
+    lower_hour = max(0, hour - 2)
+    upper_hour = min(23, hour + 2)
     lower_bound = time(lower_hour, 0, 0)
     upper_bound = time(upper_hour, 59, 59)
 

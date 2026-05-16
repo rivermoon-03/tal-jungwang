@@ -75,7 +75,7 @@ export default function GlobalSubwayDetailSheet() {
   if (!displayed && !visible) return null
 
   // 현재 노선/방향에 해당하는 실시간 열차들 (envelope에서 items 추출)
-  const { items: stationArrivals } = normalizeRealtimeStation(realtimeAll?.[displayed.station])
+  const { items: stationArrivals, lastSuccessfulRealtimeAt } = normalizeRealtimeStation(realtimeAll?.[displayed.station])
   const directionArrivals = stationArrivals.filter(
     (a) => a.line === displayed.lineName && a.direction === displayed.direction
   )
@@ -132,10 +132,16 @@ export default function GlobalSubwayDetailSheet() {
             }
           }
 
+          // 데이터 freshness: per-train recptn_dt 우선, 없으면 envelope의 last_successful_realtime_at
+          const staleRef = rtTrain.recptn_dt || lastSuccessfulRealtimeAt
+          const staleMs = staleRef ? new Date(staleRef).getTime() : NaN
+          const ageMin = Number.isNaN(staleMs) ? null : Math.floor((Date.now() - staleMs) / 60_000)
+          const showStaleBadge = ageMin != null && ageMin >= 2
+
           return (
-            <div key={rtTrain.train_no || idx} className="rounded-card px-4 py-3.5 bg-surface-alt dark:bg-surface-dark-alt shadow-card">
-              {idx === 0 && <p className="text-meta font-black text-accent uppercase tracking-wider mb-2.5">이 열차 실시간</p>}
-              <div className="flex items-center justify-between gap-3">
+            <div key={rtTrain.train_no || idx} className="rounded-card px-4 py-2.5 bg-surface-alt dark:bg-surface-dark-alt shadow-card">
+              {idx === 0 && <p className="text-meta font-black text-accent uppercase tracking-wider mb-1.5">이 열차 실시간</p>}
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-panel-ttl text-ink dark:text-ink-dark">
@@ -144,25 +150,24 @@ export default function GlobalSubwayDetailSheet() {
                     {rtTrain.is_last_train && (
                       <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">막차</span>
                     )}
+                    {showStaleBadge && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        {ageMin}분 전 데이터
+                      </span>
+                    )}
                   </div>
                   <p className="text-meta font-medium text-mute dark:text-mute-dark mt-1">
                     {cleanMsg(rtTrain.status_msg) || ''}{rtTrain.location_msg ? ` · ${cleanMsg(rtTrain.location_msg)}` : ''}
                   </p>
                 </div>
                 <span
-                  className="text-eta-mob font-black tracking-tight whitespace-nowrap"
+                  className="text-eta-mob font-black tracking-tight whitespace-nowrap leading-none shrink-0"
                   style={{ color: isImminent ? '#e26a4d' : displayed.color }}
                 >
                   {etaLabel}
                 </span>
               </div>
-              <button
-                onClick={() => setSubwayLineSheet({ ...rtTrain, viewStation: displayed.station })}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 text-meta font-extrabold py-2.5 rounded-mini text-chip-blue-fg dark:text-chip-blue-fg-dark bg-chip-blue-bg dark:bg-chip-blue-bg-dark transition-colors pressable"
-              >
-                <Map size={14} />
-                노선도 보기
-              </button>
             </div>
           )
         })}
@@ -207,6 +212,27 @@ export default function GlobalSubwayDetailSheet() {
             </h2>
           </div>
           
+          {realtimeTrains.length > 0 && (
+            <button
+              onClick={() => setSubwayLineSheet({
+                line: displayed.lineName,
+                direction: displayed.direction,
+                color: displayed.color,
+                viewStation: displayed.station,
+                trains: realtimeTrains.map((t) => ({
+                  current_station: t.current_station,
+                  destination: t.destination,
+                  train_no: t.train_no,
+                })),
+              })}
+              aria-label="노선도 보기"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-black/20 text-white hover:bg-black/30 transition-all"
+            >
+              <Map size={12} />
+              <span>노선도</span>
+            </button>
+          )}
+
           <button
             onClick={handleManualRefresh}
             disabled={refreshCooldown > 0 || realtimeLoading}

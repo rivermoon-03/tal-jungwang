@@ -44,9 +44,16 @@ export function useBusTimetableByRoute(routeNumber, { stopId, requireStopId = fa
   })
 }
 
-export function useBusHistoryPreview(routeNumber) {
-  return useApi(routeNumber ? `/bus/history-preview/${routeNumber}` : null, {
+export function useBusHistoryPreview(routeNumber, stopId = null) {
+  // realtime_eta가 응답에 포함되므로 30초 폴링으로 카운트다운 흐름 유지.
+  // (useBusArrivals와 같은 30초 주기 — 백엔드 GBIS 폴링은 45초이므로 캐시 hit.)
+  //
+  // stopId: 카드와 동일한 정류장(GBIS 추적 정류장)을 명시해 realtime_eta가 같은 stop을 보게 한다.
+  // 미전달 시 backend가 bus_arrival_history 빈도로 추정하지만, 그 stop은 카드와 다를 수 있다.
+  const q = stopId != null ? `?stop_id=${encodeURIComponent(stopId)}` : ''
+  return useApi(routeNumber ? `/bus/history-preview/${routeNumber}${q}` : null, {
     enabled: routeNumber != null,
+    interval: 30_000,
   })
 }
 
