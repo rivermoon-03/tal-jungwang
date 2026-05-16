@@ -469,13 +469,17 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
   const fallbackDate = weekend ? nextWeekdayDateStr() : null
   const fallback = useShuttleSchedule(direction, fallbackDate, { enabled: weekend })
 
-  const todayEmpty = !today.loading && (today.error || !today.data || (today.data.directions ?? []).length === 0)
-  const fallbackHasData = !!(fallback.data && (fallback.data.directions ?? []).length > 0)
-  // 오늘 운행이 없고(주말) 폴백 데이터가 있으면 평일 시간표를 폴백으로 보여줌.
+  // 요청한 direction에 시간 데이터가 있는지로 판정.
+  // (백엔드는 direction param을 받아도 다른 방향이 응답 directions에 포함될 수 있어서
+  //  단순 length 체크는 본캠 0번이 비었는데 2캠 2번 데이터로 폴백이 안 켜지는 케이스를 놓침.)
+  const findDirTimes = (apiData) => apiData?.directions?.find((d) => d.direction === direction)?.times ?? []
+  const todayEmpty = !today.loading && (today.error || findDirTimes(today.data).length === 0)
+  const fallbackHasData = findDirTimes(fallback.data).length > 0
   const usingFallback = weekend && todayEmpty && fallbackHasData
 
   const data = usingFallback ? fallback.data : today.data
-  const loading = today.loading || (usingFallback && fallback.loading)
+  // 폴백 fetch가 끝날 때까지 loading 유지 (깜빡임 방지)
+  const loading = today.loading || (weekend && fallback.loading)
   const error = today.error && (!weekend || fallback.error)
 
   if (favoritesOnly && !favCodes.includes(favCode)) return null
