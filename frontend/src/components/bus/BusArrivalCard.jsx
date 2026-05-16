@@ -1,8 +1,10 @@
+import { Fragment } from 'react'
 import { Star } from 'lucide-react'
 import {
   getRouteDisplayConfig,
   getRouteCategory,
   getRoutePath,
+  ROUTE_WAYPOINTS,
 } from '../dashboard/busStationConfig'
 import useFavorites from '../../hooks/useFavorites'
 import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
@@ -30,10 +32,37 @@ export function CrowdedBadge({ level }) {
   )
 }
 
-// Legacy export — RouteProgressStrip은 다른 컴포넌트(ArrivalRow 등)가 import할 수 있어 호환만 유지.
-// v5 카드는 MiniTrack을 사용한다.
-export function RouteProgressStrip() {
-  return null
+// 노선 경유 진행 표시 바 — 기존 사용처(BusTimetableDetail, ScheduleDetailModal 등) 호환 유지
+export function RouteProgressStrip({ routeNo, stationId, hasArrival }) {
+  const waypoints = ROUTE_WAYPOINTS[routeNo]
+  if (!waypoints) return null
+
+  const activeSegIdx = hasArrival ? waypoints.findIndex((w) => w.id === stationId) : -1
+
+  return (
+    <div className="px-4 pb-3">
+      <div className="flex items-start">
+        <div className="mt-[6px] w-3 shrink-0 h-px bg-line dark:bg-line-dark" />
+        {waypoints.map((wp, i) => (
+          <Fragment key={wp.id}>
+            <div className="relative flex-1 flex items-center mt-[6px]">
+              <div className={`w-full h-px ${activeSegIdx === i ? 'bg-accent' : 'bg-line dark:bg-line-dark'}`} />
+              {activeSegIdx === i && (
+                <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-accent shadow" />
+              )}
+            </div>
+            <div className="flex flex-col items-center shrink-0">
+              <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-accent bg-surface dark:bg-surface-dark' : 'border-mute-2 dark:border-mute-2-dark bg-surface dark:bg-surface-dark-alt'}`} />
+              <span className={`text-[9px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute-dark'}`}>
+                {wp.label}
+              </span>
+            </div>
+          </Fragment>
+        ))}
+        <div className="flex-1 mt-[6px] h-px bg-line dark:bg-line-dark" />
+      </div>
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,7 +184,7 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
         </div>
 
         <div className="flex items-center gap-2 leading-tight">
-          <span className={`truncate text-[15px] font-extrabold tracking-[-.01em] ${muted ? 'text-text-2 dark:text-mute-dark' : 'text-ink dark:text-ink-dark'}`}>
+          <span className={`truncate text-[15px] font-extrabold tracking-[-.01em] ${muted ? 'text-mute-2 dark:text-mute-2-dark' : 'text-ink dark:text-ink-dark'}`}>
             {headLabel}
           </span>
           {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
@@ -190,7 +219,14 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick }
                 : 'text-ink dark:text-ink-dark text-[30px]'
             }`}
           >
-            {etaValue}
+            {imminent ? (
+              <span className="relative inline-block">
+                {etaValue}
+                <span aria-hidden className="absolute -inset-2 rounded-[14px] pointer-events-none animate-halo-pulse dark:animate-halo-pulse-dark" />
+              </span>
+            ) : (
+              etaValue
+            )}
           </span>
           {typeof etaValue === 'number' && (
             <span className={`ml-[2px] text-[11px] font-extrabold ${imminent ? 'text-imminent dark:text-imminent-dark opacity-70' : 'text-mute dark:text-mute-dark'}`}>분</span>
