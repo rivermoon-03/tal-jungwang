@@ -22,6 +22,7 @@ import { getGbisStationIdForRoute } from '../dashboard/busStationConfig'
 import { BarChart3 } from 'lucide-react'
 import StatsSheet from './StatsSheet'
 import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
+import HolidayBanner from '../common/HolidayBanner'
 
 // ─── map marker lookup ──────────────────────────────────────────────────────
 function distanceMeters(lat1, lng1, lat2, lng2) {
@@ -923,6 +924,9 @@ function ScheduleSectionView({
 
       {/* content */}
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6">
+        {(mode === 'subway' || mode === 'shuttle') && (
+          <HolidayMetaBanner mode={mode} shuttleCampus={shuttleCampus} />
+        )}
         <div key={mode} className="flex flex-col gap-2 animate-fade-in">
           {mode === 'bus' && (
             <BusGroupContent
@@ -955,4 +959,33 @@ function ScheduleSectionView({
       </div>
     </>
   )
+}
+
+// ─── holiday meta banner ─────────────────────────────────────────────────────
+// SubwaySection / ShuttleSection 이 내부적으로 동일 hook을 또 호출하므로
+// useApi 의 shared cache 덕분에 추가 네트워크 비용은 발생하지 않는다.
+function HolidayMetaBanner({ mode, shuttleCampus }) {
+  // 지하철: timetable 응답에 is_holiday/holiday_name
+  // 셔틀: schedule 응답에 is_holiday/holiday_name (캠퍼스/방향 무관 — 어느 direction 호출해도 같음)
+  const { data: subwayTimetable } = useSubwayTimetable()
+  const shuttleDir = shuttleCampus === 'second' ? 2 : 0
+  const { data: shuttleSchedule } = useShuttleSchedule(shuttleDir)
+
+  if (mode === 'subway') {
+    return (
+      <HolidayBanner
+        isHoliday={Boolean(subwayTimetable?.is_holiday)}
+        holidayName={subwayTimetable?.holiday_name ?? null}
+      />
+    )
+  }
+  if (mode === 'shuttle') {
+    return (
+      <HolidayBanner
+        isHoliday={Boolean(shuttleSchedule?.is_holiday)}
+        holidayName={shuttleSchedule?.holiday_name ?? null}
+      />
+    )
+  }
+  return null
 }

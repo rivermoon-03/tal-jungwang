@@ -5,17 +5,11 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_cached_json, get_redis, set_cached_json
+from app.core.calendar import get_day_type, get_holiday_name, is_holiday
 from app.core.config import settings
 from app.models.subway import SubwayTimetableEntry
 
 _TIMETABLE_TTL = 43200  # 12시간 — 시간표는 하루 단위로 갱신
-
-
-def _day_type(d: date) -> str:
-    wd = d.weekday()
-    if wd < 5:
-        return "weekday"
-    return "sunday"
 
 
 async def _load_entries(db: AsyncSession, day: str) -> list[dict]:
@@ -49,7 +43,7 @@ async def _load_entries(db: AsyncSession, day: str) -> list[dict]:
 async def get_timetable(
     db: AsyncSession, d: date, direction: str | None = None
 ) -> dict:
-    day = _day_type(d)
+    day = get_day_type(d)
     entries = await _load_entries(db, day)
 
     groups: dict[str, list[dict]] = {
@@ -71,6 +65,8 @@ async def get_timetable(
         "station": "정왕",
         "day_type": day,
         "updated_at": updated_at,
+        "is_holiday": is_holiday(d),
+        "holiday_name": get_holiday_name(d),
         "up": groups["up"],
         "down": groups["down"],
         "line4_up": groups["line4_up"],
@@ -83,7 +79,7 @@ async def get_timetable(
 
 
 async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
-    day = _day_type(d)
+    day = get_day_type(d)
     entries = await _load_entries(db, day)
 
     directions = (
