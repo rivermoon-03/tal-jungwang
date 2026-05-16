@@ -1,4 +1,5 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import httpx
 from sqlalchemy import delete, func, select
@@ -10,6 +11,7 @@ from app.core.config import settings
 from app.models.subway import SubwayTimetableEntry
 
 _TIMETABLE_TTL = 43200  # 12시간 — 시간표는 하루 단위로 갱신
+_KST = ZoneInfo("Asia/Seoul")
 
 
 def _subway_day_type(d: date) -> str:
@@ -91,6 +93,15 @@ async def get_timetable(
 
 
 async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
+    """현재(KST) 시각 기준 각 방향의 다음 1·2번째 열차를 반환.
+
+    자정 후 첫 운행 열차(예: 00:01) 가 23시대 사용자에게 보이지 않던 버그 수정:
+      - 시간대를 KST 로 명시 (이전엔 UTC 부여, KST 입력 시각과 mismatch).
+      - 문자열 사전순 비교 (`"23:55" <= "00:01"`) 제거 — 자정 wraparound 미고려.
+      - 늦은 밤(20시 이후)에 조회한 새벽(4시 이전) 출발은 다음날로 보정.
+      - 자정 보정 후 entries 순서가 깨질 수 있으므로 후보를 전부 모은 뒤
+        diff 오름차순으로 정렬해 방향별 첫 2개 선택.
+    """
     day = _subway_day_type(d)
     entries = await _load_entries(db, day)
 
@@ -98,48 +109,44 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
         "up", "down", "line4_up", "line4_down",
         "choji_up", "choji_dn", "siheung_up", "siheung_dn",
     )
-    # 방향당 최대 2건(첫 번째 + 다음 다음) 모은다.
-    buckets: dict[str, list[dict]] = {k: [] for k in directions}
+    now_dt = datetime.combine(d, now_time, tzinfo=_KST)
 
-    now_str = now_time.strftime("%H:%M:%S")
-    now_dt = datetime.combine(d, now_time, tzinfo=timezone.utc)
+    # 방향별 후보 (diff_sec, depart_at, destination) 수집 후 정렬.
+    candidates: dict[str, list[tuple[int, str, str]]] = {k: [] for k in directions}
 
     for e in entries:
         direction = e["direction"]
-        if direction not in buckets:
-            continue
-        if len(buckets[direction]) >= 2:
-            continue
-        if e["departure_time"] <= now_str:
+        if direction not in candidates:
             continue
 
-        depart_dt = datetime.combine(d, time.fromisoformat(e["departure_time"]), tzinfo=timezone.utc)
-        diff = int((depart_dt - now_dt).total_seconds())
+        dep_time = time.fromisoformat(e["departure_time"])
+        depart_dt = datetime.combine(d, dep_time, tzinfo=_KST)
+        # 자정 후 출발(예: 00:01)이고 현재가 늦은 밤(>=20시)이면 다음날로 보정.
+        if dep_time.hour < 4 and now_time.hour >= 20:
+            depart_dt += timedelta(days=1)
 
-        buckets[direction].append({
-            "depart_at": e["departure_time"][:5],
-            "arrive_in_seconds": diff,
-            "destination": e["destination"],
-        })
+        diff_sec = int((depart_dt - now_dt).total_seconds())
+        if diff_sec <= 0:
+            continue
 
-        # 모든 방향이 2건씩 채워지면 조기 종료
-        if all(len(v) >= 2 for v in buckets.values()):
-            break
+        candidates[direction].append(
+            (diff_sec, e["departure_time"][:5], e["destination"])
+        )
 
     nexts: dict[str, dict | None] = {}
     for direction in directions:
-        items = buckets[direction]
+        items = sorted(candidates[direction], key=lambda x: x[0])[:2]
         if not items:
             nexts[direction] = None
             continue
         first = items[0]
         second = items[1] if len(items) >= 2 else None
         nexts[direction] = {
-            "depart_at": first["depart_at"],
-            "arrive_in_seconds": first["arrive_in_seconds"],
-            "destination": first["destination"],
-            "next_depart_at": second["depart_at"] if second else None,
-            "next_arrive_in_seconds": second["arrive_in_seconds"] if second else None,
+            "depart_at": first[1],
+            "arrive_in_seconds": first[0],
+            "destination": first[2],
+            "next_depart_at": second[1] if second else None,
+            "next_arrive_in_seconds": second[0] if second else None,
         }
 
     return nexts
