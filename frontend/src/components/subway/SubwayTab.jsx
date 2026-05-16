@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { TrainFront, ChevronLeft, Map, RefreshCw } from 'lucide-react'
-import { useSubwayTimetable, useSubwayRealtime } from '../../hooks/useSubway'
+import { useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
 import useAppStore from '../../stores/useAppStore'
 import SubwayLineCard from './SubwayLineCard'
 import SubwayCountdown from './SubwayCountdown'
@@ -294,8 +294,21 @@ export default function SubwayTab() {
   const { data: realtimeAll, loading: realtimeLoading, refetch, fetchedAt } = useSubwayRealtime()
   const lastTrainWarnings = useLastTrainWarnings(timetable)
 
-  const realtimeArrivals = realtimeAll?.[STATION_REALTIME_KEY[stationTab]] ?? null
+  // 백엔드 envelope({items, stale, last_successful_realtime_at}) 정규화.
+  const {
+    items: realtimeArrivals,
+    stale: realtimeStale,
+    lastSuccessfulRealtimeAt,
+  } = normalizeRealtimeStation(realtimeAll?.[STATION_REALTIME_KEY[stationTab]])
   const activeGroup = STATION_GROUPS.find((g) => g.stationName === stationTab) ?? STATION_GROUPS[0]
+
+  // SubwayRealtimeBoard에 넘길 timetable fallback lookup.
+  // (lineName, direction) → 해당 카드 key의 trains[]
+  const timetableLookup = (lineName, direction) => {
+    const card = activeGroup.cards.find((c) => c.lineName === lineName && c.upDown === direction)
+    if (!card) return null
+    return timetable?.[card.key] ?? null
+  }
 
   useEffect(() => {
     setModeTab('timetable')
@@ -325,9 +338,9 @@ export default function SubwayTab() {
   }, [refreshCooldown])
 
   if (selectedDetail) {
-    const directionArrivals = realtimeArrivals?.filter(
+    const directionArrivals = realtimeArrivals.filter(
       (a) => a.line === selectedDetail.card.lineName && a.direction === selectedDetail.card.upDown
-    ) ?? []
+    )
 
     return (
       <UnifiedDetail
@@ -398,39 +411,21 @@ export default function SubwayTab() {
           <div className="flex-1 flex items-center justify-center"><p className="text-base text-slate-400">불러오는 중...</p></div>
         ) : (
           <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
-            <SubwayRealtimeBoard arrivals={realtimeArrivals} lastFetchedAt={fetchedAt} onRowClick={openRealtimeDetail} />
+            <SubwayRealtimeBoard
+              arrivals={realtimeArrivals}
+              lastFetchedAt={fetchedAt}
+              onRowClick={openRealtimeDetail}
+              timetableLookup={timetableLookup}
+              stale={realtimeStale}
+              lastSuccessfulRealtimeAt={lastSuccessfulRealtimeAt}
+            />
           </div>
         )
       ) : loading ? (
         <div className="flex-1 flex items-center justify-center"><p className="text-base text-slate-400">불러오는 중...</p></div>
       ) : (
         <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
-          {realtimeArrivals && realtimeArrivals.length > 0 && (
-            <div className="px-4 pt-3 pb-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">실시간 현황 (베타)</p>
-              <div className="flex flex-col gap-2">
-                {[...new Set(realtimeArrivals.map((a) => a.line))].map((lineName) => {
-                  const meta = LINE_META_COMPACT[lineName] ?? { symbol: lineName[0], color: '#6b7280' }
-                  const up = realtimeArrivals.find((a) => a.line === lineName && a.direction === '상행') ?? null
-                  const down = realtimeArrivals.find((a) => a.line === lineName && a.direction === '하행') ?? null
-                  return (
-                    <RealtimeCompactCard
-                      key={lineName}
-                      lineName={lineName}
-                      symbol={meta.symbol}
-                      color={meta.color}
-                      upTrain={up}
-                      downTrain={down}
-                      lastFetchedAt={fetchedAt}
-                      onTrainClick={openRealtimeDetail}
-                      stationName={stationTab?.replace(/역$/, '')}
-                    />
-                  )
-                })}
-              </div>
-              <div className="mt-3 border-t border-slate-100 dark:border-slate-800" />
-            </div>
-          )}
+          {/* 시간표 = Primary. 위에 막차 임박 배너 → 큰 시간표 카드들 */}
           <LastTrainBanner warnings={lastTrainWarnings} />
           <div className="p-4 flex flex-col gap-3">
             {activeGroup.cards.map((card) => {
@@ -449,6 +444,46 @@ export default function SubwayTab() {
               )
             })}
           </div>
+
+          {/* 실시간 = Secondary. 시간표 카드 아래에 dim한 보조 정보로 배치 */}
+          {realtimeArrivals.length > 0 && (
+            <div className="px-4 pt-2 pb-1">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  참고 · 실시간 현황
+                </p>
+                {realtimeStale && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    실시간 일시 끊김
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                {[...new Set(realtimeArrivals.map((a) => a.line))].map((lineName) => {
+                  const meta = LINE_META_COMPACT[lineName] ?? { symbol: lineName[0], color: '#6b7280' }
+                  const up = realtimeArrivals.find((a) => a.line === lineName && a.direction === '상행') ?? null
+                  const down = realtimeArrivals.find((a) => a.line === lineName && a.direction === '하행') ?? null
+                  return (
+                    <RealtimeCompactCard
+                      key={lineName}
+                      lineName={lineName}
+                      symbol={meta.symbol}
+                      color={meta.color}
+                      upTrain={up}
+                      downTrain={down}
+                      lastFetchedAt={fetchedAt}
+                      onTrainClick={openRealtimeDetail}
+                      stationName={stationTab?.replace(/역$/, '')}
+                      demoted
+                      stale={realtimeStale}
+                      staleSource={lastSuccessfulRealtimeAt}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
-from app.schemas.subway import SubwayNextResponse, SubwayRealtimeItem, SubwayTimetableResponse
+from app.schemas.subway import SubwayNextResponse, SubwayTimetableResponse
 from app.services.subway import get_next, get_timetable
 from app.services.subway_realtime import get_all_realtime_cached
 
@@ -46,5 +46,11 @@ async def subway_next(
 @router.get("/realtime")
 @limiter.limit("60/minute")
 async def subway_realtime(request: Request):
+    """역별 실시간 도착정보 + graceful degradation 메타.
+
+    각 역마다 {items, stale, last_successful_realtime_at} 형식으로 반환.
+    실시간 API가 빈 배열을 주거나 실패해도, 직전 5분 이내 성공값이 있으면
+    `stale=true`와 함께 그 값을 돌려준다.
+    """
     data = await get_all_realtime_cached()
     return ApiResponse[dict].ok(data)

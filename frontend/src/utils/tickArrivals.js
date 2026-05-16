@@ -65,22 +65,33 @@ export function tickSubwayNext(data, fetchedAt, now) {
   return out
 }
 
-// 지하철 실시간 응답 (/subway/realtime): { [역명]: [{arrive_seconds, ...}, ...] }
+// 지하철 실시간 응답 (/subway/realtime):
+//   신규 envelope: { [역명]: { items: [...], stale: bool, last_successful_realtime_at: str|null } }
+//   레거시(과거): { [역명]: [...] }
+//
+// `arrive_seconds`를 elapsed 만큼 깎는다. 두 shape 모두 호환.
 export function tickSubwayRealtime(data, fetchedAt, now) {
   if (!data || !fetchedAt) return data
   const elapsed = elapsedSince(fetchedAt, now)
   if (elapsed <= 0) return data
 
+  const tickList = (arr) =>
+    arr.map((t) =>
+      t?.arrive_seconds != null
+        ? { ...t, arrive_seconds: decrement(t.arrive_seconds, elapsed) }
+        : t
+    )
+
   const out = {}
-  for (const [station, arr] of Object.entries(data)) {
-    if (Array.isArray(arr)) {
-      out[station] = arr.map((t) =>
-        t?.arrive_seconds != null
-          ? { ...t, arrive_seconds: decrement(t.arrive_seconds, elapsed) }
-          : t
-      )
+  for (const [station, value] of Object.entries(data)) {
+    if (Array.isArray(value)) {
+      // 레거시 shape: 배열 직접
+      out[station] = tickList(value)
+    } else if (value && typeof value === 'object' && Array.isArray(value.items)) {
+      // 신규 envelope: items 안만 tick, 메타는 그대로
+      out[station] = { ...value, items: tickList(value.items) }
     } else {
-      out[station] = arr
+      out[station] = value
     }
   }
   return out

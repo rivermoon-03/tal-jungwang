@@ -75,6 +75,37 @@ export function getLastTrainStatus(trains, nowMin) {
 }
 
 /**
+ * 시간표(`depart_at`: "HH:MM") 목록에서, 현재 시각 기준 다음 출발까지 남은 초.
+ *
+ * 사용처: 실시간 응답에 `arrive_seconds`가 없거나 음수일 때의 fallback.
+ * 자정을 넘는 열차(예: 00:15)는 +24h로 보정한다.
+ *
+ * @param {Array<{depart_at: string}>} trains
+ * @param {Date} [now=new Date()]
+ * @returns {number|null}  남은 초 (현재 시각 이후 가장 가까운 열차). 없으면 null.
+ */
+export function nextTimetableSeconds(trains, now = new Date()) {
+  if (!trains?.length) return null
+  const nowMs = now.getTime()
+  let best = null
+  for (const t of trains) {
+    const [hh, mm] = (t.depart_at ?? '').split(':').map(Number)
+    if (Number.isNaN(hh) || Number.isNaN(mm)) continue
+    const target = new Date(now)
+    target.setHours(hh, mm, 0, 0)
+    let diffMs = target.getTime() - nowMs
+    // 자정 직후(00:xx~02:xx)에 출발하는 열차가 현재시각보다 과거로 잡힌 경우 → 익일로.
+    // 단, 너무 멀리 과거(아침 열차를 밤에 보는 케이스)는 익일 추가하지 않는다.
+    if (diffMs < 0 && hh < 3 && now.getHours() >= 22) {
+      diffMs += 86_400_000
+    }
+    if (diffMs <= 0) continue
+    if (best == null || diffMs < best) best = diffMs
+  }
+  return best == null ? null : Math.floor(best / 1000)
+}
+
+/**
  * 상대(분) + 절대(HH:MM) 시간 포맷을 통일하여 표시.
  *
  * - 둘 다 있으면: "5분 뒤 · 10:25"

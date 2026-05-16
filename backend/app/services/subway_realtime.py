@@ -34,6 +34,9 @@ _KST = ZoneInfo("Asia/Seoul")
 
 _BASE_URL = "http://swopenAPI.seoul.go.kr/api/subway/{key}/xml/realtimeStationArrival/0/20/{station}"
 _CACHE_TTL = 30
+# 직전 성공 응답을 5분 동안 보관해 graceful degradation에 사용한다.
+# (실시간 API가 빈 배열을 반환하거나 일시적으로 실패해도, 5분 이내라면 이 값을 stale 플래그와 함께 반환)
+_LAST_SUCCESS_TTL = 300
 
 _LINE_MAP = {
     "1004": {"line": "4호선",     "color": "#1B5FAD"},
@@ -54,6 +57,14 @@ def _cache_key(station: str) -> str:
 
 def _last_fetch_key(station: str) -> str:
     return f"subway:realtime:last_fetch:{station}"
+
+
+def _last_success_key(station: str) -> str:
+    """직전 성공 응답을 보관하는 키. {items, fetched_at_iso} 형식.
+
+    `_cache_key`(30초 TTL)와 분리해서, 빈 응답·실패가 와도 5분간 stale fallback으로 사용한다.
+    """
+    return f"subway:realtime:last_success:{station}"
 
 
 _MIN_RE = re.compile(r'(\d+)분\s*후')
@@ -268,37 +279,126 @@ async def fetch_realtime(station: str) -> list[dict]:
     return parsed
 
 
-async def get_realtime_cached(station: str) -> list[dict]:
-    """Redis 캐시 hit → 반환, miss → fetch 후 저장."""
+async def _store_last_success(station: str, data: list[dict]) -> None:
+    """실시간 API가 비어있지 않은 응답을 줬을 때만 last_success에 저장한다.
+
+    빈 배열을 last_success로 저장하면 graceful degradation이 의미가 없으므로
+    의도적으로 비어있지 않을 때만 갱신한다.
+    """
+    if not data:
+        return
+    payload = {
+        "items": data,
+        "fetched_at_iso": datetime.now(_KST).isoformat(timespec="seconds"),
+    }
+    await set_cached_json(_last_success_key(station), payload, ttl=_LAST_SUCCESS_TTL)
+
+
+async def _read_last_success(station: str) -> dict | None:
+    """last_success 캐시를 읽어 {items, fetched_at_iso} 또는 None을 반환."""
+    raw = await get_cached_json(_last_success_key(station))
+    if not raw or not isinstance(raw, dict):
+        return None
+    items = raw.get("items")
+    fetched_at = raw.get("fetched_at_iso")
+    if not items or not fetched_at:
+        return None
+    return {"items": items, "fetched_at_iso": fetched_at}
+
+
+async def get_realtime_cached(station: str) -> dict:
+    """Redis 캐시 hit → 반환, miss → fetch.
+
+    반환 형식 (graceful degradation 포함):
+      {
+        "items": list[dict],                # 실시간 항목 (없으면 [])
+        "stale": bool,                      # last_success fallback 여부
+        "last_successful_realtime_at": str | None,  # ISO8601 KST, 직전 성공 시각
+      }
+    """
     cached = await get_cached_json(_cache_key(station))
-    if cached is not None:
-        return cached
-    data = await fetch_realtime(station)
-    await set_cached_json(_cache_key(station), data, ttl=_CACHE_TTL)
-    redis = await get_redis()
-    await redis.set(_last_fetch_key(station), str(time.time()), ex=300)
-    return data
+    if cached is None:
+        try:
+            cached = await fetch_realtime(station)
+        except Exception:
+            logger.exception("지하철 실시간 fetch 실패: %s", station)
+            cached = []
+        await set_cached_json(_cache_key(station), cached, ttl=_CACHE_TTL)
+        redis = await get_redis()
+        await redis.set(_last_fetch_key(station), str(time.time()), ex=300)
+        if cached:
+            await _store_last_success(station, cached)
+
+    # 1) 현재 응답이 비어있지 않으면 그대로 사용 (fresh).
+    if cached:
+        last_success = await _read_last_success(station)
+        # last_success가 없을 수도 있는 edge case (서버 시작 직후 첫 응답이 fresh로 들어오자마자
+        # 호출된 경우)를 대비해 현재 시각으로 fallback.
+        fetched_at_iso = (
+            last_success["fetched_at_iso"]
+            if last_success
+            else datetime.now(_KST).isoformat(timespec="seconds")
+        )
+        return {
+            "items": cached,
+            "stale": False,
+            "last_successful_realtime_at": fetched_at_iso,
+        }
+
+    # 2) 현재 응답이 비었으면 직전 5분 이내 성공값으로 graceful fallback.
+    last_success = await _read_last_success(station)
+    if last_success:
+        return {
+            "items": last_success["items"],
+            "stale": True,
+            "last_successful_realtime_at": last_success["fetched_at_iso"],
+        }
+
+    # 3) 5분 이상 성공값이 없으면 빈 응답.
+    return {
+        "items": [],
+        "stale": False,
+        "last_successful_realtime_at": None,
+    }
 
 
 async def fetch_and_cache_realtime(station: str) -> list[dict]:
-    """스케줄러용: 강제 fetch 후 캐시 덮어쓰기."""
+    """스케줄러용: 강제 fetch 후 캐시 덮어쓰기.
+
+    성공 시 last_success 키에도 5분 TTL로 저장한다.
+    """
     data = await fetch_realtime(station)
     await set_cached_json(_cache_key(station), data, ttl=_CACHE_TTL)
     redis = await get_redis()
     await redis.set(_last_fetch_key(station), str(time.time()), ex=300)
+    if data:
+        await _store_last_success(station, data)
     return data
 
 
-async def get_all_realtime_cached() -> dict[str, list[dict]]:
+async def get_all_realtime_cached() -> dict[str, dict]:
     """모든 역의 실시간 도착정보를 캐시에서 가져온다.
 
+    반환 형식:
+      {
+        "<station>": {
+          "items": [...],
+          "stale": bool,
+          "last_successful_realtime_at": str | None,
+        },
+        ...
+      }
     역별로 독립 처리: 한 역이 실패해도 나머지 역은 정상 반환.
     """
-    results = {}
+    results: dict[str, dict] = {}
     for station in STATIONS:
         try:
             results[station] = await get_realtime_cached(station)
         except Exception:
             logger.exception("지하철 실시간 캐시 조회 실패: %s", station)
-            results[station] = []
+            results[station] = {
+                "items": [],
+                "stale": False,
+                "last_successful_realtime_at": None,
+            }
     return results

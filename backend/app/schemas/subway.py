@@ -48,3 +48,16 @@ class SubwayRealtimeItem(BaseModel):
     current_station: str  # arvlMsg3: 현재 열차가 있는 역명
     train_no: str      # btrainNo
     color: str         # 호선 색상 hex
+
+
+class SubwayRealtimeStationPayload(BaseModel):
+    """역별 실시간 도착정보 + graceful degradation 메타.
+
+    items: SubwayRealtimeItem과 유사한 dict 목록 (parse_rows 출력).
+    stale: True면 현재 API 호출은 비었고 last_success fallback을 반환 중.
+    last_successful_realtime_at: 마지막으로 비어있지 않은 응답을 받은 시각 (ISO8601 KST).
+                                  fresh 응답이면 같은 시각, 5분 내 last_success 없으면 None.
+    """
+    items: list[dict]
+    stale: bool
+    last_successful_realtime_at: str | None = None
