@@ -49,11 +49,12 @@ export default function NoticeHighlights({ onOpen }) {
       style={{
         position: 'relative',
         overflow: 'hidden',
-        padding: '14px 16px',
-        borderRadius: 16,
+        padding: '18px 20px 18px 22px',
+        borderRadius: 14,
         background: 'linear-gradient(160deg, #102c4c, #1b3a6e)',
         color: '#fff',
         border: 'none',
+        boxShadow: '0 4px 14px rgba(16, 44, 76, 0.18)',
       }}
       aria-label={`공지: ${top.title}`}
     >
@@ -65,30 +66,40 @@ export default function NoticeHighlights({ onOpen }) {
           top: 0,
           bottom: 0,
           width: 4,
-          background: 'var(--tj-accent-dark)',
+          background: 'var(--tj-accent)',
         }}
       />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <svg
-          aria-hidden="true"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          style={{ opacity: 0.85, flexShrink: 0 }}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 11,
+            fontWeight: 800,
+            color: '#fff',
+            background: 'var(--tj-accent)',
+            padding: '3px 8px',
+            borderRadius: 999,
+            letterSpacing: '0.02em',
+          }}
         >
-          <path d="M16 9V4l1 0c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1l1 0v5c0 1.66-1.34 3-3 3h-.08c-.53 0-.92.5-.75 1L6 17h5v4l1 1 1-1v-4h5l1.84-4c.16-.5-.22-1-.75-1H19c-1.66 0-3-1.34-3-3z"/>
-        </svg>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
+          <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+            <path d="M16 9V4l1 0c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1l1 0v5c0 1.66-1.34 3-3 3h-.08c-.53 0-.92.5-.75 1L6 17h5v4l1 1 1-1v-4h5l1.84-4c.16-.5-.22-1-.75-1H19c-1.66 0-3-1.34-3-3z"/>
+          </svg>
+          공지
+        </span>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: 700 }}>
           {fmtDate(top.created_at)}
         </span>
       </div>
       <div
         style={{
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: 900,
           letterSpacing: '-0.02em',
-          marginTop: 6,
+          marginTop: 10,
+          lineHeight: 1.3,
         }}
       >
         {top.title}
@@ -97,10 +108,10 @@ export default function NoticeHighlights({ onOpen }) {
         <div
           style={{
             fontSize: 13,
-            color: 'rgba(255,255,255,0.8)',
-            fontWeight: 500,
-            lineHeight: 1.55,
-            marginTop: 5,
+            color: 'rgba(255,255,255,0.85)',
+            fontWeight: 600,
+            lineHeight: 1.6,
+            marginTop: 8,
           }}
         >
           {preview}

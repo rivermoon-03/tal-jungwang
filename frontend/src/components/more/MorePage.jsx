@@ -99,7 +99,7 @@ export default function MorePage() {
   const hasMoreNotices = allNotices.length > recent.length
 
   return (
-    <div className="flex flex-col h-full bg-bg-soft-light dark:bg-bg-dark animate-fade-in-up">
+    <div className="flex flex-col h-full bg-bg dark:bg-bg-dark animate-fade-in-up">
       <PageHeader title="더보기" />
 
       <div className="flex-1 overflow-y-auto px-4 pt-1 pb-28 md:pb-6">
