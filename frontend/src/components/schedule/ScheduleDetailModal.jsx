@@ -47,41 +47,44 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
   return (
     <div
       ref={rowRef}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+      className={`relative flex items-center gap-3 px-4 py-3 rounded-mini transition-colors ${
         isNext
-          ? 'bg-accent/10 dark:bg-accent-dark/15 border border-accent/40 dark:border-accent-dark/40'
-          : 'bg-slate-50 dark:bg-slate-700/40 border border-transparent'
+          ? 'bg-accent/8 dark:bg-accent-dark/12'
+          : ''
       }`}
     >
+      {isNext && (
+        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] bg-accent dark:bg-accent-dark rounded-full" />
+      )}
       <span
         className={`${
           isHHMM
-            ? 'text-lg font-extrabold tabular-nums flex-shrink-0'
+            ? (isNext ? 'text-eta-mob font-black tabular-nums tracking-tight flex-shrink-0 pl-1.5' : 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0')
             : 'text-sm font-bold leading-snug break-keep min-w-0'
-        } ${isNext ? 'text-accent dark:text-accent-dark' : 'text-slate-800 dark:text-slate-100'}`}
+        } ${isNext ? 'text-accent dark:text-accent-dark' : 'text-ink dark:text-ink-dark'}`}
       >
         {time}
       </span>
       {(destination || note) && (
-        <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+        <span className="text-meta font-medium text-mute dark:text-mute-dark truncate">
           {destination || note}
         </span>
       )}
       <div className="ml-auto flex items-center gap-2 flex-shrink-0">
         {isNext && (
-          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-accent dark:bg-accent-dark text-white dark:text-ink">
+          <span className="text-micro font-extrabold px-2.5 py-0.5 rounded-full bg-accent dark:bg-accent-dark text-white dark:text-ink tracking-wide">
             다음
           </span>
         )}
         {isLast && (
-          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900">
+          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-ink dark:bg-mute-2 text-white dark:text-ink">
             막차
           </span>
         )}
         {mins != null && (
           <span
-            className={`text-xs font-semibold tabular-nums ${
-              isNext ? 'text-accent dark:text-accent-dark' : 'text-slate-500 dark:text-slate-400'
+            className={`text-meta font-extrabold tabular-nums tracking-tight ${
+              isNext ? 'text-accent dark:text-accent-dark' : 'text-mute dark:text-mute-dark'
             }`}
           >
             {fmtDelta(mins)}
@@ -95,8 +98,8 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
 function PastRow({ time }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 opacity-50">
-      <span className="text-sm text-slate-400 dark:text-slate-500 tabular-nums">{time}</span>
-      <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-auto">지난 시각</span>
+      <span className="text-meta font-semibold text-mute dark:text-mute-dark tabular-nums">{time}</span>
+      <span className="text-[11px] font-medium text-mute-2 dark:text-mute-2-dark ml-auto">지난 시각</span>
     </div>
   )
 }
@@ -108,7 +111,7 @@ function TimeGrid({ times }) {
       {times.map((t, i) => (
         <div
           key={`${t}-${i}`}
-          className="text-center py-2 px-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums"
+          className="text-center py-2 px-1 rounded-mini bg-surface-alt dark:bg-surface-dark-alt text-sm font-bold text-text dark:text-text-dark tabular-nums"
         >
           {t}
         </div>
