@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, TrainFront, RefreshCw, Map, ChevronLeft } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import { useSubwayTimetable, useSubwayRealtime } from '../../hooks/useSubway'
+import { useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
 import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 import SubwayCountdown from './SubwayCountdown'
@@ -74,8 +74,8 @@ export default function GlobalSubwayDetailSheet() {
   const displayed = item ?? prevItem.current
   if (!displayed && !visible) return null
 
-  // 현재 노선/방향에 해당하는 실시간 열차들
-  const stationArrivals = realtimeAll?.[displayed.station] ?? []
+  // 현재 노선/방향에 해당하는 실시간 열차들 (envelope에서 items 추출)
+  const { items: stationArrivals } = normalizeRealtimeStation(realtimeAll?.[displayed.station])
   const directionArrivals = stationArrivals.filter(
     (a) => a.line === displayed.lineName && a.direction === displayed.direction
   )
