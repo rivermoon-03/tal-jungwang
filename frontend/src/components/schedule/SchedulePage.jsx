@@ -443,15 +443,45 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
 }
 
 // ─── shuttle section ─────────────────────────────────────────────────────────
+// 셔틀이 주말·공휴일에 미운행이면 다음 평일(월~금) 시간표를 폴백으로 보여줌.
+function isWeekend(d = new Date()) {
+  const day = d.getDay()
+  return day === 0 || day === 6
+}
+
+function nextWeekdayDateStr() {
+  const d = new Date()
+  const day = d.getDay()
+  // 일요일(0) → +1, 토요일(6) → +2
+  const offset = day === 0 ? 1 : day === 6 ? 2 : 0
+  d.setDate(d.getDate() + offset)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCodes = [] }) {
   const label = direction % 2 === 0 ? '등교' : '하교'
   const campusTag = direction >= 2 ? '2캠 ' : ''
   const titleText = `${campusTag}셔틀 ${label}`.trim()
   const favCode = `shuttle:${campusTag}${label}`.trim()
-  const { data, loading, error } = useShuttleSchedule(direction)
+  const today = useShuttleSchedule(direction)
+  // 주말일 때만 다음 평일 폴백 fetch (enabled로 평일에는 호출 안 함).
+  const weekend = isWeekend()
+  const fallbackDate = weekend ? nextWeekdayDateStr() : null
+  const fallback = useShuttleSchedule(direction, fallbackDate, { enabled: weekend })
+
+  const todayEmpty = !today.loading && (today.error || !today.data || (today.data.directions ?? []).length === 0)
+  const fallbackHasData = !!(fallback.data && (fallback.data.directions ?? []).length > 0)
+  // 오늘 운행이 없고(주말) 폴백 데이터가 있으면 평일 시간표를 폴백으로 보여줌.
+  const usingFallback = weekend && todayEmpty && fallbackHasData
+
+  const data = usingFallback ? fallback.data : today.data
+  const loading = today.loading || (usingFallback && fallback.loading)
+  const error = today.error && (!weekend || fallback.error)
+
   if (favoritesOnly && !favCodes.includes(favCode)) return null
 
   const subtitleText = direction >= 2 ? '2캠' : '본캠'
+  const subtitleWithNotice = usingFallback ? `${subtitleText} · 평일 기준 시간표` : subtitleText
   const routeCode = `${campusTag}셔틀${label}`.trim()
 
   const noSchedule = !loading && (error || !data || (data.directions ?? []).length === 0)
@@ -467,6 +497,34 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
         loading={false}
         disabled
         disabledLabel="주말·공휴일 미운행 — 시간표 추후 업데이트 예정"
+      />
+    )
+  }
+
+  // 폴백 모드: 평일 시간표를 통째로 보여주되 카운트다운/minutesUntil은 의미 없으므로 미사용.
+  if (usingFallback) {
+    const dirData = data?.directions?.find((d) => d.direction === direction)
+    const allTimes = (dirData?.times ?? [])
+      .map((t) => (typeof t === 'string' ? t : t?.depart_at))
+      .filter((s) => typeof s === 'string' && s.length > 0)
+      .map((s) => s.slice(0, 5))
+    const first = allTimes[0] ?? null
+    const second = allTimes[1] ?? null
+    const extras = allTimes.slice(2, 6)
+    const handleClick = () => onCardClick({ type: 'shuttle', routeCode, direction, favCode, title: `${campusTag}셔틀버스 ${label}` })
+
+    return (
+      <ScheduleSection
+        title={titleText}
+        subtitle={subtitleWithNotice}
+        type="shuttle"
+        routeCode={routeCode}
+        next={first ? `평일 첫차 ${first}` : null}
+        afterNext={second ?? null}
+        minutesUntil={null}
+        onClick={handleClick}
+        loading={false}
+        extraTimes={extras.length > 0 ? extras : null}
       />
     )
   }
