@@ -76,7 +76,8 @@ function formatSubtext(item) {
 
 function ArrivalTime({ item, timetableTrains }) {
   const imminent = isImminent(item.status_code)
-  const color = imminent ? '#dc2626' : item.color
+  // imminent는 토큰 컬러로 통일, 그 외엔 노선 컬러 유지.
+  const color = imminent ? '#e26a4d' : item.color
 
   // 실시간 arrive_seconds 우선. 없거나 0 이하면 시간표 fallback으로 계산.
   const realtimeSecs = imminent ? null : item.arrive_seconds
@@ -93,19 +94,19 @@ function ArrivalTime({ item, timetableTrains }) {
   if (imminent) {
     if (item.status_code === 1 || item.status_code === 2) {
       return (
-        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
+        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
           <span
             className="text-base font-black leading-none tabular-nums"
-            style={{ color: '#dc2626', animation: 'pulse 1.5s ease-in-out infinite' }}
+            style={{ color: '#e26a4d', animation: 'pulse 1.5s ease-in-out infinite' }}
           >
             이미
           </span>
-          <span className="text-[10px] text-red-400 mt-0.5 font-bold">도착</span>
+          <span className="text-[10px] text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
         </div>
       )
     }
     return (
-      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
+      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
         <span
           className="text-base font-black leading-none tabular-nums"
           style={{ color: '#dc2626', animation: 'pulse 1.5s ease-in-out infinite' }}
@@ -123,21 +124,21 @@ function ArrivalTime({ item, timetableTrains }) {
     const sourceLabel = hasRealtimeSecs ? '후 도착' : '시간표 기준'
     if (isUrgent) {
       return (
-        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
-          <span className="text-base font-black leading-none" style={{ color: '#dc2626' }}>곧</span>
-          <span className="text-[10px] text-red-400 mt-0.5 font-bold">도착</span>
+        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
+          <span className="text-base font-black leading-none text-imminent dark:text-imminent-dark">곧</span>
+          <span className="text-[10px] text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
         </div>
       )
     }
     return (
-      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
+      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
         <span
           className="text-xl font-black leading-none tabular-nums tracking-tight"
           style={{ color: timerColor }}
         >
           {display}
         </span>
-        <span className="text-[10px] text-slate-400 mt-0.5">{sourceLabel}</span>
+        <span className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">{sourceLabel}</span>
       </div>
     )
   }
@@ -146,18 +147,18 @@ function ArrivalTime({ item, timetableTrains }) {
   const count = getStationCount(item.ordkey)
   if (count) {
     return (
-      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
-        <span className="text-xl font-black leading-none tabular-nums text-slate-700 dark:text-slate-300">
+      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
+        <span className="text-xl font-black leading-none tabular-nums text-ink dark:text-ink-dark">
           {count}
         </span>
-        <span className="text-[10px] text-slate-400 mt-0.5">전 역</span>
+        <span className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">전 역</span>
       </div>
     )
   }
   return (
-    <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 pl-3">
-      <span className="text-2xl font-black leading-none tabular-nums text-slate-300 dark:text-slate-600">—</span>
-      <span className="text-[10px] text-slate-400 mt-0.5">운행중</span>
+    <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
+      <span className="text-2xl font-black leading-none tabular-nums text-mute-2 dark:text-mute-2-dark">—</span>
+      <span className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">운행중</span>
     </div>
   )
 }
@@ -176,17 +177,20 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
   }, [lastFetchedAt])
 
   const rowBg = imminent
-    ? (darkMode ? 'bg-red-950/30' : 'bg-red-50')
-    : 'bg-white dark:bg-surface-dark'
+    ? 'bg-[rgba(226,106,77,0.06)] dark:bg-[rgba(248,113,113,0.08)]'
+    : 'bg-surface dark:bg-surface-dark'
 
-  const destColor = imminent ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
+  const destColor = imminent ? 'text-imminent dark:text-imminent-dark' : 'text-ink dark:text-ink-dark'
   const recptnTime = item.recptn_dt ? item.recptn_dt.substring(11, 16) : ''
 
   return (
     <div
-      className={`flex flex-col gap-1 px-4 py-3 border-b border-slate-100 dark:border-slate-800 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition-colors ${rowBg}`}
+      className={`relative flex flex-col gap-1 px-4 py-3.5 border-b border-line dark:border-line-dark cursor-pointer active:bg-surface-alt dark:active:bg-surface-dark-alt transition-colors ${rowBg}`}
       onClick={() => onClick?.(item)}
     >
+      {imminent && (
+        <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-imminent dark:bg-imminent-dark" />
+      )}
       <div className="flex items-center gap-3">
       {/* 좌: 노선 dot + 목적지 + 위치 */}
       <div className="flex items-start gap-2.5 flex-1 min-w-0">
@@ -195,7 +199,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
             style={{ background: item.color }}
           />
-          <span className="text-[9px] text-slate-400 font-medium leading-none whitespace-nowrap">
+          <span className="text-[9px] font-semibold text-mute dark:text-mute-dark leading-none whitespace-nowrap">
             {item.direction}
           </span>
         </div>
@@ -203,7 +207,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
           <div className="flex items-center gap-1.5 flex-wrap pb-1.5">
             <span className={`text-xl font-extrabold leading-tight tracking-tight ${destColor}`}>
               {item.destination}
-              <span className="text-sm font-semibold text-slate-400 dark:text-slate-500 ml-1">행</span>
+              <span className="text-sm font-semibold text-mute dark:text-mute-dark ml-1">행</span>
             </span>
             {item.is_last_train && (
               <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">
@@ -217,7 +221,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
               </span>
             )}
           </div>
-          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+          <div className="text-meta font-medium text-mute dark:text-mute-dark mt-0.5 truncate">
             {formatSubtext(item)}
           </div>
         </div>
@@ -231,7 +235,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
 
       {/* 하단 업데이트 시간 + 폴링 시간 (별도 행) */}
       {(lastFetchedAt || recptnTime) && (
-        <div className="flex justify-end gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+        <div className="flex justify-end gap-1.5 text-[10px] font-medium text-mute dark:text-mute-dark mt-0.5">
           {lastFetchedAt && (
             <span>{secondsAgo}초 전 폴링</span>
           )}
@@ -240,7 +244,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
               ? Math.floor((Date.now() - new Date(item.recptn_dt).getTime()) / 60000)
               : 0
             return ageMin >= 3
-              ? <span className="text-amber-500 dark:text-amber-400 font-bold">{recptnTime} 기준 · {ageMin}분 지연</span>
+              ? <span className="text-state-warn dark:text-amber-400 font-extrabold">{recptnTime} 기준 · {ageMin}분 지연</span>
               : <span>{recptnTime} 기준</span>
           })()}
         </div>
@@ -253,9 +257,9 @@ function Section({ lineName, color, items, lastFetchedAt, onRowClick, timetableL
   if (items.length === 0) return null
   return (
     <div>
-      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-        <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: color }} />
-        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{lineName}</span>
+      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-surface-alt dark:bg-surface-dark-alt border-b border-line dark:border-line-dark">
+        <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: color }} />
+        <span className="text-meta font-extrabold text-text dark:text-text-dark tracking-tight">{lineName}</span>
       </div>
       {items.map((item) => (
         <RealtimeRow
@@ -282,7 +286,7 @@ function Section({ lineName, color, items, lastFetchedAt, onRowClick, timetableL
 export default function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClick, timetableLookup, stale, lastSuccessfulRealtimeAt }) {
   if (!arrivals || arrivals.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12 text-slate-400 text-sm">
+      <div className="flex items-center justify-center py-12 text-meta font-semibold text-mute dark:text-mute-dark">
         현재 운행 중인 열차 정보가 없습니다
       </div>
     )

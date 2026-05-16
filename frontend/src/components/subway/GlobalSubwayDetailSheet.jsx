@@ -133,36 +133,36 @@ export default function GlobalSubwayDetailSheet() {
           }
 
           return (
-            <div key={rtTrain.train_no || idx} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 bg-slate-50 dark:bg-slate-800/50">
-              {idx === 0 && <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">이 열차 실시간</p>}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                    {rtTrain.destination}행
-                  </span>
-                  {rtTrain.is_last_train && (
-                    <span className="ml-1.5 text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">막차</span>
-                  )}
-                  <p className="text-xs text-slate-400 mt-0.5">
+            <div key={rtTrain.train_no || idx} className="rounded-card px-4 py-3.5 bg-surface-alt dark:bg-surface-dark-alt shadow-card">
+              {idx === 0 && <p className="text-meta font-black text-accent uppercase tracking-wider mb-2.5">이 열차 실시간</p>}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-panel-ttl text-ink dark:text-ink-dark">
+                      {rtTrain.destination}행
+                    </span>
+                    {rtTrain.is_last_train && (
+                      <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">막차</span>
+                    )}
+                  </div>
+                  <p className="text-meta font-medium text-mute dark:text-mute-dark mt-1">
                     {cleanMsg(rtTrain.status_msg) || ''}{rtTrain.location_msg ? ` · ${cleanMsg(rtTrain.location_msg)}` : ''}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-lg font-black"
-                    style={{ color: isImminent ? '#dc2626' : displayed.color }}
-                  >
-                    {etaLabel}
-                  </span>
-                  <button
-                    onClick={() => setSubwayLineSheet({ ...rtTrain, viewStation: displayed.station })}
-                    className="flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <Map size={12} />
-                    노선도
-                  </button>
-                </div>
+                <span
+                  className="text-eta-mob font-black tracking-tight whitespace-nowrap"
+                  style={{ color: isImminent ? '#e26a4d' : displayed.color }}
+                >
+                  {etaLabel}
+                </span>
               </div>
+              <button
+                onClick={() => setSubwayLineSheet({ ...rtTrain, viewStation: displayed.station })}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 text-meta font-extrabold py-2.5 rounded-mini text-chip-blue-fg dark:text-chip-blue-fg-dark bg-chip-blue-bg dark:bg-chip-blue-bg-dark transition-colors pressable"
+              >
+                <Map size={14} />
+                노선도 보기
+              </button>
             </div>
           )
         })}
@@ -194,8 +194,8 @@ export default function GlobalSubwayDetailSheet() {
           boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
         }}
       >
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-600" />
+        <div className="flex justify-center pt-3.5 pb-1.5 flex-shrink-0">
+          <div className="w-11 h-1 rounded-full bg-mute-2 dark:bg-mute-2-dark" />
         </div>
 
         {/* 통합 헤더 */}
@@ -244,7 +244,7 @@ export default function GlobalSubwayDetailSheet() {
               lineLightColor={displayed.lightColor}
             />
           ) : !ttLoading && (
-            <div className="flex items-center justify-center py-12 text-slate-400 text-sm">시간표 데이터가 없습니다</div>
+            <div className="flex items-center justify-center py-12 text-meta font-semibold text-mute dark:text-mute-dark">시간표 데이터가 없습니다</div>
           )}
         </div>
       </div>
