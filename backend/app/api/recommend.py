@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -99,8 +100,14 @@ async def recommend_transport(
     # 1. 도보: 출발지 → 정왕역 (약 20분 고정)
     walk_seconds = 1200
 
+    # Phase 1: 입력 의존성 없는 외부/캐시 호출 동시 시작
+    # - get_arrivals(): DB + 캐시
+    # - _get_traffic_label(): TMAP 교통상황 캐시 조회 (cache miss 시 ~300ms)
+    bus_arrivals_task = asyncio.create_task(get_arrivals(db, 3, d, t))
+    traffic_label_task = asyncio.create_task(_get_traffic_label())
+
     # 2. 버스: 대기 + 탑승(자동차 이동 시간 근사)
-    bus_arrivals = await get_arrivals(db, 3, d, t)
+    bus_arrivals = await bus_arrivals_task
     bus_option = {"available": False, "total_seconds": None}
     if bus_arrivals and bus_arrivals["arrivals"]:
         stmt = select(BusStop).where(BusStop.id == 3)
@@ -144,7 +151,8 @@ async def recommend_transport(
             message = f"버스({bus_option.get('route_no', '')})를 추천합니다 — 약 {total_min}분"
 
     # 4. 도로 혼잡도 컨텍스트 prefix (원활이면 생략)
-    traffic_label = await _get_traffic_label()
+    # Phase 3: 함수 시작 시 이미 백그라운드로 실행 중이므로 여기서는 결과만 회수.
+    traffic_label = await traffic_label_task
     if traffic_label:
         message = f"도로 {traffic_label} 중 — {message}"
 
