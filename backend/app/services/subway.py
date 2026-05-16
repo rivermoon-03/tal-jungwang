@@ -156,8 +156,10 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
 _TAGO_BASE = "https://apis.data.go.kr/1613000/SubwayInfo/GetSubwaySttnAcctoSchdulList"
 _SUINBUNDANG_ID = "MTRKRK1K257"
 _LINE4_ID = "MTRKR4455"
-_CHOJI_ID = "MTRSWWSS26"      # 초지역 서해선
-_SIHEUNG_ID = "MTRSWWSS22"    # 시흥시청역 서해선
+# 서해선(시흥시청·초지)은 TAGO 데이터에 destination 필드가 없고 대곡-일산 연장구간 자체가 미등록 →
+# tabriz.kr 기반 별도 시드(scripts/prod_migration_20260516_seohae_timetable.sql)를 사용한다.
+# refresh_timetable이 실수로 서해선 행을 TAGO 데이터로 덮어쓰지 않도록 COMBO에서 제외.
+_SERVED_DIRECTIONS = {"up", "down", "line4_up", "line4_down"}
 _SUBWAY_COMBOS = [
     (_SUINBUNDANG_ID, "01", "U", "weekday", "up"),
     (_SUINBUNDANG_ID, "01", "D", "weekday", "down"),
@@ -167,14 +169,6 @@ _SUBWAY_COMBOS = [
     (_LINE4_ID,       "01", "D", "weekday", "line4_down"),
     (_LINE4_ID,       "03", "U", "sunday",  "line4_up"),
     (_LINE4_ID,       "03", "D", "sunday",  "line4_down"),
-    (_CHOJI_ID,       "01", "U", "weekday", "choji_up"),
-    (_CHOJI_ID,       "01", "D", "weekday", "choji_dn"),
-    (_CHOJI_ID,       "03", "U", "sunday",  "choji_up"),
-    (_CHOJI_ID,       "03", "D", "sunday",  "choji_dn"),
-    (_SIHEUNG_ID,     "01", "U", "weekday", "siheung_up"),
-    (_SIHEUNG_ID,     "01", "D", "weekday", "siheung_dn"),
-    (_SIHEUNG_ID,     "03", "U", "sunday",  "siheung_up"),
-    (_SIHEUNG_ID,     "03", "D", "sunday",  "siheung_dn"),
 ]
 
 
@@ -188,7 +182,12 @@ async def refresh_timetable(db: AsyncSession) -> int:
     total = 0
 
     async with httpx.AsyncClient() as client:
-        await db.execute(delete(SubwayTimetableEntry))
+        # 서해선(siheung_*, choji_*)은 별도 시드 사용 → DELETE 범위 제한.
+        await db.execute(
+            delete(SubwayTimetableEntry).where(
+                SubwayTimetableEntry.direction.in_(_SERVED_DIRECTIONS)
+            )
+        )
 
         for station_id, daily_code, ud_code, day_type, direction in _SUBWAY_COMBOS:
             params = {
@@ -215,8 +214,6 @@ async def refresh_timetable(db: AsyncSession) -> int:
                 dest = item.get("endSubwayStationNm", "") or ""
                 if not dest and direction == "line4_up":
                     dest = "당고개"
-                if not dest and direction in ("choji_up", "siheung_up"):
-                    dest = "대곡"
                 db.add(SubwayTimetableEntry(
                     direction=direction,
                     day_type=day_type,
