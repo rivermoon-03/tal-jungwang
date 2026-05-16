@@ -91,13 +91,9 @@ export default {
         'route-33':  '#0891B2',
         'route-1':   '#F97316',
 
-        // ── DEPRECATED (사용처 치환 후 제거 예정) ─────────
-        coral: {
-          DEFAULT: '#102c4c',
-        },
+        // ── 도메인 색 (사용처 있음, 점진적으로 shuttle 토큰으로 마이그레이션 예정) ──
         navy: {
           DEFAULT: '#1b3a6e',
-          light:   '#283593',
         },
       },
       fontSize: {
