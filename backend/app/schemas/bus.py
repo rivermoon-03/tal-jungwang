@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -35,6 +37,16 @@ class BusRouteSummary(BaseModel):
     stops: list[BusRouteStop] = []
 
 
+class ArrivalStats(BaseModel):
+    tolerance_min: int
+    p10_min: int
+    p50_min: int
+    p90_min: int
+    mean_min: int
+    sample_size: int
+    computed_at: datetime | None = None
+
+
 class BusArrival(BaseModel):
     route_id: int
     route_no: str
@@ -46,6 +58,7 @@ class BusArrival(BaseModel):
     is_tomorrow: bool = False  # 오늘 시간표 소진 후 내일 첫차인 경우 True
     crowded: int = 0  # 혼잡도 (0=정보없음, 1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
     avg_interval_minutes: int | None = None  # 현재 시각 ±60분 윈도우 평균 배차 간격(분)
+    stats: ArrivalStats | None = None
 
 
 class BusArrivalsResponse(BaseModel):

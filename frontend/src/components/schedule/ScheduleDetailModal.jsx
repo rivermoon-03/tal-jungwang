@@ -7,12 +7,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Clock, Star, MapPin } from 'lucide-react'
-import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview } from '../../hooks/useBus'
+import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import Skeleton from '../common/Skeleton'
 import { RouteProgressStrip } from '../bus/BusArrivalCard'
 import { ROUTE_WAYPOINTS } from '../dashboard/busStationConfig'
+import BusStatsHeader from '../bus/BusStatsHeader'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -532,6 +533,14 @@ function EmptyMsg({ text }) {
 
 function BusHistoryContent({ routeNumber }) {
   const { data, loading, error } = useBusHistoryPreview(routeNumber)
+  const routeId = data?.route_id
+  const stopId = data?.stop_id
+  const { data: statsRes } = useBusArrivalStats(routeId, stopId)
+  const stats = statsRes?.stats ?? null
+  const dayLabel = statsRes ? ({
+    weekday: '평일', saturday: '토요일', sunday: '일/공휴일',
+  }[statsRes.day_type] ?? null) : null
+  const hourLabel = statsRes?.hour_of_day != null ? `${statsRes.hour_of_day}시` : null
   const anchorRef = useRef(null)
 
   const now = new Date()
@@ -575,6 +584,7 @@ function BusHistoryContent({ routeNumber }) {
 
   return (
     <div>
+      <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-3 leading-relaxed">
         실시간 GBIS 기반 노선 · 시간표 없음{stopName ? ` · ${stopName}` : ''}
         <br />과거 실제 도착 기록을 날짜별로 표시합니다

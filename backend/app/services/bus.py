@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.cache import get_cached_json, get_redis, set_cached_json
 from app.models.bus import BusRoute, BusStop, BusTimetableEntry
+from app.services.bus_stats import get_arrival_stats
 
 _KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
@@ -208,6 +209,7 @@ async def get_arrivals(
 
                 # 노선별 avg_interval_minutes 캐시(동일 노선 중복 계산 방지)
                 interval_cache: dict[int, int | None] = {}
+                stats_cache: dict[int, dict | None] = {}
                 for arrival in cached_arrivals:
                     if elapsed_sec > 0 and arrival.get("arrive_in_seconds") is not None:
                         arrival["arrive_in_seconds"] = max(
@@ -237,6 +239,22 @@ async def get_arrivals(
                         avg = interval_cache[route_id]
                         if avg is not None:
                             arrival["avg_interval_minutes"] = avg
+                        # ── stats 머지 (route별 1회 lookup) ──
+                        if arrival.get("arrival_type") == "realtime":
+                            if route_id not in stats_cache:
+                                try:
+                                    stats_cache[route_id] = await get_arrival_stats(
+                                        db, route_id, stop.id, day, now_time.hour
+                                    )
+                                except Exception as exc:
+                                    logger.warning(
+                                        "arrival_stats 조회 실패 (route %s, stop %s): %s",
+                                        route_id, stop.id, exc,
+                                    )
+                                    stats_cache[route_id] = None
+                            stats_payload = stats_cache[route_id]
+                            if stats_payload is not None:
+                                arrival["stats"] = stats_payload
                 arrivals.extend(cached_arrivals)
         except Exception as exc:
             logger.warning("Redis 캐시 읽기 실패 (정류장 %s): %s", station_id, exc)
