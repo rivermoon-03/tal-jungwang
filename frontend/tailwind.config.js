@@ -62,6 +62,14 @@ export default {
         'line-suin':   '#F5A623',
         'line-seohae': '#75bf43',
 
+        // ── 노선 컬러 halo (출발지 도트 ring · alpha 16/28%) ──
+        'route-halo-express':       'rgba(220,38,38,.16)',
+        'route-halo-trunk':         'rgba(37,99,235,.16)',
+        'route-halo-local':         'rgba(8,145,178,.18)',
+        'route-halo-express-dark':  'rgba(220,38,38,.32)',
+        'route-halo-trunk-dark':    'rgba(37,99,235,.32)',
+        'route-halo-local-dark':    'rgba(8,145,178,.36)',
+
         // ── 노선 칩 색 (Soft Tinted — 카드 내부용 신규) ──
         'chip-green-bg':   '#eef5f0', 'chip-green-fg':   '#3a7a52',
         'chip-blue-bg':    '#e6efff', 'chip-blue-fg':    '#2e5fb3',
