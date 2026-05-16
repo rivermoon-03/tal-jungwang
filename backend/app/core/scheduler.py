@@ -68,6 +68,17 @@ async def _bus_poll_job():
         logger.exception("Bus arrival polling failed")
 
 
+async def _cafeteria_refresh_job():
+    """학식 메뉴 캐시를 강제 갱신 (07:00·11:00 KST)."""
+    from app.services.cafeteria import refresh_menu
+
+    try:
+        await refresh_menu()
+        logger.info("학식 메뉴 캐시 갱신 완료")
+    except Exception:
+        logger.exception("학식 메뉴 캐시 갱신 실패")
+
+
 async def _subway_realtime_poll_job():
     """서울 지하철 실시간 도착정보 폴링 (정왕·시흥시청·초지).
 
@@ -191,6 +202,18 @@ def setup_scheduler():
     logger.info(
         "Subway realtime polling scheduler configured (00:00~03:49 10m / peak 15s / off-peak 20s)"
     )
+
+    # ── 학식 메뉴 갱신 (07:00·11:00 KST 하루 2회) ──
+    # 오후엔 변경이 거의 없어 오전에만 두 번 갱신
+    scheduler.add_job(
+        _cafeteria_refresh_job,
+        CronTrigger(hour="7,11", minute=0),
+        id="cafeteria_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("Cafeteria menu refresh scheduler configured (07:00·11:00 KST)")
 
 
 def start_scheduler():
