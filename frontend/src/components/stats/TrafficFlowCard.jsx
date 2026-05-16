@@ -70,22 +70,23 @@ export default function TrafficFlowCard() {
 
   return (
     <article
-      className="relative overflow-hidden rounded-3xl shadow-sm"
+      className="relative overflow-hidden rounded-card-lg shadow-card-md"
       style={{ background: 'linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #0c1220 100%)' }}
     >
       <div className="p-5">
         {/* 헤더 */}
         <header className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-base font-bold text-white">마유로 교통 흐름</div>
-            <div className="mt-0.5 text-xs text-white/40">
+            <div className="text-[11px] font-extrabold text-white/55 tracking-[0.08em] uppercase">마유로</div>
+            <div className="mt-0.5 text-[17px] font-black text-white tracking-tight">교통 흐름</div>
+            <div className="mt-1.5 text-xs font-semibold text-white/45">
               {dayType === 'weekday' ? '평일' : '주말'}
               {sampleDays > 0 ? ` · 최근 ${sampleDays}일 평균` : ''}
             </div>
           </div>
 
           {/* 방향 토글 */}
-          <div className="flex rounded-full p-0.5 bg-white/8 ring-1 ring-white/12 shrink-0">
+          <div className="flex rounded-full p-[3px] bg-white/10 backdrop-blur shrink-0">
             {DIRECTION_TABS.map((tab) => {
               const active = tab.id === direction
               return (
@@ -93,8 +94,8 @@ export default function TrafficFlowCard() {
                   key={tab.id}
                   type="button"
                   onClick={() => setDirection(tab.id)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full transition ${
-                    active ? 'bg-white text-slate-900 shadow-sm' : 'text-white/55 hover:text-white'
+                  className={`px-3.5 py-1.5 text-xs font-extrabold rounded-full transition tracking-tight ${
+                    active ? 'bg-white text-ink shadow-sm' : 'text-white/60 hover:text-white'
                   }`}
                 >
                   {tab.label}
@@ -105,25 +106,32 @@ export default function TrafficFlowCard() {
         </header>
 
         {/* 현재 상태 */}
-        <div className="mt-4 flex items-end justify-between gap-4">
+        <div className="mt-5 flex items-end justify-between gap-4">
           <div>
-            <div className="text-xs text-white/40 mb-1">지금</div>
-            <div
-              className="text-4xl font-extrabold tracking-tight leading-none"
-              style={{ color: status.color }}
-            >
-              {status.label}
+            <div className="text-[11px] font-bold text-white/50 tracking-wide mb-1.5">지금</div>
+            <div className="flex items-baseline gap-2.5">
+              <span
+                aria-hidden
+                className="self-center w-2.5 h-2.5 rounded-full"
+                style={{ background: status.color, boxShadow: `0 0 0 5px ${status.color === 'rgba(148,163,184,1)' ? 'rgba(148,163,184,0.18)' : status.color.replace('rgb(', 'rgba(').replace(')', ',0.18)')}` }}
+              />
+              <span
+                className="text-[38px] font-black tracking-[-0.04em] leading-none"
+                style={{ color: status.color }}
+              >
+                {status.label}
+              </span>
             </div>
             {status.sub && (
-              <div className="mt-1 text-sm text-white/50 tabular-nums">{status.sub}</div>
+              <div className="mt-2 text-sm font-bold text-white/60 tabular-nums">{status.sub}</div>
             )}
           </div>
           {futurePeak && (
             <div className="text-right">
-              <div className="text-xs text-white/40 mb-1">
+              <div className="text-[11px] font-bold text-white/50 tracking-wide mb-1.5">
                 {String(futurePeak.hour).padStart(2, '0')}시경 예상
               </div>
-              <div className="text-lg font-bold" style={{ color: futurePeak.speed >= 10 ? 'rgb(251,191,36)' : 'rgb(248,113,113)' }}>
+              <div className="text-xl font-black tracking-tight" style={{ color: futurePeak.speed >= 10 ? 'rgb(251,191,36)' : 'rgb(248,113,113)' }}>
                 {futurePeak.label}
               </div>
             </div>

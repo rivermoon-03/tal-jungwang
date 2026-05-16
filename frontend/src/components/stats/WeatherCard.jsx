@@ -55,7 +55,7 @@ function TempSparkline({ points }) {
 
   return (
     <div className="mt-4">
-      <div className="text-[10px] text-white/40 mb-1">이후 기온 변화</div>
+      <div className="text-[11px] font-bold text-white/50 tracking-wider uppercase mb-1.5">이후 기온 변화</div>
       <div className="relative" style={{ height: H }}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -130,7 +130,7 @@ function TempSparkline({ points }) {
           </div>
         )}
       </div>
-      <div className="flex justify-between px-1 text-[10px] tabular-nums text-white/35 mt-0.5">
+      <div className="flex justify-between px-1 text-[10px] font-semibold tabular-nums text-white/40 mt-1">
         {points.map((p) => <span key={p.hour}>{p.hour}시</span>)}
       </div>
     </div>
@@ -196,7 +196,7 @@ export default function WeatherCard() {
 
   return (
     <article
-      className="relative overflow-hidden rounded-3xl border border-white/5 shadow-sm"
+      className="relative overflow-hidden rounded-card-lg shadow-card-md"
       style={{ background: bg }}
     >
       <div
@@ -207,24 +207,24 @@ export default function WeatherCard() {
       <div className="relative p-5">
         {/* 헤더 — 온도 + 아이콘 가로 배치 */}
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-end gap-3">
-            <span className="text-4xl font-extrabold text-white tabular-nums tracking-tight leading-none">
+          <div className="flex items-end gap-3.5">
+            <span className="text-[44px] font-black text-white tabular-nums tracking-[-0.04em] leading-none">
               {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
             </span>
-            <div className="mb-0.5">
-              <div className="text-sm font-medium text-white/75 leading-none">
+            <div className="mb-1">
+              <div className="text-sm font-bold text-white/85 leading-none tracking-tight">
                 {SKY_TEXT[icon] ?? weather?.currentSky ?? ''}
               </div>
-              <div className="mt-1 flex gap-3 text-xs text-white/50">
-                {todayHigh != null && <span>최고 <span className="font-semibold text-white/80">{todayHigh}°</span></span>}
-                {todayLow  != null && <span>최저 <span className="font-semibold text-white/80">{todayLow}°</span></span>}
+              <div className="mt-2 flex gap-2.5 text-xs font-semibold text-white/55">
+                {todayHigh != null && <span><span className="text-yellow-300/85 font-extrabold">↑</span> <span className="text-white/85 font-extrabold tabular-nums">{todayHigh}°</span></span>}
+                {todayLow  != null && <span><span className="text-blue-300/85 font-extrabold">↓</span> <span className="text-white/85 font-extrabold tabular-nums">{todayLow}°</span></span>}
                 {weather?.rainProb != null && weather.rainProb > 0 && (
-                  <span>강수 <span className="font-semibold text-white/80">{weather.rainProb}%</span></span>
+                  <span>강수 <span className="text-white/85 font-extrabold tabular-nums">{weather.rainProb}%</span></span>
                 )}
               </div>
             </div>
           </div>
-          <Icon size={40} strokeWidth={1.4} className="text-white/60 shrink-0" aria-hidden="true" />
+          <Icon size={44} strokeWidth={1.4} className="text-white/65 shrink-0" aria-hidden="true" />
         </div>
 
         {/* 기온 변화 스파크라인 */}
@@ -233,13 +233,13 @@ export default function WeatherCard() {
         {/* 내일 날씨 */}
         {tomorrowSummary && TomorrowIcon && (
           <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-            <span className="text-xs text-white/50">내일</span>
+            <span className="text-xs font-bold text-white/55 tracking-wide">내일</span>
             <div className="flex items-center gap-2">
-              <TomorrowIcon size={18} strokeWidth={1.6} className="text-white/60" aria-hidden="true" />
-              <span className="text-sm text-white/65">
+              <TomorrowIcon size={18} strokeWidth={1.6} className="text-white/65" aria-hidden="true" />
+              <span className="text-sm font-semibold text-white/70">
                 {SKY_TEXT[tomorrowSummary.icon] ?? ''}
               </span>
-              <span className="text-sm font-semibold text-white">
+              <span className="text-[15px] font-extrabold tabular-nums text-white tracking-tight">
                 {tomorrowSummary.high}° / {tomorrowSummary.low}°
               </span>
             </div>

@@ -48,11 +48,14 @@ function DestRow({ dest, origin }) {
   const hasRoute = result?.coordinates?.length > 0
 
   return (
-    <div className="flex items-center gap-3 py-2.5">
+    <div className={`relative flex items-center gap-3 py-3 ${isActive ? 'pl-3' : ''}`}>
+      {isActive && (
+        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] bg-accent rounded-full" />
+      )}
       <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-bold text-[#0f172a] dark:text-[#f1f5f9]">{dest.name}</p>
+        <p className="text-[14px] font-extrabold text-ink dark:text-ink-dark tracking-tight">{dest.name}</p>
         {result && (
-          <p className="text-[11px] text-[#94a3b8]">
+          <p className="text-meta font-semibold text-mute dark:text-mute-dark mt-0.5">
             {fmtKm(result.distance_meters)}
             {result.taxi_fee > 0 && (
               <span className="ml-2">약 {result.taxi_fee.toLocaleString()}원</span>
@@ -60,21 +63,21 @@ function DestRow({ dest, origin }) {
           </p>
         )}
       </div>
-      <span className="text-[16px] font-extrabold tabular-nums text-navy dark:text-blue-300 whitespace-nowrap">
+      <span className="text-panel-ttl font-black tabular-nums text-ink dark:text-ink-dark whitespace-nowrap tracking-tight">
         {loading
-          ? <span className="text-[13px] text-[#94a3b8] font-normal">조회 중…</span>
+          ? <span className="text-[13px] text-mute dark:text-mute-dark font-medium">조회 중…</span>
           : fmtMin(result?.duration_seconds)}
       </span>
       <button
         aria-label={`${dest.name} 경로 보기`}
         onClick={() => setDriveRouteCoords(isActive ? null : result?.coordinates)}
         disabled={!hasRoute}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors pressable flex-shrink-0
+        className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors pressable flex-shrink-0
           ${isActive
-            ? 'bg-navy text-white'
+            ? 'bg-ink text-white dark:bg-accent-dark'
             : hasRoute
-              ? 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-              : 'bg-slate-50 dark:bg-slate-700/50 text-slate-300 cursor-not-allowed'}`}
+              ? 'bg-line dark:bg-line-dark text-text dark:text-text-dark'
+              : 'bg-surface-alt dark:bg-surface-dark-alt text-mute-2 dark:text-mute-2-dark cursor-not-allowed'}`}
       >
         <Navigation size={14} />
       </button>
@@ -87,18 +90,18 @@ export default function TaxiPanel() {
 
   if (!userLocation) {
     return (
-      <p className="text-center text-[13px] text-[#94a3b8] py-6">
+      <p className="text-center text-meta font-semibold text-mute dark:text-mute-dark py-6">
         GPS 위치를 켜주세요
       </p>
     )
   }
 
   return (
-    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+    <div className="divide-y divide-line dark:divide-line-dark">
       {TAXI_DESTS.map((dest) => (
         <DestRow key={dest.id} dest={dest} origin={userLocation} />
       ))}
-      <p className="pt-2 text-[11px] text-[#cbd5e1] dark:text-slate-600 text-center">
+      <p className="pt-2.5 text-meta font-semibold text-mute-2 dark:text-mute-2-dark text-center">
         실제 요금·시간과 다를 수 있습니다
       </p>
     </div>
