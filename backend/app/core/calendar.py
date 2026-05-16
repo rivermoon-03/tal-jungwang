@@ -11,7 +11,7 @@ from datetime import date
 import holidays
 
 # 모듈 로드 시 단 한 번 인스턴스화 — holidays 라이브러리는 lazy 평가하므로 가볍다.
-_KR_HOLIDAYS = holidays.country_holidays("KR")
+_KR_HOLIDAYS = holidays.country_holidays("KR", language="ko")
 
 
 def get_holiday_name(d: date) -> str | None:
