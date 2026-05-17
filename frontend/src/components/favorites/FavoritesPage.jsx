@@ -307,6 +307,7 @@ function useFavoriteItems(favorites) {
             routeCode: busNo,
             routeId: route.route_id ?? null,
             stopId: stop?.stop_id ?? null,
+            category: busParsed.category ?? null,
             isRealtime: Boolean(route.is_realtime),
             accentColor: isAccent ? '#DC2626' : undefined,
             title: route.direction_name
@@ -441,6 +442,7 @@ export default function FavoritesPage({ onGoSchedule }) {
         type={selectedDetail?.type}
         routeCode={selectedDetail?.routeCode}
         stopId={selectedDetail?.stopId ?? null}
+        category={selectedDetail?.category ?? null}
         direction={selectedDetail?.direction}
         subwayKey={selectedDetail?.subwayKey}
         accentColor={selectedDetail?.accentColor}
