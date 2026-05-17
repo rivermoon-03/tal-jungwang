@@ -196,8 +196,10 @@ export const ROUTE_WAYPOINTS = {
 }
 
 // 노선 번호로 실시간 도착정보를 조회해야 할 GBIS 정류장 ID를 반환.
+// 값이 string이면 카테고리 무관 단일 정류장, object면 카테고리별 정류장.
+// 시흥33은 등교(시흥시청역)·하교(한국공대) 양방향 모두 실시간 추적 대상.
 const _ROUTE_TO_GBIS = {
-  '시흥33': '224000639',
+  '시흥33': { 하교: '224000639', 등교: '224000586' },
   '20-1':  '224000639',
   '11-A':  '224000639',
   '시흥1':  '224000513',
@@ -208,6 +210,11 @@ const _ROUTE_TO_GBIS = {
   '5200':  '224000861',
 }
 
-export function getGbisStationIdForRoute(routeNumber) {
-  return _ROUTE_TO_GBIS[routeNumber] ?? null
+export function getGbisStationIdForRoute(routeNumber, category) {
+  const entry = _ROUTE_TO_GBIS[routeNumber]
+  if (entry == null) return null
+  if (typeof entry === 'string') return entry
+  if (category && entry[category] != null) return entry[category]
+  // 카테고리 미지정/매칭 실패 시 첫 값으로 폴백 — 기존 호출처 호환.
+  return Object.values(entry)[0] ?? null
 }
