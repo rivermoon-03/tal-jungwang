@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/v1/shuttle", tags=["shuttle"])
 @limiter.limit("60/minute")
 async def shuttle_schedule(
     request: Request,
+    response: Response,
     date_str: str | None = Query(None, alias="date"),
     direction: int | None = Query(None, ge=0, le=3),
     db: AsyncSession = Depends(get_db),
@@ -30,6 +31,7 @@ async def shuttle_schedule(
     result = await get_schedule(db, d, direction)
     if not result:
         return ApiResponse.fail("NO_SCHEDULE", "해당 날짜에 적용되는 스케줄이 없습니다.")
+    response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=3600"
     return ApiResponse[ShuttleScheduleResponse].ok(result)
 
 

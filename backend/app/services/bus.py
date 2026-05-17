@@ -113,8 +113,127 @@ async def _compute_avg_interval(
     if avg_minutes <= 0:
         return None
 
-    await set_cached_json(cache_key, {"value": avg_minutes}, ttl=3600)
+    # 핫패스: JSON wrap 없이 plain string 으로 저장. 읽기측 `_decode_interval_payload` 가
+    # 구형(`{"value": int}`)과 신형(plain int) 모두 호환.
+    try:
+        redis = await get_redis()
+        await redis.set(cache_key, str(avg_minutes), ex=3600)
+    except Exception as exc:
+        logger.warning("bus:interval set 실패 (%s): %s", cache_key, exc)
     return avg_minutes
+
+
+def _decode_interval_payload(raw: str | None) -> int | None | object:
+    """interval 캐시 payload를 decode. 미스(None) ↔ 캐시 hit 의 None을 구분하기 위해
+    miss 시 `_MISS` 센티넬을 반환한다.
+    """
+    if raw is None:
+        return _MISS
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return _MISS
+    if isinstance(parsed, dict):
+        val = parsed.get("value")
+        return val if isinstance(val, int) else None
+    if isinstance(parsed, int):
+        return parsed
+    return None
+
+
+_MISS = object()
+
+
+async def _resolve_avg_intervals(
+    db: AsyncSession,
+    route_ids: list[int],
+    stop_id: int,
+    day_type: str,
+    hour: int,
+) -> dict[int, int | None]:
+    """여러 route 의 평균 배차 간격을 한 번의 MGET 으로 prefetch.
+
+    캐시 미스는 `_compute_avg_interval`을 sequential 하게 호출(같은 AsyncSession 공유).
+    """
+    if not route_ids:
+        return {}
+    redis = await get_redis()
+    keys = [f"bus:interval:{rid}:{stop_id}:{day_type}:{hour}" for rid in route_ids]
+    try:
+        raws = await redis.mget(*keys)
+    except Exception as exc:
+        logger.warning("bus:interval mget 실패: %s", exc)
+        raws = [None] * len(keys)
+    # 테스트용 AsyncMock 등 비표준 반환을 방어 — list/tuple 이 아니면 미스로 폴백.
+    if not isinstance(raws, (list, tuple)) or len(raws) != len(keys):
+        raws = [None] * len(keys)
+
+    result: dict[int, int | None] = {}
+    misses: list[int] = []
+    for rid, raw in zip(route_ids, raws):
+        decoded = _decode_interval_payload(raw)
+        if decoded is _MISS:
+            misses.append(rid)
+        else:
+            result[rid] = decoded  # type: ignore[assignment]
+
+    for rid in misses:
+        try:
+            result[rid] = await _compute_avg_interval(db, rid, stop_id, day_type, hour)
+        except Exception as exc:
+            logger.warning(
+                "avg_interval 계산 실패 (route %s, stop %s): %s", rid, stop_id, exc
+            )
+            result[rid] = None
+    return result
+
+
+async def _resolve_arrival_stats(
+    db: AsyncSession,
+    route_ids: list[int],
+    stop_id: int,
+    day_type: str,
+    hour: int,
+) -> dict[int, dict | None]:
+    """여러 route 의 도착 통계를 한 번의 MGET 으로 prefetch. 미스는 sequential DB 조회."""
+    if not route_ids:
+        return {}
+    redis = await get_redis()
+    keys = [f"bus:stats:{rid}:{stop_id}:{day_type}:{hour}" for rid in route_ids]
+    try:
+        raws = await redis.mget(*keys)
+    except Exception as exc:
+        logger.warning("bus:stats mget 실패: %s", exc)
+        raws = [None] * len(keys)
+    if not isinstance(raws, (list, tuple)) or len(raws) != len(keys):
+        raws = [None] * len(keys)
+
+    result: dict[int, dict | None] = {}
+    misses: list[int] = []
+    for rid, raw in zip(route_ids, raws):
+        if raw is None:
+            misses.append(rid)
+            continue
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError):
+            misses.append(rid)
+            continue
+        # negative cache sentinel: {"sample_size": None}
+        if isinstance(parsed, dict) and parsed.get("sample_size") is None:
+            result[rid] = None
+        else:
+            result[rid] = parsed if isinstance(parsed, dict) else None
+
+    for rid in misses:
+        try:
+            result[rid] = await get_arrival_stats(db, rid, stop_id, day_type, hour)
+        except Exception as exc:
+            logger.warning(
+                "arrival_stats 조회 실패 (route %s, stop %s): %s", rid, stop_id, exc
+            )
+            result[rid] = None
+    return result
 
 
 async def get_stations(db: AsyncSession) -> list[dict]:
@@ -207,9 +326,7 @@ async def get_arrivals(
                     except (KeyError, ValueError):
                         elapsed_sec = 0
 
-                # 노선별 avg_interval_minutes 캐시(동일 노선 중복 계산 방지)
-                interval_cache: dict[int, int | None] = {}
-                stats_cache: dict[int, dict | None] = {}
+                # 1) elapsed 보정 + 보수 안전 마진을 먼저 적용한다.
                 for arrival in cached_arrivals:
                     if elapsed_sec > 0 and arrival.get("arrive_in_seconds") is not None:
                         arrival["arrive_in_seconds"] = max(
@@ -223,38 +340,46 @@ async def get_arrivals(
                         arrival["arrive_in_seconds"] = apply_safety_margin(
                             arrival["arrive_in_seconds"]
                         )
-                    route_id = arrival.get("route_id")
-                    if isinstance(route_id, int):
-                        if route_id not in interval_cache:
-                            try:
-                                interval_cache[route_id] = await _compute_avg_interval(
-                                    db, route_id, stop.id, day, now_time.hour
-                                )
-                            except Exception as exc:
-                                logger.warning(
-                                    "avg_interval 계산 실패 (route %s, stop %s): %s",
-                                    route_id, stop.id, exc,
-                                )
-                                interval_cache[route_id] = None
-                        avg = interval_cache[route_id]
-                        if avg is not None:
-                            arrival["avg_interval_minutes"] = avg
-                        # ── stats 머지 (route별 1회 lookup) ──
-                        if arrival.get("arrival_type") == "realtime":
-                            if route_id not in stats_cache:
-                                try:
-                                    stats_cache[route_id] = await get_arrival_stats(
-                                        db, route_id, stop.id, day, now_time.hour
-                                    )
-                                except Exception as exc:
-                                    logger.warning(
-                                        "arrival_stats 조회 실패 (route %s, stop %s): %s",
-                                        route_id, stop.id, exc,
-                                    )
-                                    stats_cache[route_id] = None
-                            stats_payload = stats_cache[route_id]
-                            if stats_payload is not None:
-                                arrival["stats"] = stats_payload
+
+                # 2) 이번 응답의 unique route_id 수집 → interval/stats 캐시를 한 번의
+                #    MGET 으로 prefetch. 미스만 DB 조회한다(AsyncSession 동시 사용 금지).
+                interval_route_ids: list[int] = []
+                stats_route_ids: list[int] = []
+                seen_int: set[int] = set()
+                seen_stats: set[int] = set()
+                for arrival in cached_arrivals:
+                    rid = arrival.get("route_id")
+                    if not isinstance(rid, int):
+                        continue
+                    if rid not in seen_int:
+                        seen_int.add(rid)
+                        interval_route_ids.append(rid)
+                    if (
+                        arrival.get("arrival_type") == "realtime"
+                        and rid not in seen_stats
+                    ):
+                        seen_stats.add(rid)
+                        stats_route_ids.append(rid)
+
+                interval_cache = await _resolve_avg_intervals(
+                    db, interval_route_ids, stop.id, day, now_time.hour
+                )
+                stats_cache = await _resolve_arrival_stats(
+                    db, stats_route_ids, stop.id, day, now_time.hour
+                )
+
+                # 3) 결과 머지.
+                for arrival in cached_arrivals:
+                    rid = arrival.get("route_id")
+                    if not isinstance(rid, int):
+                        continue
+                    avg = interval_cache.get(rid)
+                    if avg is not None:
+                        arrival["avg_interval_minutes"] = avg
+                    if arrival.get("arrival_type") == "realtime":
+                        stats_payload = stats_cache.get(rid)
+                        if stats_payload is not None:
+                            arrival["stats"] = stats_payload
                 arrivals.extend(cached_arrivals)
         except Exception as exc:
             logger.warning("Redis 캐시 읽기 실패 (정류장 %s): %s", station_id, exc)
@@ -460,3 +585,42 @@ async def get_timetable(
     }
     await set_cached_json(cache_key, data, ttl=86400)
     return data
+
+
+async def invalidate_bus_meta(route_id: int | None = None) -> None:
+    """admin CRUD 후 호출 — bus 메타 캐시(stations·routes·timetable)을 무효화한다.
+
+    `route_id` 가 주어지면 해당 노선의 timetable 만 SCAN+UNLINK 로 묶어서 제거.
+    None 이면 전체 timetable 무효화. routes/stations 는 키가 적어 직접 삭제.
+    """
+    try:
+        redis = await get_redis()
+    except Exception as exc:
+        logger.warning("bus 캐시 무효화 실패 (redis 연결): %s", exc)
+        return
+
+    try:
+        await redis.delete("bus:stations")
+        # bus:routes:{category|'all'} — 보통 4개 미만이라 SCAN+UNLINK
+        batch: list[str] = []
+        async for key in redis.scan_iter(match="bus:routes:*", count=200):
+            batch.append(key)
+            if len(batch) >= 200:
+                await redis.unlink(*batch)
+                batch.clear()
+        if batch:
+            await redis.unlink(*batch)
+            batch.clear()
+
+        # bus:timetable:{route_id}:{day}:{stop_id|'all'} — 24h TTL 이므로
+        # CRUD 후 stale 가능성이 크다.
+        match = f"bus:timetable:{route_id}:*" if route_id is not None else "bus:timetable:*"
+        async for key in redis.scan_iter(match=match, count=500):
+            batch.append(key)
+            if len(batch) >= 500:
+                await redis.unlink(*batch)
+                batch.clear()
+        if batch:
+            await redis.unlink(*batch)
+    except Exception as exc:
+        logger.warning("bus 캐시 무효화 실패 (스캔/삭제): %s", exc)

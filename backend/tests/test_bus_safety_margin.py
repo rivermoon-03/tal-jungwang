@@ -111,7 +111,8 @@ async def test_get_arrivals_applies_margin_to_realtime_only():
     fake_redis.get = AsyncMock(return_value=json.dumps(payload))
 
     with patch.object(bus_mod, "get_redis", AsyncMock(return_value=fake_redis)), \
-         patch.object(bus_mod, "_compute_avg_interval", AsyncMock(return_value=None)):
+         patch.object(bus_mod, "_resolve_avg_intervals", AsyncMock(return_value={})), \
+         patch.object(bus_mod, "_resolve_arrival_stats", AsyncMock(return_value={})):
         result = await bus_mod.get_arrivals(
             db, station_id=999, d=date.today(), now_time=time(now.hour, now.minute, now.second)
         )
