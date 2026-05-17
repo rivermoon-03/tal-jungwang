@@ -605,10 +605,11 @@ function EmptyMsg({ text }) {
 
 // ─── realtime bus history ────────────────────────────────────────────────
 
-function BusHistoryContent({ routeNumber }) {
+function BusHistoryContent({ routeNumber, category }) {
   // 카드(SchedulePage → useBusArrivals)가 보는 GBIS 추적 정류장과 동일한 stop을
   // backend에도 명시해 realtime_eta 응답이 카드와 같은 정류장 기준이 되게 한다.
-  const trackedStopId = getGbisStationIdForRoute(routeNumber)
+  // 시흥33처럼 양방향 실시간 추적이 있는 노선은 카테고리에 따라 stop이 갈린다.
+  const trackedStopId = getGbisStationIdForRoute(routeNumber, category)
   const { data, loading, error } = useBusHistoryPreview(routeNumber, trackedStopId)
   const routeId = data?.route_id
   const stopId = data?.stop_id
@@ -724,7 +725,7 @@ function BusHistoryContent({ routeNumber }) {
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null }) {
   const sheetRef = useRef(null)
   const [dragY, setDragY] = useState(0)
   const startY = useRef(null)
@@ -883,7 +884,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
               <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
             </div>
           )}
-          {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} />}
+          {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} />}
           {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
           {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
           {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}

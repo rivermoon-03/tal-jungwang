@@ -143,7 +143,7 @@ function withHaeng(label) {
 function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, onCardClick, onHasDataChange }) {
   const now = new Date()
 
-  const stationId = isRealtime ? getGbisStationIdForRoute(routeCode) : null
+  const stationId = isRealtime ? getGbisStationIdForRoute(routeCode, busGroup) : null
   const { data: timetableByIdData } = useBusTimetable(routeId ?? null)
   const { data: timetableByRouteData } = useBusTimetableByRoute(
     routeId == null ? routeCode : null,
@@ -191,6 +191,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
       routeCode: rno ?? routeCode,
       routeId: rid ?? routeId,
       stopId,
+      category: busGroup,
       favCode: favCode ?? rno ?? routeCode,
       mapLat,
       mapLng,
@@ -858,6 +859,7 @@ export default function SchedulePage() {
         routeCode={selectedDetail?.routeCode}
         routeId={selectedDetail?.routeId ?? null}
         stopId={selectedDetail?.stopId ?? null}
+        category={selectedDetail?.category ?? null}
         direction={selectedDetail?.direction}
         subwayKey={selectedDetail?.subwayKey}
         accentColor={selectedDetail?.accentColor}
