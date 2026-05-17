@@ -188,16 +188,24 @@ export default function GlobalSubwayDetailSheet() {
         onClick={handleClose}
       />
       <div
-        className="fixed bottom-0 left-0 right-0 h-[82vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[56px] md:top-0 z-[100] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-t-none md:rounded-r-card-pc md:border-r md:border-line dark:md:border-line-dark flex flex-col overflow-hidden"
-        style={{
-          transform: visible
-            ? 'translate(0, 0)'
-            : (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
-              ? 'translateX(-100%)'
-              : 'translateY(100%)'),
-          transition: `transform 0.3s ${EASE}`,
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
-        }}
+        className="fixed bottom-0 left-0 right-0 h-[82vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[100] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-none flex flex-col overflow-hidden"
+        style={(() => {
+          const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+          if (isDesktop) {
+            return {
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'translateY(0)' : 'translateY(8px)',
+              transition: `opacity 0.24s ${EASE}, transform 0.24s ${EASE}`,
+              pointerEvents: visible ? 'auto' : 'none',
+            }
+          }
+          return {
+            transform: visible ? 'translateY(0)' : 'translateY(100%)',
+            transition: `transform 0.3s ${EASE}`,
+            boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
+            pointerEvents: visible ? 'auto' : 'none',
+          }
+        })()}
       >
         <div className="flex justify-center pt-3.5 pb-1.5 flex-shrink-0">
           <div className="w-11 h-1 rounded-full bg-mute-2 dark:bg-mute-2-dark" />
