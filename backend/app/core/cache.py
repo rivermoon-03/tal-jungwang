@@ -13,7 +13,18 @@ _redis: aioredis.Redis | None = None
 async def get_redis() -> aioredis.Redis:
     global _redis
     if _redis is None:
-        _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+        # Railway 환경: 컨테이너 ↔ Redis 사이에 별도 hop 이 있으므로 idle TCP 가
+        # 끊겨도 자동 회복하도록 keepalive·health check·retry 를 명시한다.
+        _redis = aioredis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            max_connections=50,
+            socket_keepalive=True,
+            socket_timeout=5,
+            socket_connect_timeout=5,
+            health_check_interval=30,
+            retry_on_timeout=True,
+        )
     return _redis
 
 

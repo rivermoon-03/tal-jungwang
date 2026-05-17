@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1/subway", tags=["subway"])
 @limiter.limit("60/minute")
 async def subway_timetable(
     request: Request,
+    response: Response,
     date_str: str | None = Query(None, alias="date"),
     direction: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -29,6 +30,7 @@ async def subway_timetable(
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
     result = await get_timetable(db, d, direction)
+    response.headers["Cache-Control"] = "public, max-age=1800, stale-while-revalidate=43200"
     return ApiResponse[SubwayTimetableResponse].ok(result)
 
 

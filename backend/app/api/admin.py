@@ -355,6 +355,7 @@ from app.schemas.more import (
 )
 from app.services.more import invalidate_info, invalidate_links, invalidate_notices
 from app.services.map_markers import invalidate_markers_cache
+from app.services.bus import invalidate_bus_meta
 
 
 @router.get("/notices", response_model=ApiResponse[list[NoticeOut]])
@@ -633,6 +634,8 @@ async def admin_create_bus_route(
     db.add(route)
     await db.commit()
     await db.refresh(route)
+    await invalidate_bus_meta()
+    await invalidate_markers_cache()
     return ApiResponse.ok(_route_to_out(route))
 
 
@@ -650,6 +653,8 @@ async def admin_update_bus_route(
         setattr(route, k, v)
     await db.commit()
     await db.refresh(route)
+    await invalidate_bus_meta(route_id=route_id)
+    await invalidate_markers_cache()
     return ApiResponse.ok(_route_to_out(route))
 
 
@@ -664,6 +669,8 @@ async def admin_delete_bus_route(
         return ApiResponse.fail("ROUTE_NOT_FOUND", "해당 노선이 존재하지 않습니다.")
     await db.delete(route)
     await db.commit()
+    await invalidate_bus_meta(route_id=route_id)
+    await invalidate_markers_cache()
     return ApiResponse.ok({"deleted": route_id})
 
 
@@ -711,6 +718,8 @@ async def admin_create_bus_stop(
     db.add(stop)
     await db.commit()
     await db.refresh(stop)
+    await invalidate_bus_meta()
+    await invalidate_markers_cache()
     return ApiResponse.ok(_stop_to_out(stop))
 
 
@@ -728,6 +737,8 @@ async def admin_update_bus_stop(
         setattr(stop, k, v)
     await db.commit()
     await db.refresh(stop)
+    await invalidate_bus_meta()
+    await invalidate_markers_cache()
     return ApiResponse.ok(_stop_to_out(stop))
 
 
@@ -742,6 +753,8 @@ async def admin_delete_bus_stop(
         return ApiResponse.fail("STOP_NOT_FOUND", "해당 정류장이 존재하지 않습니다.")
     await db.delete(stop)
     await db.commit()
+    await invalidate_bus_meta()
+    await invalidate_markers_cache()
     return ApiResponse.ok({"deleted": stop_id})
 
 
@@ -775,6 +788,7 @@ async def admin_create_stop_route(
         return ApiResponse.ok({"bus_stop_id": body.bus_stop_id, "bus_route_id": body.bus_route_id, "created": False})
     db.add(BusStopRouteModel(bus_stop_id=body.bus_stop_id, bus_route_id=body.bus_route_id))
     await db.commit()
+    await invalidate_bus_meta(route_id=body.bus_route_id)
     return ApiResponse.ok({"bus_stop_id": body.bus_stop_id, "bus_route_id": body.bus_route_id, "created": True})
 
 
@@ -798,6 +812,7 @@ async def admin_delete_stop_route(
         )
     )
     await db.commit()
+    await invalidate_bus_meta(route_id=bus_route_id)
     return ApiResponse.ok({"deleted": result.rowcount})
 
 
@@ -915,6 +930,7 @@ async def admin_upload_bus_timetable(
             inserted += 1
 
     await db.commit()
+    await invalidate_bus_meta(route_id=route_id)
     return ApiResponse.ok({
         "route_id": route_id,
         "mode": body.mode,
@@ -946,6 +962,7 @@ async def admin_delete_bus_timetable(
         conditions.append(BusTimetableEntryModel.day_type == day_type)
     result = await db.execute(delete(BusTimetableEntryModel).where(and_(*conditions)))
     await db.commit()
+    await invalidate_bus_meta(route_id=route_id)
     return ApiResponse.ok({"deleted": result.rowcount})
 
 
