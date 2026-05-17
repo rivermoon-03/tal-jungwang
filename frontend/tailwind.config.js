@@ -198,6 +198,10 @@ export default {
           '0%':   { transform: 'translateX(-100%)', opacity: '0.4' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
         },
+        panelSwap: {
+          '0%':   { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'halo-pulse':      'haloPulse 1.6s ease-out infinite',
@@ -206,6 +210,7 @@ export default {
         'dot-blink':       'dotBlink 1.5s ease-in-out infinite',
         'fade-in':         'fadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         'slide-in-left':   'slideInLeft 280ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'panel-swap':      'panelSwap 240ms cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

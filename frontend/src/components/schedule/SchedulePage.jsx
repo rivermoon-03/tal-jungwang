@@ -3,7 +3,7 @@
  * - 상단 mode pill: 버스 · 지하철 · 셔틀 (바로 전환)
  * - 각 모드별 그룹 pill selector (지하철: 정왕/초지/시흥시청, 버스: 하교/등교/기타)
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import ScheduleSection from './ScheduleSection'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
@@ -18,7 +18,7 @@ import { useSubwayNext, useSubwayTimetable, useSubwayRealtime, normalizeRealtime
 import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
-import { getGbisStationIdForRoute } from '../dashboard/busStationConfig'
+import { getGbisStationIdForRoute, getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
 import { BarChart3 } from 'lucide-react'
 import StatsSheet from './StatsSheet'
 import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
@@ -140,18 +140,48 @@ function withHaeng(label) {
 }
 
 // ─── per-route bus section ───────────────────────────────────────────────────
-function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, onCardClick }) {
+function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, onCardClick, onHasDataChange }) {
   const now = new Date()
 
   const stationId = isRealtime ? getGbisStationIdForRoute(routeCode) : null
-  const { data: timetableByIdData, loading: timetableByIdLoading } = useBusTimetable(routeId ?? null)
-  const { data: timetableByRouteData, loading: timetableByRouteLoading } = useBusTimetableByRoute(
+  const { data: timetableByIdData } = useBusTimetable(routeId ?? null)
+  const { data: timetableByRouteData } = useBusTimetableByRoute(
     routeId == null ? routeCode : null,
     stopId ? { stopId } : undefined,
   )
   const timetableData = routeId != null ? timetableByIdData : timetableByRouteData
-  const timetableLoading = routeId != null ? timetableByIdLoading : timetableByRouteLoading
   const { data: arrivalsData } = useBusArrivals(stationId)
+
+  // 실시간/시간표 모두 hasData 정렬을 위해 분기 이전에 한 번 계산.
+  const arrivalsList = Array.isArray(arrivalsData) ? arrivalsData : arrivalsData?.arrivals ?? []
+  const realtimeMatches = isRealtime
+    ? arrivalsList
+        .filter((a) => a.route_no === routeCode && a.arrival_type === 'realtime')
+        .sort((a, b) => (a.arrive_in_seconds ?? 0) - (b.arrive_in_seconds ?? 0))
+    : []
+
+  const allTimes = !isRealtime ? (timetableData?.times ?? []) : []
+  const future = !isRealtime
+    ? allTimes
+        .map((t) => {
+          const [h, m] = (t ?? '00:00').split(':').map(Number)
+          const today = new Date(now)
+          today.setHours(h, m, 0, 0)
+          if (today > now) return today
+
+          const tomorrow = new Date(now)
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          tomorrow.setHours(h, m, 0, 0)
+          return tomorrow
+        })
+        .filter((d) => (d - now) < 12 * 60 * 60 * 1000)
+        .sort((a, b) => a - b)
+    : []
+
+  const hasData = isRealtime ? realtimeMatches.length > 0 : future.length > 0
+  useEffect(() => {
+    onHasDataChange?.(favCode, hasData)
+  }, [favCode, hasData, onHasDataChange])
 
   // onClick adapter: BusArrivalCard의 onTimetableClick(route_id, route_no, label) →
   // 기존 onCardClick({ type:'bus', ... }) 형태로 변환
@@ -171,14 +201,9 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
   }
 
   if (isRealtime) {
-    const list = Array.isArray(arrivalsData) ? arrivalsData : arrivalsData?.arrivals ?? []
-    const matches = list
-      .filter((a) => a.route_no === routeCode && a.arrival_type === 'realtime')
-      .sort((a, b) => (a.arrive_in_seconds ?? 0) - (b.arrive_in_seconds ?? 0))
-
     // arrivals 어댑터: matches가 있으면 그대로, 없으면 muted placeholder 1개
-    const arrivals = matches.length > 0
-      ? matches
+    const arrivals = realtimeMatches.length > 0
+      ? realtimeMatches
       : [{
           route_no: routeCode,
           route_id: routeId,
@@ -199,22 +224,6 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
 
   const toStr = (d) =>
     d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : null
-
-  const allTimes = timetableData?.times ?? []
-  const future = allTimes
-    .map((t) => {
-      const [h, m] = (t ?? '00:00').split(':').map(Number)
-      const today = new Date(now)
-      today.setHours(h, m, 0, 0)
-      if (today > now) return today
-
-      const tomorrow = new Date(now)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      tomorrow.setHours(h, m, 0, 0)
-      return tomorrow
-    })
-    .filter((d) => (d - now) < 12 * 60 * 60 * 1000)
-    .sort((a, b) => a - b)
 
   // arrivals 어댑터: future 배열에서 최대 2개 항목, 없으면 muted placeholder
   const arrivals = future.length > 0
@@ -399,9 +408,11 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
 }
 
 // ─── shuttle section ─────────────────────────────────────────────────────────
-// 셔틀이 주말·공휴일에 미운행이면 다음 평일(월~금) 시간표를 폴백으로 보여줌.
-function isWeekend(d = new Date()) {
+// 셔틀이 미운행일이면 다음 평일(월~금) 시간표를 폴백으로 보여줌.
+// 본캠: 토·일 모두 미운행. 2캠(direction>=2): 일요일만 미운행(토요일은 운행).
+function isShuttleOffDay(direction, d = new Date()) {
   const day = d.getDay()
+  if (direction >= 2) return day === 0
   return day === 0 || day === 6
 }
 
@@ -420,10 +431,11 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
   const titleText = `${campusTag}셔틀 ${label}`.trim()
   const favCode = `shuttle:${campusTag}${label}`.trim()
   const today = useShuttleSchedule(direction)
-  // 주말일 때만 다음 평일 폴백 fetch (enabled로 평일에는 호출 안 함).
-  const weekend = isWeekend()
-  const fallbackDate = weekend ? nextWeekdayDateStr() : null
-  const fallback = useShuttleSchedule(direction, fallbackDate, { enabled: weekend })
+  // 미운행일에만 다음 평일 폴백 fetch (enabled로 운행일에는 호출 안 함).
+  // 본캠은 토·일 모두 미운행, 2캠은 일요일만 미운행이라 판정이 다르다.
+  const offDay = isShuttleOffDay(direction)
+  const fallbackDate = offDay ? nextWeekdayDateStr() : null
+  const fallback = useShuttleSchedule(direction, fallbackDate, { enabled: offDay })
 
   // 요청한 direction에 시간 데이터가 있는지로 판정.
   // (백엔드는 direction param을 받아도 다른 방향이 응답 directions에 포함될 수 있어서
@@ -431,12 +443,12 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
   const findDirTimes = (apiData) => apiData?.directions?.find((d) => d.direction === direction)?.times ?? []
   const todayEmpty = !today.loading && (today.error || findDirTimes(today.data).length === 0)
   const fallbackHasData = findDirTimes(fallback.data).length > 0
-  const usingFallback = weekend && todayEmpty && fallbackHasData
+  const usingFallback = offDay && todayEmpty && fallbackHasData
 
   const data = usingFallback ? fallback.data : today.data
   // 폴백 fetch가 끝날 때까지 loading 유지 (깜빡임 방지)
-  const loading = today.loading || (weekend && fallback.loading)
-  const error = today.error && (!weekend || fallback.error)
+  const loading = today.loading || (offDay && fallback.loading)
+  const error = today.error && (!offDay || fallback.error)
 
   if (favoritesOnly && !favCodes.includes(favCode)) return null
 
@@ -446,6 +458,9 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
 
   const noSchedule = !loading && (error || !data || (data.directions ?? []).length === 0)
   if (noSchedule) {
+    const offLabel = direction >= 2
+      ? '일·공휴일 미운행 — 시간표 추후 업데이트 예정'
+      : '주말·공휴일 미운행 — 시간표 추후 업데이트 예정'
     return (
       <ScheduleSection
         title={titleText}
@@ -456,7 +471,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
         afterNext={null}
         loading={false}
         disabled
-        disabledLabel="주말·공휴일 미운행 — 시간표 추후 업데이트 예정"
+        disabledLabel={offLabel}
       />
     )
   }
@@ -618,6 +633,18 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
   const { data: markersData } = useMapMarkers()
   const markers = markersData?.markers ?? []
 
+  // BusRouteSection이 각자 도착/시간표 데이터 유무를 보고하는 맵.
+  // 초기엔 비어 있다가 자식들이 useEffect로 채우며, 정렬이 재계산된다.
+  const [hasDataMap, setHasDataMap] = useState({})
+  const reportHasData = useCallback((favCode, has) => {
+    setHasDataMap((prev) => (prev[favCode] === has ? prev : { ...prev, [favCode]: has }))
+  }, [])
+
+  // 그룹 전환 시 stale 데이터 플래그를 비워서 새 그룹이 자체 보고로 채우게 한다.
+  useEffect(() => {
+    setHasDataMap({})
+  }, [busGroup])
+
   if (loading && !routes) {
     return (
       <>
@@ -650,9 +677,17 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
     }
   })
 
-  const sorted = [...entries].sort((a, b) =>
-    (a.originLabel ?? '').localeCompare(b.originLabel ?? '', 'ko')
-  )
+  // 정렬 규칙: ① 데이터 보유 카드를 위로 ② 같은 그룹 내에서는 색상(카테고리: 광역→간선→시내) 순
+  // ③ 동일 카테고리는 출발 정류장(originLabel)으로 안정 정렬.
+  const sorted = [...entries].sort((a, b) => {
+    const ad = hasDataMap[a.favCode] ?? false
+    const bd = hasDataMap[b.favCode] ?? false
+    if (ad !== bd) return ad ? -1 : 1
+    const orderA = ROUTE_CATEGORY_ORDER.indexOf(getRouteCategory(a.code))
+    const orderB = ROUTE_CATEGORY_ORDER.indexOf(getRouteCategory(b.code))
+    if (orderA !== orderB) return orderA - orderB
+    return (a.originLabel ?? '').localeCompare(b.originLabel ?? '', 'ko')
+  })
   const displayEntries = favoritesOnly
     ? sorted.filter((e) => favCodes.includes(e.favCode))
     : sorted
@@ -665,22 +700,45 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
     )
   }
 
-  return displayEntries.map((e) => (
-    <BusRouteSection
-      key={e.favCode}
-      busGroup={busGroup}
-      routeCode={e.code}
-      routeId={e.routeId}
-      stopId={e.stopId}
-      favCode={e.favCode}
-      destLabel={e.destLabel}
-      originLabel={e.originLabel}
-      mapLat={e.mapLat}
-      mapLng={e.mapLng}
-      isRealtime={e.isRealtime}
-      onCardClick={onCardClick}
-    />
-  ))
+  // 3400 등교(강남 출발) 주말 시간표는 공식 자료(2022.3.10~) 기반이라 실제 운행과 차이가 날 수 있음.
+  const todayDow = new Date().getDay()
+  const showWeekend3400Notice =
+    busGroup === '등교' &&
+    (todayDow === 0 || todayDow === 6) &&
+    displayEntries.some((e) => e.code === '3400')
+
+  return (
+    <>
+      {showWeekend3400Notice && (
+        <div
+          role="status"
+          className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 px-4 py-2.5 flex items-start gap-2"
+        >
+          <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+            <span className="font-bold">3400번 주말·휴일 강남 출발 시간표는 실제와 다를 수 있어요.</span>
+            {' '}정확한 도착은 카카오버스 같은 실시간 앱을 함께 참고하세요.
+          </p>
+        </div>
+      )}
+      {displayEntries.map((e) => (
+        <BusRouteSection
+          key={e.favCode}
+          busGroup={busGroup}
+          routeCode={e.code}
+          routeId={e.routeId}
+          stopId={e.stopId}
+          favCode={e.favCode}
+          destLabel={e.destLabel}
+          originLabel={e.originLabel}
+          mapLat={e.mapLat}
+          mapLng={e.mapLng}
+          isRealtime={e.isRealtime}
+          onCardClick={onCardClick}
+          onHasDataChange={reportHasData}
+        />
+      ))}
+    </>
+  )
 }
 
 // ─── main component ──────────────────────────────────────────────────────────
