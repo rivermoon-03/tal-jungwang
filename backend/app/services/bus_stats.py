@@ -189,8 +189,15 @@ async def refresh_all_stats(session: AsyncSession) -> dict[str, Any]:
     try:
         redis = await get_redis()
         if redis is not None:
-            async for k in redis.scan_iter(match=f"{STATS_CACHE_PREFIX}:*"):
-                await redis.delete(k)
+            # SCAN + UNLINK batch (논블로킹) — N 키마다 1 RTT 였던 것을 500키/RTT 로 묶는다.
+            batch: list[str] = []
+            async for k in redis.scan_iter(match=f"{STATS_CACHE_PREFIX}:*", count=500):
+                batch.append(k)
+                if len(batch) >= 500:
+                    await redis.unlink(*batch)
+                    batch.clear()
+            if batch:
+                await redis.unlink(*batch)
     except Exception as exc:
         logger.warning("bus_stats: Redis cache invalidation failed (non-fatal): %s", exc)
 

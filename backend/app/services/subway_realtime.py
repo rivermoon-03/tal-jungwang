@@ -16,6 +16,7 @@ API 한도: 서울시 운영계정으로 한도 없음
   btrainSttus 열차 종류 (일반, 급행, ITX 등)
 """
 
+import asyncio
 import logging
 import re
 import time
@@ -388,17 +389,21 @@ async def get_all_realtime_cached() -> dict[str, dict]:
         },
         ...
       }
-    역별로 독립 처리: 한 역이 실패해도 나머지 역은 정상 반환.
+    역별로 asyncio.gather 병렬 처리 — 한 역이 실패해도 나머지 역은 정상 반환.
     """
+    coros = [get_realtime_cached(station) for station in STATIONS]
+    settled = await asyncio.gather(*coros, return_exceptions=True)
     results: dict[str, dict] = {}
-    for station in STATIONS:
-        try:
-            results[station] = await get_realtime_cached(station)
-        except Exception:
-            logger.exception("지하철 실시간 캐시 조회 실패: %s", station)
+    for station, res in zip(STATIONS, settled):
+        if isinstance(res, Exception):
+            logger.exception(
+                "지하철 실시간 캐시 조회 실패: %s", station, exc_info=res
+            )
             results[station] = {
                 "items": [],
                 "stale": False,
                 "last_successful_realtime_at": None,
             }
+        else:
+            results[station] = res
     return results

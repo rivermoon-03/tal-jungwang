@@ -2,7 +2,7 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,10 +34,12 @@ _ROUTES_CACHE_TTL = 3600   # 노선 목록은 정적 데이터 — 1시간 캐�
 @limiter.limit("30/minute")
 async def bus_routes(
     request: Request,
+    response: Response,
     category: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """노선 목록. category(등교/하교/기타) 필터 가능. 각 노선의 stops 포함."""
+    response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=3600"
     cache_key = f"bus:routes:{category or 'all'}"
     cached = await get_cached_json(cache_key)
     if cached is not None:
@@ -86,9 +88,11 @@ async def bus_routes(
 @limiter.limit("30/minute")
 async def bus_stations(
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     result = await get_stations(db)
+    response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=3600"
     return ApiResponse[list[BusStationResponse]].ok(result)
 
 
@@ -111,6 +115,7 @@ async def bus_arrivals(
 @limiter.limit("60/minute")
 async def bus_timetable_by_route_number(
     request: Request,
+    response: Response,
     route_number: str,
     date_str: str | None = Query(None, alias="date"),
     stop_id: int | None = Query(None),
@@ -123,6 +128,7 @@ async def bus_timetable_by_route_number(
     result = await get_timetable_by_route_number(db, route_number, d, stop_id=stop_id)
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     return ApiResponse[BusTimetableResponse].ok(result)
 
 
@@ -130,6 +136,7 @@ async def bus_timetable_by_route_number(
 @limiter.limit("60/minute")
 async def bus_timetable(
     request: Request,
+    response: Response,
     route_id: int,
     date_str: str | None = Query(None, alias="date"),
     db: AsyncSession = Depends(get_db),
@@ -141,6 +148,7 @@ async def bus_timetable(
     result = await get_timetable(db, route_id, d)
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", "해당 노선 ID가 존재하지 않습니다.")
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     return ApiResponse[BusTimetableResponse].ok(result)
 
 

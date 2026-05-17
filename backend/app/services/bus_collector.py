@@ -188,46 +188,67 @@ async def poll_and_collect():
             new_arrivals: list[BusArrivalHistory] = []
 
             # ── 2a. 이전에 있었는데 지금 없는 차량 → 도착 판정 ──
-            arrived_plates = set(prev_state.keys()) - set(current_state.keys())
-            for plate in arrived_plates:
-                if await redis.exists(f"bus:counted:{station_id}:{plate}"):
-                    continue
-                prev = prev_state[plate]
-                if prev.get("sec", 9999) <= ARRIVAL_THRESHOLD_SEC:
-                    new_arrivals.append(BusArrivalHistory(
-                        route_id=prev["db_route_id"],
-                        stop_id=target["stop_id"],
-                        plate_no=plate,
-                        arrived_at=now,
-                        day_type=_day_type(now),
-                        source="detected",
-                    ))
-                    await redis.set(f"bus:counted:{station_id}:{plate}", "1", ex=600)
-                    logger.info(
-                        "도착 판정: %s → %s (이전 %d초)",
-                        plate, target["stop_name"], prev["sec"],
-                    )
+            #    plate 마다 EXISTS+SET 직렬 호출이던 것을 pipeline 으로 묶는다.
+            arrived_plates = list(set(prev_state.keys()) - set(current_state.keys()))
+            if arrived_plates:
+                pipe = redis.pipeline()
+                for plate in arrived_plates:
+                    pipe.exists(f"bus:counted:{station_id}:{plate}")
+                counted_flags = await pipe.execute()
+                set_pipe = redis.pipeline()
+                set_pending = 0
+                for plate, flag in zip(arrived_plates, counted_flags):
+                    if flag:
+                        continue
+                    prev = prev_state[plate]
+                    if prev.get("sec", 9999) <= ARRIVAL_THRESHOLD_SEC:
+                        new_arrivals.append(BusArrivalHistory(
+                            route_id=prev["db_route_id"],
+                            stop_id=target["stop_id"],
+                            plate_no=plate,
+                            arrived_at=now,
+                            day_type=_day_type(now),
+                            source="detected",
+                        ))
+                        set_pipe.set(f"bus:counted:{station_id}:{plate}", "1", ex=600)
+                        set_pending += 1
+                        logger.info(
+                            "도착 판정: %s → %s (이전 %d초)",
+                            plate, target["stop_name"], prev["sec"],
+                        )
+                if set_pending:
+                    await set_pipe.execute()
 
             # ── 2b. 이번 폴링에 처음 등장 + sec ≤ 30 → 도착 추정 ──
-            for plate, state in current_state.items():
-                if plate in prev_state:
-                    continue
-                if await redis.exists(f"bus:counted:{station_id}:{plate}"):
-                    continue
-                if state["sec"] <= FIRST_SIGHT_ARRIVAL_SEC:
-                    new_arrivals.append(BusArrivalHistory(
-                        route_id=state["db_route_id"],
-                        stop_id=target["stop_id"],
-                        plate_no=plate,
-                        arrived_at=now,
-                        day_type=_day_type(now),
-                        source="estimated",
-                    ))
-                    await redis.set(f"bus:counted:{station_id}:{plate}", "1", ex=600)
-                    logger.info(
-                        "첫등장 도착 추정: %s → %s (sec %d)",
-                        plate, target["stop_name"], state["sec"],
-                    )
+            first_sight_plates = [p for p in current_state.keys() if p not in prev_state]
+            if first_sight_plates:
+                pipe = redis.pipeline()
+                for plate in first_sight_plates:
+                    pipe.exists(f"bus:counted:{station_id}:{plate}")
+                counted_flags = await pipe.execute()
+                set_pipe = redis.pipeline()
+                set_pending = 0
+                for plate, flag in zip(first_sight_plates, counted_flags):
+                    if flag:
+                        continue
+                    state = current_state[plate]
+                    if state["sec"] <= FIRST_SIGHT_ARRIVAL_SEC:
+                        new_arrivals.append(BusArrivalHistory(
+                            route_id=state["db_route_id"],
+                            stop_id=target["stop_id"],
+                            plate_no=plate,
+                            arrived_at=now,
+                            day_type=_day_type(now),
+                            source="estimated",
+                        ))
+                        set_pipe.set(f"bus:counted:{station_id}:{plate}", "1", ex=600)
+                        set_pending += 1
+                        logger.info(
+                            "첫등장 도착 추정: %s → %s (sec %d)",
+                            plate, target["stop_name"], state["sec"],
+                        )
+                if set_pending:
+                    await set_pipe.execute()
 
             if new_arrivals:
                 db.add_all(new_arrivals)
