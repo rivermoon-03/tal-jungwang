@@ -276,9 +276,11 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
   )
 }
 
-// 셔틀이 주말·공휴일에 빈 응답이면 다음 평일(월~금) 시간표를 폴백으로 보여줌.
-function isWeekend(d = new Date()) {
+// 셔틀이 미운행일에 빈 응답이면 다음 평일(월~금) 시간표를 폴백으로 보여줌.
+// 본캠은 토·일 모두 미운행, 2캠(direction>=2)은 일요일만 미운행(토요일은 운행).
+function isShuttleOffDay(direction, d = new Date()) {
   const day = d.getDay()
+  if (direction >= 2) return day === 0
   return day === 0 || day === 6
 }
 
@@ -290,28 +292,52 @@ function nextWeekdayDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// 2캠 일요일에 토요일 시간표를 폴백으로 보여주기 위한 가장 가까운 직전 토요일 날짜.
+function lastSaturdayDateStr() {
+  const d = new Date()
+  const day = d.getDay()
+  // 일요일(0) → -1 (어제). 토요일/평일에는 호출하지 않는 경로.
+  const offset = day === 0 ? -1 : 0
+  d.setDate(d.getDate() + offset)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function ShuttleContent({ direction, accentColor }) {
+  const isSecondCampus = direction >= 2
   // 등교 회차편의 하교 출발 시각 판정을 위해 양 방향을 한 번에 조회.
   // (direction 쿼리를 생략하면 백엔드가 양 방향을 함께 반환 — 로딩 경합 제거)
   const today = useShuttleSchedule()
-  // 주말이면 다음 평일 시간표를 폴백으로 fetch.
-  const weekend = isWeekend()
-  const fallbackDate = weekend ? nextWeekdayDateStr() : null
-  const fallback = useShuttleSchedule(undefined, fallbackDate, { enabled: weekend })
+  // 미운행일이면 다음 평일 시간표를 폴백으로 fetch.
+  const offDay = isShuttleOffDay(direction)
+  const weekdayDate = offDay ? nextWeekdayDateStr() : null
+  const weekdayFallback = useShuttleSchedule(undefined, weekdayDate, { enabled: offDay })
+  // 2캠 일요일 한정: 토요일 시간표도 함께 fetch — 배너 셀렉터에서 선택 가능.
+  const saturdayDate = offDay && isSecondCampus ? lastSaturdayDateStr() : null
+  const saturdayFallback = useShuttleSchedule(undefined, saturdayDate, { enabled: offDay && isSecondCampus })
+
+  // 사용자 선택. null이면 데이터 가용성에 따라 자동 선택(아래 effectiveKind).
+  const [fallbackKind, setFallbackKind] = useState(null)
 
   // 요청한 direction에 시간 데이터가 있는지로 todayEmpty 판정.
   // (백엔드 응답의 directions 배열에는 다른 방향 데이터가 있을 수 있어서
   //  단순 length 체크로는 본캠 0번이 비었는데도 2캠 2번 데이터 때문에 폴백이 안 켜졌음.)
   const findDirTimes = (apiData) => apiData?.directions?.find((d) => d.direction === direction)?.times ?? []
   const todayEmpty = !today.loading && (today.error || findDirTimes(today.data).length === 0)
-  const fallbackHasData = findDirTimes(fallback.data).length > 0
-  const usingFallback = weekend && todayEmpty && fallbackHasData
+  const weekdayHasData = findDirTimes(weekdayFallback.data).length > 0
+  const saturdayHasData = isSecondCampus && findDirTimes(saturdayFallback.data).length > 0
+  const anyFallback = weekdayHasData || saturdayHasData
+  const usingFallback = offDay && todayEmpty && anyFallback
+
+  // 사용자가 명시적으로 고르지 않았으면 데이터가 있는 쪽을 자동 선택(평일 우선).
+  const effectiveKind = fallbackKind ?? (weekdayHasData ? 'weekday' : (saturdayHasData ? 'saturday' : 'weekday'))
+  const useSaturday = isSecondCampus && effectiveKind === 'saturday'
+  const fallback = useSaturday ? saturdayFallback : weekdayFallback
 
   const data = usingFallback ? fallback.data : today.data
   // 폴백 fetch가 끝나기 전엔 EmptyMsg가 잠깐 깜빡일 수 있으므로,
-  // 주말이면 fallback.loading도 함께 봐서 둘 다 끝나야 EmptyMsg를 보여준다.
-  const loading = today.loading || (weekend && fallback.loading)
-  const error = today.error && (!weekend || fallback.error)
+  // 미운행일이면 폴백 loading도 함께 봐서 모두 끝나야 EmptyMsg를 보여준다.
+  const loading = today.loading || (offDay && (weekdayFallback.loading || (isSecondCampus && saturdayFallback.loading)))
+  const error = today.error && (!offDay || (weekdayFallback.error && (!isSecondCampus || saturdayFallback.error)))
 
   const nextRef = useRef(null)
   const now = new Date()
@@ -413,12 +439,17 @@ function ShuttleContent({ direction, accentColor }) {
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
-  if (!times.length) {
-    // 주말·공휴일에 폴백 평일 시간표도 없는 진짜 빈 케이스 (학기 외 등) 명시.
-    return <EmptyMsg text={weekend ? '주말·공휴일에는 셔틀이 운행하지 않고, 평일 시간표도 아직 준비되지 않았어요.' : '오늘 셔틀 정보가 없어요'} />
+  // 폴백조차 없는(또는 선택과 무관하게 둘 다 비어있는) 진짜 empty 케이스만 여기서 차단.
+  // usingFallback 상태에서는 배너(셀렉터 포함)를 유지해 사용자가 다른 탭으로 토글할 수 있게 한다.
+  if (!times.length && !usingFallback) {
+    const offText = isSecondCampus
+      ? '일요일·공휴일에는 2캠 셔틀이 운행하지 않고, 평일·토요일 시간표도 아직 준비되지 않았어요.'
+      : '주말·공휴일에는 셔틀이 운행하지 않고, 평일 시간표도 아직 준비되지 않았어요.'
+    return <EmptyMsg text={offDay ? offText : '오늘 셔틀 정보가 없어요'} />
   }
 
-  const allDone = displayEntries.length === 0
+  const selectedEmpty = usingFallback && times.length === 0
+  const allDone = !selectedEmpty && displayEntries.length === 0
 
   return (
     <div className="flex flex-col gap-2">
@@ -431,14 +462,49 @@ function ShuttleContent({ direction, accentColor }) {
           }}
         >
           <span className="text-[20px] leading-none mt-0.5 flex-shrink-0">⚠</span>
-          <div className="dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
+          <div className="flex-1 min-w-0 dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
             <div className="text-[15px] font-black tracking-tight leading-tight">
-              주말·공휴일엔 셔틀버스가 운행하지 않습니다
+              {isSecondCampus
+                ? '일요일·공휴일엔 2캠 셔틀버스가 운행하지 않습니다'
+                : '주말·공휴일엔 셔틀버스가 운행하지 않습니다'}
             </div>
             <div className="text-meta font-semibold mt-1 opacity-90">
-              아래는 <span className="font-extrabold">평일 기준 시간표</span>입니다.
+              아래는 <span className="font-extrabold">{useSaturday ? '토요일' : '평일'} 기준 시간표</span>입니다.
             </div>
           </div>
+          {isSecondCampus && (
+            <div
+              role="group"
+              aria-label="폴백 시간표 종류 선택"
+              className="flex-shrink-0 self-center flex rounded-full overflow-hidden"
+              style={{ border: '1.5px solid #d4a14a' }}
+            >
+              <button
+                type="button"
+                onClick={() => setFallbackKind('weekday')}
+                aria-pressed={!useSaturday}
+                className="px-2.5 py-1 text-[11px] font-extrabold tracking-tight transition-colors"
+                style={{
+                  background: !useSaturday ? '#d4a14a' : 'transparent',
+                  color: !useSaturday ? '#fff' : '#a07517',
+                }}
+              >
+                평일
+              </button>
+              <button
+                type="button"
+                onClick={() => setFallbackKind('saturday')}
+                aria-pressed={useSaturday}
+                className="px-2.5 py-1 text-[11px] font-extrabold tracking-tight transition-colors"
+                style={{
+                  background: useSaturday ? '#d4a14a' : 'transparent',
+                  color: useSaturday ? '#fff' : '#a07517',
+                }}
+              >
+                토요일
+              </button>
+            </div>
+          )}
         </div>
       )}
       {data?.schedule_name && !usingFallback && (
@@ -446,12 +512,19 @@ function ShuttleContent({ direction, accentColor }) {
           {data.schedule_name} · 총 {times.length}회 · 남은 {future.length}회
         </p>
       )}
-      {data?.schedule_name && usingFallback && (
+      {data?.schedule_name && usingFallback && !selectedEmpty && (
         <p className="text-meta font-semibold text-mute dark:text-mute-dark mb-1">
           {data.schedule_name} · 총 {times.length}회
         </p>
       )}
-      {allDone ? (
+      {selectedEmpty ? (
+        <p className="text-sm font-semibold text-slate-400 text-center py-6 px-4 leading-relaxed">
+          선택한 <span className="font-extrabold">{useSaturday ? '토요일' : '평일'}</span> 시간표가 비어 있어요.
+          {isSecondCampus && (
+            <><br />위 배너에서 <span className="font-extrabold">{useSaturday ? '평일' : '토요일'}</span>을 눌러보세요.</>
+          )}
+        </p>
+      ) : allDone ? (
         <>
           <div className="flex items-center gap-2 px-1 mb-1">
             <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full">
@@ -709,7 +782,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] md:left-0 md:right-auto md:w-[38%] md:bottom-[56px] flex items-end md:items-stretch justify-center md:justify-stretch pointer-events-none"
+      className="fixed inset-0 z-[100] md:left-0 md:right-auto md:w-[38%] md:bottom-[68px] flex items-end md:items-stretch justify-center md:justify-stretch pointer-events-none"
       aria-modal="true"
       role="dialog"
       aria-label={`${title} 시간표`}
@@ -722,7 +795,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
       <div
         ref={sheetRef}
-        className="relative z-10 w-full md:max-w-none md:w-full bg-surface dark:bg-surface-dark rounded-t-[28px] md:rounded-none md:rounded-r-card-pc shadow-2xl md:shadow-card-md flex flex-col pointer-events-auto md:border-r md:border-line dark:md:border-line-dark md:h-full md:animate-slide-in-left animate-slide-up"
+        className="relative z-10 w-full md:max-w-none md:w-full bg-surface dark:bg-surface-dark rounded-t-[28px] md:rounded-none shadow-2xl md:shadow-none flex flex-col pointer-events-auto md:h-full md:animate-panel-swap animate-slide-up"
         style={{
           maxHeight: '88dvh',
           transform: `translateY(${dragY}px)`,
