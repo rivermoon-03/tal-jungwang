@@ -219,17 +219,20 @@ def setup_scheduler():
         "Subway realtime polling scheduler configured (00:00~03:49 10m / peak 15s / off-peak 20s)"
     )
 
-    # ── 학식 메뉴 갱신 (07:00·11:00 KST 하루 2회) ──
-    # 오후엔 변경이 거의 없어 오전에만 두 번 갱신
+    # ── 학식 메뉴 갱신 (매일 07~14시 매시 정각) ──
+    # 학교가 월요일 오전 늦게(예: 09:21) 새 주차 식단을 업로드하는 케이스가 있어
+    # 점심 시간 전까지 매시간 폴링한다. misfire_grace_time=600 으로 Railway
+    # 컨테이너 재시작 등으로 잠시 밀려도 발화 보장.
     scheduler.add_job(
         _cafeteria_refresh_job,
-        CronTrigger(hour="7,11", minute=0),
+        CronTrigger(hour="7-14", minute=0, timezone="Asia/Seoul"),
         id="cafeteria_refresh",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
+        misfire_grace_time=600,
     )
-    logger.info("Cafeteria menu refresh scheduler configured (07:00·11:00 KST)")
+    logger.info("Cafeteria menu refresh scheduler configured (07~14:00 KST hourly)")
 
     # ── 버스 도착 통계 재계산 (매일 03:30 KST) ──
     # bus_arrival_history 28일치를 (route, stop, day_type, hour) 버킷별 분위수로 사전 집계.

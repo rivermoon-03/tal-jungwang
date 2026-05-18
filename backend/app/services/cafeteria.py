@@ -7,7 +7,8 @@
   3) GET file_url → xlsx 바이너리
   4) openpyxl 파싱 → JSON
 
-캐시 키 `cafeteria:menu` TTL 6시간. APScheduler가 매일 07:00·11:00 KST에 강제 갱신.
+캐시 키 `cafeteria:menu` TTL 1시간. APScheduler가 매일 07~14시 매시 정각에 강제 갱신.
+TTL이 짧으므로 cron 1회 누락되어도 다음 요청이 cache-aside로 자가 회복한다.
 """
 import logging
 import re
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
 CACHE_KEY = "cafeteria:menu"
-CACHE_TTL = 6 * 3600
+CACHE_TTL = 3600
 
 VIEWER_URL = "https://ibook.tukorea.ac.kr/viewer/menu02"
 RAWFILE_URL = "https://ibook.tukorea.ac.kr/web/RawFileList"
