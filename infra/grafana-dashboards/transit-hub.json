@@ -140,6 +140,9 @@
           "format": "table",
           "refId": "A"
         }
+      ],
+      "transformations": [
+        { "id": "rowsToFields", "options": {} }
       ]
     },
     {
@@ -164,7 +167,10 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient"
-      }
+      },
+      "transformations": [
+        { "id": "rowsToFields", "options": {} }
+      ]
     },
     {
       "id": 8,
@@ -188,7 +194,10 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient"
-      }
+      },
+      "transformations": [
+        { "id": "rowsToFields", "options": {} }
+      ]
     },
     {
       "id": 9,
@@ -224,6 +233,9 @@
           "format": "table",
           "refId": "A"
         }
+      ],
+      "transformations": [
+        { "id": "rowsToFields", "options": {} }
       ]
     },
     {
