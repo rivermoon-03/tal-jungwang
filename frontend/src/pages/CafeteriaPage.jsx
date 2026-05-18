@@ -51,6 +51,10 @@ function dayLabelFromMonth(monthNum, dayKey) {
 // 메뉴 항목이 아닌 메타 안내라 헤더 옆 배지로 빼서 보여준다.
 const NOTE_MARKER_RE = /^\*([^*]+)\*$/
 
+// 천원의 아침밥은 "①코너" / "②코너" 같은 구분이 메뉴 항목 사이에 끼어 있다.
+// 메뉴가 아니라 섹션 헤더이므로 별도로 묶어준다.
+const CORNER_HEADER_RE = /^([①-⑳])\s*코너$/
+
 function partitionItems(items) {
   const notes = []
   const cleaned = []
@@ -62,9 +66,32 @@ function partitionItems(items) {
   return { notes, cleaned }
 }
 
+function partitionCorners(items) {
+  const sections = []
+  let current = null
+  let preCorner = null
+  let hasCorner = false
+  for (const it of items) {
+    const m = CORNER_HEADER_RE.exec(it)
+    if (m) {
+      hasCorner = true
+      current = { digit: m[1], label: `${m[1]} 코너`, items: [] }
+      sections.push(current)
+    } else if (current) {
+      current.items.push(it)
+    } else {
+      if (!preCorner) preCorner = { digit: null, label: null, items: [] }
+      preCorner.items.push(it)
+    }
+  }
+  if (preCorner) sections.unshift(preCorner)
+  return { hasCorner, sections }
+}
+
 function MealCard({ meal, dayKey }) {
   const rawItems = meal.by_day?.[dayKey] ?? []
   const { notes, cleaned } = partitionItems(rawItems)
+  const { hasCorner, sections } = partitionCorners(cleaned)
   const isOff = cleaned.length === 0 && notes.length === 0
     || (cleaned.length === 1 && cleaned[0] === '미운영')
 
@@ -105,6 +132,39 @@ function MealCard({ meal, dayKey }) {
 
       {isOff ? (
         <p style={{ fontSize: 13, color: 'var(--tj-mute-2)' }}>미운영</p>
+      ) : hasCorner ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {sections.map((sec, si) => (
+            <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {sec.label && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: 'var(--tj-mute)',
+                      letterSpacing: '-0.01em',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {sec.label}
+                  </span>
+                  <span style={{ flex: 1, height: 1, background: 'var(--tj-line)' }} />
+                </div>
+              )}
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: 0, padding: 0, listStyle: 'none' }}>
+                {sec.items.map((item, i) => (
+                  <li
+                    key={`${item}-${i}`}
+                    style={{ fontSize: 13, fontWeight: 600, color: 'var(--tj-ink)', lineHeight: 1.4 }}
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       ) : (
         <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: 0, padding: 0, listStyle: 'none' }}>
           {cleaned.map((item, i) => (
