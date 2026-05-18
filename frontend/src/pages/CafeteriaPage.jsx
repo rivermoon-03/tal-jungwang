@@ -137,19 +137,41 @@ function MealCard({ meal, dayKey }) {
           {sections.map((sec, si) => (
             <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {sec.label && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div>
                   <span
                     style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: 'var(--tj-mute)',
-                      letterSpacing: '-0.01em',
-                      lineHeight: 1.4,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '3px 9px 3px 7px',
+                      borderRadius: 999,
+                      background: 'rgba(79, 159, 255, 0.10)',
+                      border: '1px solid rgba(79, 159, 255, 0.22)',
+                      lineHeight: 1,
                     }}
                   >
-                    {sec.label}
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 900,
+                        color: 'var(--tj-accent)',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {sec.digit}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: 'var(--tj-accent)',
+                        letterSpacing: '-0.01em',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      코너
+                    </span>
                   </span>
-                  <span style={{ flex: 1, height: 1, background: 'var(--tj-line)' }} />
                 </div>
               )}
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: 0, padding: 0, listStyle: 'none' }}>
