@@ -30,8 +30,8 @@ function formatLabel(p) {
 }
 
 function classifySpeed(kmh) {
-  if (kmh >= 17) return '원활'
-  if (kmh >= 10) return '서행'
+  if (kmh >= 25) return '원활'
+  if (kmh >= 15) return '서행'
   return '정체'
 }
 
