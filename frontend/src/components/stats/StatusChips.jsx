@@ -20,8 +20,8 @@ function isWeekend() {
 
 function trafficStatus(speed) {
   if (speed == null) return null
-  if (speed >= 17) return { label: '원활', cls: 'text-emerald-400' }
-  if (speed >= 10) return { label: '서행', cls: 'text-amber-400' }
+  if (speed >= 25) return { label: '원활', cls: 'text-emerald-400' }
+  if (speed >= 15) return { label: '서행', cls: 'text-amber-400' }
   return { label: '정체', cls: 'text-red-400' }
 }
 
