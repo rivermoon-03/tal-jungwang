@@ -869,11 +869,14 @@ export default function MapView({ onMarkerClick, selectedId }) {
       */}
       <div className="flex-1 relative w-full h-full min-h-0">
 
-        {/* 카카오맵 SDK 전용 컨테이너 — CSS에서 canvas에만 필터 적용 (마커 div 제외) */}
+        {/* 카카오맵 SDK 전용 컨테이너 — CSS에서 canvas에만 필터 적용 (마커 div 제외)
+            touchAction: 'none' — 터치 스크린 PC/태블릿에서 브라우저가 single-finger 드래그를
+            네이티브 스크롤로 가로채는 것을 막아 SDK가 pan/pinch를 처리하도록 한다. */}
         <div
           ref={containerRef}
           id="kakao-map-canvas"
           className="absolute inset-0 bg-slate-200"
+          style={{ touchAction: 'none' }}
         />
 
         {/* 우상단 플로팅 버튼 */}
