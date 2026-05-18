@@ -251,6 +251,153 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "id": 12,
+      "title": "노선별 평일 평균 배차 간격 (분)",
+      "description": "bus_arrival_stats에서 시간대 가중 평균. 짧을수록 자주 옴.",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "datasource": { "type": "postgres", "uid": "transit-hub-postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT r.route_number AS metric, ROUND(AVG(s.mean_interval_sec)::numeric / 60, 1) AS value FROM bus_arrival_stats s JOIN bus_routes r ON r.id = s.route_id WHERE s.day_type = 'weekday' GROUP BY r.route_number ORDER BY value;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 15 },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "transformations": [
+        { "id": "rowsToFields", "options": {} }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "버스 차내 혼잡도 분포 (최근 7일)",
+      "description": "bus_crowding_logs.crowded 값 분포",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "datasource": { "type": "postgres", "uid": "transit-hub-postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT CASE crowded WHEN 0 THEN '여유' WHEN 1 THEN '보통' WHEN 2 THEN '혼잡' WHEN 3 THEN '매우혼잡' ELSE '알수없음' END AS metric, COUNT(*) AS value FROM bus_crowding_logs WHERE recorded_at >= NOW() - INTERVAL '7 days' GROUP BY crowded ORDER BY crowded;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        { "id": "rowsToFields", "options": {} }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "시간대별 평균 도로 혼잡도",
+      "description": "1=원활, 2=서행, 3=정체, 4=심한정체",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "postgres", "uid": "transit-hub-postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT date_trunc('hour', collected_at) AS time, road_name || ' (' || CASE direction WHEN 'to_station' THEN '→정왕역' ELSE '→학교' END || ')' AS metric, ROUND(AVG(congestion)::numeric, 2) AS value FROM traffic_history WHERE $__timeFilter(collected_at) GROUP BY 1, 2 ORDER BY 1;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 1,
+          "max": 4,
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "orange", "value": 3 },
+              { "color": "red", "value": 4 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "title": "도로/방향별 평균 속도 (최근 24시간)",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "datasource": { "type": "postgres", "uid": "transit-hub-postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT road_name || ' (' || CASE direction WHEN 'to_station' THEN '→정왕역' ELSE '→학교' END || ')' AS metric, ROUND(AVG(speed)::numeric, 1) AS value FROM traffic_history WHERE collected_at >= NOW() - INTERVAL '24 hours' GROUP BY road_name, direction ORDER BY value DESC;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocitykmh",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 20 },
+              { "color": "green", "value": 40 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "transformations": [
+        { "id": "rowsToFields", "options": {} }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "요일별 시간대 도착 분포",
+      "description": "최근 30일 데이터를 0~23시 시간대별로 합산. 출퇴근 시간대 패턴 가시화.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "datasource": { "type": "postgres", "uid": "transit-hub-postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT make_timestamp(2026, 1, 1, EXTRACT(hour FROM arrived_at AT TIME ZONE 'Asia/Seoul')::int, 0, 0) AS time, day_type AS metric, COUNT(*) AS value FROM bus_arrival_history WHERE arrived_at >= NOW() - INTERVAL '30 days' GROUP BY 1, 2 ORDER BY 1;",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "drawStyle": "bars" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" }
+      }
     }
   ],
   "schemaVersion": 39

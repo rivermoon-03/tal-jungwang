@@ -17,8 +17,8 @@ function isWeekend(d = new Date()) {
 
 function speedStatus(kmh) {
   if (kmh == null) return { label: '--', sub: null, color: 'rgba(148,163,184,1)' }
-  if (kmh >= 17) return { label: '원활', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(52,211,153)' }
-  if (kmh >= 10) return { label: '서행', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(251,191,36)' }
+  if (kmh >= 25) return { label: '원활', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(52,211,153)' }
+  if (kmh >= 15) return { label: '서행', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(251,191,36)' }
   return { label: '정체', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(248,113,113)' }
 }
 
@@ -61,8 +61,8 @@ export default function TrafficFlowCard() {
     })
     if (!future.length) return null
     const worst = future.reduce((a, b) => (a.speed < b.speed ? a : b))
-    if (worst.speed >= 17) return null // 원활하면 표시 안 함
-    const label = worst.speed >= 10 ? '서행' : '정체'
+    if (worst.speed >= 25) return null // 원활하면 표시 안 함
+    const label = worst.speed >= 15 ? '서행' : '정체'
     return { hour: worst.hour, minute: worst.minute ?? 0, label, speed: worst.speed }
   }, [points, nowMinutes])
 
@@ -131,7 +131,7 @@ export default function TrafficFlowCard() {
               <div className="text-[11px] font-bold text-white/50 tracking-wide mb-1.5">
                 {String(futurePeak.hour).padStart(2, '0')}시경 예상
               </div>
-              <div className="text-xl font-black tracking-tight" style={{ color: futurePeak.speed >= 10 ? 'rgb(251,191,36)' : 'rgb(248,113,113)' }}>
+              <div className="text-xl font-black tracking-tight" style={{ color: futurePeak.speed >= 15 ? 'rgb(251,191,36)' : 'rgb(248,113,113)' }}>
                 {futurePeak.label}
               </div>
             </div>
