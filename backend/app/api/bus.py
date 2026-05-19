@@ -258,7 +258,7 @@ async def bus_history_preview(
     """실시간 노선 과거 도착 이력 조회 — 모달 예측 데이터용.
 
     오늘 요일 타입에 따라 고정 날짜를 반환:
-    - 평일: 어제, 이틀 전, 저번 주 금요일
+    - 평일: 직전 평일 3개 (주말은 건너뜀). 라벨은 어제/이틀 전 또는 "지난 X요일".
     - 토요일: 저번 주 토/일, 저저번 주 토/일
     - 일요일: 저번 주 일/토, 저저번 주 토/일
     데이터가 없는 날짜도 빈 컬럼으로 포함.
@@ -282,14 +282,24 @@ async def bus_history_preview(
     WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
 
     if wd <= 4:  # 평일
-        yesterday = today - timedelta(days=1)
-        two_days_ago = today - timedelta(days=2)
-        days_back_friday = (wd - 4) % 7 or 7
-        last_friday = today - timedelta(days=days_back_friday)
+        # 평일 비교는 평일 데이터끼리만 의미가 있으므로, 주말을 건너뛰며 직전 평일 3개를 고른다.
+        prev_weekdays: list[date] = []
+        cursor = today - timedelta(days=1)
+        while len(prev_weekdays) < 3:
+            if cursor.weekday() <= 4:
+                prev_weekdays.append(cursor)
+            cursor -= timedelta(days=1)
+
+        def _weekday_label(d: date) -> str:
+            delta = (today - d).days
+            if delta == 1:
+                return "어제"
+            if delta == 2:
+                return "이틀 전"
+            return f"지난 {WEEKDAY_KR[d.weekday()]}요일"
+
         target_dates_labeled: list[tuple[date, str]] = [
-            (yesterday, "어제"),
-            (two_days_ago, "이틀 전"),
-            (last_friday, "저번 주 금요일"),
+            (d, _weekday_label(d)) for d in prev_weekdays
         ]
     elif wd == 5:  # 토요일
         target_dates_labeled = [
