@@ -49,7 +49,7 @@ def main():
 
     os.execvp("uvicorn", [
         "uvicorn", "app.main:app",
-        "--host", "0.0.0.0",
+        "--host", "::",
         "--port", "8000",
     ])
 
