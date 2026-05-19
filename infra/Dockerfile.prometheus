@@ -1,6 +1,6 @@
 FROM prom/prometheus:latest
 COPY prometheus.railway.yml /etc/prometheus/prometheus.yml
 USER root
-RUN printf '#!/bin/sh\nset -eu\nif [ -z "${METRICS_TOKEN:-}" ]; then\n  echo "ERROR: METRICS_TOKEN env var is required" >&2\n  exit 1\nfi\nprintf "%s" "$METRICS_TOKEN" > /etc/prometheus/metrics_token\nchmod 600 /etc/prometheus/metrics_token\nexec /bin/prometheus \\\n  --config.file=/etc/prometheus/prometheus.yml \\\n  --storage.tsdb.path=/prometheus \\\n  --web.listen-address=:${PORT:-9090} \\\n  --web.console.libraries=/usr/share/prometheus/console_libraries \\\n  --web.console.templates=/usr/share/prometheus/consoles\n' > /start.sh && chmod +x /start.sh
+RUN printf '#!/bin/sh\nset -eu\nif [ -z "${METRICS_TOKEN:-}" ]; then\n  echo "ERROR: METRICS_TOKEN env var is required" >&2\n  exit 1\nfi\nprintf "%s" "$METRICS_TOKEN" > /etc/prometheus/metrics_token\nchmod 600 /etc/prometheus/metrics_token\necho "Prometheus listening on 0.0.0.0:9090 (Railway PORT=${PORT:-unset} ignored)"\nexec /bin/prometheus \\\n  --config.file=/etc/prometheus/prometheus.yml \\\n  --storage.tsdb.path=/prometheus \\\n  --web.listen-address=0.0.0.0:9090 \\\n  --web.console.libraries=/usr/share/prometheus/console_libraries \\\n  --web.console.templates=/usr/share/prometheus/consoles\n' > /start.sh && chmod +x /start.sh
 # nobody UID 65534는 /etc/prometheus 쓰기 권한이 없으므로 토큰 파일 생성을 위해 root 유지
 ENTRYPOINT ["/start.sh"]
