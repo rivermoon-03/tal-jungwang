@@ -4,10 +4,13 @@ manage/
 # Git worktrees
 .worktrees/
 
-# 비밀 환경변수
+# 비밀 환경변수 (.env, .env.local, .env.from.railway 등 모든 변형 차단; example만 허용)
 .env
+.env.*
 **/.env
+**/.env.*
 *.env
+!.env.example
 !*.env.example
 
 # 에이전트·도구 내부 파일
