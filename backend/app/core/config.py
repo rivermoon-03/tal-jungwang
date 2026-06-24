@@ -69,6 +69,18 @@ class Settings(BaseSettings):
             logger.warning(
                 "[config] JWT_SECRET_KEY 가 기본값입니다 — 프로덕션 배포 전 반드시 교체하세요."
             )
+        # allow_credentials=True 인 CORS 설정에서 와일드카드 출처는 브라우저가 거부할 뿐 아니라
+        # 쿠키/인증 정보를 아무 사이트에나 노출하는 위험이 있다. 프로덕션에선 막는다.
+        origins = [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
+        if "*" in origins:
+            if self.ENVIRONMENT == "production":
+                raise ValueError(
+                    "ALLOWED_ORIGINS 에 '*' 는 사용할 수 없습니다 "
+                    "(allow_credentials=True 와 충돌). 명시적 출처를 지정하세요."
+                )
+            logger.warning(
+                "[config] ALLOWED_ORIGINS 에 '*' 가 포함되어 있습니다 — 인증 쿠키와 함께 쓰면 위험합니다."
+            )
         return self
 
     @property
