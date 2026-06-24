@@ -50,7 +50,7 @@ export default function FloatingDock() {
             onClick={(e) => handleNav(e, href)}
             aria-label={label}
             aria-current={active ? 'page' : undefined}
-            className={`flex items-center justify-center w-[22px] h-[22px] pressable transition-colors duration-snap ease-ios ${
+            className={`flex items-center justify-center min-w-[44px] min-h-[44px] pressable transition-colors duration-snap ease-ios ${
               active ? 'text-accent' : 'text-mute-dark'
             }`}
           >

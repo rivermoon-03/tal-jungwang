@@ -18,7 +18,7 @@
   --tj-accent-2:    #1b3a6e;     /* 짙은 마린 (보조) */
   --tj-accent-dark: #4f9fff;
   --tj-ink:         #0b0d10;
-  --tj-mute:        #94a3b8;
+  --tj-mute:        #64748b;
   --tj-mute-2:      #cbd2db;
   --tj-line:        #f1f3f5;     /* 헤어라인 */
   --tj-line-soft:   #eef1f5;
@@ -54,7 +54,7 @@
 .dark {
   --tj-accent:    #4f9fff;
   --tj-ink:       #ffffff;
-  --tj-mute:      #6b7280;
+  --tj-mute:      #9ca3af;
   --tj-mute-2:    #4b5563;
   --tj-line:      #1a1a1a;
   --tj-line-soft: #0f0f0f;
