@@ -12,7 +12,9 @@ export function useBusRoutesByCategory(category) {
   return useApi(`/bus/routes${q}`, { enabled: category != null })
 }
 
-export function useBusArrivals(stationId) {
+// tickMs: 카운트다운 갱신 주기. 초 단위 표시가 필요한 카드는 기본 1000,
+// 분 단위로만 쓰는 지도 마커는 60_000을 넘겨 매초 재계산 연쇄를 피한다.
+export function useBusArrivals(stationId, { tickMs = 1000 } = {}) {
   const { data, loading, error, fetchedAt, refetch } = useApi(`/bus/arrivals/${stationId}`, {
     // 백엔드 GBIS 폴링은 45s 주기 — refetch 30s는 캐시 hit으로 GBIS 호출량은 늘리지
     // 않으면서 stale gap을 60s → 30s로 절반.
@@ -21,8 +23,8 @@ export function useBusArrivals(stationId) {
   })
   // 백엔드가 응답 시점 기준으로 arrive_in_seconds를 보정해 주지만,
   // 다음 refetch(최대 60초)까지 값이 정지해 있어 "4분"이 그대로 고정된다.
-  // 1초 tick으로 fetchedAt 경과만큼 realtime 값을 깎아 화면이 실제 시간과 함께 흐르게 한다.
-  const now = useNow(1000)
+  // tick으로 fetchedAt 경과만큼 realtime 값을 깎아 화면이 실제 시간과 함께 흐르게 한다.
+  const now = useNow(tickMs)
   const ticked = useMemo(
     () => tickBusArrivals(data, fetchedAt, now),
     [data, fetchedAt, now]
