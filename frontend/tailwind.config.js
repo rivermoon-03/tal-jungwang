@@ -23,13 +23,13 @@ export default {
         'border-dark':       '#1a1a1a',  // 후방 호환 alias
         'ink-dark':          '#ffffff',  // primary text (다크)
         'text-dark':         '#d1d5db',
-        'mute-dark':         '#6b7280',
+        'mute-dark':         '#9ca3af',  // 순흑 위 대비 확보 (구 #6b7280, AA 미달)
         'mute-2-dark':       '#4b5563',
         'text-secondary-dark': '#94a3b8', // 후방 호환
 
         // ── 중립 ──────────────────────────────────────────
         ink:    '#0b0d10',           // primary (구 #111111)
-        mute:   '#94a3b8',           // 보조 라벨 (구 #6b7280, 더 밝음)
+        mute:   '#64748b',           // 보조 라벨 (구 #94a3b8, 흰 배경 대비 AA 확보)
         'mute-2': '#cbd2db',         // disabled / placeholder
 
         // ── 브랜드 액센트 (iDrive Blue) ───────────────────
@@ -123,7 +123,7 @@ export default {
         'dest-mob':   ['11px', { lineHeight: '1.3',  fontWeight: '600' }],
 
         // 라벨 / 캡션
-        'ghdr':       ['9px',  { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.1em' }],
+        'ghdr':       ['10px', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.1em' }],
         'sub':        ['10px', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.04em' }],
         'meta':       ['11px', { lineHeight: '1.3',  fontWeight: '600' }],
 
