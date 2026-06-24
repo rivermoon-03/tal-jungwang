@@ -2,7 +2,7 @@
 
 API 한도: 서울시 운영계정으로 한도 없음
 폴링 전략: 피크(07~09, 17~19) 15초 / 비피크 20초 / 심야(00:00~03:49) 10분, 24시간 체크
-캐시 키: subway:realtime:{역명}  TTL: 30초
+캐시 키: subway:realtime:{역명}  TTL: 30초 (심야엔 폴링 주기가 길어 720초)
 
 서울 실시간 API 주요 필드:
   subwayId   노선 ID (1004:4호선, 1075:수인분당선, 1093:서해선)
@@ -35,6 +35,9 @@ _KST = ZoneInfo("Asia/Seoul")
 
 _BASE_URL = "http://swopenAPI.seoul.go.kr/api/subway/{key}/xml/realtimeStationArrival/0/20/{station}"
 _CACHE_TTL = 30
+# 심야엔 폴링 주기가 10분이라 30초 TTL이면 폴링 사이에 캐시가 비어 요청마다 외부 호출이 터진다.
+# 폴링 간격(600초)보다 길게 잡아 폴링이 채운 값을 다음 폴링까지 유지한다.
+_LATE_NIGHT_CACHE_TTL = 720
 # 직전 성공 응답을 5분 동안 보관해 graceful degradation에 사용한다.
 # (실시간 API가 빈 배열을 반환하거나 일시적으로 실패해도, 5분 이내라면 이 값을 stale 플래그와 함께 반환)
 _LAST_SUCCESS_TTL = 300
@@ -50,6 +53,13 @@ STATIONS = ["정왕", "시흥시청", "초지"]
 
 # 노선 우선순위 (같은 열차번호에 여러 노선이 있을 때)
 _LINE_PRIORITY = {"1075": 0, "1093": 1, "1004": 2}
+
+
+def _cache_ttl_for_now() -> int:
+    """현재 시각대에 맞는 실시간 캐시 TTL. 심야엔 폴링 주기가 길어 캐시가 비지 않도록 늘린다."""
+    now = datetime.now(_KST)
+    is_late_night = (1 <= now.hour < 3) or (now.hour == 3 and now.minute < 50)
+    return _LATE_NIGHT_CACHE_TTL if is_late_night else _CACHE_TTL
 
 
 def _cache_key(station: str) -> str:
@@ -324,7 +334,7 @@ async def get_realtime_cached(station: str) -> dict:
         except Exception:
             logger.exception("지하철 실시간 fetch 실패: %s", station)
             cached = []
-        await set_cached_json(_cache_key(station), cached, ttl=_CACHE_TTL)
+        await set_cached_json(_cache_key(station), cached, ttl=_cache_ttl_for_now())
         redis = await get_redis()
         await redis.set(_last_fetch_key(station), str(time.time()), ex=300)
         if cached:
@@ -369,7 +379,7 @@ async def fetch_and_cache_realtime(station: str) -> list[dict]:
     성공 시 last_success 키에도 5분 TTL로 저장한다.
     """
     data = await fetch_realtime(station)
-    await set_cached_json(_cache_key(station), data, ttl=_CACHE_TTL)
+    await set_cached_json(_cache_key(station), data, ttl=_cache_ttl_for_now())
     redis = await get_redis()
     await redis.set(_last_fetch_key(station), str(time.time()), ex=300)
     if data:

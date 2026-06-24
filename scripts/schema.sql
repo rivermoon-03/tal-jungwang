@@ -83,6 +83,10 @@ CREATE TABLE bus_timetable_entries (
 CREATE INDEX idx_bus_tt_route_stop_day
     ON bus_timetable_entries (route_id, stop_id, day_type);
 
+-- 정류장 단위 도착 조회는 (stop_id, day_type, departure_time) 순으로 필터/정렬한다.
+CREATE INDEX idx_bus_tt_stop_day
+    ON bus_timetable_entries (stop_id, day_type, departure_time);
+
 -- ────────────────────────────────────────────────────────────
 -- 5. bus_arrival_history — 실시간 버스 도착 이력
 -- ────────────────────────────────────────────────────────────
@@ -193,6 +197,10 @@ CREATE TABLE subway_timetable_entries (
 
 CREATE INDEX idx_subway_tt_dir_day
     ON subway_timetable_entries (direction, day_type);
+
+-- 시간표 조회는 day_type 필터 + departure_time 정렬이 주 패턴이다.
+CREATE INDEX idx_subway_tt_day
+    ON subway_timetable_entries (day_type, departure_time);
 
 CREATE INDEX idx_subway_tt_train_no
     ON subway_timetable_entries (train_no);
