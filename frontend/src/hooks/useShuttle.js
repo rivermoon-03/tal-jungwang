@@ -17,10 +17,11 @@ export function useShuttleSchedule(direction, dateStr, opts = {}) {
   return useApi(`/shuttle/schedule${q}`, { ttl: SCHEDULE_TTL, ...opts })
 }
 
-export function useShuttleNext(direction) {
+// tickMs: 분 단위로만 쓰는 지도 마커는 60_000을 넘겨 매초 재계산을 피한다 (기본 1000).
+export function useShuttleNext(direction, { tickMs = 1000 } = {}) {
   const q = direction !== undefined && direction !== null ? `?direction=${direction}` : ''
   const { data, loading, error, fetchedAt, refetch } = useApi(`/shuttle/next${q}`, { interval: 15_000 })
-  const now = useNow(1000)
+  const now = useNow(tickMs)
   const ticked = useMemo(
     () => tickShuttleNext(data, fetchedAt, now),
     [data, fetchedAt, now]

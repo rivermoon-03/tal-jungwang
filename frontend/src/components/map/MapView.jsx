@@ -30,6 +30,9 @@ function getPrimaryStopId(marker) {
 const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
 
+// 지도 마커는 분 단위 표시라 도착 훅을 60초 tick으로 받는다 (카드의 1초 tick과 분리).
+const MARKER_TICK = { tickMs: 60_000 }
+
 
 export default function MapView({ onMarkerClick, selectedId }) {
   const containerRef = useRef(null)
@@ -45,19 +48,20 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const selectedMode        = useAppStore((s) => s.selectedMode)
 
   // 실시간 데이터 훅
-  const { data: shuttleToSchoolData }   = useShuttleNext(0) // 등교: 정왕역 → 학교
-  const { data: shuttleFromSchoolData } = useShuttleNext(1) // 하교: 학교 → 정왕역
-  const { data: shuttleToCampus2Data }   = useShuttleNext(2) // 2캠 등교: 본캠 → 2캠
-  const { data: shuttleFromCampus2Data } = useShuttleNext(3) // 2캠 하교: 2캠 → 본캠
+  // 지도 마커는 분 단위 표시라 60초 tick으로 충분 — 매초 마커 재계산을 피한다.
+  const { data: shuttleToSchoolData }   = useShuttleNext(0, MARKER_TICK) // 등교: 정왕역 → 학교
+  const { data: shuttleFromSchoolData } = useShuttleNext(1, MARKER_TICK) // 하교: 학교 → 정왕역
+  const { data: shuttleToCampus2Data }   = useShuttleNext(2, MARKER_TICK) // 2캠 등교: 본캠 → 2캠
+  const { data: shuttleFromCampus2Data } = useShuttleNext(3, MARKER_TICK) // 2캠 하교: 2캠 → 본캠
   const { data: shuttleToSchoolSched }  = useShuttleSchedule(0)
   const { data: shuttleFromSchoolSched } = useShuttleSchedule(1)
   const { data: shuttleToCampus2Sched }  = useShuttleSchedule(2)
   const { data: shuttleFromCampus2Sched } = useShuttleSchedule(3)
-  const { data: subwayNextData }        = useSubwayNext()
+  const { data: subwayNextData }        = useSubwayNext(MARKER_TICK)
   const { data: seohaeTimetable }       = useSubwayTimetable()
-  const { data: busArrivalsData }       = useBusArrivals(224000639)
-  const { data: busArrivalsSiheung }    = useBusArrivals(224000586)
-  const { data: busArrivalsEmart }      = useBusArrivals(224000513)
+  const { data: busArrivalsData }       = useBusArrivals(224000639, MARKER_TICK)
+  const { data: busArrivalsSiheung }    = useBusArrivals(224000586, MARKER_TICK)
+  const { data: busArrivalsEmart }      = useBusArrivals(224000513, MARKER_TICK)
   const { data: stationsData }          = useBusStations()
   const { data: markersData }           = useMapMarkers()
 

@@ -8,9 +8,10 @@ export function useSubwayTimetable(direction) {
   return useApi(`/subway/timetable${q}`)
 }
 
-export function useSubwayNext() {
+// tickMs: 분 단위로만 쓰는 지도 마커는 60_000을 넘겨 매초 재계산을 피한다 (기본 1000).
+export function useSubwayNext({ tickMs = 1000 } = {}) {
   const { data, loading, error, fetchedAt, refetch } = useApi('/subway/next', { interval: 30_000 })
-  const now = useNow(1000)
+  const now = useNow(tickMs)
   const ticked = useMemo(
     () => tickSubwayNext(data, fetchedAt, now),
     [data, fetchedAt, now]
