@@ -65,23 +65,24 @@ describe('App', () => {
     expect(screen.getByText('PCDock')).toBeInTheDocument()
   })
 
-  it('/schedule: 모바일은 SchedulePage, PC는 좌측 패널에 SchedulePage', () => {
+  // 페이지들은 lazy 로드라 Suspense fallback 이후 비동기로 나타난다 → findAllByText로 대기.
+  it('/schedule: 모바일은 SchedulePage, PC는 좌측 패널에 SchedulePage', async () => {
     setPath('/schedule')
     render(<App />)
     // 모바일 + PC 둘 다 렌더 (CSS로 md:hidden / hidden md:block 토글)
-    const all = screen.getAllByText(/SchedulePage/)
+    const all = await screen.findAllByText(/SchedulePage/)
     expect(all.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('/cafeteria: CafeteriaPage 렌더링', () => {
+  it('/cafeteria: CafeteriaPage 렌더링', async () => {
     setPath('/cafeteria')
     render(<App />)
-    expect(screen.getAllByText(/CafeteriaPage/).length).toBeGreaterThanOrEqual(1)
+    expect((await screen.findAllByText(/CafeteriaPage/)).length).toBeGreaterThanOrEqual(1)
   })
 
-  it('/more: MorePage 렌더링', () => {
+  it('/more: MorePage 렌더링', async () => {
     setPath('/more')
     render(<App />)
-    expect(screen.getAllByText(/MorePage/).length).toBeGreaterThanOrEqual(1)
+    expect((await screen.findAllByText(/MorePage/)).length).toBeGreaterThanOrEqual(1)
   })
 })

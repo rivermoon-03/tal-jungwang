@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import useAppStore from './stores/useAppStore'
 import { useTheme } from './hooks/useTheme'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
@@ -9,13 +9,15 @@ import PCMapDashboard from './components/dashboard/PCMapDashboard'
 import { useIsDesktop } from './hooks/useMediaQuery'
 import FloatingDock from './components/common/FloatingDock'
 import PCDock from './components/common/PCDock'
-import SchedulePage from './pages/SchedulePage'
-import CafeteriaPage from './pages/CafeteriaPage'
-import MorePage from './pages/MorePage'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
 import GlobalSubwayLineSheet from './components/subway/GlobalSubwayLineSheet'
 import GlobalSubwayDetailSheet from './components/subway/GlobalSubwayDetailSheet'
 import { useNotices } from './hooks/useMore'
+
+// 지도 외 페이지는 진입 시에만 로드 — 초기 번들에서 분리한다.
+const SchedulePage = lazy(() => import('./pages/SchedulePage'))
+const CafeteriaPage = lazy(() => import('./pages/CafeteriaPage'))
+const MorePage = lazy(() => import('./pages/MorePage'))
 
 const VALID_HASH_TABS = ['main', 'map', 'transit', 'subway', 'more']
 
@@ -108,15 +110,17 @@ export default function App() {
           {/* 모바일 ↔ PC 레이아웃을 JS 미디어쿼리로 분기.
               CSS hidden만 쓰면 양쪽이 동시에 마운트되어, 숨겨진 쪽의 useEffect가
               계속 돌면서 store를 덮어쓰는 부작용이 발생함 (PCStationPicker auto-sync 등). */}
-          {isDesktop ? (
-            <div className="h-full">
-              <PCMainShell>{pageContent}</PCMainShell>
-            </div>
-          ) : (
-            <div className="h-full overflow-auto">
-              {mobileContent}
-            </div>
-          )}
+          <Suspense fallback={<div className="h-full" />}>
+            {isDesktop ? (
+              <div className="h-full">
+                <PCMainShell>{pageContent}</PCMainShell>
+              </div>
+            ) : (
+              <div className="h-full overflow-auto">
+                {mobileContent}
+              </div>
+            )}
+          </Suspense>
         </main>
 
         {/* 모바일 floating dock (md:hidden 내부 처리) */}
