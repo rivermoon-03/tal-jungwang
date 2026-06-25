@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { CalendarOff, MoonStar } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
@@ -6,7 +6,6 @@ import Skeleton from '../common/Skeleton'
 import EmptyState from '../common/EmptyState'
 import ErrorState from '../common/ErrorState'
 import DualDirectionCard from '../common/DualDirectionCard'
-import SemesterScheduleSheet from '../shuttle/SemesterScheduleSheet'
 
 /**
  * ShuttlePanel — 셔틀 모드 패널.
@@ -15,8 +14,9 @@ import SemesterScheduleSheet from '../shuttle/SemesterScheduleSheet'
  *   본캠: direction 0(등교) + 1(하교)
  *   2캠 : direction 2(등교) + 3(하교)
  *
- * 좌측=등교 클릭 → 등교 방향 모달, 우측=하교 클릭 → 하교 방향 모달.
- * 운행 종료 시 내일(또는 다음 운행일) 첫차 시간 표시.
+ * 주말·방학 처리:
+ *   - 본캠: 주말·방학 모두 미운영 안내
+ *   - 2캠: 일요일·방학은 미운영, 토요일은 정상 운행 흐름
  */
 
 // direction: 0=본캠 등교, 1=본캠 하교, 2=2캠 등교, 3=2캠 하교
@@ -42,6 +42,23 @@ function toMin(t) {
   return h * 60 + m
 }
 
+// KST 기준 요일 (0=일, 1=월, ..., 6=토)
+function getKstDayOfWeek() {
+  const now = new Date()
+  // KST = UTC+9
+  const kstOffset = 9 * 60
+  const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes()
+  const kstMin = utcMin + kstOffset
+  const kstDayExtra = Math.floor(kstMin / (24 * 60))
+  const utcDay = now.getUTCDay()
+  return (utcDay + kstDayExtra) % 7
+}
+
+// 2캠 + 토요일 예외: 토요일에도 정상 운행하므로 미운영 처리하지 않음
+function isSecondCampusSaturday(campus) {
+  return campus === 'second' && getKstDayOfWeek() === 6
+}
+
 // ShuttleCard.isInsideFrequentWindow 와 동일한 로직 — 스케줄 전체 데이터 기반
 function checkInsideFrequentWindow(scheduleData, direction) {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
@@ -54,7 +71,6 @@ function checkInsideFrequentWindow(scheduleData, direction) {
 export default function ShuttlePanel() {
   const campus = useAppStore((s) => s.selectedShuttleCampus)
   const setDetailModal = useAppStore((s) => s.setDetailModal)
-  const [semesterSheetOpen, setSemesterSheetOpen] = useState(false)
 
   const [goDir, backDir] = campus === 'second' ? [2, 3] : [0, 1]
   const goQuery = useShuttleNext(goDir)
@@ -109,26 +125,25 @@ export default function ShuttlePanel() {
     )
   }
 
+  // 2캠 + 토요일 예외: NO_SCHEDULE이어도 정상 흐름으로 진행
+  // (서버에서 2캠 토요일 스케줄을 제공하므로, scheduleError를 미운영 판정에서 제외)
+  const skipNoSchedule = isSecondCampusSaturday(campus)
+
   // NO_SCHEDULE: 방학/휴일 — 스케줄 자체 없음.
   // schedule 응답이 NO_SCHEDULE면 next가 NO_SHUTTLE을 주더라도 방학 안내를 우선한다.
+  // 단, 2캠+토요일이면 미운영 판정 건너뜀.
   const goNoSchedule = goQuery.error?.code === 'NO_SCHEDULE'
   const backNoSchedule = backQuery.error?.code === 'NO_SCHEDULE'
-  const isVacation = scheduleError?.code === 'NO_SCHEDULE' || (goNoSchedule && backNoSchedule)
+  const isVacation =
+    !skipNoSchedule &&
+    (scheduleError?.code === 'NO_SCHEDULE' || (goNoSchedule && backNoSchedule))
   if (isVacation) {
     return (
-      <>
-        <EmptyState
-          icon={<CalendarOff size={28} strokeWidth={1.5} />}
-          title="방학·휴일에는 셔틀을 운행하지 않아요"
-          desc="학기 중에 다시 확인해 주세요"
-          ctaLabel="학기 중 시간표 보기"
-          onCta={() => setSemesterSheetOpen(true)}
-        />
-        <SemesterScheduleSheet
-          open={semesterSheetOpen}
-          onClose={() => setSemesterSheetOpen(false)}
-        />
-      </>
+      <EmptyState
+        icon={<CalendarOff size={28} strokeWidth={1.5} />}
+        title="주말·방학에는 셔틀을 운행하지 않아요"
+        desc="학기 중 평일에 다시 확인해 주세요"
+      />
     )
   }
 
