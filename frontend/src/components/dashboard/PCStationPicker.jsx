@@ -84,13 +84,13 @@ export default function PCStationPicker() {
       {/* 헤더 — 카드 없이 텍스트만 */}
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] font-extrabold tracking-[0.15em] uppercase text-accent leading-none">
+          <div className="text-caption font-extrabold text-accent leading-none">
             {statusLabel}
           </div>
           <div className="text-[22px] font-black text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1.5 truncate">
             {stationLabel}
           </div>
-          <div className="text-[11px] font-semibold text-mute dark:text-mute-dark mt-1">
+          <div className="text-label font-semibold text-mute dark:text-mute-dark mt-1">
             {autoMode ? '가장 가까운 정류장' : '수동 선택됨'}
           </div>
         </div>
@@ -134,7 +134,7 @@ function DirectionToggle({ direction, onPick }) {
             onClick={() => onPick(d)}
             aria-pressed={active}
             aria-label={d}
-            className={`px-3 py-1.5 rounded-pill text-[11px] font-extrabold tracking-[-0.01em] pressable transition-colors duration-press ease-ios ${
+            className={`px-3 py-1.5 rounded-pill text-label font-extrabold tracking-[-0.01em] pressable transition-colors duration-press ease-ios ${
               active
                 ? 'bg-ink text-white dark:bg-accent dark:text-black'
                 : 'text-mute dark:text-mute-dark'
@@ -154,7 +154,7 @@ function Chip({ label, active, onClick, accent = false }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`whitespace-nowrap pressable shrink-0 text-[10px] font-extrabold px-2.5 py-1.5 rounded-btn transition-colors duration-press ease-ios ${
+      className={`whitespace-nowrap pressable shrink-0 text-label font-extrabold px-2.5 py-1.5 rounded-btn transition-colors duration-press ease-ios ${
         active
           ? (accent
               ? 'bg-accent text-black'

@@ -3,6 +3,9 @@
  * 두 가지 형태로 export:
  *   1. React 컴포넌트 (JSX) — 일반 React 렌더에서 사용
  *   2. createMarkerChipElement() — kakao CustomOverlay setContent용 순수 DOM 노드 반환
+ *
+ * 다크 대응: 배경 var(--tj-surface), 텍스트 var(--tj-ink), 임박 ETA var(--tj-imminent).
+ * 카카오 CustomOverlay는 문서 <body> 내 삽입되므로 :root CSS 변수가 정상 동작함.
  */
 
 import React from 'react'
@@ -31,6 +34,11 @@ function resolveColor(routeCode, routeColor) {
   return ROUTE_COLOR_MAP[routeCode] ?? DEFAULT_COLOR
 }
 
+/** ETA가 임박(3분 이하)인지 판단 */
+function isImminent(minutes) {
+  return typeof minutes === 'number' && minutes <= 3
+}
+
 /**
  * React 컴포넌트 버전.
  * @param {{ routeCode: string, routeColor?: string, stationName: string, liveMinutes?: number|null, showLive?: boolean }} props
@@ -38,6 +46,7 @@ function resolveColor(routeCode, routeColor) {
 export default function MarkerChip({ routeCode, routeColor, stationName, liveMinutes, showLive = false, badgeText }) {
   const color = resolveColor(routeCode, routeColor)
   const hasLive = showLive && liveMinutes != null
+  const imminentEta = hasLive && isImminent(liveMinutes)
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -47,7 +56,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           display: 'inline-flex',
           alignItems: 'center',
           gap: '5px',
-          background: '#fff',
+          background: 'var(--tj-surface)',
           borderRadius: '16px',
           padding: '4px 10px 4px 6px',
           boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
@@ -68,7 +77,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
             borderRadius: '50%',
             background: color,
             color: '#fff',
-            fontSize: '9px',
+            fontSize: '12px',
             fontWeight: 700,
             flexShrink: 0,
           }}
@@ -79,9 +88,9 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
         {/* 정류장명 + 남은 시간 */}
         <span
           style={{
-            fontSize: '11px',
+            fontSize: '12px',
             fontWeight: 700,
-            color: '#1b3a6e',
+            color: 'var(--tj-ink)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}
@@ -89,8 +98,8 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           {stationName}
           {hasLive && (
             <>
-              <span style={{ color: '#cbd5e1', margin: '0 4px' }}>·</span>
-              <span style={{ color: '#102c4c' }}>{liveMinutes}분</span>
+              <span style={{ color: 'var(--tj-mute)', margin: '0 4px' }}>·</span>
+              <span style={{ color: imminentEta ? 'var(--tj-imminent)' : 'var(--tj-ink)' }}>{liveMinutes}분</span>
             </>
           )}
         </span>
@@ -119,6 +128,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
   ].join(';')
 
   const hasLive = showLive && liveMinutes != null
+  const imminentEta = hasLive && isImminent(liveMinutes)
 
   // 보조 pill (메인 pill 위에 작게 표시)
   if (extraPillText) {
@@ -129,7 +139,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
       'gap:4px',
       'background:#DC2626',
       'color:#fff',
-      'font-size:9px',
+      'font-size:12px',
       'font-weight:700',
       'border-radius:10px',
       'padding:2px 7px',
@@ -147,7 +157,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'display:inline-flex',
     'align-items:center',
     'gap:5px',
-    'background:#fff',
+    'background:var(--tj-surface)',
     'border-radius:16px',
     'padding:4px 10px 4px 6px',
     'box-shadow:0 4px 14px rgba(0,0,0,0.1)',
@@ -167,7 +177,7 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     'border-radius:50%',
     `background:${color}`,
     'color:#fff',
-    'font-size:9px',
+    'font-size:12px',
     'font-weight:700',
     'flex-shrink:0',
   ].join(';')
@@ -181,9 +191,9 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
   // 정류장명 + 남은 시간
   const label = document.createElement('span')
   label.style.cssText = [
-    'font-size:11px',
+    'font-size:12px',
     'font-weight:700',
-    'color:#1b3a6e',
+    'color:var(--tj-ink)',
     'overflow:hidden',
     'text-overflow:ellipsis',
   ].join(';')
@@ -191,26 +201,26 @@ export function createMarkerChipElement({ routeCode, routeColor, stationName, li
     // subLabel이 있으면 라이브 시간 대신 표시 (다중 노선 허브 등)
     label.textContent = stationName
     const sep = document.createElement('span')
-    sep.style.cssText = 'color:#cbd5e1;margin:0 4px'
+    sep.style.cssText = 'color:var(--tj-mute);margin:0 4px'
     sep.textContent = subLabelSep
     label.appendChild(sep)
     const tail = document.createElement('span')
-    tail.style.color = '#1b3a6e'
+    tail.style.color = 'var(--tj-ink)'
     tail.textContent = subLabel
     label.appendChild(tail)
   } else if (hasLive) {
     label.textContent = stationName
     const sep = document.createElement('span')
-    sep.style.cssText = 'color:#cbd5e1;margin:0 4px'
+    sep.style.cssText = 'color:var(--tj-mute);margin:0 4px'
     sep.textContent = '·'
     label.appendChild(sep)
     const mins = document.createElement('span')
-    mins.style.color = '#102c4c'
+    mins.style.color = imminentEta ? 'var(--tj-imminent)' : 'var(--tj-ink)'
     mins.textContent = `${liveMinutes}분`
     label.appendChild(mins)
     if (inaccurate) {
       const tag = document.createElement('span')
-      tag.style.cssText = 'margin-left:4px;font-size:9px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 4px'
+      tag.style.cssText = 'margin-left:4px;font-size:12px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 4px'
       tag.textContent = '부정확'
       label.appendChild(tag)
     }
@@ -244,7 +254,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
     'display:flex',
     'flex-direction:column',
     'gap:3px',
-    'background:#fff',
+    'background:var(--tj-surface)',
     'border-radius:14px',
     'padding:6px 10px',
     'box-shadow:0 4px 14px rgba(0,0,0,0.1)',
@@ -255,14 +265,14 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
 
   // 1줄: 역명
   const title = document.createElement('div')
-  title.style.cssText = 'font-size:12px;font-weight:800;color:#1b3a6e;text-align:center'
+  title.style.cssText = 'font-size:13px;font-weight:800;color:var(--tj-ink);text-align:center'
   title.textContent = stationName
   pill.appendChild(title)
 
   // 공통 행 빌더
   const makeRow = ({ badgeBg, badgeText, minutes }) => {
     const row = document.createElement('div')
-    row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#1b3a6e'
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--tj-ink)'
 
     const badge = document.createElement('span')
     badge.style.cssText = [
@@ -275,7 +285,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
       'border-radius:8px',
       `background:${badgeBg}`,
       'color:#fff',
-      'font-size:9px',
+      'font-size:12px',
       'font-weight:700',
       'flex-shrink:0',
     ].join(';')
@@ -283,7 +293,8 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
     row.appendChild(badge)
 
     const mins = document.createElement('span')
-    mins.style.cssText = `margin-left:auto;color:${minutes != null ? '#102c4c' : '#94a3b8'}`
+    const imm = isImminent(minutes)
+    mins.style.cssText = `margin-left:auto;color:${imm ? 'var(--tj-imminent)' : (minutes != null ? 'var(--tj-ink)' : 'var(--tj-mute)')}`
     mins.textContent = minutes != null ? `${minutes}분` : '—'
     row.appendChild(mins)
     return row
@@ -321,7 +332,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
     'display:grid',
     'grid-template-columns:auto auto',
     'gap:4px 8px',
-    'background:#fff',
+    'background:var(--tj-surface)',
     'border-radius:14px',
     'padding:6px 10px',
     'box-shadow:0 4px 14px rgba(0,0,0,0.1)',
@@ -343,7 +354,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
       : null
 
     const cell = document.createElement('span')
-    cell.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#1b3a6e'
+    cell.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--tj-ink)'
 
     const badge = document.createElement('span')
     badge.style.cssText = [
@@ -356,14 +367,15 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
       'border-radius:8px',
       `background:${line.color}`,
       'color:#fff',
-      'font-size:9px',
+      'font-size:12px',
       'font-weight:700',
     ].join(';')
     badge.textContent = `${line.label}${line.arrow}`
     cell.appendChild(badge)
 
     const mins = document.createElement('span')
-    mins.style.color = minutes != null ? '#102c4c' : '#94a3b8'
+    const imm = isImminent(minutes)
+    mins.style.color = imm ? 'var(--tj-imminent)' : (minutes != null ? 'var(--tj-ink)' : 'var(--tj-mute)')
     mins.textContent = minutes != null ? `${minutes}분` : '—'
     cell.appendChild(mins)
 
