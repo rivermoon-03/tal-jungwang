@@ -129,6 +129,25 @@ export function getRouteDisplayConfig(routeNo) {
   return ROUTE_DISPLAY_CONFIG[routeNo] ?? null
 }
 
+/**
+ * 정류장 카드의 출발지/탑승 라벨을 방향에 따라 분기한다.
+ *
+ * - 하교: "○○ 출발" — 이 정류장이 실제 출발지
+ * - 등교: "○○에서 타요" — 이 정류장은 경유 탑승지, "출발"로 오해되면 안 됨
+ *
+ * @param {string} station  선택된 정류장 ID (busStationConfig 키)
+ * @param {string} direction '등교' | '하교'
+ * @param {string} originName perRouteDisplay.origin 값 (호출처에서 전달)
+ * @returns {string}
+ */
+export function getOriginLabel(station, direction, originName) {
+  if (!originName) return ''
+  if (direction === '등교') {
+    return `${originName} 탑승`
+  }
+  return `${originName} 출발`
+}
+
 export const ROUTE_CATEGORY_ORDER = ['express', 'trunk', 'local']
 export const ROUTE_CATEGORY_LABEL = {
   express: '광역버스',

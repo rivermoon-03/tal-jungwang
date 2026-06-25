@@ -4,7 +4,6 @@ import {
   getRouteCategory,
   ROUTE_CATEGORY_ORDER,
   ROUTE_CATEGORY_LABEL,
-  ROUTE_CATEGORY_SWATCH,
 } from '../dashboard/busStationConfig'
 
 const TOP_CATEGORY_ORDER = ['등교', '하교', '기타']
@@ -57,7 +56,6 @@ function groupByTopCategory(arrivals) {
 }
 
 function groupByRouteCategory(routeGroups) {
-  // routeGroups: [[arrivals_per_route], ...]
   const buckets = new Map()
   for (const g of routeGroups) {
     const cat = getRouteCategory(g[0].route_no)
@@ -72,12 +70,6 @@ function groupByRouteCategory(routeGroups) {
     if (!ROUTE_CATEGORY_ORDER.includes(cat)) sections.push({ routeCategory: cat, groups })
   }
   return sections
-}
-
-const SWATCH_BG = {
-  express: 'bg-line-express',
-  trunk:   'bg-line-201',
-  local:   'bg-line-33',
 }
 
 export default function ArrivalList({ arrivals, stationId, onTimetableClick, stationLabel, direction }) {
@@ -100,7 +92,7 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
   if (!arrivals || arrivals.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-surface dark:bg-bg-dark">
-        <p className="text-meta font-semibold text-mute dark:text-mute-dark">도착 정보가 없습니다.</p>
+        <p className="text-label font-semibold text-mute dark:text-mute-dark">도착 정보가 없습니다.</p>
       </div>
     )
   }
@@ -112,7 +104,7 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
       {stationLabel && direction && (
         <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
           <h3 className="text-panel-ttl text-ink dark:text-ink-dark">{stationLabel}</h3>
-          <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full tracking-tight">
+          <span className="text-label font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full tracking-tight">
             {direction}
           </span>
         </div>
@@ -121,7 +113,7 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
         {sections.map(({ topCategory, subSections }) => (
           <div key={topCategory}>
             {multiTop && (
-              <div className="mb-2.5 px-1 text-[11px] font-extrabold tracking-[.08em] uppercase text-text dark:text-text-dark">
+              <div className="mb-2.5 px-1 text-label font-extrabold text-text dark:text-text-dark">
                 {TOP_CATEGORY_LABEL[topCategory] ?? topCategory}
               </div>
             )}
@@ -129,15 +121,10 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
               {subSections.map(({ routeCategory, groups }) => (
                 <div key={routeCategory}>
                   <div className="flex items-center gap-2.5 px-1 pt-1 pb-1.5">
-                    <span
-                      className={`inline-flex items-center justify-center w-[22px] h-[22px] rounded-[7px] text-white text-[10px] font-extrabold tracking-[.04em] ${SWATCH_BG[routeCategory] ?? SWATCH_BG.local}`}
-                    >
-                      {ROUTE_CATEGORY_SWATCH[routeCategory] ?? '기타'}
-                    </span>
-                    <span className="text-[13px] font-extrabold tracking-[.02em] text-ink dark:text-ink-dark">
+                    <span className="text-label font-extrabold text-ink dark:text-ink-dark">
                       {ROUTE_CATEGORY_LABEL[routeCategory] ?? routeCategory}
                     </span>
-                    <span className="ml-auto text-[10px] font-bold tracking-[.08em] uppercase text-mute dark:text-mute-dark">
+                    <span className="ml-auto text-caption font-bold text-mute dark:text-mute-dark">
                       {groups.length} ROUTES
                     </span>
                   </div>

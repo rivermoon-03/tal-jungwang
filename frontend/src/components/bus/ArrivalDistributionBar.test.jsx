@@ -29,4 +29,24 @@ describe('ArrivalDistributionBar', () => {
     )
     expect(container.firstChild).not.toBeNull()
   })
+
+  it('bg-slate-* 클래스가 없어야 한다 (토큰 준수)', () => {
+    const { container } = render(
+      <ArrivalDistributionBar p10Min={1} p50Min={4} p90Min={9} variant="full" />
+    )
+    const allClasses = Array.from(container.querySelectorAll('[class]'))
+      .map((el) => el.className)
+      .join(' ')
+    expect(allClasses).not.toMatch(/\bbg-slate-\d/)
+  })
+
+  it('text-[10px] 클래스가 없어야 한다 (최소 12px 캡션 토큰 사용)', () => {
+    const { container } = render(
+      <ArrivalDistributionBar p10Min={1} p50Min={4} p90Min={9} variant="full" />
+    )
+    const allClasses = Array.from(container.querySelectorAll('[class]'))
+      .map((el) => el.className)
+      .join(' ')
+    expect(allClasses).not.toMatch(/text-\[(9|10|11)px\]/)
+  })
 })
