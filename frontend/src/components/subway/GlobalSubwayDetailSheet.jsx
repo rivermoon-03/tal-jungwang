@@ -6,6 +6,7 @@ import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 import SubwayCountdown from './SubwayCountdown'
 import SubwayTimetable from './SubwayTimetable'
+import StatusChip from '../ui/StatusChip'
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
@@ -148,13 +149,10 @@ export default function GlobalSubwayDetailSheet() {
                       {rtTrain.destination}행
                     </span>
                     {rtTrain.is_last_train && (
-                      <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">막차</span>
+                      <StatusChip kind="last">막차</StatusChip>
                     )}
                     {showStaleBadge && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        {ageMin}분 전 데이터
-                      </span>
+                      <StatusChip kind="beta">{ageMin}분 전 데이터</StatusChip>
                     )}
                   </div>
                   <p className="text-meta font-medium text-mute dark:text-mute-dark mt-1">
@@ -278,7 +276,7 @@ export default function GlobalSubwayDetailSheet() {
               lineLightColor={displayed.lightColor}
             />
           ) : !ttLoading && (
-            <div className="flex items-center justify-center py-12 text-meta font-semibold text-mute dark:text-mute-dark">시간표 데이터가 없습니다</div>
+            <div className="flex items-center justify-center py-12 text-meta font-semibold text-mute dark:text-mute-dark">시간표 데이터가 없어요</div>
           )}
         </div>
       </div>

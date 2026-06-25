@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useAppStore from '../../stores/useAppStore'
+import StatusChip from '../ui/StatusChip'
 
 function timeToMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -32,38 +33,41 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
         const isLast  = i === lastIdx
         const isFirst = i === firstIdx
         const diffMin = Math.round(departMin - nowMin)
-        const accent = darkMode ? (lineDarkColor ?? lineColor) : lineColor
 
         return (
           <li
             key={i}
-            className={`relative flex items-center px-5 py-3.5 border-b border-line dark:border-line-dark
-              ${isPast ? 'opacity-35 pointer-events-none' : ''}`}
-            style={isNext ? { backgroundColor: darkMode ? 'rgba(30,41,59,0.8)' : lineLightColor } : {}}
+            className={[
+              'relative flex items-center px-5 py-3.5 border-b border-line dark:border-line-dark',
+              isNext ? 'bg-accent-bg dark:bg-accent-bg/20' : '',
+              isPast && !isNext ? 'pointer-events-none' : '',
+            ].filter(Boolean).join(' ')}
           >
-            {isNext && (
-              <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: accent }} />
-            )}
             <span
-              className={`tabular-nums min-w-[60px] tracking-tight ${isNext ? 'text-eta-mob font-black' : 'text-eta-mob font-bold text-ink dark:text-ink-dark'}`}
-              style={isNext ? { color: accent } : undefined}
+              className={[
+                'tabular-nums min-w-[60px] tracking-tight text-label',
+                isNext ? 'font-black text-ink dark:text-ink-dark' : 'font-bold',
+                isPast && !isNext ? 'text-mute dark:text-mute-dark' : !isNext ? 'text-ink dark:text-ink-dark' : '',
+              ].filter(Boolean).join(' ')}
             >
               {train.depart_at}
             </span>
-            <span className={`flex-1 text-meta font-medium ml-3 ${isNext ? 'text-text dark:text-text-dark font-bold' : 'text-mute dark:text-mute-dark'}`}>{train.destination}행</span>
+            <span className={[
+              'flex-1 text-label font-medium ml-3',
+              isNext ? 'text-ink dark:text-ink-dark font-bold' : '',
+              isPast && !isNext ? 'text-mute dark:text-mute-dark' : !isNext ? 'text-ink-2 dark:text-ink-2-dark' : '',
+            ].filter(Boolean).join(' ')}>
+              {train.destination}행
+            </span>
             <div className="flex items-center gap-1.5">
               {isLast && (
-                <span className="text-micro font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
-                  막차
-                </span>
+                <StatusChip kind="last">막차</StatusChip>
               )}
               {isFirst && (
-                <span className="text-micro font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-full leading-none">
-                  첫차
-                </span>
+                <StatusChip kind="beta">첫차</StatusChip>
               )}
               {isNext && (
-                <span className="text-panel-ttl tracking-tight" style={{ color: accent }}>
+                <span className="text-label font-semibold tabular-nums text-ink-2 dark:text-ink-2-dark">
                   {diffMin}분 후
                 </span>
               )}
