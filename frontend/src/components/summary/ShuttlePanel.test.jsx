@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // ── 스토어 모킹 ──
 vi.mock('../../stores/useAppStore', () => ({
@@ -20,84 +20,75 @@ vi.mock('../../hooks/useShuttle', () => ({
     refetch: vi.fn(),
   })),
   useShuttleSchedule: vi.fn(() => ({ data: null, loading: false, error: null })),
-  useShuttleSemesterSchedule: vi.fn(() => ({
-    data: {
-      schedule_type: 'SEMESTER',
-      schedule_name: '2026학년도 1학기',
-      valid_from: '2026-03-03',
-      valid_until: '2026-06-22',
-      directions: [
-        { direction: 0, times: [{ depart_at: '08:40', note: '수시운행' }] },
-        { direction: 1, times: [{ depart_at: '17:00', note: null }] },
-        { direction: 2, times: [{ depart_at: '09:00', note: null }] },
-        { direction: 3, times: [{ depart_at: '17:30', note: null }] },
-      ],
-    },
-    loading: false,
-    error: null,
-  })),
 }))
 
-import { useShuttleNext, useShuttleSchedule, useShuttleSemesterSchedule } from '../../hooks/useShuttle'
+import useAppStore from '../../stores/useAppStore'
+import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import ShuttlePanel from './ShuttlePanel'
+
+const NO_SCHEDULE_ERR = Object.assign(new Error('NO_SCHEDULE'), { code: 'NO_SCHEDULE' })
+const NO_SHUTTLE_ERR = Object.assign(new Error('NO_SHUTTLE'), { code: 'NO_SHUTTLE' })
+
+function setMainCampus() {
+  useAppStore.mockImplementation((selector) =>
+    selector({ selectedShuttleCampus: 'main', setDetailModal: vi.fn() }),
+  )
+}
+
+function setSecondCampus() {
+  useAppStore.mockImplementation((selector) =>
+    selector({ selectedShuttleCampus: 'second', setDetailModal: vi.fn() }),
+  )
+}
+
+// KST 요일을 고정하는 헬퍼 (0=일, 6=토)
+function mockKstDay(dayOfWeek) {
+  // 2026-01-10 토(6), 2026-01-11 일(0), 2026-01-12 월(1)
+  const dayMap = { 6: '2026-01-10T10:00:00+09:00', 0: '2026-01-11T10:00:00+09:00', 1: '2026-01-12T10:00:00+09:00' }
+  const ts = Date.parse(dayMap[dayOfWeek])
+  vi.setSystemTime(ts)
+}
 
 describe('ShuttlePanel — NO_SCHEDULE/NO_SHUTTLE 빈 상태 카피', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    mockKstDay(1) // 월요일(방학 케이스)
+    setMainCampus()
     useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
-    useShuttleSemesterSchedule.mockReturnValue({
-      data: {
-        schedule_type: 'SEMESTER',
-        schedule_name: '2026학년도 1학기',
-        valid_from: '2026-03-03',
-        valid_until: '2026-06-22',
-        directions: [
-          { direction: 0, times: [{ depart_at: '08:40', note: '수시운행' }] },
-          { direction: 1, times: [{ depart_at: '17:00', note: null }] },
-          { direction: 2, times: [{ depart_at: '09:00', note: null }] },
-          { direction: 3, times: [{ depart_at: '17:30', note: null }] },
-        ],
-      },
-      loading: false,
-      error: null,
-    })
   })
 
-  it('NO_SCHEDULE 에러 시 방학·휴일 안내 제목을 표시한다', () => {
-    const err = Object.assign(new Error('NO_SCHEDULE'), { code: 'NO_SCHEDULE' })
-    useShuttleNext.mockReturnValue({ data: null, loading: false, error: err, refetch: vi.fn() })
-    render(<ShuttlePanel />)
-    expect(screen.getByText(/방학·휴일/)).toBeInTheDocument()
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it('NO_SCHEDULE 에러 시 "학기 중 시간표 보기" 버튼이 표시된다', () => {
-    const err = Object.assign(new Error('NO_SCHEDULE'), { code: 'NO_SCHEDULE' })
-    useShuttleNext.mockReturnValue({ data: null, loading: false, error: err, refetch: vi.fn() })
+  it('NO_SCHEDULE 에러 시 주말·방학 미운영 안내 제목을 표시한다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR, refetch: vi.fn() })
     render(<ShuttlePanel />)
-    expect(screen.getByText(/학기 중 시간표 보기/)).toBeInTheDocument()
+    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
   })
 
-  it('NO_SCHEDULE 에러 시 "학기 중 시간표 보기" 버튼 클릭 시 시간표 시트가 열린다', () => {
-    const err = Object.assign(new Error('NO_SCHEDULE'), { code: 'NO_SCHEDULE' })
-    useShuttleNext.mockReturnValue({ data: null, loading: false, error: err, refetch: vi.fn() })
+  it('NO_SCHEDULE 에러 시 "학기 중 시간표 보기" 버튼이 없다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR, refetch: vi.fn() })
     render(<ShuttlePanel />)
-    const btn = screen.getByText(/학기 중 시간표 보기/)
-    fireEvent.click(btn)
-    expect(screen.getByText(/학기 중 운행 시간표/)).toBeInTheDocument()
+    expect(screen.queryByText(/학기 중 시간표 보기/)).not.toBeInTheDocument()
   })
 
-  it('NO_SCHEDULE 에러 시 학기 중 재확인 보조 문구를 표시한다', () => {
-    const err = Object.assign(new Error('NO_SCHEDULE'), { code: 'NO_SCHEDULE' })
-    useShuttleNext.mockReturnValue({ data: null, loading: false, error: err, refetch: vi.fn() })
+  it('NO_SCHEDULE 에러 시 SemesterScheduleSheet(학기 중 운행 시간표)가 렌더되지 않는다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR, refetch: vi.fn() })
     render(<ShuttlePanel />)
-    // "학기 중에 다시 확인해 주세요" desc 문구 + "학기 중 시간표 보기" 버튼 모두 존재
-    const elements = screen.getAllByText(/학기 중/)
-    expect(elements.length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText(/학기 중 운행 시간표/)).not.toBeInTheDocument()
+  })
+
+  it('NO_SCHEDULE 에러 시 scheduleError 기반으로도 미운영 안내를 표시한다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: null, refetch: vi.fn() })
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR })
+    render(<ShuttlePanel />)
+    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
   })
 
   it('NO_SHUTTLE 에러 시 오늘 운행 종료 안내를 표시한다', () => {
-    const err = Object.assign(new Error('NO_SHUTTLE'), { code: 'NO_SHUTTLE' })
-    useShuttleNext.mockReturnValue({ data: null, loading: false, error: err, refetch: vi.fn() })
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SHUTTLE_ERR, refetch: vi.fn() })
     render(<ShuttlePanel />)
     expect(screen.getByText(/오늘 셔틀 운행이 끝났어요/)).toBeInTheDocument()
   })
@@ -110,8 +101,117 @@ describe('ShuttlePanel — NO_SCHEDULE/NO_SHUTTLE 빈 상태 카피', () => {
   })
 })
 
+describe('ShuttlePanel — 본캠 주말 미운영', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    setMainCampus()
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR, refetch: vi.fn() })
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('본캠 + 토요일 + NO_SCHEDULE 시 미운영 안내를 표시한다', () => {
+    mockKstDay(6) // 토요일
+    render(<ShuttlePanel />)
+    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+  })
+
+  it('본캠 + 토요일 + NO_SCHEDULE 시 학기 중 시간표 버튼이 없다', () => {
+    mockKstDay(6)
+    render(<ShuttlePanel />)
+    expect(screen.queryByText(/학기 중 시간표 보기/)).not.toBeInTheDocument()
+  })
+
+  it('본캠 + 일요일 + NO_SCHEDULE 시 미운영 안내를 표시한다', () => {
+    mockKstDay(0) // 일요일
+    render(<ShuttlePanel />)
+    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+  })
+})
+
+describe('ShuttlePanel — 2캠 + 토요일 예외: 정상 흐름', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    mockKstDay(6) // 토요일
+    setSecondCampus()
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('2캠 + 토요일 + 정상 데이터 시 미운영 안내가 없고 2캠 셔틀버스가 표시된다', () => {
+    useShuttleNext.mockReturnValue({
+      data: { depart_at: '10:00', arrive_in_seconds: 600 },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    render(<ShuttlePanel />)
+    expect(screen.queryByText(/주말·방학/)).not.toBeInTheDocument()
+    expect(screen.getByText('2캠 셔틀버스')).toBeInTheDocument()
+  })
+
+  it('2캠 + 토요일 + NO_SCHEDULE이어도 isSecondCampusSaturday면 미운영 단정 안 함(scheduleError 무시)', () => {
+    // 2캠 토요일: scheduleError가 NO_SCHEDULE이어도 useShuttleNext가 데이터를 주면 정상 표시
+    useShuttleNext.mockReturnValue({
+      data: { depart_at: '10:00', arrive_in_seconds: 600 },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR })
+    render(<ShuttlePanel />)
+    expect(screen.queryByText(/주말·방학/)).not.toBeInTheDocument()
+    expect(screen.getByText('2캠 셔틀버스')).toBeInTheDocument()
+  })
+
+  it('2캠 + 토요일 + 운행종료(NO_SHUTTLE)면 운행종료 안내를 표시한다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SHUTTLE_ERR, refetch: vi.fn() })
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
+    render(<ShuttlePanel />)
+    expect(screen.getByText(/오늘 셔틀 운행이 끝났어요/)).toBeInTheDocument()
+    expect(screen.queryByText(/주말·방학/)).not.toBeInTheDocument()
+  })
+})
+
+describe('ShuttlePanel — 2캠 + 일요일: 미운영', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    mockKstDay(0) // 일요일
+    setSecondCampus()
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR, refetch: vi.fn() })
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('2캠 + 일요일 + NO_SCHEDULE 시 미운영 안내를 표시한다', () => {
+    render(<ShuttlePanel />)
+    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+  })
+
+  it('2캠 + 일요일 + NO_SCHEDULE 시 "학기 중 시간표 보기" 버튼이 없다', () => {
+    render(<ShuttlePanel />)
+    expect(screen.queryByText(/학기 중 시간표 보기/)).not.toBeInTheDocument()
+  })
+})
+
 describe('ShuttlePanel — AI티 제거 검증', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    mockKstDay(1) // 월요일
+    setMainCampus()
     useShuttleNext.mockReturnValue({
       data: { depart_at: '10:30', arrive_in_seconds: 300 },
       loading: false,
@@ -121,9 +221,12 @@ describe('ShuttlePanel — AI티 제거 검증', () => {
     useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('slate/gray 생색 클래스를 사용하지 않는다', () => {
     const { container } = render(<ShuttlePanel />)
-    // slate-*, gray-* 계열 생색
     expect(container.innerHTML).not.toMatch(/\btext-slate-\d+\b/)
     expect(container.innerHTML).not.toMatch(/\btext-gray-\d+\b/)
     expect(container.innerHTML).not.toMatch(/\bbg-slate-\d+\b/)
@@ -132,7 +235,6 @@ describe('ShuttlePanel — AI티 제거 검증', () => {
 
   it('9~11px 인라인 폰트 크기를 사용하지 않는다', () => {
     const { container } = render(<ShuttlePanel />)
-    // style 속성에 9px~11px 폰트 크기 금지
     expect(container.innerHTML).not.toMatch(/font-size:\s*(9|10|11)px/)
     expect(container.innerHTML).not.toMatch(/fontSize['":\s]+(9|10|11)(?:px)?['",\s]/)
   })
