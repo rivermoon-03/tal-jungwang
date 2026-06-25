@@ -208,11 +208,9 @@ export default function App() {
           </Suspense>
         </main>
 
-        {/* 모바일 floating dock (md:hidden 내부 처리) */}
-        <FloatingDock />
-
-        {/* PC 풀너비 검정 dock (hidden md:flex 내부 처리) */}
-        <PCDock />
+        {/* 모바일/PC 중 하나만 조건부 마운트 — CSS hidden만 쓰면 숨겨진 쪽의
+            useWeather·useClock 등 훅이 계속 돌아 불필요한 부작용이 생긴다. */}
+        {isDesktop ? <PCDock /> : <FloatingDock />}
       </div>
       <GlobalDetailModal />
       <GlobalSubwayLineSheet />

@@ -83,7 +83,7 @@ export default function PCDock() {
     <nav
       role="navigation"
       aria-label="PC 하단 dock"
-      className="hidden md:flex h-[68px] items-center gap-3 px-5 bg-dock-bg border-t border-line-dark"
+      className="flex h-[68px] items-center gap-3 px-5 bg-dock-bg border-t border-line-dark"
     >
       {/* 탭들 */}
       <div className="flex items-center gap-2">

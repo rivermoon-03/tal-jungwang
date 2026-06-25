@@ -12,6 +12,21 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  build: {
+    target: 'es2020',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) {
+              return 'vendor-react'
+            }
+            return 'vendor'
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {
