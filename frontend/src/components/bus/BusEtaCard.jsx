@@ -11,7 +11,7 @@
  *
  * 디자인 토큰 출처: frontend/tailwind.config.js
  */
-import { useMemo, useRef, useEffect } from 'react'
+import { memo, useMemo, useRef, useEffect } from 'react'
 import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
 
@@ -24,7 +24,7 @@ function formatEtaLocal(sec) {
   return { text: `${mins}분 후`, imminent: sec <= 180 }
 }
 
-export default function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
+function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
   // 실시간일 때만 1초 tick. 다른 상태에서는 tick 등록 X.
   const hasRealtime = !!realtimeEta?.primary
   const fetchedAtRef = useRef(Date.now())
@@ -148,3 +148,5 @@ export default function BusEtaCard({ realtimeEta = null, predictedEta = null }) 
     </div>
   )
 }
+
+export default memo(BusEtaCard)

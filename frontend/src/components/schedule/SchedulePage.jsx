@@ -3,7 +3,8 @@
  * - 상단 mode pill: 버스 · 지하철 · 셔틀 (바로 전환)
  * - 각 모드별 그룹 pill selector (지하철: 정왕/초지/시흥시청, 버스: 하교/등교/기타)
  */
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useNow } from '../../hooks/useNow'
 import ScheduleSection from './ScheduleSection'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
@@ -280,7 +281,12 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
   const didAutoSwitchRef = useRef(false)
   const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
-  const now = new Date()
+  // 1초 tick(분 단위 카운트다운 갱신용). 시간표 파생 계산은 분 단위로만 재계산한다.
+  const nowMs = useNow(1000)
+  const now = new Date(nowMs)
+  // 분 단위로 절삭한 현재 시각(Asia/Seoul = 배포 로컬). 초가 바뀌어도 동일하므로
+  // 아래 timetable 파생 useMemo가 매초 재계산되지 않게 하는 의존성 키로 쓴다.
+  const nowMinute = Math.floor(nowMs / 60000)
 
   useEffect(() => { didAutoSwitchRef.current = false }, [stationGroup])
 
@@ -295,24 +301,45 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
     }
   }, [realtimeArrivals, realtimeLoading, setDataMode])
 
-  function secondDepartStr(key) {
-    const list = timetable?.[key]
-    if (!Array.isArray(list) || list.length === 0) return null
-    const future = list
-      .map((e) => {
-        const ts = (e?.depart_at ?? '').slice(0, 5)
-        if (!ts) return null
-        const [h, m] = ts.split(':').map(Number)
-        if (Number.isNaN(h) || Number.isNaN(m)) return null
-        const d = new Date(now)
-        d.setHours(h, m, 0, 0)
-        if (d <= now) return null
-        return { ts, d }
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.d - b.d)
-    return future[1]?.ts ?? null
-  }
+  // 각 방향 key별 "둘째 출발 시각"(다음다음 열차). timetable과 분 단위 현재시각이
+  // 바뀔 때만 재계산. 초 단위 tick으로는 .map().filter().sort()를 돌리지 않는다.
+  const secondDepartMap = useMemo(() => {
+    const out = {}
+    // nowMinute를 분 경계의 Date로 재구성(초/밀리초 = 0). 사전순 비교 금지 — Date로 비교.
+    const minuteNow = new Date(nowMinute * 60000)
+    const keys = new Set()
+    for (const dir of directions) {
+      keys.add(dir.upKey)
+      keys.add(dir.downKey)
+    }
+    for (const key of keys) {
+      const list = timetable?.[key]
+      if (!Array.isArray(list) || list.length === 0) {
+        out[key] = null
+        continue
+      }
+      const future = list
+        .map((e) => {
+          const ts = (e?.depart_at ?? '').slice(0, 5)
+          if (!ts) return null
+          const [h, m] = ts.split(':').map(Number)
+          if (Number.isNaN(h) || Number.isNaN(m)) return null
+          const d = new Date(minuteNow)
+          d.setHours(h, m, 0, 0)
+          if (d <= minuteNow) return null
+          return { ts, d }
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.d - b.d)
+      out[key] = future[1]?.ts ?? null
+    }
+    return out
+  }, [timetable, nowMinute, directions])
+
+  const handleTrainClick = useCallback(
+    (item) => setSubwayLineSheet({ ...item, viewStation: stationGroup }),
+    [setSubwayLineSheet, stationGroup],
+  )
 
   if (directions.length === 0) {
     return (
@@ -351,7 +378,7 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
                 color={dir.color}
                 upTrain={up}
                 downTrain={down}
-                onTrainClick={(item) => setSubwayLineSheet({ ...item, viewStation: stationGroup })}
+                onTrainClick={handleTrainClick}
               />
             )
           })
@@ -368,7 +395,7 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
           const depart = entry?.depart_at ?? null
           const mins = depart ? timeStrToMinutes(depart, now) : null
           const validMins = mins != null && mins >= 0 ? mins : null
-          const secondDepart = secondDepartStr(key)
+          const secondDepart = secondDepartMap[key] ?? null
           const secondMins = secondDepart ? timeStrToMinutes(secondDepart, now) : null
           const validSecondMins = secondMins != null && secondMins >= 0 ? secondMins : null
           const isLastTrain = depart != null && timetable != null && secondDepart == null
