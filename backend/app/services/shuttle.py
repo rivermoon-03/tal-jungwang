@@ -1,6 +1,6 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import get_cached_json, set_cached_json
@@ -155,4 +155,75 @@ async def get_next(
         "note": e["note"],
         "next_depart_at": next_depart_at,
         "next_arrive_in_seconds": next_arrive_in_seconds,
+    }
+
+
+async def get_semester_schedule(
+    db: AsyncSession, direction: int | None = None
+) -> dict | None:
+    """현재 날짜 기준 가장 가까운 SEMESTER 기간(현재 진행 중이거나 미래)을 찾아
+    해당 기간의 평일(weekday) 시간표를 반환한다.
+    없으면 직전 SEMESTER를 사용한다.
+    """
+    today = datetime.now().date()
+
+    # 가장 가까운 SEMESTER 기간 조회: 오늘 이후(또는 현재 진행 중) → 없으면 직전
+    stmt_future = (
+        select(SchedulePeriod)
+        .where(
+            and_(
+                SchedulePeriod.period_type == "SEMESTER",
+                SchedulePeriod.end_date >= today,
+            )
+        )
+        .order_by(SchedulePeriod.start_date.asc())
+        .limit(1)
+    )
+    result = await db.execute(stmt_future)
+    period = result.scalar_one_or_none()
+
+    if not period:
+        # 직전 SEMESTER 사용
+        stmt_past = (
+            select(SchedulePeriod)
+            .where(SchedulePeriod.period_type == "SEMESTER")
+            .order_by(SchedulePeriod.end_date.desc())
+            .limit(1)
+        )
+        result = await db.execute(stmt_past)
+        period = result.scalar_one_or_none()
+
+    if not period:
+        return None
+
+    period_data = {
+        "id": period.id,
+        "period_type": period.period_type,
+        "name": period.name,
+        "start_date": period.start_date.isoformat(),
+        "end_date": period.end_date.isoformat(),
+    }
+
+    entries = await _load_entries(db, period_data["id"], "weekday")
+
+    directions_map: dict[int, list[dict]] = {}
+    for e in entries:
+        dir_key = e["direction"]
+        if direction is not None and dir_key != direction:
+            continue
+        if dir_key not in directions_map:
+            directions_map[dir_key] = []
+        directions_map[dir_key].append({"depart_at": e["departure_time"][:5], "note": e["note"]})
+
+    return {
+        "schedule_type": period_data["period_type"],
+        "schedule_name": period_data["name"],
+        "valid_from": period_data["start_date"],
+        "valid_until": period_data["end_date"],
+        "is_holiday": False,
+        "holiday_name": None,
+        "directions": [
+            {"direction": dir_key, "times": times}
+            for dir_key, times in directions_map.items()
+        ],
     }
