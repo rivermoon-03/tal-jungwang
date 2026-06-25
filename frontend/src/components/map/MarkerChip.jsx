@@ -1,9 +1,11 @@
 /**
- * MarkerChip — 시안2 카드 분리형 마커 칩.
+ * MarkerChip — 시안1 정보 밀도형 마커 칩.
  *
- * 구조: [노선색 리드블록 | 정류장명(mute) / 실시간 big(ink·imminent)]
+ * 구조: pill(border-radius:999px) · [dot 22x22 | name 14px | live/sub 14px]
+ * 한 줄 압축 알약형으로 지도 겹침을 방지한다.
+ *
  * 호출처: ZoomAwareOverlayManager.jsx (kakao CustomOverlay setContent용)
- * MarkerSheet: ROUTE_COLOR_MAP만 import
+ * MarkerSheet: ROUTE_COLOR_MAP만 import — 시트는 별도 유지.
  *
  * 다크 대응: 배경 var(--tj-surface), 텍스트 var(--tj-ink), 임박 var(--tj-imminent).
  */
@@ -40,9 +42,10 @@ function isImminent(minutes) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 공통 DOM 빌더: 시안2 칩 래퍼(pin) 구조 생성
-// wrapper
-//   └ chip (lead | body)
+// 공통 DOM 빌더: 시안1 칩 래퍼(pin) 구조
+// wrapper(pin)
+//   └ chip(pill: 999px)
+//       └ dot(22x22 원형 배지)  name  live/sub
 //   └ tail
 // ─────────────────────────────────────────────────────────────
 
@@ -62,100 +65,134 @@ function makeTail() {
   return tail
 }
 
-/** 리드 블록 (좌측 노선색 배경) */
-function makeLead({ color, text }) {
-  const lead = document.createElement('div')
-  lead.setAttribute('data-role', 'lead')
-  lead.style.cssText = [
-    'width:36px',
-    'flex:none',
+/** 22x22 원형 색 배지 (dot) */
+function makeDot({ color, text }) {
+  const dot = document.createElement('span')
+  dot.setAttribute('data-role', 'dot')
+  dot.style.cssText = [
+    'width:22px',
+    'height:22px',
+    'border-radius:999px',
     'display:inline-flex',
     'align-items:center',
     'justify-content:center',
     `background:${color}`,
     'color:#fff',
-    'font-size:13px',
+    'font-size:12px',
     'font-weight:800',
-    'letter-spacing:-0.01em',
+    'flex-shrink:0',
   ].join(';')
-  lead.textContent = text
-  return lead
+  dot.textContent = text
+  return dot
+}
+
+/** blip 펄스 도트 (라이브 표시용) */
+function makeBlip(imminentEta) {
+  const blip = document.createElement('span')
+  blip.setAttribute('data-role', 'blip')
+  blip.style.cssText = [
+    'width:6px',
+    'height:6px',
+    'border-radius:999px',
+    `background:${imminentEta ? 'var(--tj-imminent)' : 'var(--tj-accent,#2E8B86)'}`,
+    'flex-shrink:0',
+  ].join(';')
+  return blip
 }
 
 /**
- * React 컴포넌트 버전 (미리보기/스토리용).
+ * React 컴포넌트 버전 (미리보기/스토리용) — 시안1 알약형.
  */
 export default function MarkerChip({ routeCode, routeColor, stationName, liveMinutes, showLive = false, badgeText, subLabel }) {
   const color = resolveColor(routeCode, routeColor)
   const hasLive = showLive && liveMinutes != null
   const imminentEta = hasLive && isImminent(liveMinutes)
-  const leadText = badgeText ?? (routeCode ?? '').slice(0, 4)
+  const dotText = badgeText ?? (routeCode ?? '').slice(0, 2)
 
-  const bigText = hasLive
-    ? `${liveMinutes}분 후 도착`
-    : subLabel ?? '시간표'
+  const liveText = hasLive
+    ? (liveMinutes <= 3 ? '곧 도착' : `${liveMinutes}분`)
+    : null
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* chip2: lead | body */}
+      {/* chip: 알약형 pill */}
       <div
         style={{
           display: 'inline-flex',
-          alignItems: 'stretch',
+          alignItems: 'center',
+          gap: '7px',
           background: 'var(--tj-surface)',
-          border: '1px solid var(--tj-line, #E7E4DF)',
-          borderRadius: '13px',
-          boxShadow: '0 4px 12px rgba(27,42,74,.14)',
-          overflow: 'hidden',
+          border: '1px solid var(--tj-line,#E7E4DF)',
+          borderRadius: '999px',
+          padding: '5px 11px 5px 5px',
+          boxShadow: '0 3px 10px rgba(27,42,74,.12)',
           cursor: 'pointer',
           userSelect: 'none',
           whiteSpace: 'nowrap',
-          maxWidth: '200px',
         }}
       >
-        {/* 리드 블록 */}
+        {/* dot 배지 */}
         <span
-          data-role="lead"
+          data-role="dot"
           style={{
-            width: '36px',
-            flexShrink: 0,
+            width: '22px',
+            height: '22px',
+            borderRadius: '999px',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             background: color,
             color: '#fff',
-            fontSize: '13px',
+            fontSize: '12px',
             fontWeight: 800,
+            flexShrink: 0,
           }}
         >
-          {leadText}
+          {dotText}
         </span>
 
-        {/* 본문 */}
+        {/* 정류장명 */}
         <span
-          data-role="body"
-          style={{ padding: '5px 11px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+          data-role="name"
+          style={{ fontSize: '14px', fontWeight: 700, color: 'var(--tj-ink)', letterSpacing: '-0.01em' }}
         >
+          {stationName}
+        </span>
+
+        {/* 실시간 or 서브레이블 */}
+        {hasLive ? (
           <span
-            data-role="name"
-            style={{ fontSize: '13px', color: 'var(--tj-mute, #5A6678)', fontWeight: 600, letterSpacing: '-0.01em' }}
-          >
-            {stationName}
-          </span>
-          <span
-            data-role="big"
+            data-role="live"
             style={{
-              fontSize: '15px',
+              fontSize: '14px',
               fontWeight: 800,
               color: imminentEta ? 'var(--tj-imminent)' : 'var(--tj-ink)',
-              letterSpacing: '-0.01em',
-              marginTop: '1px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {bigText}
+            <span
+              data-role="blip"
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '999px',
+                background: imminentEta ? 'var(--tj-imminent)' : 'var(--tj-accent,#2E8B86)',
+                flexShrink: 0,
+              }}
+            />
+            {liveText}
           </span>
-        </span>
+        ) : (
+          <span
+            data-role="sub"
+            style={{ fontSize: '13px', color: 'var(--tj-mute,#5A6678)', fontVariantNumeric: 'tabular-nums' }}
+          >
+            {subLabel ?? '시간표'}
+          </span>
+        )}
       </div>
 
       {/* 꼬리 */}
@@ -177,7 +214,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
 
 // ─────────────────────────────────────────────────────────────
 // createMarkerChipElement — kakao CustomOverlay 용
-// 시안2: lead(노선색) | body(name/big) + tail
+// 시안1: pill(999px) · [dot | name | live/sub] + tail
 // ─────────────────────────────────────────────────────────────
 
 export function createMarkerChipElement({
@@ -197,7 +234,7 @@ export function createMarkerChipElement({
   const color = resolveColor(routeCode, routeColor)
   const hasLive = showLive && liveMinutes != null
   const imminentEta = hasLive && isImminent(liveMinutes)
-  const leadText = badgeText ?? (routeCode ?? '').slice(0, 4)
+  const dotText = badgeText ?? (routeCode ?? '').slice(0, 2)
 
   // 래퍼 (pin): flex-column, align-items:center
   const wrapper = document.createElement('div')
@@ -230,74 +267,59 @@ export function createMarkerChipElement({
     wrapper.appendChild(extra)
   }
 
-  // 칩 본체: chip2
+  // 칩 본체: pill(시안1)
   const chip = document.createElement('div')
   chip.style.cssText = [
     'display:inline-flex',
-    'align-items:stretch',
+    'align-items:center',
+    'gap:7px',
     'background:var(--tj-surface)',
     'border:1px solid #E7E4DF',
-    'border-radius:13px',
-    'box-shadow:0 4px 12px rgba(27,42,74,.14)',
-    'overflow:hidden',
+    'border-radius:999px',
+    'padding:5px 11px 5px 5px',
+    'box-shadow:0 3px 10px rgba(27,42,74,.12)',
     'user-select:none',
     'white-space:nowrap',
-    'max-width:200px',
   ].join(';')
 
-  // 리드 블록
-  chip.appendChild(makeLead({ color, text: leadText }))
+  // dot 배지
+  chip.appendChild(makeDot({ color, text: dotText }))
 
-  // 본문 블록
-  const body = document.createElement('div')
-  body.setAttribute('data-role', 'body')
-  body.style.cssText = [
-    'padding:5px 11px',
-    'display:flex',
-    'flex-direction:column',
-    'justify-content:center',
-  ].join(';')
-
-  // .name: 정류장명 (ink, 13px)
+  // .name: 정류장명 (ink, 14px)
   const nameEl = document.createElement('span')
   nameEl.setAttribute('data-role', 'name')
   nameEl.style.cssText = [
-    'font-size:13px',
-    'color:var(--tj-ink)',
+    'font-size:14px',
     'font-weight:700',
+    'color:var(--tj-ink)',
     'letter-spacing:-0.01em',
     'overflow:hidden',
     'text-overflow:ellipsis',
   ].join(';')
   nameEl.textContent = stationName
-  body.appendChild(nameEl)
+  chip.appendChild(nameEl)
 
-  // .big: 실시간 / 서브레이블 (15px, ink or imminent)
-  const bigEl = document.createElement('span')
-  bigEl.setAttribute('data-role', 'big')
-  bigEl.style.cssText = [
-    'font-size:15px',
-    'font-weight:800',
-    `color:${imminentEta ? 'var(--tj-imminent)' : 'var(--tj-ink)'}`,
-    'letter-spacing:-0.01em',
-    'margin-top:1px',
-    'font-variant-numeric:tabular-nums',
-  ].join(';')
-
+  // 실시간 or 서브레이블
   if (hasLive) {
-    const minSpan = document.createElement('span')
-    minSpan.textContent = `${liveMinutes}`
-    bigEl.appendChild(minSpan)
-    const unitSpan = document.createElement('span')
-    unitSpan.style.cssText = 'font-size:13px;font-weight:700;color:var(--tj-mute,#5A6678)'
-    unitSpan.textContent = '분'
-    bigEl.appendChild(unitSpan)
-    if (liveMinutes <= 3) {
-      const arrText = document.createElement('span')
-      arrText.textContent = ' 후 도착'
-      arrText.style.fontSize = '13px'
-      bigEl.appendChild(arrText)
-    }
+    const liveEl = document.createElement('span')
+    liveEl.setAttribute('data-role', 'live')
+    liveEl.style.cssText = [
+      'font-size:14px',
+      'font-weight:800',
+      `color:${imminentEta ? 'var(--tj-imminent)' : 'var(--tj-ink)'}`,
+      'display:inline-flex',
+      'align-items:center',
+      'gap:4px',
+      'font-variant-numeric:tabular-nums',
+    ].join(';')
+
+    liveEl.appendChild(makeBlip(imminentEta))
+
+    const liveText = liveMinutes <= 3 ? '곧 도착' : `${liveMinutes}분`
+    const textSpan = document.createElement('span')
+    textSpan.textContent = liveText
+    liveEl.appendChild(textSpan)
+
     if (inaccurate) {
       const tag = document.createElement('span')
       tag.style.cssText = [
@@ -310,20 +332,23 @@ export function createMarkerChipElement({
         'padding:1px 5px',
       ].join(';')
       tag.textContent = '부정확'
-      bigEl.appendChild(tag)
+      liveEl.appendChild(tag)
     }
-  } else if (subLabel) {
-    bigEl.textContent = `${subLabel}`
+
+    chip.appendChild(liveEl)
   } else {
-    bigEl.style.color = 'var(--tj-ink)'
-    bigEl.textContent = subLabel ? String(subLabel) : '시간표'
+    const subEl = document.createElement('span')
+    subEl.setAttribute('data-role', 'sub')
+    subEl.style.cssText = [
+      'font-size:13px',
+      'color:var(--tj-mute,#5A6678)',
+      'font-variant-numeric:tabular-nums',
+    ].join(';')
+    subEl.textContent = subLabel ?? '시간표'
+    chip.appendChild(subEl)
   }
-  body.appendChild(bigEl)
 
-  chip.appendChild(body)
   wrapper.appendChild(chip)
-
-  // 꼬리 삼각형
   wrapper.appendChild(makeTail())
 
   if (onClick) wrapper.addEventListener('click', onClick)
@@ -331,8 +356,8 @@ export function createMarkerChipElement({
 }
 
 // ─────────────────────────────────────────────────────────────
-// createSubwayMultiChipElement — 정왕역 수인분당·4호선 시안2
-// lead: "정왕역" 역명 배지 / body: 노선별 상/하행 그리드
+// createSubwayMultiChipElement — 정왕역 수인분당·4호선 시안1
+// pill · [dot "철" | name "정왕역" | live 가장 빠른 도착]
 // ─────────────────────────────────────────────────────────────
 
 export function createSubwayMultiChipElement({ subwayData, onClick }) {
@@ -345,93 +370,79 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
     'cursor:pointer',
   ].join(';')
 
-  // 칩 본체
+  // 칩 본체: pill
   const chip = document.createElement('div')
   chip.style.cssText = [
     'display:inline-flex',
-    'align-items:stretch',
+    'align-items:center',
+    'gap:7px',
     'background:var(--tj-surface)',
     'border:1px solid #E7E4DF',
-    'border-radius:13px',
-    'box-shadow:0 4px 12px rgba(27,42,74,.14)',
-    'overflow:hidden',
+    'border-radius:999px',
+    'padding:5px 11px 5px 5px',
+    'box-shadow:0 3px 10px rgba(27,42,74,.12)',
     'user-select:none',
     'white-space:nowrap',
   ].join(';')
 
-  // 리드 블록: 수인분당 색 (#F5A623) + "정왕" 두 글자
-  chip.appendChild(makeLead({ color: '#F5A623', text: '정왕' }))
-  chip.querySelector('[data-role="lead"]').setAttribute('data-role', 'lead')
+  // 가장 빠른 도착 계산 (up/down/line4_up/line4_down 중 최소)
+  const KEYS = ['up', 'down', 'line4_up', 'line4_down']
+  let earliestMin = null
+  let earliestColor = '#F5A623'
 
-  // 본문 블록: 2x2 그리드
-  const body = document.createElement('div')
-  body.setAttribute('data-role', 'body')
-  body.style.cssText = [
-    'padding:5px 11px',
-    'display:grid',
-    'grid-template-columns:auto auto',
-    'gap:3px 10px',
-    'align-items:center',
-  ].join(';')
-
-  const LINES = [
-    { key: 'up',         label: '수인↑', color: '#F5A623' },
-    { key: 'line4_up',   label: '4호↑',  color: '#1B5FAD' },
-    { key: 'down',       label: '수인↓', color: '#F5A623' },
-    { key: 'line4_down', label: '4호↓',  color: '#1B5FAD' },
-  ]
-
-  for (const line of LINES) {
-    const entry = subwayData?.[line.key]
-    const minutes = entry?.arrive_in_seconds != null
-      ? Math.max(0, Math.ceil(entry.arrive_in_seconds / 60))
-      : null
-    const imm = isImminent(minutes)
-
-    const cell = document.createElement('div')
-    cell.style.cssText = [
-      'display:inline-flex',
-      'align-items:center',
-      'gap:4px',
-    ].join(';')
-
-    // 노선 배지
-    const badge = document.createElement('span')
-    badge.style.cssText = [
-      'display:inline-flex',
-      'align-items:center',
-      'justify-content:center',
-      'padding:0 6px',
-      'height:18px',
-      'border-radius:8px',
-      `background:${line.color}`,
-      'color:#fff',
-      'font-size:13px',
-      'font-weight:800',
-      'flex-shrink:0',
-    ].join(';')
-    badge.textContent = line.label
-    cell.appendChild(badge)
-
-    // 분 표시 (big: 15px)
-    const bigEl = document.createElement('span')
-    bigEl.setAttribute('data-role', 'big')
-    bigEl.style.cssText = [
-      'font-size:15px',
-      'font-weight:800',
-      `color:${imm ? 'var(--tj-imminent)' : (minutes != null ? 'var(--tj-ink)' : 'var(--tj-mute,#5A6678)')}`,
-      'font-variant-numeric:tabular-nums',
-      'letter-spacing:-0.01em',
-    ].join(';')
-    bigEl.textContent = minutes != null ? `${minutes}분` : '—'
-    // null(데이터 없음)이면 ink(—) 표시
-    if (minutes == null && !imm) bigEl.style.color = 'var(--tj-ink)'
-    cell.appendChild(bigEl)
-
-    body.appendChild(cell)
+  for (const key of KEYS) {
+    const entry = subwayData?.[key]
+    if (entry?.arrive_in_seconds != null) {
+      const min = Math.max(0, Math.ceil(entry.arrive_in_seconds / 60))
+      if (earliestMin === null || min < earliestMin) {
+        earliestMin = min
+        earliestColor = (key === 'line4_up' || key === 'line4_down') ? '#1B5FAD' : '#F5A623'
+      }
+    }
   }
 
-  chip.appendChild(body)
+  const imminentEta = isImminent(earliestMin)
+
+  // dot 배지
+  chip.appendChild(makeDot({ color: earliestColor, text: '철' }))
+
+  // name: 정왕역
+  const nameEl = document.createElement('span')
+  nameEl.setAttribute('data-role', 'name')
+  nameEl.style.cssText = [
+    'font-size:14px',
+    'font-weight:700',
+    'color:var(--tj-ink)',
+    'letter-spacing:-0.01em',
+  ].join(';')
+  nameEl.textContent = '정왕역'
+  chip.appendChild(nameEl)
+
+  // live: 가장 빠른 도착
+  const liveEl = document.createElement('span')
+  liveEl.setAttribute('data-role', 'live')
+  liveEl.style.cssText = [
+    'font-size:14px',
+    'font-weight:800',
+    `color:${imminentEta ? 'var(--tj-imminent)' : (earliestMin != null ? 'var(--tj-ink)' : 'var(--tj-mute,#5A6678)')}`,
+    'display:inline-flex',
+    'align-items:center',
+    'gap:4px',
+    'font-variant-numeric:tabular-nums',
+  ].join(';')
+
+  if (earliestMin != null) {
+    liveEl.appendChild(makeBlip(imminentEta))
+    const textSpan = document.createElement('span')
+    textSpan.textContent = earliestMin <= 3 ? '곧 도착' : `${earliestMin}분`
+    liveEl.appendChild(textSpan)
+  } else {
+    const textSpan = document.createElement('span')
+    textSpan.textContent = '—'
+    liveEl.appendChild(textSpan)
+  }
+
+  chip.appendChild(liveEl)
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
@@ -440,13 +451,12 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// createSeohaeSiheungChipElement — 시흥시청역 서해선 시안2
-// lead: 서해선 색 + "서해선" / body: 역명 + 상/하행 big
+// createSeohaeSiheungChipElement — 시흥시청역 서해선 시안1
+// pill · [dot "철" 서해선색 | name | live 상행N분]
 // ─────────────────────────────────────────────────────────────
 
 export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinutes, earliestBus, onClick }) {
   const SEOHAE = '#75bf43'
-  const BUS_COLOR = '#DC2626'
 
   const wrapper = document.createElement('div')
   wrapper.style.cssText = [
@@ -457,101 +467,64 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
     'cursor:pointer',
   ].join(';')
 
-  // 칩 본체
+  // 칩 본체: pill
   const chip = document.createElement('div')
   chip.style.cssText = [
     'display:inline-flex',
-    'align-items:stretch',
+    'align-items:center',
+    'gap:7px',
     'background:var(--tj-surface)',
     'border:1px solid #E7E4DF',
-    'border-radius:13px',
-    'box-shadow:0 4px 12px rgba(27,42,74,.14)',
-    'overflow:hidden',
+    'border-radius:999px',
+    'padding:5px 11px 5px 5px',
+    'box-shadow:0 3px 10px rgba(27,42,74,.12)',
     'user-select:none',
     'white-space:nowrap',
-    'min-width:140px',
   ].join(';')
 
-  // 리드 블록: 서해선 녹색
-  chip.appendChild(makeLead({ color: SEOHAE, text: '서해' }))
+  // dot 배지: 서해선 색
+  chip.appendChild(makeDot({ color: SEOHAE, text: '철' }))
 
-  // 본문 블록
-  const body = document.createElement('div')
-  body.setAttribute('data-role', 'body')
-  body.style.cssText = [
-    'padding:5px 11px',
-    'display:flex',
-    'flex-direction:column',
-    'justify-content:center',
-    'gap:2px',
-  ].join(';')
-
-  // 역명 (.name: mute, 13px)
-  const nameEl = document.createElement('div')
+  // name: 역명
+  const nameEl = document.createElement('span')
   nameEl.setAttribute('data-role', 'name')
   nameEl.style.cssText = [
-    'font-size:13px',
-    'color:var(--tj-mute,#5A6678)',
-    'font-weight:600',
+    'font-size:14px',
+    'font-weight:700',
+    'color:var(--tj-ink)',
     'letter-spacing:-0.01em',
   ].join(';')
   nameEl.textContent = stationName
-  body.appendChild(nameEl)
+  chip.appendChild(nameEl)
 
-  // 상/하행 행 빌더
-  const makeRow = ({ badgeBg, badgeText, minutes }) => {
-    const row = document.createElement('div')
-    row.style.cssText = [
-      'display:flex',
-      'align-items:center',
-      'gap:5px',
-    ].join(';')
+  // live: 상행 가장 가까운 도착 (upMinutes 우선, 없으면 dnMinutes)
+  const bestMin = upMinutes ?? dnMinutes
+  const imminentEta = isImminent(bestMin)
 
-    const badge = document.createElement('span')
-    badge.style.cssText = [
-      'display:inline-flex',
-      'align-items:center',
-      'justify-content:center',
-      'padding:0 6px',
-      'height:18px',
-      'border-radius:8px',
-      `background:${badgeBg}`,
-      'color:#fff',
-      'font-size:13px',
-      'font-weight:700',
-      'flex-shrink:0',
-    ].join(';')
-    badge.textContent = badgeText
-    row.appendChild(badge)
+  const liveEl = document.createElement('span')
+  liveEl.setAttribute('data-role', 'live')
+  liveEl.style.cssText = [
+    'font-size:14px',
+    'font-weight:800',
+    `color:${imminentEta ? 'var(--tj-imminent)' : (bestMin != null ? 'var(--tj-ink)' : 'var(--tj-mute,#5A6678)')}`,
+    'display:inline-flex',
+    'align-items:center',
+    'gap:4px',
+    'font-variant-numeric:tabular-nums',
+  ].join(';')
 
-    const imm = isImminent(minutes)
-    const bigEl = document.createElement('span')
-    bigEl.setAttribute('data-role', 'big')
-    bigEl.style.cssText = [
-      'font-size:15px',
-      'font-weight:800',
-      `color:${imm ? 'var(--tj-imminent)' : (minutes != null ? 'var(--tj-ink)' : 'var(--tj-mute,#5A6678)')}`,
-      'font-variant-numeric:tabular-nums',
-      'letter-spacing:-0.01em',
-    ].join(';')
-    bigEl.textContent = minutes != null ? `${minutes}분` : '—'
-    row.appendChild(bigEl)
-
-    return row
+  if (bestMin != null) {
+    liveEl.appendChild(makeBlip(imminentEta))
+    const textSpan = document.createElement('span')
+    textSpan.textContent = bestMin <= 3 ? '곧 도착' : `${bestMin}분`
+    liveEl.appendChild(textSpan)
+  } else {
+    const textSpan = document.createElement('span')
+    textSpan.textContent = '—'
+    liveEl.appendChild(textSpan)
   }
 
-  body.appendChild(makeRow({ badgeBg: SEOHAE, badgeText: '상행', minutes: upMinutes }))
-  body.appendChild(makeRow({ badgeBg: SEOHAE, badgeText: '하행', minutes: dnMinutes }))
-
-  if (earliestBus) {
-    body.appendChild(makeRow({
-      badgeBg: BUS_COLOR,
-      badgeText: earliestBus.routeNo,
-      minutes: earliestBus.minutes,
-    }))
-  }
-
-  chip.appendChild(body)
+  chip.appendChild(liveEl)
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
