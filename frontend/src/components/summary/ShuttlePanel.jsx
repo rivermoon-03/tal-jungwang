@@ -1,9 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { CalendarOff, MoonStar } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import Skeleton from '../common/Skeleton'
+import EmptyState from '../common/EmptyState'
 import ErrorState from '../common/ErrorState'
 import DualDirectionCard from '../common/DualDirectionCard'
+import SemesterScheduleSheet from '../shuttle/SemesterScheduleSheet'
 
 /**
  * ShuttlePanel — 셔틀 모드 패널.
@@ -51,12 +54,14 @@ function checkInsideFrequentWindow(scheduleData, direction) {
 export default function ShuttlePanel() {
   const campus = useAppStore((s) => s.selectedShuttleCampus)
   const setDetailModal = useAppStore((s) => s.setDetailModal)
+  const [semesterSheetOpen, setSemesterSheetOpen] = useState(false)
 
   const [goDir, backDir] = campus === 'second' ? [2, 3] : [0, 1]
   const goQuery = useShuttleNext(goDir)
   const backQuery = useShuttleNext(backDir)
   // 오늘 전체 시간표 — 수시운행 창 진입 여부 판별용 (5분 TTL 캐시, 추가 네트워크 없음)
-  const { data: schedule } = useShuttleSchedule()
+  // error도 받음: NO_SCHEDULE(방학/휴일)는 schedule 쪽에만 오고, next는 NO_SHUTTLE을 주므로
+  const { data: schedule, error: scheduleError } = useShuttleSchedule()
 
   const anyLoading = goQuery.loading || backQuery.loading
 
@@ -100,6 +105,46 @@ export default function ShuttlePanel() {
         message="셔틀 정보 오류"
         onRetry={() => { goQuery.refetch?.(); backQuery.refetch?.() }}
         className="py-4"
+      />
+    )
+  }
+
+  // NO_SCHEDULE: 방학/휴일 — 스케줄 자체 없음.
+  // schedule 응답이 NO_SCHEDULE면 next가 NO_SHUTTLE을 주더라도 방학 안내를 우선한다.
+  const goNoSchedule = goQuery.error?.code === 'NO_SCHEDULE'
+  const backNoSchedule = backQuery.error?.code === 'NO_SCHEDULE'
+  const isVacation = scheduleError?.code === 'NO_SCHEDULE' || (goNoSchedule && backNoSchedule)
+  if (isVacation) {
+    return (
+      <>
+        <EmptyState
+          icon={<CalendarOff size={28} strokeWidth={1.5} />}
+          title="방학·휴일에는 셔틀을 운행하지 않아요"
+          desc="학기 중에 다시 확인해 주세요"
+          ctaLabel="학기 중 시간표 보기"
+          onCta={() => setSemesterSheetOpen(true)}
+        />
+        <SemesterScheduleSheet
+          open={semesterSheetOpen}
+          onClose={() => setSemesterSheetOpen(false)}
+        />
+      </>
+    )
+  }
+
+  // NO_SHUTTLE: 운행일이지만 오늘 운행 종료
+  const goNoShuttle = goQuery.error?.code === 'NO_SHUTTLE'
+  const backNoShuttle = backQuery.error?.code === 'NO_SHUTTLE'
+  if (goNoShuttle && backNoShuttle) {
+    return (
+      <EmptyState
+        icon={<MoonStar size={28} strokeWidth={1.5} />}
+        title="오늘 셔틀 운행이 끝났어요"
+        desc={
+          (goFirstTomorrow || backFirstTomorrow)
+            ? `내일 첫차: 등교 ${goFirstTomorrow ?? '-'} · 하교 ${backFirstTomorrow ?? '-'}`
+            : '내일 첫차 시간을 확인해 주세요'
+        }
       />
     )
   }
