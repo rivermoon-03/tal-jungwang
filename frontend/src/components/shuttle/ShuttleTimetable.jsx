@@ -74,15 +74,15 @@ export default function ShuttleTimetable({ times }) {
             <li
               key={item.key}
               ref={isNext ? nextRef : null}
-              className={`flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800
+              className={`flex items-center justify-between px-5 py-3 border-b border-line dark:border-border-dark
                 ${isPast ? 'opacity-35 pointer-events-none' : ''}
                 ${isActive || isNext ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
             >
               <div>
-                <span className={`time-num text-lg font-semibold ${isActive || isNext ? 'text-navy dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                <span className={`time-num text-lg font-semibold ${isActive || isNext ? 'text-navy dark:text-blue-400' : 'text-ink dark:text-ink-dark'}`}>
                   {item.startTime} – {item.endTime}
                 </span>
-                <span className="ml-2 text-base text-slate-500 dark:text-slate-400">수시운행</span>
+                <span className="ml-2 text-base text-ink-2 dark:text-mute-dark">수시운행</span>
               </div>
               {(isActive || isNext) && (
                 <span className="text-sm font-bold text-navy dark:text-blue-400 border border-navy dark:border-blue-400 px-2 py-1 rounded">
@@ -104,14 +104,14 @@ export default function ShuttleTimetable({ times }) {
           <li
             key={item.key}
             ref={isNext ? nextRef : null}
-            className={`flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800
+            className={`flex items-center justify-between px-5 py-3 border-b border-line dark:border-border-dark
               ${isPast ? 'opacity-35 pointer-events-none' : ''}
               ${isNext ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
           >
             {isReturn ? (
               <div>
-                <p className="text-sm text-slate-400">회차편</p>
-                <p className={`text-sm font-medium mt-0.5 leading-snug ${isNext ? 'text-navy dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                <p className="text-body text-mute">회차편</p>
+                <p className={`text-body font-medium mt-0.5 leading-snug ${isNext ? 'text-navy dark:text-blue-400' : 'text-ink-2 dark:text-ink-2-dark'}`}>
                   {schoolTime
                     ? `${schoolTime}에 출발 후 도착하는 버스가 회차하면 탑승하세요`
                     : '수시운행(17:00~18:00) 버스가 회차하면 탑승하세요'}
@@ -119,11 +119,11 @@ export default function ShuttleTimetable({ times }) {
               </div>
             ) : (
               <div>
-                <span className={`time-num text-lg font-semibold ${isNext ? 'text-navy dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                <span className={`time-num text-lg font-semibold ${isNext ? 'text-navy dark:text-blue-400' : 'text-ink dark:text-ink-dark'}`}>
                   {item.time}
                 </span>
                 {item.note && (
-                  <span className="ml-2 text-sm text-slate-400">{item.note}</span>
+                  <span className="ml-2 text-body text-mute">{item.note}</span>
                 )}
               </div>
             )}

@@ -17,6 +17,13 @@ export function useShuttleSchedule(direction, dateStr, opts = {}) {
   return useApi(`/shuttle/schedule${q}`, { ttl: SCHEDULE_TTL, ...opts })
 }
 
+// 방학 중 학기 시간표 — /shuttle/semester-schedule 엔드포인트 (평일 시간표 고정 반환)
+// direction 필터 가능. TTL 1시간(학기 시간표는 거의 안 바뀜).
+export function useShuttleSemesterSchedule(direction, opts = {}) {
+  const q = direction !== undefined && direction !== null ? `?direction=${direction}` : ''
+  return useApi(`/shuttle/semester-schedule${q}`, { ttl: 60 * 60 * 1000, ...opts })
+}
+
 // tickMs: 분 단위로만 쓰는 지도 마커는 60_000을 넘겨 매초 재계산을 피한다 (기본 1000).
 export function useShuttleNext(direction, { tickMs = 1000 } = {}) {
   const q = direction !== undefined && direction !== null ? `?direction=${direction}` : ''
