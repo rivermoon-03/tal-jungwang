@@ -650,7 +650,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
     return (
       <>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-slate-100 dark:bg-surface-dark rounded-xl animate-pulse" />
+          <div key={i} className="h-20 bg-surface-2 dark:bg-surface-dark rounded-xl animate-pulse" />
         ))}
       </>
     )
@@ -695,7 +695,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
 
   if (displayEntries.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-slate-400">
+      <p className="py-8 text-center text-body text-mute">
         {favoritesOnly ? '즐겨찾기한 노선이 없어요' : '해당 그룹의 버스가 없어요'}
       </p>
     )
@@ -829,7 +829,7 @@ export default function SchedulePage() {
     : () => {}
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
+    <div className="flex flex-col h-full bg-surface dark:bg-bg-dark animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
       <PageHeader title="시간표" />
 
       <ScheduleSectionView

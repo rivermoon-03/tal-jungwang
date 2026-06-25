@@ -8,7 +8,7 @@
  * Sub-pages: dark-mode, notifications, notices, info
  */
 import { useState } from 'react'
-import { Bell, Moon, Info } from 'lucide-react'
+import { Bell, Moon, Info, ChevronRight } from 'lucide-react'
 import NoticeHighlights from './NoticeHighlights'
 import PageHeader from '../layout/PageHeader'
 import DarkModePage from './DarkModePage'
@@ -52,11 +52,11 @@ function QuickCard({ icon, label, sub, onClick }) {
           'background var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
       }}
     >
-      <div style={{ color: 'var(--tj-ink)' }} className="dark:text-slate-100">{icon}</div>
-      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tj-ink)' }} className="dark:text-slate-100">
+      <div style={{ color: 'var(--tj-ink)' }} className="dark:text-ink-dark">{icon}</div>
+      <div className="text-body font-extrabold text-ink dark:text-ink-dark">
         {label}
       </div>
-      <div style={{ fontSize: 10, color: 'var(--tj-mute)', fontWeight: 600 }}>{sub}</div>
+      <div className="text-label font-semibold text-mute dark:text-mute-dark">{sub}</div>
     </button>
   )
 }
@@ -108,14 +108,8 @@ export default function MorePage() {
 
         {/* 빠른 설정 */}
         <div
-          style={{
-            fontSize: 10,
-            fontWeight: 900,
-            letterSpacing: '0.14em',
-            color: 'var(--tj-mute)',
-            textTransform: 'uppercase',
-            margin: '6px 0 8px',
-          }}
+          className="text-label font-black text-mute dark:text-mute-dark uppercase tracking-widest"
+          style={{ margin: '6px 0 8px', letterSpacing: '0.14em' }}
         >
           빠른 설정
         </div>
@@ -145,14 +139,8 @@ export default function MorePage() {
         {recent.length > 0 && (
           <>
             <div
-              style={{
-                fontSize: 10,
-                fontWeight: 900,
-                letterSpacing: '0.14em',
-                color: 'var(--tj-mute)',
-                textTransform: 'uppercase',
-                marginBottom: 8,
-              }}
+              className="text-label font-black text-mute dark:text-mute-dark uppercase tracking-widest"
+              style={{ marginBottom: 8, letterSpacing: '0.14em' }}
             >
               최근 공지
             </div>
@@ -181,25 +169,18 @@ export default function MorePage() {
                   }}
                 >
                   <div
+                    className="text-body font-extrabold text-ink dark:text-ink-dark"
                     style={{
-                      fontSize: 12,
-                      fontWeight: 800,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      color: 'var(--tj-ink)',
                     }}
-                    className="dark:text-slate-100"
                   >
                     {n.title}
                   </div>
                   <div
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--tj-mute)',
-                      fontWeight: 600,
-                      marginTop: 2,
-                    }}
+                    className="text-label font-semibold text-mute dark:text-mute-dark"
+                    style={{ marginTop: 2 }}
                   >
                     {fmtDateShort(n.created_at)}
                   </div>
@@ -208,21 +189,18 @@ export default function MorePage() {
               <button
                 type="button"
                 onClick={() => setSubPage('notices')}
-                className="pressable w-full"
+                className="pressable w-full flex items-center justify-center gap-1 text-label font-extrabold text-mute dark:text-mute-dark"
                 style={{
                   padding: '10px 14px',
                   borderTop: '1px solid var(--tj-line-soft)',
                   background: 'transparent',
                   cursor: 'pointer',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: 'var(--tj-mute)',
                   letterSpacing: '-0.01em',
-                  textAlign: 'center',
                 }}
                 aria-label="전체 공지 보기"
               >
-                {hasMoreNotices ? '더보기' : '전체 공지 보기'} →
+                {hasMoreNotices ? '더보기' : '전체 공지 보기'}
+                <ChevronRight size={14} aria-hidden="true" />
               </button>
             </div>
           </>
@@ -259,13 +237,12 @@ export default function MorePage() {
               <Info size={18} />
             </div>
             <div
-              style={{ fontSize: 12, fontWeight: 800, color: 'var(--tj-ink)' }}
-              className="dark:text-slate-100"
+              className="text-body font-extrabold text-ink dark:text-ink-dark"
             >
               앱 정보
             </div>
           </div>
-          <span style={{ fontSize: 14, color: 'var(--tj-mute)', fontWeight: 700 }}>→</span>
+          <ChevronRight size={18} aria-hidden="true" style={{ color: 'var(--tj-mute)' }} />
         </button>
       </div>
     </div>

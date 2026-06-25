@@ -1,14 +1,16 @@
 /**
- * NoticeHighlights — 더보기 탭 상단의 공지 히어로 카드 (B안).
+ * NoticeHighlights — 더보기 탭 상단 공지 히어로 카드 (시안1 · 핀 칩 + 액센트 글로우 변형).
+ *
+ * 시안1 특징:
+ *   - 좌측 스트라이프 제거 → 핀 아이콘 칩(accent 배경 30×30) + 글로우 효과
+ *   - hero bg: linear-gradient(150deg, #1B2A4A, #223861)
+ *   - 우상단 radial-gradient 글로우 (accent 반투명)
+ *   - 카드 안 "전체 공지 보기" chevron CTA
  *
  * Props:
- *   onOpen?: (notice) => void  — 카드 클릭 시 호출 (NoticesPage 라우팅 위임)
- *
- * 동작:
- *   - useNotices()로 공지 fetch
- *   - 첫 번째 공지를 shuttle(#1b3a6e) 그라데이션 + 좌측 4px accent 스트라이프 + 📌 PINNED 배지로 강조
- *   - 데이터 없음/로딩/에러이면 null
+ *   onOpen?: (notice) => void — 카드/CTA 클릭 시 호출 (NoticesPage 라우팅 위임)
  */
+import { ChevronRight, Pin } from 'lucide-react'
 import { useNotices } from '../../hooks/useMore'
 
 function fmtDate(s) {
@@ -49,67 +51,86 @@ export default function NoticeHighlights({ onOpen }) {
       style={{
         position: 'relative',
         overflow: 'hidden',
-        padding: '18px 20px 18px 22px',
-        borderRadius: 14,
-        background: 'linear-gradient(160deg, #102c4c, #1b3a6e)',
+        padding: '20px 20px 18px',
+        borderRadius: 18,
+        background: 'linear-gradient(150deg, #1B2A4A 0%, #223861 100%)',
         color: '#fff',
         border: 'none',
-        boxShadow: '0 4px 14px rgba(16, 44, 76, 0.18)',
+        boxShadow: '0 8px 22px rgba(27,42,74,0.24)',
+        cursor: 'pointer',
       }}
       aria-label={`공지: ${top.title}`}
     >
+      {/* 우상단 글로우 */}
       <span
         aria-hidden="true"
         style={{
           position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 4,
-          background: 'var(--tj-accent)',
+          right: -50,
+          top: -50,
+          width: 160,
+          height: 160,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(46,139,134,0.45), transparent 70%)',
+          pointerEvents: 'none',
         }}
       />
+
+      {/* 킥커 행: 핀 칩 + 태그 + 날짜 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span
+          aria-hidden="true"
           style={{
-            display: 'inline-flex',
+            width: 30,
+            height: 30,
+            borderRadius: 10,
+            background: 'rgba(46,139,134,0.92)',
+            display: 'flex',
             alignItems: 'center',
-            gap: 4,
-            fontSize: 11,
-            fontWeight: 800,
+            justifyContent: 'center',
             color: '#fff',
-            background: 'var(--tj-accent)',
-            padding: '3px 8px',
-            borderRadius: 999,
-            letterSpacing: '0.02em',
+            flexShrink: 0,
           }}
         >
-          <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-            <path d="M16 9V4l1 0c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1l1 0v5c0 1.66-1.34 3-3 3h-.08c-.53 0-.92.5-.75 1L6 17h5v4l1 1 1-1v-4h5l1.84-4c.16-.5-.22-1-.75-1H19c-1.66 0-3-1.34-3-3z"/>
-          </svg>
-          공지
+          <Pin size={14} aria-hidden="true" />
         </span>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: 700 }}>
-          {fmtDate(top.created_at)}
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: 'var(--tj-accent)',
+              letterSpacing: '0.08em',
+            }}
+          >
+            고정 공지
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.60)' }}>
+            {fmtDate(top.created_at)}
+          </span>
+        </div>
       </div>
+
+      {/* 제목 */}
       <div
         style={{
-          fontSize: 18,
-          fontWeight: 900,
+          fontSize: 19,
+          fontWeight: 800,
           letterSpacing: '-0.02em',
-          marginTop: 10,
-          lineHeight: 1.3,
+          marginTop: 14,
+          lineHeight: 1.32,
         }}
       >
         {top.title}
       </div>
+
+      {/* 미리보기 */}
       {preview && (
         <div
           style={{
             fontSize: 13,
-            color: 'rgba(255,255,255,0.85)',
-            fontWeight: 600,
+            color: 'rgba(255,255,255,0.82)',
+            fontWeight: 500,
             lineHeight: 1.6,
             marginTop: 8,
           }}
@@ -117,6 +138,22 @@ export default function NoticeHighlights({ onOpen }) {
           {preview}
         </div>
       )}
+
+      {/* 전체 공지 보기 CTA */}
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          marginTop: 14,
+          fontSize: 13,
+          fontWeight: 800,
+          color: '#fff',
+        }}
+      >
+        전체 공지 보기
+        <ChevronRight size={15} aria-hidden="true" />
+      </span>
     </button>
   )
 }

@@ -198,20 +198,20 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
 
       {active && (
         <div
-          className="absolute px-2.5 py-1.5 rounded-lg bg-black/80 text-white backdrop-blur-sm whitespace-nowrap pointer-events-none shadow-lg"
+          className="absolute px-2.5 py-1.5 rounded-lg bg-surface shadow-card-md border border-line whitespace-nowrap pointer-events-none"
           style={{
             left: pctLeft(active.x + active.w / 2),
             top: pctTop(active.y),
             transform: 'translate(-50%, calc(-100% - 10px))',
           }}
         >
-          <div className="text-[10px] opacity-70 tabular-nums text-center">
+          <div className="text-caption text-mute tabular-nums text-center">
             {String(active.hour).padStart(2, '0')}:{String(active.minute).padStart(2, '0')}
           </div>
-          <div className="text-sm font-bold text-center" style={{ color: crowdedColor(active.point.crowded) }}>
+          <div className="text-label font-bold text-center" style={{ color: crowdedColor(active.point.crowded) }}>
             {crowdedLabel(active.point.crowded)}
           </div>
-          <div className="text-[10px] opacity-70 text-center tabular-nums">
+          <div className="text-caption text-mute text-center tabular-nums">
             평균 {active.point.crowded.toFixed(2)} · {active.point.samples}건
           </div>
         </div>

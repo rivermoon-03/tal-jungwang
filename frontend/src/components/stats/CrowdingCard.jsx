@@ -65,22 +65,19 @@ export default function CrowdingCard() {
   }, [nowMinutes])
 
   return (
-    <article
-      className="relative overflow-hidden rounded-3xl shadow-sm"
-      style={{ background: 'linear-gradient(160deg, #111827 0%, #1e293b 60%, #0f172a 100%)' }}
-    >
-      {/* 노선별 상단 accent halo */}
+    <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">
+      {/* 노선별 상단 accent halo — 배경색 위에 살짝 얹히는 미세 tint */}
       <div
-        className="absolute inset-x-0 top-0 h-32 pointer-events-none transition-colors duration-500"
-        style={{ background: `radial-gradient(130% 70% at 50% -10%, ${accent}22 0%, transparent 60%)` }}
+        className="absolute inset-x-0 top-0 h-24 pointer-events-none transition-colors duration-500"
+        style={{ background: `radial-gradient(120% 60% at 50% -10%, ${accent}18 0%, transparent 70%)` }}
       />
 
       <div className="relative p-5">
         {/* 헤더 */}
         <header className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-base font-bold text-white">노선별 혼잡도</div>
-            <div className="mt-0.5 text-xs text-white/40 leading-snug">
+            <div className="text-head text-ink">노선별 혼잡도</div>
+            <div className="mt-0.5 text-caption text-mute leading-snug">
               {data?.stop_name && data?.route_direction
                 ? `${data.stop_name} 출발 · ${data.route_direction}`
                 : `${dayType === 'weekday' ? '평일' : '주말'}${sampleDays > 0 ? ` · 최근 ${sampleDays}일` : ''}`
@@ -90,12 +87,12 @@ export default function CrowdingCard() {
 
           {/* 노선 탭 */}
           <div
-            className="flex gap-0.5 rounded-full p-0.5 bg-white/5 ring-1 ring-white/10 shrink-0"
+            className="flex gap-0.5 rounded-full p-0.5 bg-surface-2 ring-1 ring-line shrink-0"
             role="tablist"
           >
             {ROUTE_TABS.map((tab) => {
               const active = tab.id === routeNo
-              const color = ROUTE_ACCENTS[tab.id] ?? '#94a3b8'
+              const color = ROUTE_ACCENTS[tab.id] ?? accent
               return (
                 <button
                   key={tab.id}
@@ -103,8 +100,8 @@ export default function CrowdingCard() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setRouteNo(tab.id)}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full transition ${
-                    active ? 'bg-white text-slate-900 shadow-sm' : 'text-white/60 hover:text-white'
+                  className={`flex items-center gap-1 px-2.5 py-1 text-label font-semibold rounded-full transition ${
+                    active ? 'bg-accent text-accent-ink shadow-sm' : 'text-mute hover:text-ink'
                   }`}
                 >
                   {active && (
@@ -123,25 +120,25 @@ export default function CrowdingCard() {
         {/* 현재 상태 */}
         <div className="mt-4 flex items-end justify-between gap-4">
           <div>
-            <div className="text-xs text-white/40 mb-1">지금</div>
+            <div className="text-caption text-mute mb-1">지금</div>
             {currentPoint ? (
               <div
-                className="text-4xl font-extrabold tracking-tight leading-none"
+                className="text-eta font-extrabold tracking-tight leading-none"
                 style={{ color: crowdedColor(currentPoint.crowded) }}
               >
                 {crowdedLabel(currentPoint.crowded)}
               </div>
             ) : (
-              <div className="text-3xl font-extrabold text-white/25 leading-none">--</div>
+              <div className="text-title font-extrabold text-mute leading-none">--</div>
             )}
           </div>
           {futurePeak && futurePeak.crowded >= 2.5 && (
             <div className="text-right">
-              <div className="text-xs text-white/40 mb-1">
+              <div className="text-caption text-mute mb-1">
                 {String(futurePeak.hour).padStart(2, '0')}:{String(futurePeak.minute).padStart(2, '0')}경 예상
               </div>
               <div
-                className="text-lg font-bold"
+                className="text-head font-bold"
                 style={{ color: crowdedColor(futurePeak.crowded) }}
               >
                 {crowdedLabel(futurePeak.crowded)}
@@ -153,7 +150,7 @@ export default function CrowdingCard() {
         {/* 차트 — 데이터 없으면 숨김 */}
         {loading && !hasData ? (
           <div className="mt-5">
-            <ChartSkeleton stroke="rgba(255,255,255,0.5)" />
+            <ChartSkeleton stroke="var(--tj-line)" />
           </div>
         ) : hasData ? (
           <>
@@ -161,17 +158,17 @@ export default function CrowdingCard() {
               <CrowdingChart
                 points={points}
                 nowMinutes={nowMinutes}
-                stroke="rgba(255,255,255,0.7)"
+                stroke="var(--tj-mute)"
                 rangeH={RANGE_H}
                 futureMode
               />
             </div>
-            <div className="mt-1 flex justify-between px-1 text-[10px] tabular-nums text-white/30">
+            <div className="mt-1 flex justify-between px-1 text-caption tabular-nums text-mute">
               {xAxisLabels.map((l, i) => <span key={i}>{l}</span>)}
             </div>
           </>
         ) : (
-          <div className="mt-4 text-xs text-white/30 text-center py-4">
+          <div className="mt-4 text-caption text-mute text-center py-4">
             아직 누적된 혼잡도 데이터가 없어요
           </div>
         )}

@@ -232,14 +232,11 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
 
       {geometry && geometry.maxIdx >= 0 && (
         <div
-          className="absolute pointer-events-none font-bold tabular-nums"
+          className="absolute pointer-events-none text-caption font-bold tabular-nums text-ease"
           style={{
             left: pctLeft(geometry.coords[geometry.maxIdx].x),
             top: pctTop(Math.max(0, geometry.coords[geometry.maxIdx].y - 16)),
             transform: 'translateX(-50%)',
-            fontSize: 10,
-            color: stroke,
-            textShadow: '0 1px 5px rgba(0,0,0,.85)',
           }}
         >
           {geometry.maxSpeed.toFixed(0)}
@@ -247,15 +244,11 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
       )}
       {geometry && geometry.minIdx >= 0 && geometry.minIdx !== geometry.maxIdx && (
         <div
-          className="absolute pointer-events-none font-bold tabular-nums"
+          className="absolute pointer-events-none text-caption font-bold tabular-nums text-imminent"
           style={{
             left: pctLeft(geometry.coords[geometry.minIdx].x),
             top: pctTop(Math.min(H * 0.88, geometry.coords[geometry.minIdx].y + 4)),
             transform: 'translateX(-50%)',
-            fontSize: 10,
-            color: stroke,
-            opacity: 0.65,
-            textShadow: '0 1px 5px rgba(0,0,0,.85)',
           }}
         >
           {geometry.minSpeed.toFixed(0)}
@@ -265,30 +258,29 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
       {active && (
         <>
           <div
-            className="absolute w-3 h-3 rounded-full shadow-md ring-2 ring-white/70"
+            className="absolute w-3 h-3 rounded-full shadow-md ring-2 ring-line bg-surface"
             style={{
               left: pctLeft(active.x),
               top: pctTop(active.y),
               transform: 'translate(-50%, -50%)',
-              background: stroke,
             }}
           />
           <div
-            className="absolute px-2.5 py-1.5 rounded-lg bg-black/75 text-white backdrop-blur-sm whitespace-nowrap pointer-events-none"
+            className="absolute px-2.5 py-1.5 rounded-lg bg-surface shadow-card-md border border-line whitespace-nowrap pointer-events-none"
             style={{
               left: pctLeft(active.x),
               top: pctTop(active.y),
               transform: 'translate(-50%, calc(-100% - 14px))',
             }}
           >
-            <div className="text-[10px] opacity-70 tabular-nums text-center">
+            <div className="text-caption text-mute tabular-nums text-center">
               {formatLabel(active.point)}
             </div>
-            <div className="text-sm font-bold tabular-nums text-center">
+            <div className="text-label font-bold tabular-nums text-center text-ink">
               {active.point.speed.toFixed(1)}
-              <span className="text-[10px] font-medium ml-0.5 opacity-80">km/h</span>
+              <span className="text-caption font-medium ml-0.5 text-mute">km/h</span>
             </div>
-            <div className="text-[10px] opacity-70 text-center">
+            <div className="text-caption text-mute text-center">
               {classifySpeed(active.point.speed)}
             </div>
           </div>

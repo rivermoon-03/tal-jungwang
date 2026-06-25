@@ -16,10 +16,10 @@ function isWeekend(d = new Date()) {
 }
 
 function speedStatus(kmh) {
-  if (kmh == null) return { label: '--', sub: null, color: 'rgba(148,163,184,1)' }
-  if (kmh >= 25) return { label: '원활', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(52,211,153)' }
-  if (kmh >= 15) return { label: '서행', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(251,191,36)' }
-  return { label: '정체', sub: `${kmh.toFixed(0)} km/h`, color: 'rgb(248,113,113)' }
+  if (kmh == null) return { label: '--', sub: null, colorClass: 'text-mute' }
+  if (kmh >= 25) return { label: '원활', sub: `${kmh.toFixed(0)} km/h`, colorClass: 'text-ease' }
+  if (kmh >= 15) return { label: '서행', sub: `${kmh.toFixed(0)} km/h`, colorClass: 'text-imminent' }
+  return { label: '정체', sub: `${kmh.toFixed(0)} km/h`, colorClass: 'text-imminent' }
 }
 
 export default function TrafficFlowCard() {
@@ -68,25 +68,25 @@ export default function TrafficFlowCard() {
 
   const hasData = points.length > 0
 
+  // 차트 stroke: 현재 테마에서 기준선/현재선에 쓸 중성 색
+  const chartStroke = 'var(--tj-mute)'
+
   return (
-    <article
-      className="relative overflow-hidden rounded-card-lg shadow-card-md"
-      style={{ background: 'linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #0c1220 100%)' }}
-    >
+    <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">
       <div className="p-5">
         {/* 헤더 */}
         <header className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-[11px] font-extrabold text-white/55 tracking-[0.08em] uppercase">마유로</div>
-            <div className="mt-0.5 text-[17px] font-black text-white tracking-tight">교통 흐름</div>
-            <div className="mt-1.5 text-xs font-semibold text-white/45">
+            <div className="text-caption font-extrabold text-mute tracking-[0.08em] uppercase">마유로</div>
+            <div className="mt-0.5 text-head font-black text-ink tracking-tight">교통 흐름</div>
+            <div className="mt-1.5 text-caption font-semibold text-mute">
               {dayType === 'weekday' ? '평일' : '주말'}
               {sampleDays > 0 ? ` · 최근 ${sampleDays}일 평균` : ''}
             </div>
           </div>
 
           {/* 방향 토글 */}
-          <div className="flex rounded-full p-[3px] bg-white/10 backdrop-blur shrink-0">
+          <div className="flex rounded-full p-[3px] bg-surface-2 ring-1 ring-line shrink-0">
             {DIRECTION_TABS.map((tab) => {
               const active = tab.id === direction
               return (
@@ -94,8 +94,8 @@ export default function TrafficFlowCard() {
                   key={tab.id}
                   type="button"
                   onClick={() => setDirection(tab.id)}
-                  className={`px-3.5 py-1.5 text-xs font-extrabold rounded-full transition tracking-tight ${
-                    active ? 'bg-white text-ink shadow-sm' : 'text-white/60 hover:text-white'
+                  className={`px-3.5 py-1.5 text-label font-extrabold rounded-full transition tracking-tight ${
+                    active ? 'bg-accent text-accent-ink shadow-sm' : 'text-mute hover:text-ink'
                   }`}
                 >
                   {tab.label}
@@ -108,30 +108,27 @@ export default function TrafficFlowCard() {
         {/* 현재 상태 */}
         <div className="mt-5 flex items-end justify-between gap-4">
           <div>
-            <div className="text-[11px] font-bold text-white/50 tracking-wide mb-1.5">지금</div>
+            <div className="text-caption font-bold text-mute tracking-wide mb-1.5">지금</div>
             <div className="flex items-baseline gap-2.5">
               <span
                 aria-hidden
-                className="self-center w-2.5 h-2.5 rounded-full"
-                style={{ background: status.color, boxShadow: `0 0 0 5px ${status.color === 'rgba(148,163,184,1)' ? 'rgba(148,163,184,0.18)' : status.color.replace('rgb(', 'rgba(').replace(')', ',0.18)')}` }}
+                className={`self-center w-2.5 h-2.5 rounded-full ${status.colorClass}`}
+                style={{ backgroundColor: 'currentColor', boxShadow: 'none' }}
               />
-              <span
-                className="text-[38px] font-black tracking-[-0.04em] leading-none"
-                style={{ color: status.color }}
-              >
+              <span className={`text-eta font-black tracking-[-0.04em] leading-none ${status.colorClass}`}>
                 {status.label}
               </span>
             </div>
             {status.sub && (
-              <div className="mt-2 text-sm font-bold text-white/60 tabular-nums">{status.sub}</div>
+              <div className="mt-2 text-label font-bold text-ink-2 tabular-nums">{status.sub}</div>
             )}
           </div>
           {futurePeak && (
             <div className="text-right">
-              <div className="text-[11px] font-bold text-white/50 tracking-wide mb-1.5">
+              <div className="text-caption font-bold text-mute tracking-wide mb-1.5">
                 {String(futurePeak.hour).padStart(2, '0')}시경 예상
               </div>
-              <div className="text-xl font-black tracking-tight" style={{ color: futurePeak.speed >= 15 ? 'rgb(251,191,36)' : 'rgb(248,113,113)' }}>
+              <div className={`text-head font-black tracking-tight text-imminent`}>
                 {futurePeak.label}
               </div>
             </div>
@@ -141,15 +138,15 @@ export default function TrafficFlowCard() {
         {/* 차트 */}
         <div key={`${dayType}-${direction}`} className="mt-5 animate-fade-in">
           {flowLoading && !hasData ? (
-            <ChartSkeleton stroke="rgba(255,255,255,0.6)" />
+            <ChartSkeleton stroke={chartStroke} />
           ) : !hasData ? (
-            <div className="h-28 flex items-center justify-center text-xs text-white/35">
+            <div className="h-28 flex items-center justify-center text-caption text-mute">
               아직 누적된 데이터가 없어요
             </div>
           ) : (
             <FlowChart
               points={points}
-              stroke="rgba(255,255,255,0.85)"
+              stroke={chartStroke}
               nowMinutes={nowMinutes}
               rangeH={RANGE_H}
               futureMode
@@ -159,7 +156,7 @@ export default function TrafficFlowCard() {
 
         {/* X축 라벨 */}
         {hasData && (
-          <div className="mt-1 flex justify-between px-1 text-[10px] tabular-nums text-white/30">
+          <div className="mt-1 flex justify-between px-1 text-caption tabular-nums text-mute">
             {xAxisLabels.map((l, i) => <span key={i}>{l}</span>)}
           </div>
         )}

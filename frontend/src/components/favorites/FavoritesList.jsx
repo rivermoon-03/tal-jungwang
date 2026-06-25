@@ -116,7 +116,7 @@ function FavoriteRow({ item, menuOpen, onToggleMenu, onCloseMenu, onRemove, onOp
         rightAddon={
           <button
             type="button"
-            className="p-1.5 ml-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400"
+            className="p-1.5 ml-1 rounded-full hover:bg-surface-2 dark:hover:bg-surface-2 transition-colors text-mute"
             onClick={(e) => {
               e.stopPropagation()
               onToggleMenu()

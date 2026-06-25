@@ -101,7 +101,7 @@ function PastRow({ time }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 opacity-50">
       <span className="text-meta font-semibold text-mute dark:text-mute-dark tabular-nums">{time}</span>
-      <span className="text-[11px] font-medium text-mute-2 dark:text-mute-2-dark ml-auto">지난 시각</span>
+      <span className="text-caption font-medium text-mute-2 dark:text-mute-2-dark ml-auto">지난 시각</span>
     </div>
   )
 }
@@ -157,7 +157,7 @@ function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
   return (
     <div className="flex flex-col gap-2">
       {data?.schedule_type && (
-        <p className="text-xs text-slate-400 mb-1">
+        <p className="text-caption text-mute mb-1">
           {scheduleTypeLabel(data.schedule_type)} 시간표 · 첫차 {allTimes[0]} ~ 막차 {allTimes[allTimes.length - 1]} · 총 {allTimes.length}회 · 남은 {futureCount}회
         </p>
       )}
@@ -245,12 +245,12 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
   }, [items.length])
   return (
     <div>
-      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+      <p className="text-caption font-bold text-ink-2 dark:text-mute mb-2">
         {label} · 오늘 총 {allItems.length}편 중 {items.length}편 남음
       </p>
       {allDone && allItems.length > 0 && (
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+          <span className="text-caption font-bold text-ink-2 dark:text-mute bg-surface-2 dark:bg-surface-dark px-2 py-0.5 rounded-full">
             금일 운행 종료
           </span>
         </div>
@@ -483,7 +483,7 @@ function ShuttleContent({ direction, accentColor }) {
                 type="button"
                 onClick={() => setFallbackKind('weekday')}
                 aria-pressed={!useSaturday}
-                className="px-2.5 py-1 text-[11px] font-extrabold tracking-tight transition-colors"
+                className="px-2.5 py-1 text-caption font-extrabold tracking-tight transition-colors"
                 style={{
                   background: !useSaturday ? '#d4a14a' : 'transparent',
                   color: !useSaturday ? '#fff' : '#a07517',
@@ -495,7 +495,7 @@ function ShuttleContent({ direction, accentColor }) {
                 type="button"
                 onClick={() => setFallbackKind('saturday')}
                 aria-pressed={useSaturday}
-                className="px-2.5 py-1 text-[11px] font-extrabold tracking-tight transition-colors"
+                className="px-2.5 py-1 text-caption font-extrabold tracking-tight transition-colors"
                 style={{
                   background: useSaturday ? '#d4a14a' : 'transparent',
                   color: useSaturday ? '#fff' : '#a07517',
@@ -518,7 +518,7 @@ function ShuttleContent({ direction, accentColor }) {
         </p>
       )}
       {selectedEmpty ? (
-        <p className="text-sm font-semibold text-slate-400 text-center py-6 px-4 leading-relaxed">
+        <p className="text-body font-semibold text-mute text-center py-6 px-4 leading-relaxed">
           선택한 <span className="font-extrabold">{useSaturday ? '토요일' : '평일'}</span> 시간표가 비어 있어요.
           {isSecondCampus && (
             <><br />위 배너에서 <span className="font-extrabold">{useSaturday ? '평일' : '토요일'}</span>을 눌러보세요.</>
@@ -600,7 +600,7 @@ function ErrorMsg() {
 }
 
 function EmptyMsg({ text }) {
-  return <p className="text-sm text-slate-400 text-center py-4">{text}</p>
+  return <p className="text-body text-mute text-center py-4">{text}</p>
 }
 
 // ─── realtime bus history ────────────────────────────────────────────────
@@ -664,7 +664,7 @@ function BusHistoryContent({ routeNumber, category }) {
     <div>
       <BusEtaCard realtimeEta={data?.realtime_eta} predictedEta={data?.predicted_eta} />
       <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
-      <p className="text-xs text-slate-400 dark:text-slate-500 mb-3 leading-relaxed">
+      <p className="text-caption text-mute dark:text-mute-dark mb-3 leading-relaxed">
         실시간 GBIS 기반 노선 · 시간표 없음{stopName ? ` · ${stopName}` : ''}
         <br />과거 실제 도착 기록을 날짜별로 표시합니다
       </p>
@@ -674,23 +674,23 @@ function BusHistoryContent({ routeNumber, category }) {
         {colViews.map((col, ci) => (
           <div key={ci} className="flex-1 min-w-0">
             {/* 헤더 */}
-            <div className="text-center py-2 border-b border-slate-200 dark:border-slate-600 mb-0.5">
-              <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+            <div className="text-center py-2 border-b border-line dark:border-border-dark mb-0.5">
+              <span className="block text-caption font-bold text-ink-2 dark:text-ink-2-dark whitespace-nowrap">
                 {col.label}
               </span>
-              <span className="block text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+              <span className="block text-caption text-mute dark:text-mute-dark whitespace-nowrap">
                 {col.day_label}
               </span>
               {col.totalCount === 0 ? (
-                <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">데이터 없음</span>
+                <span className="block text-caption text-mute dark:text-mute-dark mt-0.5">데이터 없음</span>
               ) : (
-                <span className="block text-[9px] text-slate-300 dark:text-slate-600 mt-0.5">총 {col.totalCount}회</span>
+                <span className="block text-caption text-mute dark:text-mute-dark mt-0.5">총 {col.totalCount}회</span>
               )}
             </div>
 
             {/* 시간 리스트 */}
             {col.totalCount === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">데이터가 없습니다</p>
+              <p className="py-6 text-center text-caption text-mute dark:text-mute-dark">데이터가 없습니다</p>
             ) : (
               col.times.map((t, i) => {
                 const isNext = i === col.nextIdx
@@ -704,8 +704,8 @@ function BusHistoryContent({ routeNumber, category }) {
                       ${isNext
                         ? 'font-extrabold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : isPast
-                          ? 'text-slate-300 dark:text-slate-600'
-                          : 'font-semibold text-slate-700 dark:text-slate-200'
+                          ? 'text-mute dark:text-mute-dark'
+                          : 'font-semibold text-ink dark:text-ink-dark'
                       }`}
                   >
                     {t}
@@ -818,17 +818,17 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           className="flex justify-center pt-3 pb-2 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
           style={{ touchAction: 'none' }}
         >
-          <span className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-500" />
+          <span className="w-12 h-1.5 rounded-full bg-line dark:bg-border-dark" />
         </button>
 
         {/* header */}
-        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-slate-100 dark:border-border-dark">
+        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-border-dark">
           <span
             className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ background: color }}
           />
           <div className="flex-1 min-w-0">
-            <p className="text-display text-ink dark:text-slate-100 truncate" style={{ letterSpacing: '-0.03em' }}>
+            <p className="text-display text-ink dark:text-ink-dark truncate" style={{ letterSpacing: '-0.03em' }}>
               {title}
             </p>
             <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
@@ -838,9 +838,9 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
               onClick={onShowMap}
               aria-label="지도에서 보기"
               title="지도에서 보기"
-              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
+              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
             >
-              <MapPin size={18} className="text-slate-500 dark:text-slate-400" />
+              <MapPin size={18} className="text-ink-2 dark:text-mute-dark" />
             </button>
           )}
           {onToggleFav && (
@@ -848,27 +848,27 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
               onClick={onToggleFav}
               aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
               title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
+              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
             >
               <Star
                 size={18}
                 fill={isFavorite ? 'var(--tj-accent)' : 'none'}
-                className={isFavorite ? 'text-accent dark:text-accent-dark' : 'text-slate-400 dark:text-slate-500'}
+                className={isFavorite ? 'text-accent dark:text-accent-dark' : 'text-mute dark:text-mute-dark'}
               />
             </button>
           )}
           <button
             onClick={onClose}
             aria-label="닫기"
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
+            className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
           >
-            <X size={18} className="text-slate-500 dark:text-slate-400" />
+            <X size={18} className="text-ink-2 dark:text-mute-dark" />
           </button>
         </div>
 
         <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center gap-1.5">
-          <Clock size={12} className="text-slate-400" />
-          <p className="text-xs text-slate-400">
+          <Clock size={12} className="text-mute" />
+          <p className="text-caption text-mute">
             오늘 기준 · {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </p>
         </div>
@@ -879,8 +879,8 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
         >
           {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
-            <div className="-mx-4 mb-4 border-b border-slate-100 dark:border-border-dark pb-2">
-              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 px-4 mb-3 uppercase tracking-wide">경유 노선</p>
+            <div className="-mx-4 mb-4 border-b border-line dark:border-border-dark pb-2">
+              <p className="text-caption font-semibold text-mute dark:text-mute-dark px-4 mb-3 uppercase tracking-wide">경유 노선</p>
               <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
             </div>
           )}

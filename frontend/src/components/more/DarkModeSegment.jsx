@@ -6,9 +6,9 @@ import { Sun, Monitor, Moon } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 const SEGMENTS = [
-  { id: 'light',  label: '라이트', Icon: Sun,     accent: '#F59E0B' },
-  { id: 'system', label: '시스템', Icon: Monitor, accent: '#3B82F6' },
-  { id: 'dark',   label: '다크',   Icon: Moon,    accent: '#6366F1' },
+  { id: 'light',  label: '라이트', Icon: Sun     },
+  { id: 'system', label: '시스템', Icon: Monitor },
+  { id: 'dark',   label: '다크',   Icon: Moon    },
 ]
 
 export default function DarkModeSegment() {
@@ -17,11 +17,11 @@ export default function DarkModeSegment() {
 
   return (
     <div
-      className="flex bg-slate-100 dark:bg-surface-dark rounded-full p-1 gap-1"
+      className="flex bg-surface-2 dark:bg-surface-dark rounded-full p-1 gap-1"
       role="group"
       aria-label="다크모드 설정"
     >
-      {SEGMENTS.map(({ id, label, Icon, accent }) => {
+      {SEGMENTS.map(({ id, label, Icon }) => {
         const active = themeMode === id
         return (
           <button
@@ -30,12 +30,12 @@ export default function DarkModeSegment() {
             aria-pressed={active}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all pressable
               ${active
-                ? 'shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                ? 'shadow-sm text-white'
+                : 'text-ink-2 dark:text-mute-dark hover:text-ink dark:hover:text-ink-dark'
               }`}
             style={{
               transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)',
-              ...(active ? { background: accent, color: '#FFFFFF' } : {}),
+              ...(active ? { background: 'var(--tj-accent)' } : {}),
             }}
           >
             <Icon size={13} color={active ? '#FFFFFF' : undefined} />
