@@ -5,14 +5,27 @@ export default {
     extend: {
       colors: {
         // ═══════════════════════════════════════════════════
-        // BMW iDrive / Tesla OS 톤 (2026-05 redesign)
+        // Warm Daylight 시맨틱 토큰 (2026-06 리디자인, CSS 변수 단일 출처)
+        // ═══════════════════════════════════════════════════
+        'bg':           'var(--tj-bg)',
+        'surface':      'var(--tj-surface)',
+        'surface-2':    'var(--tj-surface-2)',
+        'line':         'var(--tj-line)',
+        'ink':          'var(--tj-ink)',
+        'ink-2':        'var(--tj-ink-2)',
+        'mute':         'var(--tj-mute)',
+        'accent':       'var(--tj-accent)',
+        'accent-ink':   'var(--tj-accent-ink)',
+        'accent-bg':    'var(--tj-accent-bg)',
+        'imminent':     'var(--tj-imminent)',
+        'ease':         'var(--tj-ease)',
+
+        // ═══════════════════════════════════════════════════
+        // BMW iDrive / Tesla OS 톤 (2026-05 redesign) — 레거시 유지
         // ═══════════════════════════════════════════════════
 
         // ── 라이트 모드 surface · 텍스트 ───────────────────
-        'bg':           '#eef1f5',   // page bg (Tesla 오프화이트)
-        'surface':      '#ffffff',   // 카드
         'surface-alt':  '#f7f8fa',   // 패널 내부 보조
-        'line':         '#f1f3f5',   // 헤어라인 (행 구분)
         'text':         '#475569',   // 본문 (destination 등)
 
         // ── 다크 모드 surface · 텍스트 (iDrive OLED) ──────
@@ -27,15 +40,11 @@ export default {
         'mute-2-dark':       '#4b5563',
         'text-secondary-dark': '#94a3b8', // 후방 호환
 
-        // ── 중립 ──────────────────────────────────────────
-        ink:    '#0b0d10',           // primary (구 #111111)
-        mute:   '#64748b',           // 보조 라벨 (구 #94a3b8, 흰 배경 대비 AA 확보)
+        // ── 중립 (레거시 — 신규 컴포넌트는 ink/mute var() 키 사용) ─
         'mute-2': '#cbd2db',         // disabled / placeholder
 
-        // ── 브랜드 액센트 (iDrive Blue) ───────────────────
-        accent:         '#4f9fff',   // iDrive Blue (구 #102c4c)
+        // ── 브랜드 액센트 (레거시) ────────────────────────
         'accent-dark':  '#4f9fff',   // 다크 동일 (구 #7aa7e3)
-        'accent-ink':   '#102c4c',   // 짙은 마린 (구 accent 값) — 짙은 강조 필요시
 
         // ── 모드별 식별 색 ────────────────────────────────
         shuttle: '#1b3a6e',          // 셔틀 전용 (구 navy)
@@ -44,8 +53,7 @@ export default {
         'state-ok':       '#4a9d6a', // sage (구 #16a34a)
         'state-warn':     '#d4a14a', // ochre (구 #f59e0b)
         'state-bad':      '#c8553d', // coral (구 #dc2626)
-        'imminent':       '#e26a4d', // "곧" 빨강 (라이트)
-        'imminent-dark':  '#f87171', // "곧" 빨강 (다크)
+        'imminent-dark':  '#f87171', // "곧" 빨강 (다크) 레거시
 
         // ── Dock 전용 ─────────────────────────────────────
         'dock-bg':         '#0a0a0a',
@@ -131,13 +139,19 @@ export default {
         'chip':       ['11px', { lineHeight: '1',    fontWeight: '800' }],
         'chip-pc':    ['10px', { lineHeight: '1',    fontWeight: '800' }],
 
+        // ── Warm Daylight 타이포 스케일 (2026-06 리디자인) ──
+        'eta-xl': ['38px', { lineHeight: '1',    fontWeight: '800' }],
+        'eta':    ['28px', { lineHeight: '1',    fontWeight: '800' }],
+        'title':  ['21px', { lineHeight: '1.15', fontWeight: '800' }],
+        'head':   ['17px', { lineHeight: '1.3',  fontWeight: '700' }],
+        'body':   ['15px', { lineHeight: '1.45', fontWeight: '600' }],
+        'label':  ['13px', { lineHeight: '1.3',  fontWeight: '600' }],
+        'caption':['12px', { lineHeight: '1.3',  fontWeight: '600' }],
+
         // ── 레거시 (호환 유지, 점진적 제거) ──
         hero:    ['26px', { lineHeight: '1.1',  fontWeight: '900' }],
         bigMin:  ['30px', { lineHeight: '1.05', fontWeight: '900' }],
         display: ['18px', { lineHeight: '1.2',  fontWeight: '900' }],
-        title:   ['14px', { lineHeight: '1.3',  fontWeight: '800' }],
-        body:    ['13px', { lineHeight: '1.4',  fontWeight: '700' }],
-        caption: ['11px', { lineHeight: '1.4',  fontWeight: '500' }],
         micro:   ['10px', { lineHeight: '1.3',  fontWeight: '600' }],
       },
       fontFamily: {

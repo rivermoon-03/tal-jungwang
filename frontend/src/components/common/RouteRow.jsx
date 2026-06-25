@@ -30,7 +30,7 @@ export default function RouteRow({
       <span className="text-right whitespace-nowrap shrink-0">
         <Eta value={etaMin} imminent={imminent} />
         {etaSub && (
-          <span className="block mt-[1px] text-[9px] font-medium text-mute dark:text-mute-dark tabular-nums">
+          <span className="block mt-[1px] text-caption font-medium text-mute dark:text-mute-dark tabular-nums">
             {etaSub}
           </span>
         )}
@@ -65,7 +65,7 @@ function Eta({ value, imminent }) {
   return (
     <span className={`${cls} text-eta-mob md:text-eta-pc`}>
       <SlotNumber value={value} />
-      <span className="ml-[1px] text-[8px] font-bold text-mute dark:text-mute-dark">분</span>
+      <span className="ml-[1px] text-caption font-bold text-mute dark:text-mute-dark">분</span>
     </span>
   )
 }

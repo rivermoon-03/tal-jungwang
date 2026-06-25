@@ -95,7 +95,7 @@ export default function PCDock() {
               href={href}
               onClick={(e) => handleNav(e, href)}
               aria-current={active ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center gap-1 w-[68px] h-[52px] rounded-btn pressable text-[11px] font-bold transition-colors duration-snap ease-ios ${
+              className={`flex flex-col items-center justify-center gap-1 w-[68px] h-[52px] rounded-btn pressable text-label font-bold transition-colors duration-snap ease-ios ${
                 active ? 'bg-dock-active-bg text-white' : 'text-dock-text-mute hover:text-dock-text'
               }`}
             >
@@ -126,7 +126,7 @@ export default function PCDock() {
             {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--°'}
           </span>
           {weather?.currentSky && (
-            <span className="text-[11px] font-semibold text-dock-text-mute leading-none">
+            <span className="text-label font-semibold text-dock-text-mute leading-none">
               {weather.currentSky}
             </span>
           )}

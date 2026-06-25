@@ -40,7 +40,7 @@ export default function RoutePanel({
               key={t.id}
               type="button"
               onClick={() => onTabChange?.(t.id)}
-              className={`text-[10px] font-bold px-[10px] py-[4px] rounded-pill pressable ${
+              className={`text-label font-bold px-[10px] py-[4px] rounded-pill pressable ${
                 activeTab === t.id
                   ? 'bg-ink text-surface dark:bg-accent dark:text-black'
                   : 'bg-surface-alt text-text dark:bg-surface-dark-alt dark:text-mute-dark'

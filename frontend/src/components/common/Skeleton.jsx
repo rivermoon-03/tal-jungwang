@@ -9,7 +9,7 @@
 export default function Skeleton({ width = '100%', height = '1rem', rounded = 'rounded-md', className = '' }) {
   return (
     <div
-      className={`animate-pulse bg-gray-200 dark:bg-gray-700 ${rounded} ${className}`}
+      className={`animate-pulse bg-surface-2 dark:bg-line-dark ${rounded} ${className}`}
       style={{ width, height }}
       aria-hidden="true"
     />

@@ -1,22 +1,20 @@
-import { Map, CalendarDays, Utensils, MoreHorizontal } from 'lucide-react'
+import { Home, Utensils, MoreHorizontal } from 'lucide-react'
 import usePathname from '../../hooks/usePathname'
 
-// 모바일 floating black dock. 라벨 없음, 아이콘만.
-// 활성 = accent #4f9fff, 비활성 = mute-dark #6b7280.
+// 모바일 floating dock. 아이콘만(시각 텍스트 라벨 없음).
+// 활성 = accent, 비활성 = white/60.
 // 위치: bottom 14px / left 14px / right 14px. radius 22px.
 
 const TABS = [
-  { id: 'map',       Icon: Map,            href: '/',          label: '지도'   },
-  { id: 'schedule',  Icon: CalendarDays,   href: '/schedule',  label: '시간표' },
+  { id: 'home',      Icon: Home,           href: '/',          label: '홈'     },
   { id: 'cafeteria', Icon: Utensils,       href: '/cafeteria', label: '학식'   },
   { id: 'more',      Icon: MoreHorizontal, href: '/more',      label: '더보기' },
 ]
 
 function getActiveId(pathname) {
-  if (pathname.startsWith('/schedule'))  return 'schedule'
   if (pathname.startsWith('/cafeteria')) return 'cafeteria'
   if (pathname.startsWith('/more'))      return 'more'
-  return 'map'
+  return 'home'
 }
 
 export default function FloatingDock() {
@@ -35,9 +33,9 @@ export default function FloatingDock() {
     <nav
       role="navigation"
       aria-label="하단 탭 메뉴"
-      className="fixed left-[14px] right-[14px] bottom-[14px] z-50 md:hidden flex justify-around items-center py-[13px] rounded-dock-mob shadow-dock backdrop-blur-md"
+      className="fixed left-[14px] right-[14px] bottom-[14px] z-50 md:hidden flex justify-around items-center py-[9px] rounded-[22px] shadow-dock"
       style={{
-        background: 'rgba(10, 10, 10, 0.92)',
+        background: 'var(--tj-dock-bg, #1B2A4A)',
         marginBottom: 'env(safe-area-inset-bottom)',
       }}
     >
@@ -51,7 +49,7 @@ export default function FloatingDock() {
             aria-label={label}
             aria-current={active ? 'page' : undefined}
             className={`flex items-center justify-center min-w-[44px] min-h-[44px] pressable transition-colors duration-snap ease-ios ${
-              active ? 'text-accent' : 'text-mute-dark'
+              active ? 'text-accent' : 'text-white/60'
             }`}
           >
             <Icon size={22} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" />

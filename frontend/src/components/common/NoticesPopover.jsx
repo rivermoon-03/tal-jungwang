@@ -90,7 +90,7 @@ export default function NoticesPopover({ open, onClose, anchorRef }) {
                 <h3 className="flex-1 text-[13px] font-black text-white tracking-[-0.01em] leading-tight">
                   {n.title}
                 </h3>
-                <span className="text-[10px] text-dock-text-mute font-semibold shrink-0">
+                <span className="text-caption text-dock-text-mute font-semibold shrink-0">
                   {fmtDate(n.created_at)}
                 </span>
               </div>
