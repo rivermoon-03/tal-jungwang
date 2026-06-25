@@ -34,8 +34,8 @@ function RealtimeWaypointDetail({ routeNo, stationId }) {
   return (
     <div className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-16 md:pb-0">
       {/* 노선 경유 막대 */}
-      <div className="pt-4 pb-2 bg-white dark:bg-surface-dark border-b border-slate-100 dark:border-border-dark">
-        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 px-4 mb-3 uppercase tracking-wide">
+      <div className="pt-4 pb-2 bg-white dark:bg-surface-dark border-b border-line dark:border-border-dark">
+        <p className="text-label font-semibold text-mute dark:text-mute-dark px-4 mb-3">
           경유 노선
         </p>
         <RouteProgressStrip
@@ -49,39 +49,39 @@ function RealtimeWaypointDetail({ routeNo, stationId }) {
       <div className="px-4 pt-4">
         <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
         <div className="flex items-center gap-1.5 mb-3">
-          <Clock size={13} className="text-slate-400" />
-          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+          <Clock size={13} className="text-mute dark:text-mute-dark" />
+          <p className="text-label font-semibold text-mute dark:text-mute-dark">
             과거 도착 기록
           </p>
         </div>
 
         {loading ? (
-          <p className="text-sm text-slate-400 py-4 text-center">불러오는 중...</p>
+          <p className="text-body text-mute dark:text-mute-dark py-4 text-center">불러오는 중...</p>
         ) : columns.length === 0 ? (
-          <p className="text-sm text-slate-400 py-4 text-center">아직 도착 기록이 없습니다</p>
+          <p className="text-body text-mute dark:text-mute-dark py-4 text-center">아직 도착 기록이 없습니다</p>
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
             {columns.map((col) => (
               <div
                 key={col.date}
-                className="shrink-0 w-28 rounded-xl border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-surface-dark overflow-hidden"
+                className="shrink-0 w-28 rounded-xl border border-line dark:border-border-dark bg-surface dark:bg-surface-dark overflow-hidden"
               >
-                <div className="px-3 py-2 bg-slate-100 dark:bg-slate-700 border-b border-slate-200 dark:border-border-dark">
-                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">{col.label}</p>
-                  <p className="text-[9px] text-slate-400 dark:text-slate-500">{col.day_label}</p>
+                <div className="px-3 py-2 bg-surface-2 dark:bg-line-dark border-b border-line dark:border-border-dark">
+                  <p className="text-caption font-bold text-ink-2 dark:text-mute-dark truncate">{col.label}</p>
+                  <p className="text-caption text-mute dark:text-mute-dark">{col.day_label}</p>
                 </div>
                 <ul className="py-1">
                   {col.times.length === 0 ? (
-                    <li className="px-3 py-1.5 text-xs text-slate-300">기록 없음</li>
+                    <li className="px-3 py-1.5 text-caption text-mute dark:text-mute-dark">기록 없음</li>
                   ) : (
                     col.times.map((t, i) => (
-                      <li key={i} className="px-3 py-1 text-sm font-mono font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
+                      <li key={i} className="px-3 py-1 text-body font-mono font-semibold text-ink dark:text-ink-dark tabular-nums">
                         {t}
                       </li>
                     ))
                   )}
                 </ul>
-                <p className="px-3 pb-2 text-[9px] text-slate-400">총 {col.totalCount}회</p>
+                <p className="px-3 pb-2 text-caption text-mute dark:text-mute-dark">총 {col.totalCount}회</p>
               </div>
             ))}
           </div>

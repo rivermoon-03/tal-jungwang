@@ -2,7 +2,53 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import BusEtaCard from './BusEtaCard'
 
+// AI티 금지: 9~11px 클래스, 인라인 색칩(bg-chip-*), 생색(text-slate-*, text-gray-*)
+const BANNED_CLASSES = [
+  'text-[9px]', 'text-[10px]', 'text-[11px]',
+  'text-micro', 'text-meta',
+  'bg-chip-green-bg', 'bg-chip-yellow-bg', 'bg-chip-red-bg',
+  'text-slate-', 'text-gray-',
+  'bg-amber-100',
+]
+
+function assertNoAiTi(container) {
+  const html = container.innerHTML
+  for (const cls of BANNED_CLASSES) {
+    expect(html, `금지 클래스 "${cls}" 가 있으면 안 됨`).not.toContain(cls)
+  }
+}
+
 describe('BusEtaCard', () => {
+  describe('AI티 제거 검증', () => {
+    it('실시간 상태에서 금지 클래스 없음', () => {
+      const { container } = render(
+        <BusEtaCard
+          realtimeEta={{
+            primary:   { arrive_in_seconds: 195, arrive_at_hhmm: '21:01' },
+            secondary: { arrive_in_seconds: 840, arrive_at_hhmm: '21:12' },
+          }}
+          predictedEta={null}
+        />
+      )
+      assertNoAiTi(container)
+    })
+
+    it('예상치 상태에서 금지 클래스 없음', () => {
+      const { container } = render(
+        <BusEtaCard
+          realtimeEta={null}
+          predictedEta={{ hhmm: '21:38', sample_size: 4, day_label: '주말' }}
+        />
+      )
+      assertNoAiTi(container)
+    })
+
+    it('도착 정보 없음 상태에서 금지 클래스 없음', () => {
+      const { container } = render(<BusEtaCard realtimeEta={null} predictedEta={null} />)
+      assertNoAiTi(container)
+    })
+  })
+
   describe('상태 1 — 실시간', () => {
     it('renders primary + secondary with divider and "다음 한 대" row', () => {
       render(

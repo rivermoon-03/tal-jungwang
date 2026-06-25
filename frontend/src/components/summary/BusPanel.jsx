@@ -8,7 +8,8 @@ import ArrivalRow from '../dashboard/ArrivalRow'
 import {
   getGbisStationId, getViaLabel,
   getPerRouteDisplay, getRoutesFor,
-  getRouteDisplayConfig,
+  getRouteDisplayConfig, getOriginLabel,
+  getAllowedDirections,
 } from '../dashboard/busStationConfig'
 import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
 
@@ -18,7 +19,6 @@ export default function BusPanel() {
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
   const { direction: selectedBusDirection } = useEffectiveDirection()
   const gbisStationId = getGbisStationId(selectedBusStation)
-  const setDetailModal = useAppStore((s) => s.setDetailModal)
 
   // gbis 정류장(한국공학대/이마트/시흥시청): arrivals API 통합 사용
   const arrivalsQuery = useBusArrivals(gbisStationId)
@@ -51,7 +51,6 @@ export default function BusPanel() {
             route={route}
             selectedBusStation={selectedBusStation}
             selectedBusDirection={selectedBusDirection}
-            setDetailModal={setDetailModal}
           />
         ))}
       </div>
@@ -67,14 +66,24 @@ export default function BusPanel() {
   const arrivals = arrivalsQuery.data?.arrivals ?? []
   const now = new Date()
 
-  if (arrivals.length === 0) {
-    return <div className="text-caption text-mute py-6 text-center">운행 정보 없음</div>
+  // 방향 필터: 선택 정류장의 허용 방향에 맞는 arrivals만 표시
+  const allowedDirs = getAllowedDirections(selectedBusStation)
+  const filteredArrivals = arrivals.filter(
+    (a) => !a.category || allowedDirs.includes(a.category)
+  )
+
+  if (filteredArrivals.length === 0) {
+    return (
+      <div className="text-caption text-mute py-6 text-center">
+        실시간 정보를 가져오는 중이에요. 잠시 후 다시 확인해 주세요.
+      </div>
+    )
   }
 
   // route_no 기준으로 그룹핑 — 같은 노선의 여러 버스를 1행으로 표시
   const routeGroups = []
   const seenRoutes = new Map()
-  for (const a of arrivals) {
+  for (const a of filteredArrivals) {
     if (seenRoutes.has(a.route_no)) {
       seenRoutes.get(a.route_no).push(a)
     } else {
@@ -140,7 +149,9 @@ export default function BusPanel() {
         const cfg = getRouteDisplayConfig(a.route_no)
         const viaLabel = getViaLabel(selectedBusStation, selectedBusDirection)
         const destText = perRoute?.dest ?? cfg?.direction ?? viaLabel ?? (a.destination ?? '')
-        const originText = perRoute ? `${perRoute.origin} 출발` : ''
+        const originText = perRoute
+          ? getOriginLabel(selectedBusStation, selectedBusDirection, perRoute.origin)
+          : ''
         const routeColor = cfg?.color ?? DEFAULT_ROUTE_COLOR
 
         const rightAddon = a.arrival_type === 'realtime' ? (
@@ -160,20 +171,10 @@ export default function BusPanel() {
             extraMinutes={minutes2 != null ? [minutes2] : []}
             imminentLabel={imminent ? '곧 도착' : null}
             isUrgent={imminent || (typeof minutes === 'number' && minutes <= 3)}
+            isRealtime={a.arrival_type === 'realtime'}
             rightAddon={rightAddon}
             crowded={a.arrival_type === 'realtime' ? (a.crowded ?? 0) : 0}
-            onClick={() => setDetailModal({
-              type: 'bus',
-              routeCode: a.route_no,
-              routeId: a.route_id ?? null,
-              stopId: arrivalsQuery.data?.station_id ?? null,
-              favCode: `${selectedBusDirection}:${a.route_no}`,
-              mapLat: null,
-              mapLng: null,
-              isRealtime: a.arrival_type !== 'timetable',
-              title: a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
-              accentColor: ['3400', '5200', '6502', '3401'].includes(a.route_no) ? '#DC2626' : undefined,
-            })}
+            selectedStation={selectedBusStation}
           />
         )
       })}
@@ -181,7 +182,7 @@ export default function BusPanel() {
   )
 }
 
-function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection, setDetailModal }) {
+function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection }) {
   const { route_id, route_number, stops = [] } = route
   const timetable = useBusTimetable(route_id)
 
@@ -201,7 +202,9 @@ function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection, setDet
   const perRoute = getPerRouteDisplay(selectedBusStation)?.[route_number]
   const cfg = getRouteDisplayConfig(route_number)
   const destText = perRoute?.dest ?? cfg?.direction ?? (route.direction_name ?? '')
-  const originText = perRoute ? `${perRoute.origin} 출발` : ''
+  const originText = perRoute
+    ? getOriginLabel(selectedBusStation, selectedBusDirection, perRoute.origin)
+    : ''
 
   return (
     <ArrivalRow
@@ -213,20 +216,7 @@ function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection, setDet
       extraMinutes={secondMinutes != null ? [secondMinutes] : []}
       imminentLabel={imminent ? '곧 도착' : null}
       isUrgent={imminent || (minutes != null && minutes <= 3)}
-      onClick={() => setDetailModal({
-        type: 'bus',
-        routeCode: route_number,
-        routeId: route_id ?? null,
-        stopId: stops[0]?.stop_id ?? null,
-        favCode: `${selectedBusDirection}:${route_number}`,
-        mapLat: stops[0]?.lat ?? null,
-        mapLng: stops[0]?.lng ?? null,
-        isRealtime: false,
-        title: route.direction_name
-          ? `${route_number} · ${route.direction_name}`
-          : `${route_number}번 버스`,
-        accentColor: ['3400', '5200', '6502', '3401'].includes(route_number) ? '#DC2626' : undefined,
-      })}
+      selectedStation={selectedBusStation}
     />
   )
 }

@@ -67,4 +67,78 @@ describe('MiniTrack', () => {
     const startLabel = container.querySelector('[data-track-label="start"]')
     expect(startLabel.className).toMatch(/mute-2/)
   })
+
+  // ── 시안 1: 경로 시각화 강화 ─────────────────────────────────────────────────
+
+  it('시안1: 시작 노드가 14px (강화된 크기)', () => {
+    const { container } = render(
+      <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
+    )
+    const startDot = container.querySelector('[data-track-pt="start"]')
+    expect(startDot.className).toMatch(/w-\[14px\]/)
+    expect(startDot.className).toMatch(/h-\[14px\]/)
+  })
+
+  it('시안1: 종점 노드가 14px (강화된 크기)', () => {
+    const { container } = render(
+      <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
+    )
+    const endDot = container.querySelector('[data-track-pt="end"]')
+    expect(endDot.className).toMatch(/w-\[14px\]/)
+    expect(endDot.className).toMatch(/h-\[14px\]/)
+  })
+
+  it('시안1: 경유 노드가 hollow (border + surface 배경)', () => {
+    const { container } = render(
+      <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
+    )
+    const midDot = container.querySelector('[data-track-pt="mid"]')
+    expect(midDot.className).toMatch(/w-\[11px\]/)
+    expect(midDot.className).toMatch(/h-\[11px\]/)
+    // hollow: border 클래스 있어야 함
+    expect(midDot.className).toMatch(/border/)
+    // filled bg가 아닌 surface 배경
+    expect(midDot.className).toMatch(/bg-surface/)
+  })
+
+  it('시안1: 트랙 라인이 3px 높이', () => {
+    const { container } = render(
+      <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
+    )
+    const seg = container.querySelector('[data-track-seg]')
+    expect(seg.className).toMatch(/h-\[3px\]/)
+  })
+
+  it('시안1: 역할 라벨(출발/경유/종점)이 표시된다', () => {
+    render(
+      <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
+    )
+    expect(screen.getByText('출발')).toBeInTheDocument()
+    expect(screen.getByText('경유')).toBeInTheDocument()
+    expect(screen.getByText('종점')).toBeInTheDocument()
+  })
+
+  it('시안1: 역할 라벨이 없는 경우 (no waypoints) 출발/종점만', () => {
+    render(
+      <MiniTrack origin="이마트" waypoints={[]} terminus="서울" category="express" />
+    )
+    expect(screen.getByText('출발')).toBeInTheDocument()
+    expect(screen.getByText('종점')).toBeInTheDocument()
+    expect(screen.queryByText('경유')).not.toBeInTheDocument()
+  })
+
+  it('시안1: 이름 라벨이 13px (기존 12px에서 업그레이드)', () => {
+    const { container } = render(
+      <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
+    )
+    const startLabel = container.querySelector('[data-track-label="start"]')
+    expect(startLabel.className).toMatch(/text-\[13px\]/)
+  })
+
+  it('시안1: 좌측 색상 테두리(border-l-)가 없다', () => {
+    const { container } = render(
+      <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
+    )
+    expect(container.innerHTML).not.toMatch(/\bborder-l-/)
+  })
 })

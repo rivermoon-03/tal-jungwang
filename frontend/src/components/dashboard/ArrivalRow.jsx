@@ -1,5 +1,14 @@
-import RouteBadge from '../common/RouteBadge.jsx'
-import { CrowdedBadge } from '../bus/BusArrivalCard.jsx'
+import Card from '../ui/Card.jsx'
+import RouteBadge from '../ui/RouteBadge.jsx'
+import StatusChip from '../ui/StatusChip.jsx'
+import { formatEta } from '../../utils/eta.js'
+
+const CROWDED_KIND = {
+  1: { kind: 'ease', label: '여유' },
+  2: { kind: 'ease', label: '보통' },
+  3: { kind: 'crowded', label: '혼잡' },
+  4: { kind: 'crowded', label: '매우혼잡' },
+}
 
 export default function ArrivalRow({
   route,
@@ -16,6 +25,11 @@ export default function ArrivalRow({
   onClick,
   rightAddon = null,
   crowded = 0,
+  isRealtime = false,
+  selectedStation = null,
+  // routeColor prop 수신은 하지만 사용하지 않음 (RouteBadge가 내부에서 색 결정)
+  // eslint-disable-next-line no-unused-vars
+  routeColor,
 }) {
   const minsArr = Array.isArray(minutes)
     ? minutes
@@ -27,187 +41,145 @@ export default function ArrivalRow({
   const hasFirst = first != null && Number.isFinite(first)
   const urgent = isUrgent ?? (!!imminentLabel || (hasFirst && first <= 3))
 
-  const statusColor =
-    status === 'ok'   ? 'var(--state-ok)' :
-    status === 'warn' ? 'var(--state-warn)' :
-    status === 'bad'  ? 'var(--state-bad)' : null
+  const badgeRoute = route ?? routeNumber ?? ''
 
-  const titleText = routeNumber ?? route ?? ''
-  const badgeRoute = route ?? routeNumber
+  // ETA 계산: formatEta를 활용 (seconds로 변환)
+  const firstSec = hasFirst ? first * 60 : null
+  const etaResult = imminentLabel
+    ? { text: imminentLabel, tone: 'imminent' }
+    : firstSec == null && isRealtime
+      ? { text: '실시간 준비 중', tone: 'none' }
+      : formatEta(firstSec)
+
+  // 보조 ETA (다음 차)
+  const secondMin = rest[0]
+  const secondEtaText =
+    secondMin != null && Number.isFinite(secondMin)
+      ? formatEta(secondMin * 60).text
+      : null
+
+  // direction / subdirection 표시 텍스트 결정
+  // direction이 없으면 본문에 방향 표시 없음 (노선번호 중복 방지)
+  const mainText = subdirection != null ? direction : direction ?? null
+  const subText = subdirection != null ? subdirection : null
+
+  const crowdedMeta = CROWDED_KIND[crowded] ?? null
+
+  // onClick이 없고 routeNumber가 있으면 /route/bus:{routeNumber}?stop={station}로 네비게이트
+  function handleClick() {
+    if (onClick) {
+      onClick()
+      return
+    }
+    const rn = route ?? routeNumber
+    if (rn) {
+      const routeId = `bus:${rn}`
+      const stopQuery = selectedStation
+        ? `?stop=${encodeURIComponent(selectedStation)}`
+        : ''
+      const url = `/route/${routeId}${stopQuery}`
+      window.history.pushState({ routeId }, '', url)
+      window.dispatchEvent(new PopStateEvent('popstate', { state: { routeId } }))
+    }
+  }
 
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={handleClick}
       data-urgent={urgent ? 'true' : 'false'}
-      className="pressable w-full text-left"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '14px 12px',
-        borderRadius: 12,
-        border: '1px solid var(--tj-line)',
-        background: urgent ? 'var(--tj-bg-soft)' : 'transparent',
-        boxShadow: 'none',
-      }}
+      className="w-full text-left min-h-[44px]"
+      style={{ display: 'block', background: 'none', border: 'none', padding: 0 }}
     >
-      <RouteBadge route={badgeRoute} variant="tag" />
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
-            style={
-              subdirection != null
-                ? {
-                    fontSize: 15,
-                    fontWeight: 700,
-                    letterSpacing: '-0.01em',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    color: 'var(--tj-ink)',
-                  }
-                : {
-                    fontSize: 16,
-                    fontWeight: 900,
-                    letterSpacing: '-0.02em',
-                    whiteSpace: 'nowrap',
-                    color: 'var(--tj-ink)',
-                  }
-            }
-          >
-            {subdirection != null ? direction : titleText}
-          </span>
-          {lastTrain && (
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 900,
-                letterSpacing: '0.08em',
-                padding: '1px 5px',
-                borderRadius: 4,
-                background: 'var(--line-express)',
-                color: '#fff',
-              }}
-            >
-              막차
-            </span>
-          )}
-          {returnTrip && (
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 900,
-                letterSpacing: '0.04em',
-                padding: '1px 5px',
-                borderRadius: 4,
-                background: '#b45309',
-                color: '#fff',
-              }}
-            >
-              회차탑승
-            </span>
-          )}
-          {statusColor && (
-            <span
-              aria-hidden="true"
-              style={{ width: 6, height: 6, borderRadius: 999, background: statusColor }}
-            />
-          )}
-          {rightAddon}
-          {crowded > 0 && <CrowdedBadge level={crowded} />}
-        </div>
-        {(subdirection != null ? subdirection : direction) && (
-          <div
-            style={{
-              fontSize: 13,
-              color: 'var(--tj-mute)',
-              marginTop: 3,
-              fontWeight: 500,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {subdirection != null ? subdirection : direction}
-          </div>
-        )}
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          flexShrink: 0,
-          fontVariantNumeric: 'tabular-nums',
-        }}
+      <Card
+        state={urgent ? 'imminent' : 'default'}
+        interactive
+        as="div"
       >
-        <div style={{ textAlign: 'right' }}>
-          {imminentLabel ? (
-            <span
-              style={{
-                fontSize: 16,
-                fontWeight: 900,
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
-                color: '#dc2626',
-              }}
-            >
-              {imminentLabel}
-            </span>
-          ) : hasFirst ? (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  gap: 2,
-                  justifyContent: 'flex-end',
-                  color: urgent ? '#dc2626' : 'var(--tj-ink)',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 900,
-                    letterSpacing: '-0.03em',
-                    lineHeight: 1,
-                  }}
-                >
-                  {first}
+        <div className="flex items-center gap-3">
+          {/* 좌상단: 노선번호 뱃지 */}
+          <RouteBadge route={badgeRoute} variant="solid" />
+
+          {/* 중앙: 방향/출발지 정보 */}
+          <div className="flex-1 min-w-0">
+            {mainText && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-body text-ink font-bold truncate">
+                  {mainText}
                 </span>
-                <span
-                  style={{
-                    fontSize: 13,
-                    color: urgent ? '#dc2626' : 'var(--tj-mute)',
-                    fontWeight: 700,
-                  }}
-                >
-                  분
-                </span>
+                {lastTrain && (
+                  <StatusChip kind="last">막차</StatusChip>
+                )}
+                {returnTrip && (
+                  <StatusChip kind="last">회차탑승</StatusChip>
+                )}
+                {status === 'ok' && (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-1.5 h-1.5 rounded-full"
+                    style={{ background: 'var(--state-ok)' }}
+                  />
+                )}
+                {status === 'warn' && (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-1.5 h-1.5 rounded-full"
+                    style={{ background: 'var(--state-warn)' }}
+                  />
+                )}
+                {status === 'bad' && (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-1.5 h-1.5 rounded-full"
+                    style={{ background: 'var(--state-bad)' }}
+                  />
+                )}
+                {rightAddon}
+                {crowdedMeta && (
+                  <StatusChip kind={crowdedMeta.kind}>{crowdedMeta.label}</StatusChip>
+                )}
               </div>
-              {rest[0] != null && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--tj-mute-2)',
-                    marginTop: 2,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    textAlign: 'right',
-                  }}
-                >
-                  {`${rest[0]}분`}
-                </div>
-              )}
-            </>
-          ) : (
-            <span style={{ fontSize: 12, color: 'var(--tj-mute)' }}>운행 정보 없음</span>
-          )}
+            )}
+            {!mainText && (lastTrain || returnTrip || rightAddon || crowdedMeta) && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {lastTrain && <StatusChip kind="last">막차</StatusChip>}
+                {returnTrip && <StatusChip kind="last">회차탑승</StatusChip>}
+                {rightAddon}
+                {crowdedMeta && (
+                  <StatusChip kind={crowdedMeta.kind}>{crowdedMeta.label}</StatusChip>
+                )}
+              </div>
+            )}
+            {subText && (
+              <div className="text-label text-mute truncate mt-0.5">
+                {subText}
+              </div>
+            )}
+          </div>
+
+          {/* 우측: ETA */}
+          <div
+            className="flex-shrink-0 text-right tabular-nums"
+          >
+            <div
+              className={
+                etaResult.tone === 'none'
+                  ? 'text-body text-mute font-bold whitespace-nowrap'
+                  : urgent || etaResult.tone === 'imminent'
+                    ? 'text-eta text-imminent font-black leading-none'
+                    : 'text-eta text-ink font-black leading-none'
+              }
+            >
+              {etaResult.text}
+            </div>
+            {secondEtaText && (
+              <div className="text-caption text-mute mt-0.5 whitespace-nowrap">
+                {secondEtaText}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </Card>
     </button>
   )
 }

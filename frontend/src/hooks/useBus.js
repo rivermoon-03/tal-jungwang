@@ -7,9 +7,15 @@ export function useBusStations() {
   return useApi('/bus/stations')
 }
 
+// category: 전달하면 해당 카테고리로 필터, undefined/null이면 전체 routes 조회
 export function useBusRoutesByCategory(category) {
   const q = category ? `?category=${encodeURIComponent(category)}` : ''
-  return useApi(`/bus/routes${q}`, { enabled: category != null })
+  return useApi(`/bus/routes${q}`, { enabled: true })
+}
+
+// 전체 routes를 조회하는 편의 훅 (방향 목록 파악 등에 사용)
+export function useBusRoutes() {
+  return useApi('/bus/routes', { enabled: true })
 }
 
 // tickMs: 카운트다운 갱신 주기. 초 단위 표시가 필요한 카드는 기본 1000,
@@ -38,10 +44,14 @@ export function useBusTimetable(routeId) {
   })
 }
 
-export function useBusTimetableByRoute(routeNumber, { stopId, requireStopId = false } = {}) {
-  const q = stopId != null ? `?stop_id=${stopId}` : ''
+export function useBusTimetableByRoute(routeNumber, { stopId, requireStopId = false, scheduleType, category } = {}) {
+  const params = new URLSearchParams()
+  if (stopId != null) params.set('stop_id', stopId)
+  if (scheduleType != null) params.set('schedule_type', scheduleType)
+  if (category != null) params.set('category', category)
+  const qs = params.toString() ? `?${params.toString()}` : ''
   const ready = routeNumber != null && (!requireStopId || stopId != null)
-  return useApi(ready ? `/bus/timetable-by-route/${routeNumber}${q}` : null, {
+  return useApi(ready ? `/bus/timetable-by-route/${routeNumber}${qs}` : null, {
     enabled: ready,
   })
 }
