@@ -3,6 +3,7 @@ manage/
 
 # Git worktrees
 .worktrees/
+.playwright-mcp/
 
 # 비밀 환경변수 (.env, .env.local, .env.from.railway 등 모든 변형 차단; example만 허용)
 .env
@@ -12,6 +13,9 @@ manage/
 *.env
 !.env.example
 !*.env.example
+# 프로덕션 DB URL 등 평문 크리덴셜 파일 (편의용 로컬 파일, 절대 커밋 금지)
+env.txt
+**/env.txt
 
 # 에이전트·도구 내부 파일
 .claude/
@@ -42,3 +46,6 @@ Thumbs.db
 
 # Playwright evaluation screenshots
 tmp_screenshot/
+
+# 로컬 docker override (prod DB 연결 등)
+docker-compose.override.yml
