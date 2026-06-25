@@ -55,7 +55,12 @@ async def _bus_poll_job():
 
     02:00~03:59 KST(막차 이후 첫차 이전)에는 GBIS API를 호출하지 않는다.
     IntervalTrigger로 45초마다 호출되며, 심야 시간대엔 즉시 반환.
+
+    전체 폴링에 40초 타임아웃을 걸어 네트워크 hung 등으로 인한 영구 블록을
+    방지한다 (폴링 간격 45초보다 짧아 max_instances=1 deadlock 자가복구).
     """
+    import asyncio
+
     hour = datetime.now(_KST).hour
     if 2 <= hour < 4:
         return  # 02~03시 운행 없음
@@ -63,7 +68,9 @@ async def _bus_poll_job():
     from app.services.bus_collector import poll_and_collect
 
     try:
-        await poll_and_collect()
+        await asyncio.wait_for(poll_and_collect(), timeout=40)
+    except asyncio.TimeoutError:
+        logger.warning("Bus arrival polling timed out (>40s) — skipping cycle")
     except Exception:
         logger.exception("Bus arrival polling failed")
 

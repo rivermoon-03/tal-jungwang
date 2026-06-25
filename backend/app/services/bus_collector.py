@@ -101,7 +101,10 @@ async def poll_and_collect():
 
             station_id = target["gbis_station_id"]
             try:
-                items = await fetch_arrivals(station_id)
+                items = await asyncio.wait_for(fetch_arrivals(station_id), timeout=12)
+            except asyncio.TimeoutError:
+                logger.warning("GBIS 폴링 타임아웃 (정류장 %s, %s)", target["stop_name"], station_id)
+                continue
             except Exception:
                 logger.warning("GBIS 폴링 실패 (정류장 %s)", target["stop_name"], exc_info=True)
                 continue
