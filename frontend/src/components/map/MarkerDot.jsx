@@ -11,9 +11,13 @@
  * 두 가지 형태로 export:
  *   1. React 컴포넌트 (JSX)
  *   2. createMarkerDotElement() — kakao CustomOverlay setContent용 순수 DOM 노드 반환
+ *
+ * 다크 대응: border는 var(--tj-surface)로 배경색과 어울리게 처리.
+ * 아이콘/도트 배경은 노선색(tjLineColor 우선, 없으면 TYPE_COLOR_MAP fallback) 사용.
  */
 
 import React from 'react'
+import { tjLineColor } from '../common/lineColor'
 
 export const TYPE_COLOR_MAP = {
   bus:       '#1b3a6e',
@@ -37,8 +41,14 @@ const TYPE_ICON_MAP = {
 
 const DOT_SIZE = 20 // px
 
-function resolveTypeColor(type, customColor) {
+function resolveTypeColor(type, customColor, routeCode) {
   if (customColor) return customColor
+  // routeCode가 있으면 tjLineColor(CSS 변수) 우선 사용
+  if (routeCode) {
+    const lineVar = tjLineColor(routeCode)
+    // tjLineColor는 항상 CSS 변수 또는 accent를 반환하므로 그대로 사용
+    if (lineVar && lineVar !== 'var(--tj-accent)') return lineVar
+  }
   return TYPE_COLOR_MAP[type] ?? '#1b3a6e'
 }
 
@@ -48,10 +58,10 @@ function resolveTypeIcon(type) {
 
 /**
  * React 컴포넌트 버전.
- * @param {{ type: 'bus'|'bus_seoul'|'subway'|'seohae'|'shuttle', customColor?: string }} props
+ * @param {{ type: 'bus'|'bus_seoul'|'subway'|'seohae'|'shuttle', customColor?: string, routeCode?: string }} props
  */
-export default function MarkerDot({ type, customColor }) {
-  const color = resolveTypeColor(type, customColor)
+export default function MarkerDot({ type, customColor, routeCode }) {
+  const color = resolveTypeColor(type, customColor, routeCode)
   const iconSvg = resolveTypeIcon(type)
 
   return (
@@ -61,7 +71,7 @@ export default function MarkerDot({ type, customColor }) {
         height: `${DOT_SIZE}px`,
         borderRadius: '50%',
         background: color,
-        border: '2px solid rgba(255,255,255,0.9)',
+        border: '2px solid var(--tj-surface)',
         boxShadow: '0 2px 6px rgba(0,0,0,0.22)',
         cursor: 'pointer',
         flexShrink: 0,
@@ -76,11 +86,11 @@ export default function MarkerDot({ type, customColor }) {
 
 /**
  * kakao CustomOverlay setContent 용 순수 DOM 노드 반환.
- * @param {{ type: 'bus'|'bus_seoul'|'subway'|'seohae'|'shuttle', customColor?: string, onClick?: () => void }} options
+ * @param {{ type: 'bus'|'bus_seoul'|'subway'|'seohae'|'shuttle', customColor?: string, routeCode?: string, onClick?: () => void }} options
  * @returns {HTMLElement}
  */
-export function createMarkerDotElement({ type, customColor, onClick }) {
-  const color = resolveTypeColor(type, customColor)
+export function createMarkerDotElement({ type, customColor, routeCode, onClick }) {
+  const color = resolveTypeColor(type, customColor, routeCode)
   const iconSvg = resolveTypeIcon(type)
 
   const div = document.createElement('div')
@@ -89,7 +99,7 @@ export function createMarkerDotElement({ type, customColor, onClick }) {
     `height:${DOT_SIZE}px`,
     'border-radius:50%',
     `background:${color}`,
-    'border:2px solid rgba(255,255,255,0.9)',
+    'border:2px solid var(--tj-surface)',
     'box-shadow:0 2px 6px rgba(0,0,0,0.22)',
     'cursor:pointer',
     'flex-shrink:0',

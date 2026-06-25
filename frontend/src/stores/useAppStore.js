@@ -98,13 +98,11 @@ const useAppStore = create(
       selectedMarkerId: null,      // string | null
       setSelectedMarkerId: (id) => set({ selectedMarkerId: id }),
 
-      // ── 2단 스냅 (지도 40% ↔ 대시보드 60%) ────────────────────────────
-      snapMode: 'default',           // 'default' | 'dashboard' | 'map'
-      setSnapMode: (m) => set({ snapMode: m }),
-      toggleSnap: () =>
-        set((s) => ({
-          snapMode: s.snapMode === 'dashboard' ? 'default' : 'dashboard',
-        })),
+      // ── 지도 전체화면 토글 (시안2: 컴팩트 띠 ↔ 전체 지도) ──────────────
+      // 구 snapMode는 backward compat용으로 남겨둔다 (persist migrate에서 정리됨).
+      mapExpanded: false,
+      toggleMapExpanded: () => set((s) => ({ mapExpanded: !s.mapExpanded })),
+      setMapExpanded: (v) => set({ mapExpanded: v }),
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
       favorites: { routes: [], stations: [] },

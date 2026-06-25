@@ -98,7 +98,7 @@ export default function PWAInstallBanner() {
             {/* Close button */}
             <button
               onClick={handleIOSModalClose}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4 text-mute hover:text-ink-2"
               aria-label="닫기"
             >
               <X size={20} />
@@ -113,15 +113,15 @@ export default function PWAInstallBanner() {
               <span className="text-white font-black text-xl">TU</span>
             </div>
 
-            <h2 className="text-center font-bold text-gray-900 text-lg mb-1">
+            <h2 className="text-center font-bold text-ink text-lg mb-1">
               홈 화면에 추가
             </h2>
-            <p className="text-center text-sm text-gray-500 mb-5">
+            <p className="text-center text-sm text-mute mb-5">
               탈것:정왕을 홈 화면에 추가하면 앱처럼 빠르게 사용할 수 있어요.
             </p>
 
             {/* Steps */}
-            <ol className="space-y-3 text-sm text-gray-700">
+            <ol className="space-y-3 text-sm text-ink-2">
               <li className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"

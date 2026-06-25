@@ -10,7 +10,6 @@
 
 const ACCENT = '#102c4c'
 const MUTED = '#cbd5e1'
-const MUTED_DARK = '#64748b'
 
 export default function RouteSpine({ leftLabel, rightLabel, activeSide = 'right' }) {
   const arrowRight = activeSide === 'right'
@@ -28,7 +27,7 @@ export default function RouteSpine({ leftLabel, rightLabel, activeSide = 'right'
             style={{ background: MUTED, top: '50%', transform: 'translateY(-50%)' }}
           />
           <span
-            className="relative mx-auto text-[12px] font-bold px-1.5 bg-white dark:bg-[#272a33]"
+            className="relative mx-auto text-label font-bold px-1.5 bg-surface dark:bg-surface-dark"
             style={{ color: ACCENT }}
           >
             {arrowRight ? '→' : '←'}
@@ -40,9 +39,9 @@ export default function RouteSpine({ leftLabel, rightLabel, activeSide = 'right'
         />
       </div>
 
-      <div className="flex justify-between mt-1 text-[11px] font-semibold">
-        <span style={{ color: arrowRight ? MUTED_DARK : ACCENT }}>{leftLabel}</span>
-        <span style={{ color: arrowRight ? ACCENT : MUTED_DARK }}>{rightLabel}</span>
+      <div className="flex justify-between mt-1 text-caption font-semibold">
+        <span className={arrowRight ? 'text-mute dark:text-mute-dark' : 'text-ink dark:text-ink-dark'}>{leftLabel}</span>
+        <span className={arrowRight ? 'text-ink dark:text-ink-dark' : 'text-mute dark:text-mute-dark'}>{rightLabel}</span>
       </div>
     </div>
   )

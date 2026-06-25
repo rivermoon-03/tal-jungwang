@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, ArrowDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
-import useUserLocation, { getNearestStation } from '../../hooks/useUserLocation'
+import useBusStationAutoSelect from '../../hooks/useBusStationAutoSelect'
 import ModeTabs from './ModeTabs'
 import StationPills from './StationPills'
 import BusPanel from '../summary/BusPanel'
@@ -10,54 +9,45 @@ import SubwayPanel from '../summary/SubwayPanel'
 import ShuttlePanel from '../summary/ShuttlePanel'
 import TaxiPanel from '../summary/TaxiPanel'
 import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
-import { BUS_STATION_LABELS, getAllowedDirections, getDefaultDirection } from './busStationConfig'
+import StationChips from '../ui/StationChips.jsx'
+import { BUS_STATION_LABELS, getAllowedDirections } from './busStationConfig'
 
 /**
- * Dashboard — 스냅 하단 영역. 모드 탭 + 정류장 pill + 활성 패널 렌더.
+ * Dashboard — 스냅 하단 영역. 모드 탭 + 정류장 chip + 활성 패널 렌더.
  *
  * 스토어에서 selectedMode만 구독한다. 패널들은 자체적으로
  * selectedBusStation/selectedBusDirection / selectedSubwayStation 등을 구독한다.
  *
  * 높이는 부모(MainShell)가 제어하므로 자체적으로 overflow-auto 한다.
  */
+const DIRECTION_ITEMS = [
+  { id: '등교', label: '등교' },
+  { id: '하교', label: '하교' },
+]
+
 function DirectionToggle() {
   const { direction } = useEffectiveDirection()
   const selectedBusStation  = useAppStore((s) => s.selectedBusStation)
   const setDirectionOverride = useAppStore((s) => s.setDirectionOverride)
   const setBusStation        = useAppStore((s) => s.setBusStation)
 
-  function handleSelect(full) {
-    setDirectionOverride(full)
+  function handleSelect(id) {
+    setDirectionOverride(id)
     // 현재 정류장이 새 방향을 허용하지 않으면 해당 방향의 첫 번째 정류장으로 이동
-    if (!getAllowedDirections(selectedBusStation).includes(full)) {
-      const next = BUS_STATION_LABELS.find((s) => getAllowedDirections(s).includes(full))
+    if (!getAllowedDirections(selectedBusStation).includes(id)) {
+      const next = BUS_STATION_LABELS.find((s) => getAllowedDirections(s).includes(id))
       if (next) setBusStation(next)
     }
   }
 
   return (
-    <div className="flex items-center gap-1 shrink-0">
-      {[
-        { full: '등교', Icon: ArrowUp },
-        { full: '하교', Icon: ArrowDown },
-      ].map(({ full, Icon }) => {
-        const active = direction === full
-        return (
-          <button
-            key={full}
-            type="button"
-            onClick={() => handleSelect(full)}
-            className={`flex items-center gap-1 h-8 px-2.5 rounded-full text-[13px] font-bold leading-none transition-colors pressable
-              ${active
-                ? 'bg-navy text-white dark:bg-blue-600'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-              }`}
-          >
-            <Icon size={12} aria-hidden="true" />
-            <span>{full}</span>
-          </button>
-        )
-      })}
+    <div className="shrink-0">
+      <StationChips
+        variant="direction"
+        items={DIRECTION_ITEMS}
+        active={direction}
+        onChange={handleSelect}
+      />
     </div>
   )
 }
@@ -68,10 +58,8 @@ export default function Dashboard() {
   const selectedSubwayStation = useAppStore((s) => s.selectedSubwayStation)
   const selectedShuttleCampus = useAppStore((s) => s.selectedShuttleCampus)
 
-  const coords = useUserLocation()
-  const hasAutoSelected = useAppStore((s) => s.hasAutoSelectedStation)
-  const setHasAutoSelected = useAppStore((s) => s.setHasAutoSelectedStation)
-  const setBusStation = useAppStore((s) => s.setBusStation)
+  // 방향-정류장 정합 보정 + GPS 최근접 자동 선택
+  useBusStationAutoSelect()
 
   const scrollRef = useRef(null)
   const savedScroll = useAppStore((s) => s.dashboardScrollTop)
@@ -85,13 +73,6 @@ export default function Dashboard() {
     // Only restore once on mount; avoid re-triggering on every savedScroll change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    if (!coords || hasAutoSelected) return
-    const nearest = getNearestStation(coords[0], coords[1])
-    if (nearest) setBusStation(nearest)
-    setHasAutoSelected(true)
-  }, [coords, hasAutoSelected, setBusStation, setHasAutoSelected])
 
   let stationValue = null
   if (selectedMode === 'bus') {

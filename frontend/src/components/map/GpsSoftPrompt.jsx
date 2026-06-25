@@ -48,7 +48,7 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
 
   return (
     <div
-      className="absolute bottom-24 left-1/2 z-[80] bg-white dark:bg-[#272a33] rounded-card shadow-card w-[calc(100%-32px)] max-w-sm -translate-x-1/2"
+      className="absolute bottom-24 left-1/2 z-[80] bg-surface dark:bg-surface-dark rounded-card shadow-card w-[calc(100%-32px)] max-w-sm -translate-x-1/2"
       style={{
         animation: `slideUpFade 0.3s ${EASE} both`,
         padding: '14px 16px',
@@ -61,50 +61,48 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
         }
       `}</style>
 
-      {/* 닫기 버튼 */}
       <button
-        className="absolute top-2 right-2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+        className="absolute top-2 right-2 p-1 rounded-full hover:bg-surface-2 dark:hover:bg-surface-2-dark transition-colors"
         onClick={onClose}
         aria-label="닫기"
       >
-        <X size={14} className="text-slate-400" />
+        <X size={14} className="text-mute dark:text-mute-dark" />
       </button>
 
       <div className="flex items-start gap-3">
-        <span className="text-xl flex-shrink-0 mt-0.5">📍</span>
+        <MapPin size={20} className="text-accent flex-shrink-0 mt-0.5" />
         <div className="flex flex-col gap-2 flex-1">
-          <p className="text-[14px] font-bold text-[#0f172a] dark:text-[#f1f5f9]">
+          <p className="text-body font-bold text-ink dark:text-ink-dark">
             위치 권한이 필요해요
           </p>
 
           {isDenied ? (
-            <p className="text-[12px] text-[#717171] dark:text-[#94a3b8] leading-relaxed">
+            <p className="text-caption text-mute dark:text-mute-dark leading-relaxed">
               브라우저 주소창 왼쪽 자물쇠 아이콘을 탭한 뒤,
               <br />
               <strong>위치 → 허용</strong>으로 변경해 주세요.
             </p>
           ) : (
-            <p className="text-[12px] text-[#717171] dark:text-[#94a3b8]">
+            <p className="text-caption text-mute dark:text-mute-dark">
               도보 시간 계산과 탑승 가능 여부 확인에 사용돼요.
             </p>
           )}
 
           {error && !isDenied && (
-            <p className="text-[11px] text-red-500">{error}</p>
+            <p className="text-caption text-imminent dark:text-imminent-dark">{error}</p>
           )}
 
           {!isDenied && (
             <div className="flex gap-2 mt-1">
               <button
-                className="flex-1 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-60"
-                style={{ background: '#102c4c' }}
+                className="flex-1 py-2 rounded-xl text-label font-semibold text-white bg-accent disabled:opacity-60"
                 onClick={handleAllow}
                 disabled={loading}
               >
                 {loading ? '요청 중…' : '허용하기'}
               </button>
               <button
-                className="flex-1 py-2 rounded-xl text-[13px] font-semibold text-[#717171] dark:text-[#94a3b8] border border-[#ebebeb] dark:border-[#3a3e48] bg-white dark:bg-[#272a33]"
+                className="flex-1 py-2 rounded-xl text-label font-semibold text-mute dark:text-mute-dark border border-line dark:border-line-dark bg-surface dark:bg-surface-dark"
                 onClick={onClose}
               >
                 나중에
@@ -127,9 +125,7 @@ export function useGpsSoftPrompt() {
   const [promptState, setPromptState] = useState('idle')
 
   async function checkAndShow() {
-    // navigator.permissions API 지원 여부 확인
     if (!navigator.permissions?.query) {
-      // 지원 안 하면 바로 getCurrentPosition 시도 — prompt 상태로 간주
       setPromptState('prompt')
       return
     }
@@ -138,10 +134,9 @@ export function useGpsSoftPrompt() {
       if (result.state === 'granted') {
         setPromptState('granted')
       } else {
-        setPromptState(result.state) // 'prompt' | 'denied'
+        setPromptState(result.state)
       }
     } catch {
-      // 조회 실패 시 prompt로 처리
       setPromptState('prompt')
     }
   }
