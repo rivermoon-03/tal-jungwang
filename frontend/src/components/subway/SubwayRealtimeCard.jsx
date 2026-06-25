@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { Star } from 'lucide-react';
 import useFavorites from '../../hooks/useFavorites';
 import StatusChip from '../ui/StatusChip';
@@ -153,7 +153,7 @@ function isEtaImminent(train) {
   return false
 }
 
-export function RealtimeSlot({ train, dir, align, onClick }) {
+export const RealtimeSlot = memo(function RealtimeSlot({ train, dir, align, onClick }) {
   const statusInfo = train ? getStatusInfo(train.status_code) : null
   let label = arrivalLabel(train)
   const isOidoWait = train?.line === '4호선' && train?.direction === '상행' && train?.status_code === 5 && (train?.location_msg?.includes('오이도') || train?.current_station === '오이도')
@@ -222,7 +222,7 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
       )}
     </div>
   )
-}
+})
 
 /**
  * @param {object} props
@@ -231,7 +231,7 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
  * @param {boolean} [props.stale]     실시간 데이터가 3분 이상 지연됐거나 fallback인 상태.
  * @param {string}  [props.staleSource]  stale 판정용 ISO8601 시각 (recptn_dt 또는 last_success).
  */
-export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrain, lastFetchedAt, onTrainClick, stationName, demoted = false, stale = false, staleSource = null }) {
+export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrain, lastFetchedAt, onTrainClick, stationName, demoted = false, stale = false, staleSource = null }) {
   const favKey = makeSubwayFavKey(lineName, stationName)
   const { isFavorite, toggle: toggleFav } = useFavorites(favKey)
   const upStatus = upTrain ? getStatusInfo(upTrain.status_code) : null
@@ -334,4 +334,4 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
       )}
     </div>
   )
-}
+})

@@ -220,13 +220,19 @@ export default function MapView({ onMarkerClick, selectedId }) {
     '5602-out': bus5602OutMinutes, '5602-in': bus5602InMinutes,
   }), [bus3400OutMinutes, bus3400InMinutes, bus6502OutMinutes, bus6502InMinutes, bus3401OutMinutes, bus3401InMinutes, bus5602OutMinutes, bus5602InMinutes])
 
-  // MANAGED_STATIONS — DB(map_markers) 기반 + 라이브 데이터 주입
-  const managedStations = useMemo(() => {
+  // ── STATIC 레이어 (#7a): markersData에만 의존 ──────────────────
+  // 위치·정적 메타·라우팅·mirror map·isLocalHub·relatedMarkers 등 분 단위로 변하지 않는 구조.
+  // markersData는 앱 기동 시 1회 fetch(SW SWR)라 사실상 불변 → 이 참조가 안정화되어
+  // 매 tick 라이브 갱신에서 이 무거운 계산(map·mirror 탐색)이 재실행되지 않는다.
+  const staticStationData = useMemo(() => {
     const list = markersData?.markers ?? []
 
-    // Pass 1: (route_number, outbound_stop_id) → marker key (bus_seoul 간 mirror 탐색용)
+    // (route_number, outbound_stop_id) → marker key (bus_seoul 간 mirror 탐색용)
     const routeOutboundToKey = new Map()
+    // key → raw marker (mirror 이름 조회를 O(1)로; 기존 list.find O(n) 이중 루프 제거)
+    const markerByKey = new Map()
     for (const m of list) {
+      markerByKey.set(m.key, m)
       if (m.type !== 'bus_seoul') continue
       for (const r of m.routes ?? []) {
         if (r.outbound_stop_id != null)
@@ -253,37 +259,23 @@ export default function MapView({ onMarkerClick, selectedId }) {
         iconType: ui.iconType,
         subLabelSep: ui.subLabelSep,
       }
+
       if (m.type === 'shuttle') {
-        const isReturnTrip = ui.direction === 0 && !!(shuttleToSchoolData?.note?.includes('회차편'))
-        // note 예: "회차편 · 학교 21:20 출발" → HH:MM 추출
-        const noteMatch = isReturnTrip ? shuttleToSchoolData?.note?.match(/(\d{2}:\d{2})/) : null
-        const departTime = noteMatch ? noteMatch[1] : null
-        const liveMinsByDir = {
-          0: shuttleToSchoolMins,
-          1: shuttleFromSchoolMins,
-          2: shuttleToCampus2Mins,
-          3: shuttleFromCampus2Mins,
-        }
         return {
           ...base,
           iconType: ui.iconType ?? 'bus',
           direction: ui.direction,
-          liveMinutes: isReturnTrip ? null : (liveMinsByDir[ui.direction] ?? null),
-          showLive: isReturnTrip ? false : (ui.showLive ?? false),
-          subLabel: isReturnTrip && departTime ? `하교 ${departTime} 출발` : null,
+          showLive: ui.showLive ?? false,
         }
       }
       if (m.type === 'subway') {
-        return { ...base, chipVariant: ui.chipVariant ?? 'subwayMulti', liveMinutes: subwayLiveMinutes, subwayData: subwayNextData }
+        return { ...base, chipVariant: ui.chipVariant ?? 'subwayMulti' }
       }
       if (m.type === 'bus') {
-        const busArrivalLabel = busLiveMinutes != null ? `정왕역 ${busLiveMinutes}분` : '정왕역'
         return {
           ...base,
           iconType: ui.iconType ?? 'bus',
-          subLabel: ui.subLabel ?? busArrivalLabel,
           subLabelSep: ui.subLabelSep ?? '|',
-          liveMinutes: busLiveMinutes,
           primaryStopGbisId: ui.primaryStopGbisId ?? null,
           routes: m.routes ?? [],
         }
@@ -291,30 +283,16 @@ export default function MapView({ onMarkerClick, selectedId }) {
       if (m.type === 'seohae') {
         // ui_meta.tabId가 DB에 없으면 마커 key로 추론
         const tabId = ui.tabId ?? (m.key.includes('choji') ? 'choji' : 'siheung')
-        const mins = tabId === 'choji' ? chojiMinutes : siheungMinutes
-        // 시흥시청: 확대 시 역명/상행↑/하행↓/가장 빠른 버스 4줄 chip
         if (tabId === 'siheung') {
-          return {
-            ...base,
-            tabId,
-            liveMinutes: mins,
-            routes: m.routes ?? [],
-            chipVariant: 'seohaeSiheung',
-            upMinutes:   siheungUpMinutes,
-            dnMinutes:   siheungDnMinutes,
-            earliestBus: siheungEarliestBus,
-          }
+          return { ...base, tabId, routes: m.routes ?? [], chipVariant: 'seohaeSiheung' }
         }
-        return { ...base, tabId, liveMinutes: mins, routes: m.routes ?? [] }
+        return { ...base, tabId, routes: m.routes ?? [] }
       }
       if (m.type === 'bus_seoul') {
         const primary = m.routes?.[0] ?? null
         const pUi = primary?.ui_meta ?? {}
         const routeNums = (m.routes ?? []).map((r) => r.route_number)
         const isMultiRoute = routeNums.length > 1
-        const outMins = (m.routes ?? [])
-          .map((r) => liveMinByRouteDir[`${r.route_number}-out`])
-          .filter((v) => v != null)
 
         // 로컬 허브 (bus_hub_jw_*): outbound only, 서울 마커 링크 버튼 제공
         const isLocalHub = m.key.startsWith('bus_hub_jw_')
@@ -326,7 +304,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           if (r.inbound_stop_id == null) continue
           const mirrorKey = routeOutboundToKey.get(`${r.route_number}:${r.inbound_stop_id}`)
           if (mirrorKey && mirrorKey !== m.key && !seenRelated.has(mirrorKey)) {
-            const raw = list.find((x) => x.key === mirrorKey)
+            const raw = markerByKey.get(mirrorKey)
             if (raw) { seenRelated.add(mirrorKey); relatedMarkers.push({ key: mirrorKey, name: raw.name }) }
           }
         }
@@ -339,7 +317,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           // 다중 노선 허브 → 시간 대신 "6502 외 N대" 형식 표시
           subLabel: isMultiRoute ? `${routeNums[0]} 외 ${routeNums.length - 1}대` : null,
           showLive: !isMultiRoute,
-          liveMinutes: !isMultiRoute && outMins.length ? Math.min(...outMins) : null,
+          isMultiRoute,
           // 방향 토글은 허브 수준 — 첫 노선의 spine 사용
           spineLeft: pUi.spineLeft,
           spineRight: pUi.spineRight,
@@ -361,7 +339,61 @@ export default function MapView({ onMarkerClick, selectedId }) {
       }
       return base
     })
-  }, [markersData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, shuttleToCampus2Mins, shuttleFromCampus2Mins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, siheungUpMinutes, siheungDnMinutes, siheungEarliestBus, liveMinByRouteDir])
+  }, [markersData])
+
+  // ── LIVE 레이어 (#7a): 분 단위 변동 값만 정적 구조에 주입 ───────
+  // staticStationData(안정 참조)를 받아 라이브 필드만 덧씌운다. 60초 tick마다 새 배열이지만
+  // 무거운 구조 계산은 위 useMemo가 캐시하므로 여기서는 얕은 병합만 일어난다.
+  const managedStations = useMemo(() => {
+    const liveMinsByShuttleDir = {
+      0: shuttleToSchoolMins,
+      1: shuttleFromSchoolMins,
+      2: shuttleToCampus2Mins,
+      3: shuttleFromCampus2Mins,
+    }
+    return staticStationData.map((s) => {
+      if (s.type === 'shuttle') {
+        const isReturnTrip = s.direction === 0 && !!(shuttleToSchoolData?.note?.includes('회차편'))
+        // note 예: "회차편 · 학교 21:20 출발" → HH:MM 추출
+        const noteMatch = isReturnTrip ? shuttleToSchoolData?.note?.match(/(\d{2}:\d{2})/) : null
+        const departTime = noteMatch ? noteMatch[1] : null
+        return {
+          ...s,
+          liveMinutes: isReturnTrip ? null : (liveMinsByShuttleDir[s.direction] ?? null),
+          showLive: isReturnTrip ? false : s.showLive,
+          subLabel: isReturnTrip && departTime ? `하교 ${departTime} 출발` : null,
+        }
+      }
+      if (s.type === 'subway') {
+        return { ...s, liveMinutes: subwayLiveMinutes, subwayData: subwayNextData }
+      }
+      if (s.type === 'bus') {
+        const busArrivalLabel = busLiveMinutes != null ? `정왕역 ${busLiveMinutes}분` : '정왕역'
+        return { ...s, subLabel: s.subLabel ?? busArrivalLabel, liveMinutes: busLiveMinutes }
+      }
+      if (s.type === 'seohae') {
+        const mins = s.tabId === 'choji' ? chojiMinutes : siheungMinutes
+        if (s.tabId === 'siheung') {
+          return {
+            ...s,
+            liveMinutes: mins,
+            upMinutes:   siheungUpMinutes,
+            dnMinutes:   siheungDnMinutes,
+            earliestBus: siheungEarliestBus,
+          }
+        }
+        return { ...s, liveMinutes: mins }
+      }
+      if (s.type === 'bus_seoul') {
+        if (s.isMultiRoute) return s
+        const outMins = (s.routes ?? [])
+          .map((r) => liveMinByRouteDir[`${r.route_number}-out`])
+          .filter((v) => v != null)
+        return { ...s, liveMinutes: outMins.length ? Math.min(...outMins) : null }
+      }
+      return s
+    })
+  }, [staticStationData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, shuttleToCampus2Mins, shuttleFromCampus2Mins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, siheungUpMinutes, siheungDnMinutes, siheungEarliestBus, liveMinByRouteDir])
 
   // selectedMode에 따라 학교방향 chip + G(extraPillText) chip 노출 필터링
   // - taxi: 관리형 정류장 마커(학교방향 chip 포함) 전체 숨김
@@ -741,15 +773,37 @@ export default function MapView({ onMarkerClick, selectedId }) {
   }, [activeTab])
 
   // 컨테이너 크기 변화 감지 → 카카오맵 relayout.
-  // 모바일 스냅(지도↔대시보드)이 바뀔 때 CSS transition이 끝날 때까지 사이즈가
-  // 여러 프레임에 걸쳐 변하므로 ResizeObserver가 그때마다 relayout을 호출해준다.
+  // 모바일 스냅(지도↔대시보드)이 바뀔 때 CSS height transition(240ms)이 끝날 때까지 사이즈가
+  // 여러 프레임에 걸쳐 변한다. ResizeObserver가 매 프레임 동기 relayout()을 호출하면
+  // 전환 한 번에 reflow가 14프레임 연속 터진다(#7b).
+  // → requestAnimationFrame으로 코얼레싱하여 한 프레임에 최대 1회만 relayout하고,
+  //   전환 종료(transitionend) 시 최종 1회를 보장한다. (relayout이 일어나는 동작 자체는 유지)
   useEffect(() => {
     if (!mapInstance || !containerRef.current || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => {
-      mapInstance.relayout()
-    })
-    observer.observe(containerRef.current)
-    return () => observer.disconnect()
+    const el = containerRef.current
+    let rafId = null
+    const scheduleRelayout = () => {
+      if (rafId != null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        mapInstance.relayout()
+      })
+    }
+    const observer = new ResizeObserver(scheduleRelayout)
+    observer.observe(el)
+
+    // 전환이 끝난 뒤 최종 사이즈로 한 번 더 보정 (관찰 대상은 부모 컨테이너의 height transition)
+    const onTransitionEnd = (e) => {
+      if (e.propertyName === 'height') scheduleRelayout()
+    }
+    const transitionTarget = el.parentElement
+    transitionTarget?.addEventListener('transitionend', onTransitionEnd)
+
+    return () => {
+      observer.disconnect()
+      transitionTarget?.removeEventListener('transitionend', onTransitionEnd)
+      if (rafId != null) cancelAnimationFrame(rafId)
+    }
   }, [mapInstance])
 
   // 독 버튼/지도에서 보기 요청 pan — mapInstance 준비 이후 반드시 실행

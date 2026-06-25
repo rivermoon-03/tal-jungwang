@@ -69,6 +69,7 @@ export default function MarkerSheet({
   const [expanded, setExpanded] = useState(false)
   const [visible, setVisible] = useState(false)
   const sheetRef = useRef(null)
+  const closeTimerRef = useRef(null)
 
   // 즐겨찾기
   const favorites = useAppStore((s) => s.favorites)
@@ -82,6 +83,9 @@ export default function MarkerSheet({
     const raf = requestAnimationFrame(() => setVisible(true))
     return () => cancelAnimationFrame(raf)
   }, [])
+
+  // 언마운트 시 stale 타이머 정리
+  useEffect(() => () => clearTimeout(closeTimerRef.current), [])
 
   // 포인터 드래그
   const dragStartY = useRef(null)
@@ -103,7 +107,7 @@ export default function MarkerSheet({
 
   function handleClose() {
     setVisible(false)
-    setTimeout(onClose, 320)
+    closeTimerRef.current = setTimeout(onClose, 320)
   }
 
   if (!station) return null

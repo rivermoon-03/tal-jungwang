@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, memo } from 'react'
 import { Star } from 'lucide-react'
 import {
   getRouteDisplayConfig,
@@ -144,7 +144,7 @@ function computeDisplay(arrivals) {
 // 카드
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation = null }) {
+function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation = null }) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
   const cfg = getRouteDisplayConfig(first.route_no)
@@ -301,3 +301,5 @@ export default function BusArrivalCard({ arrivals, stationId, onTimetableClick, 
     </div>
   )
 }
+
+export default memo(BusArrivalCard)

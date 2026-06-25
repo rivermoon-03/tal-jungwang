@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import useAppStore from '../../stores/useAppStore'
 import { nextTimetableSeconds } from '../../utils/trainTime'
@@ -164,7 +164,7 @@ function ArrivalTime({ item, timetableTrains }) {
   )
 }
 
-function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
+const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
   const imminent = isImminent(item.status_code)
   const darkMode = useAppStore((s) => s.darkMode)
   const [secondsAgo, setSecondsAgo] = useState(0)
@@ -250,9 +250,9 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
       )}
     </div>
   )
-}
+})
 
-function Section({ lineName, color, items, lastFetchedAt, onRowClick, timetableLookup }) {
+const Section = memo(function Section({ lineName, color, items, lastFetchedAt, onRowClick, timetableLookup }) {
   if (items.length === 0) return null
   return (
     <div>
@@ -271,7 +271,7 @@ function Section({ lineName, color, items, lastFetchedAt, onRowClick, timetableL
       ))}
     </div>
   )
-}
+})
 
 /**
  * @param {Array} arrivals  실시간 도착 목록
@@ -282,7 +282,7 @@ function Section({ lineName, color, items, lastFetchedAt, onRowClick, timetableL
  * @param {boolean} [stale]  envelope.stale: 직전 성공 응답을 fallback으로 보여주는 상태.
  * @param {string|null} [lastSuccessfulRealtimeAt]  ISO8601 KST.
  */
-export default function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClick, timetableLookup, stale, lastSuccessfulRealtimeAt }) {
+const SubwayRealtimeBoard = memo(function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClick, timetableLookup, stale, lastSuccessfulRealtimeAt }) {
   if (!arrivals || arrivals.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-meta font-semibold text-mute dark:text-mute-dark">
@@ -310,4 +310,6 @@ export default function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClic
       <Section lineName="서해선" color="#75bf43" items={seohae} lastFetchedAt={lastFetchedAt} onRowClick={onRowClick} timetableLookup={timetableLookup} />
     </div>
   )
-}
+})
+
+export default SubwayRealtimeBoard
