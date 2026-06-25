@@ -48,13 +48,11 @@ def _is_private(ip: str) -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
+    from app.core.cache_warmer import warm_static
     from app.services.bus_collector import poll_and_collect
-    from app.services.map_markers import get_markers
-    from app.services.shuttle import get_schedule
     from app.services.subway import needs_refresh, refresh_timetable
     from app.services.weather import refresh_weather_cache
     from app.core.database import AsyncSessionLocal
-    from datetime import date
 
     import os
     _readonly = os.getenv("DISABLE_SCHEDULER", "").lower() in ("1", "true", "yes")
@@ -89,20 +87,14 @@ async def lifespan(app: FastAPI):
             except Exception:
                 logger.exception("초기 지하철 시간표 로드 실패")
 
-        # 셔틀·마커 캐시 워밍업 (cache-aside 항목, 첫 사용자 cold miss 방지)
+        # 정적/준정적 캐시 워밍업 (cache-aside 항목, 첫 사용자 cold miss 방지).
+        # 셔틀·지하철 시간표·지도 마커·버스 시간표를 한 번에 적재한다.
         try:
             async with AsyncSessionLocal() as db:
-                await get_schedule(db, date.today(), None)
-                logger.info("초기 셔틀 시간표 캐시 완료")
+                summary = await warm_static(db)
+                logger.info("초기 정적 캐시 워밍 완료: %s", summary)
         except Exception:
-            logger.exception("초기 셔틀 캐시 로드 실패")
-
-        try:
-            async with AsyncSessionLocal() as db:
-                await get_markers(db)
-                logger.info("초기 지도 마커 캐시 완료")
-        except Exception:
-            logger.exception("초기 마커 캐시 로드 실패")
+            logger.exception("초기 정적 캐시 워밍 실패")
 
     asyncio.create_task(_initial_tasks())
 
