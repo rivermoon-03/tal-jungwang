@@ -1,318 +1,319 @@
 /**
  * CafeteriaPage — /cafeteria 페이지 (학식)
- * 한국공학대 TIP 학생식당 + E동 레스토랑 주간 식단표.
+ * 백엔드 형식: week_start, year, fetched_at, cafeterias[{ name, meals[{ type, time, by_day }] }]
+ *
+ * 상단 메인 탭: [식단 | 운영정보]
+ *   - 식단: 시안1 메뉴 그리드 레이아웃
+ *   - 운영정보: CafeteriaVenues 컴포넌트
  */
 import { useMemo, useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
 import SegmentTabs from '../components/common/SegmentTabs'
-import EmptyState from '../components/common/EmptyState'
-import ErrorState from '../components/common/ErrorState'
+import StationChips from '../components/ui/StationChips'
+import EmptyState from '../components/ui/EmptyState'
+import ErrorState from '../components/ui/ErrorState'
+import CafeteriaVenues from '../components/cafeteria/CafeteriaVenues'
 import { useCafeteriaMenu } from '../hooks/useCafeteria'
+import {
+  buildDayLabelMap,
+  getTodayDayKey,
+  getFirstDayKey,
+  extractDayKeys,
+  isKstWeekend,
+  hasDayMenu,
+  getNearestMenuDayKey,
+} from '../utils/cafeteriaDays'
 
-const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토']
+// 메인 탭 정의
+const MAIN_TABS = [
+  { id: 'diet', label: '식단' },
+  { id: 'venues', label: '운영정보' },
+]
 
-// "5.11" + 연도 + 요일 인덱스 → 'D'(day) 키
-function dayKeyForToday(weekStart, year) {
-  if (!weekStart || !year) return null
-  const [mStr, dStr] = weekStart.split('.')
-  const m = Number(mStr)
-  const d = Number(dStr)
-  if (!m || !d) return null
-  const monday = new Date(year, m - 1, d)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const diffDays = Math.floor((today - monday) / 86400000)
-  // 0..5 (월~토). 일요일/주차 밖이면 null
-  if (diffDays < 0 || diffDays > 5) return null
-  return String(d + diffDays)
-}
-
+/**
+ * fetched_at ISO → "HH:MM 갱신" 문자열
+ */
 function formatUpdated(iso) {
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  const yy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
   const hh = String(d.getHours()).padStart(2, '0')
   const mi = String(d.getMinutes()).padStart(2, '0')
-  return `${yy}.${mm}.${dd} ${hh}:${mi} 갱신`
+  return `${hh}:${mi} 갱신`
 }
 
-function dayLabelFromMonth(monthNum, dayKey) {
-  const d = Number(dayKey)
-  if (!Number.isFinite(d) || !monthNum) return `${dayKey}일`
-  const date = new Date(new Date().getFullYear(), monthNum - 1, d)
-  const wd = WEEKDAY_KO[date.getDay()]
-  return `${d}일 (${wd})`
+/**
+ * 빈 메뉴 여부 판정 — 빈 배열 또는 ["미운영"] 단독
+ */
+function isEmptyMenu(items) {
+  if (!items || items.length === 0) return true
+  if (items.length === 1 && items[0] === '미운영') return true
+  return false
 }
 
-// "*복수메뉴*" 같은 안내 마커는 xlsx 원본에서 메뉴 셀에 그대로 들어 있다.
-// 메뉴 항목이 아닌 메타 안내라 헤더 옆 배지로 빼서 보여준다.
-const NOTE_MARKER_RE = /^\*([^*]+)\*$/
-
-// 천원의 아침밥은 "①코너" / "②코너" 같은 구분이 메뉴 항목 사이에 끼어 있다.
-// 메뉴가 아니라 섹션 헤더이므로 별도로 묶어준다.
-const CORNER_HEADER_RE = /^([①-⑳])\s*코너$/
-
-function partitionItems(items) {
-  const notes = []
-  const cleaned = []
-  for (const it of items) {
-    const m = NOTE_MARKER_RE.exec(it)
-    if (m) notes.push(m[1].trim())
-    else cleaned.push(it)
-  }
-  return { notes, cleaned }
-}
-
-function partitionCorners(items) {
-  const sections = []
-  let current = null
-  let preCorner = null
-  let hasCorner = false
-  for (const it of items) {
-    const m = CORNER_HEADER_RE.exec(it)
-    if (m) {
-      hasCorner = true
-      current = { digit: m[1], label: `${m[1]} 코너`, items: [] }
-      sections.push(current)
-    } else if (current) {
-      current.items.push(it)
-    } else {
-      if (!preCorner) preCorner = { digit: null, label: null, items: [] }
-      preCorner.items.push(it)
-    }
-  }
-  if (preCorner) sections.unshift(preCorner)
-  return { hasCorner, sections }
-}
-
-function MealCard({ meal, dayKey }) {
+/**
+ * 시안1: 카드 그리드 메뉴 섹션
+ * 메인 메뉴(앞 2개)는 강조 타일, 나머지는 일반 타일
+ */
+function MealGridSection({ meal, dayKey }) {
   const rawItems = meal.by_day?.[dayKey] ?? []
-  const { notes, cleaned } = partitionItems(rawItems)
-  const { hasCorner, sections } = partitionCorners(cleaned)
-  const isOff = cleaned.length === 0 && notes.length === 0
-    || (cleaned.length === 1 && cleaned[0] === '미운영')
+  const empty = isEmptyMenu(rawItems)
+  const menuItems = empty ? [] : rawItems
 
   return (
-    <section
-      style={{
-        padding: 14,
-        borderRadius: 14,
-        border: '1px solid var(--tj-line)',
-        background: 'transparent',
-      }}
-    >
-      <header style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--tj-ink)', letterSpacing: '-0.01em' }}>
+    <div className="mb-5">
+      {/* 섹션 헤더: type + time */}
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-[17px] font-extrabold text-ink leading-tight">
           {meal.type}
         </span>
         {meal.time && (
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tj-mute)' }}>{meal.time}</span>
+          <span className="text-[13px] text-mute">{meal.time}</span>
         )}
-        {notes.map((note) => (
-          <span
-            key={note}
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              padding: '2px 7px',
-              borderRadius: 999,
-              background: 'var(--tj-line-soft)',
-              color: 'var(--tj-mute)',
-              letterSpacing: '-0.01em',
-              lineHeight: 1.4,
-            }}
-          >
-            {note}
-          </span>
-        ))}
-      </header>
+      </div>
 
-      {isOff ? (
-        <p style={{ fontSize: 13, color: 'var(--tj-mute-2)' }}>미운영</p>
-      ) : hasCorner ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {sections.map((sec, si) => (
-            <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {sec.label && (
-                <div>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '3px 9px 3px 7px',
-                      borderRadius: 999,
-                      background: 'rgba(79, 159, 255, 0.10)',
-                      border: '1px solid rgba(79, 159, 255, 0.22)',
-                      lineHeight: 1,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 900,
-                        color: 'var(--tj-accent)',
-                        lineHeight: 1,
-                      }}
-                    >
-                      {sec.digit}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: 'var(--tj-accent)',
-                        letterSpacing: '-0.01em',
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      코너
-                    </span>
-                  </span>
-                </div>
-              )}
-              <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: 0, padding: 0, listStyle: 'none' }}>
-                {sec.items.map((item, i) => (
-                  <li
-                    key={`${item}-${i}`}
-                    style={{ fontSize: 13, fontWeight: 600, color: 'var(--tj-ink)', lineHeight: 1.4 }}
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+      {/* 빈 상태 */}
+      {empty ? (
+        <p className="text-body text-mute py-2">오늘은 운영하지 않아요</p>
       ) : (
-        <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: 0, padding: 0, listStyle: 'none' }}>
-          {cleaned.map((item, i) => (
-            <li
-              key={`${item}-${i}`}
-              style={{ fontSize: 13, fontWeight: 600, color: 'var(--tj-ink)', lineHeight: 1.4 }}
-            >
-              {item}
-            </li>
-          ))}
-        </ul>
+        <div
+          data-testid="menu-grid"
+          className="grid grid-cols-2 gap-[10px]"
+        >
+          {menuItems.map((item, i) => {
+            const isMain = i < 2
+            return (
+              <div
+                key={`${item}-${i}`}
+                className={[
+                  'rounded-[14px] px-[14px] py-4 flex items-center min-h-[64px]',
+                  isMain
+                    ? 'bg-accent-bg border border-accent-bg'
+                    : 'bg-surface border border-line',
+                ].join(' ')}
+              >
+                <span
+                  className={[
+                    'text-[16px] leading-snug',
+                    isMain
+                      ? 'font-extrabold text-accent'
+                      : 'font-semibold text-ink',
+                  ].join(' ')}
+                >
+                  {item}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       )}
-    </section>
+    </div>
   )
 }
 
 export default function CafeteriaPage() {
-  const { data, loading, error } = useCafeteriaMenu()
+  const { data, loading, error, refetch } = useCafeteriaMenu()
 
-  const month = useMemo(() => {
-    const wk = data?.week_start
-    if (!wk) return null
-    return Number(wk.split('.')[0]) || null
-  }, [data?.week_start])
-
-  const dayKeys = useMemo(() => {
-    if (!data?.cafeterias?.length) return []
-    const first = data.cafeterias[0]
-    const sample = first?.meals?.[0]?.by_day ?? {}
-    return Object.keys(sample).sort((a, b) => Number(a) - Number(b))
-  }, [data])
+  // 메인 탭: 식단(diet) / 운영정보(venues)
+  const [mainTab, setMainTab] = useState('venues')
 
   const [selectedCafeteriaIdx, setSelectedCafeteriaIdx] = useState(0)
   const [selectedDay, setSelectedDay] = useState(null)
 
+  // 첫 번째 cafeteria 기준으로 dayKeys 추출
+  const cafeteriaForDays = data?.cafeterias?.[selectedCafeteriaIdx] ?? null
+
+  const dayKeys = useMemo(
+    () => extractDayKeys(cafeteriaForDays),
+    [cafeteriaForDays]
+  )
+
+  // 요일 라벨 맵 구성
+  const dayLabelMap = useMemo(
+    () => buildDayLabelMap(data?.week_start, data?.year, dayKeys),
+    [data?.week_start, data?.year, dayKeys]
+  )
+
+  // 오늘 자동 선택 (KST 기준)
+  // 오늘에 메뉴가 없으면 가장 가까운 메뉴 있는 날로 폴백.
   const effectiveDay = useMemo(() => {
     if (selectedDay && dayKeys.includes(selectedDay)) return selectedDay
-    const today = dayKeyForToday(data?.week_start, data?.year)
-    if (today && dayKeys.includes(today)) return today
-    return dayKeys[0] ?? null
-  }, [selectedDay, dayKeys, data?.week_start, data?.year])
+    const today = getTodayDayKey(data?.week_start, data?.year, dayKeys)
+    if (today && hasDayMenu(cafeteriaForDays, today)) return today
+    // 오늘 메뉴 없거나 오늘이 dayKeys에 없는 경우: 가장 가까운 메뉴 있는 날
+    const nearest = getNearestMenuDayKey(data?.week_start, data?.year, dayKeys, cafeteriaForDays)
+    if (nearest) return nearest
+    // 메뉴 있는 날이 하나도 없으면 첫 번째 날 표시 (미운영 안내라도 보여줌)
+    return getFirstDayKey(dayKeys)
+  }, [selectedDay, dayKeys, data?.week_start, data?.year, cafeteriaForDays])
 
   const cafeteria = data?.cafeterias?.[selectedCafeteriaIdx] ?? null
   const updatedLabel = formatUpdated(data?.fetched_at)
 
+  // 식당 세그먼트 탭 items
+  const cafeteriaTabItems = useMemo(
+    () =>
+      (data?.cafeterias ?? []).map((c, i) => ({
+        id: String(i),
+        label: c.name,
+      })),
+    [data?.cafeterias]
+  )
+
+  // 요일 칩 items (hasMenu: 해당 날 메뉴 존재 여부)
+  const dayChipItems = useMemo(
+    () =>
+      dayKeys.map((dk) => ({
+        id: dk,
+        label: dayLabelMap[dk] ?? `${dk}일`,
+        hasMenu: hasDayMenu(cafeteriaForDays, dk),
+      })),
+    [dayKeys, dayLabelMap, cafeteriaForDays]
+  )
+
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-bg-dark animate-fade-in-up">
+    <div className="flex flex-col h-full bg-surface animate-fade-in-up">
+      {/* 헤더는 에러여도 항상 표시 */}
       <PageHeader title="학식" />
 
+      {/* 갱신 시각 */}
       {updatedLabel && (
-        <p className="px-4 -mt-2 mb-2 text-[11px] text-slate-400 dark:text-slate-500">
+        <p className="px-4 -mt-2 mb-2 text-caption text-mute">
           {updatedLabel}
         </p>
       )}
 
-      {/* 식당 선택 */}
-      {data?.cafeterias?.length > 0 && (
-        <div className="px-4 pb-2">
-          <SegmentTabs
-            size="sm"
-            tabs={data.cafeterias.map((c, i) => ({ id: String(i), label: c.name }))}
-            active={String(selectedCafeteriaIdx)}
-            onChange={(id) => setSelectedCafeteriaIdx(Number(id))}
+      {/* 메인 탭: 식단 / 운영정보 */}
+      <div className="px-4 pb-3">
+        <SegmentTabs
+          tabs={MAIN_TABS}
+          active={mainTab}
+          onChange={setMainTab}
+        />
+      </div>
+
+      {/* 식단 탭 */}
+      {mainTab === 'diet' && (
+        <>
+          {/* 식당 세그먼트 탭 — 에러여도 data가 있으면 표시 */}
+          {cafeteriaTabItems.length > 0 && (
+            <div className="px-4 pb-2">
+              <SegmentTabs
+                tabs={cafeteriaTabItems}
+                active={String(selectedCafeteriaIdx)}
+                onChange={(id) => {
+                  setSelectedCafeteriaIdx(Number(id))
+                  setSelectedDay(null)
+                }}
+              />
+            </div>
+          )}
+
+          {/* 요일 칩 — hasMenu 없는 날은 흐리게 표시 */}
+          {dayChipItems.length > 0 && (
+            <div className="px-4 pb-3 flex-shrink-0 overflow-x-auto">
+              <div className="flex items-center gap-2 overflow-x-auto">
+                {dayChipItems.map((item) => {
+                  const isActive = item.id === effectiveDay
+                  return (
+                    <button
+                      key={item.id}
+                      aria-pressed={isActive}
+                      data-has-menu={item.hasMenu ? 'true' : 'false'}
+                      onClick={() => setSelectedDay(item.id)}
+                      className={[
+                        'inline-flex items-center justify-center',
+                        'h-[38px] px-4 rounded-pill',
+                        'text-label font-semibold whitespace-nowrap select-none',
+                        'transition-colors duration-press',
+                        isActive
+                          ? 'bg-accent-bg text-accent-ink'
+                          : item.hasMenu
+                            ? 'bg-surface-2 text-ink-2'
+                            : 'bg-surface-2 text-ink-2 opacity-40',
+                      ].join(' ')}
+                    >
+                      {item.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 본문 */}
+          <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6">
+            {/* 로딩 스켈레톤 */}
+            {loading && !data && (
+              <div className="flex flex-col gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-28 rounded-[16px] bg-surface-2 animate-pulse"
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* NO_MENU 에러 — 주말/평일 분기 */}
+            {error && !data && error.code === 'NO_MENU' && (
+              isKstWeekend() ? (
+                <EmptyState
+                  title="주말에는 학식을 운영하지 않아요"
+                  desc="평일에 다시 확인해 주세요."
+                />
+              ) : (
+                <EmptyState
+                  title="지금은 등록된 식단이 없어요"
+                  desc="방학 기간이거나 아직 식단이 올라오지 않았을 수 있어요."
+                  action={{ label: '다시 확인', onClick: refetch }}
+                />
+              )
+            )}
+
+            {/* 기타 에러 — onRetry={refetch} 연결 */}
+            {error && !data && error.code !== 'NO_MENU' && (
+              <ErrorState
+                message="식단표를 불러오지 못했어요"
+                onRetry={refetch}
+              />
+            )}
+
+            {/* 데이터 없음 */}
+            {!loading && !error && data && (!cafeteria || cafeteria.meals.length === 0) && (
+              <EmptyState title="현재 등록된 식단이 없어요" />
+            )}
+
+            {/* 시안1: 메뉴 그리드 섹션 */}
+            {cafeteria && effectiveDay && (
+              <div
+                className="flex flex-col animate-fade-in"
+                key={`${selectedCafeteriaIdx}:${effectiveDay}`}
+              >
+                {cafeteria.meals.map((meal, i) => (
+                  <MealGridSection
+                    key={`${meal.type}-${i}`}
+                    meal={meal}
+                    dayKey={effectiveDay}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* 운영정보 탭 */}
+      {mainTab === 'venues' && (
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 md:pb-6">
+          <CafeteriaVenues
+            onVenueClick={(venueId) => {
+              window.history.pushState(null, '', `/cafeteria/${encodeURIComponent(venueId)}`)
+              window.dispatchEvent(new PopStateEvent('popstate'))
+            }}
           />
         </div>
       )}
-
-      {/* 요일 선택 */}
-      {dayKeys.length > 0 && (
-        <div className="px-4 pb-2 flex-shrink-0">
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
-            {dayKeys.map((dk) => {
-              const isActive = dk === effectiveDay
-              return (
-                <button
-                  key={dk}
-                  type="button"
-                  onClick={() => setSelectedDay(dk)}
-                  aria-pressed={isActive}
-                  className="pressable whitespace-nowrap flex-shrink-0"
-                  style={{
-                    padding: '5px 11px',
-                    borderRadius: 999,
-                    border: isActive ? '1.5px solid var(--tj-pill-active-bg)' : '1.5px solid var(--tj-line)',
-                    background: isActive ? 'var(--tj-pill-active-bg)' : 'transparent',
-                    color: isActive ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
-                  }}
-                >
-                  {dayLabelFromMonth(month, dk)}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 본문 */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6">
-        {loading && !data && (
-          <div className="flex flex-col gap-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-28 rounded-[14px] bg-slate-100 dark:bg-surface-dark animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {error && !data && (
-          <ErrorState message="식단표를 불러오지 못했어요" />
-        )}
-
-        {!loading && !error && (!cafeteria || cafeteria.meals.length === 0) && (
-          <EmptyState title="현재 등록된 식단이 없어요" />
-        )}
-
-        {cafeteria && effectiveDay && (
-          <div className="flex flex-col gap-2 animate-fade-in" key={`${selectedCafeteriaIdx}:${effectiveDay}`}>
-            {cafeteria.meals.map((meal, i) => (
-              <MealCard key={`${meal.type}-${i}`} meal={meal} dayKey={effectiveDay} />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   )
 }
