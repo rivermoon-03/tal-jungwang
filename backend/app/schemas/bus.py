@@ -80,3 +80,8 @@ class BusTimetableResponse(BaseModel):
     stop_name: str | None = None
     times: list[str]  # ["07:00", "07:30", ...]
     notes: list[str | None] = []
+    direction_name: str | None = None
+    category: str | None = None
+    origin_stop_name: str | None = None  # 기점 출발 정류장명
+    is_realtime: bool = False
+    gbis_route_id: str | None = None

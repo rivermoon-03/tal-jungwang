@@ -56,7 +56,12 @@ async def lifespan(app: FastAPI):
     from app.core.database import AsyncSessionLocal
     from datetime import date
 
-    start_scheduler()
+    import os
+    _readonly = os.getenv("DISABLE_SCHEDULER", "").lower() in ("1", "true", "yes")
+    if not _readonly:
+        start_scheduler()
+    else:
+        logger.warning("DISABLE_SCHEDULER=on — 스케줄러/수집 비활성 (read-only 모드, DB write 안 함)")
 
     async def _initial_tasks():
         await asyncio.sleep(3)  # DB/Redis 연결 안정화 대기
@@ -67,21 +72,22 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.exception("초기 날씨 캐시 로드 실패")
 
-        try:
-            await poll_and_collect()
-            logger.info("초기 버스 폴링 완료")
-        except Exception:
-            logger.exception("초기 버스 폴링 실패")
+        if not _readonly:
+            try:
+                await poll_and_collect()
+                logger.info("초기 버스 폴링 완료")
+            except Exception:
+                logger.exception("초기 버스 폴링 실패")
 
-        try:
-            async with AsyncSessionLocal() as db:
-                if await needs_refresh(db):
-                    total = await refresh_timetable(db)
-                    logger.info("초기 지하철 시간표 로드 완료: %d건", total)
-                else:
-                    logger.info("지하철 시간표 이미 존재 — 초기 로드 생략")
-        except Exception:
-            logger.exception("초기 지하철 시간표 로드 실패")
+            try:
+                async with AsyncSessionLocal() as db:
+                    if await needs_refresh(db):
+                        total = await refresh_timetable(db)
+                        logger.info("초기 지하철 시간표 로드 완료: %d건", total)
+                    else:
+                        logger.info("지하철 시간표 이미 존재 — 초기 로드 생략")
+            except Exception:
+                logger.exception("초기 지하철 시간표 로드 실패")
 
         # 셔틀·마커 캐시 워밍업 (cache-aside 항목, 첫 사용자 cold miss 방지)
         try:
@@ -101,7 +107,8 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_initial_tasks())
 
     yield
-    stop_scheduler()
+    if not _readonly:
+        stop_scheduler()
     await close_redis()
     await close_http_client()
 

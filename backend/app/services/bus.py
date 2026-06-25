@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.cache import get_cached_json, get_redis, set_cached_json
-from app.models.bus import BusRoute, BusStop, BusTimetableEntry
+from app.models.bus import BusRoute, BusStop, BusStopRoute, BusTimetableEntry
 from app.services.bus_stats import get_arrival_stats
 
 _KST = ZoneInfo("Asia/Seoul")
@@ -510,16 +510,36 @@ async def get_arrivals(
 
 
 async def get_timetable_by_route_number(
-    db: AsyncSession, route_number: str, d: date, *, stop_id: int | None = None
+    db: AsyncSession,
+    route_number: str,
+    d: date,
+    *,
+    stop_id: int | None = None,
+    category: str | None = None,
 ) -> dict | None:
     """route_number(예: "3400") 문자열로 조회. ID를 모를 때 사용.
-    같은 route_number에 여러 row가 있을 때(양방향 분리) stop_id로 실제 시간표가 있는
-    row를 찾아 사용한다. stop_id가 없거나 단일 row면 첫 번째 row를 사용한다."""
-    stmt = select(BusRoute).where(BusRoute.route_number == route_number).order_by(BusRoute.id)
+    같은 route_number에 여러 row가 있을 때(양방향 분리):
+    1. category(등교/하교)가 주어지면 해당 category의 route를 우선 선택.
+    2. stop_id로 실제 시간표가 있는 row를 찾아 사용.
+    3. 아무 조건도 없거나 단일 row면 is_realtime=True 우선, 그 다음 id 오름차순 첫 번째 row를 사용한다.
+       (혼합 노선: 등교=실시간/하교=시간표 시 category 미지정이면 실시간 방향을 기본 반환)"""
+    # category 미지정 시 is_realtime=True(gbis_route_id IS NOT NULL) 우선 정렬.
+    # is_realtime은 Python property라 DB 정렬 불가 — gbis_route_id NULL 여부로 대체.
+    stmt = (
+        select(BusRoute)
+        .where(BusRoute.route_number == route_number)
+        .order_by(BusRoute.gbis_route_id.desc().nullslast(), BusRoute.id)
+    )
     result = await db.execute(stmt)
     routes = result.scalars().all()
     if not routes:
         return None
+
+    # category로 route 필터링 (등교/하교)
+    if category and len(routes) > 1:
+        matched = [r for r in routes if r.category == category]
+        if matched:
+            return await get_timetable(db, matched[0].id, d, stop_id=stop_id)
 
     if stop_id is not None and len(routes) > 1:
         # 여러 row 중 해당 stop에 실제 시간표 데이터가 있는 row를 우선 선택
@@ -574,6 +594,18 @@ async def get_timetable(
         stop = await db.get(BusStop, stop_id)
         stop_name = stop.name if stop else None
 
+    # 기점 출발 정류장: bus_stop_routes에서 해당 route에 연결된 첫 번째 stop
+    origin_stop_name: str | None = None
+    origin_stmt = (
+        select(BusStop.name)
+        .join(BusStopRoute, BusStopRoute.bus_stop_id == BusStop.id)
+        .where(BusStopRoute.bus_route_id == route_id)
+        .order_by(BusStop.id)
+        .limit(1)
+    )
+    origin_result = await db.execute(origin_stmt)
+    origin_stop_name = origin_result.scalar_one_or_none()
+
     data = {
         "route_id": route.id,
         "route_name": route.route_name or route.route_number,
@@ -582,6 +614,11 @@ async def get_timetable(
         "stop_name": stop_name,
         "times": [e.departure_time.strftime("%H:%M") for e in entries],
         "notes": [e.note for e in entries],
+        "direction_name": route.direction_name,
+        "category": route.category,
+        "origin_stop_name": origin_stop_name,
+        "is_realtime": route.is_realtime,
+        "gbis_route_id": route.gbis_route_id,
     }
     await set_cached_json(cache_key, data, ttl=86400)
     return data

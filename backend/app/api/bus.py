@@ -119,13 +119,14 @@ async def bus_timetable_by_route_number(
     route_number: str,
     date_str: str | None = Query(None, alias="date"),
     stop_id: int | None = Query(None),
+    category: str | None = Query(None, description="등교 또는 하교 — 방향별 route 선택"),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         d = date.fromisoformat(date_str) if date_str else datetime.now(ZoneInfo("Asia/Seoul")).date()
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
-    result = await get_timetable_by_route_number(db, route_number, d, stop_id=stop_id)
+    result = await get_timetable_by_route_number(db, route_number, d, stop_id=stop_id, category=category)
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
@@ -257,10 +258,9 @@ async def bus_history_preview(
 ):
     """실시간 노선 과거 도착 이력 조회 — 모달 예측 데이터용.
 
-    오늘 요일 타입에 따라 고정 날짜를 반환:
-    - 평일: 직전 평일 3개 (주말은 건너뜀). 라벨은 어제/이틀 전 또는 "지난 X요일".
-    - 토요일: 저번 주 토/일, 저저번 주 토/일
-    - 일요일: 저번 주 일/토, 저저번 주 토/일
+    요일 무관 항상 고정 2개 날짜를 반환:
+    - columns[0]: 어제 (today - 1)
+    - columns[1]: 일주일 전 같은 요일 (today - 7)
     데이터가 없는 날짜도 빈 컬럼으로 포함.
 
     응답에 `realtime_eta`(GBIS 캐시 기반 1~2건)와 `predicted_eta`(과거 이력 median)
@@ -278,43 +278,18 @@ async def bus_history_preview(
     KST = ZoneInfo("Asia/Seoul")
     today = datetime.now(KST).date()
 
-    wd = today.weekday()  # 0=Mon … 6=Sun
     WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
 
-    if wd <= 4:  # 평일
-        # 평일 비교는 평일 데이터끼리만 의미가 있으므로, 주말을 건너뛰며 직전 평일 3개를 고른다.
-        prev_weekdays: list[date] = []
-        cursor = today - timedelta(days=1)
-        while len(prev_weekdays) < 3:
-            if cursor.weekday() <= 4:
-                prev_weekdays.append(cursor)
-            cursor -= timedelta(days=1)
+    # 요일 무관: 어제(today-1) + 이틀 전(today-2) + 7일 전(today-7) 고정 3개
+    yesterday = today - timedelta(days=1)
+    day_before = today - timedelta(days=2)
+    last_week = today - timedelta(days=7)
 
-        def _weekday_label(d: date) -> str:
-            delta = (today - d).days
-            if delta == 1:
-                return "어제"
-            if delta == 2:
-                return "이틀 전"
-            return f"지난 {WEEKDAY_KR[d.weekday()]}요일"
-
-        target_dates_labeled: list[tuple[date, str]] = [
-            (d, _weekday_label(d)) for d in prev_weekdays
-        ]
-    elif wd == 5:  # 토요일
-        target_dates_labeled = [
-            (today - timedelta(days=7), "저번 주 토요일"),
-            (today - timedelta(days=6), "저번 주 일요일"),
-            (today - timedelta(days=14), "저저번 주 토요일"),
-            (today - timedelta(days=13), "저저번 주 일요일"),
-        ]
-    else:  # 일요일
-        target_dates_labeled = [
-            (today - timedelta(days=7), "저번 주 일요일"),
-            (today - timedelta(days=8), "저번 주 토요일"),
-            (today - timedelta(days=14), "저저번 주 일요일"),
-            (today - timedelta(days=15), "저저번 주 토요일"),
-        ]
+    target_dates_labeled: list[tuple[date, str]] = [
+        (yesterday, "어제"),
+        (day_before, "이틀 전"),
+        (last_week, "7일 전"),
+    ]
 
     target_dates = [d for d, _ in target_dates_labeled]
     label_map: dict[str, str] = {d.isoformat(): lbl for d, lbl in target_dates_labeled}
