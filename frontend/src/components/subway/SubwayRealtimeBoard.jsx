@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import useAppStore from '../../stores/useAppStore'
 import { nextTimetableSeconds } from '../../utils/trainTime'
+import StatusChip from '../ui/StatusChip'
 
 // arvlCd 0,1,3,4,5 → 임박 (빨간색)
 function isImminent(statusCode) {
@@ -38,8 +39,8 @@ export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
   const ageMin = Math.floor((Date.now() - ms) / 60000)
   if (ageMin < 3) return null
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 ${className}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+    <span className={`inline-flex items-center gap-1 text-caption font-bold text-ease dark:text-ease-dark ${className}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-ease dark:bg-ease-dark" />
       {prefix}데이터 {ageMin}분 지연
     </span>
   )
@@ -96,24 +97,24 @@ function ArrivalTime({ item, timetableTrains }) {
       return (
         <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
           <span
-            className="text-base font-black leading-none tabular-nums"
-            style={{ color: '#e26a4d', animation: 'pulse 1.5s ease-in-out infinite' }}
+            className="text-base font-black leading-none tabular-nums text-imminent dark:text-imminent-dark"
+            style={{ animation: 'pulse 1.5s ease-in-out infinite' }}
           >
             이미
           </span>
-          <span className="text-[10px] text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
+          <span className="text-caption text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
         </div>
       )
     }
     return (
       <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
         <span
-          className="text-base font-black leading-none tabular-nums"
-          style={{ color: '#dc2626', animation: 'pulse 1.5s ease-in-out infinite' }}
+          className="text-base font-black leading-none tabular-nums text-imminent dark:text-imminent-dark"
+          style={{ animation: 'pulse 1.5s ease-in-out infinite' }}
         >
           곧
         </span>
-        <span className="text-[10px] text-red-400 mt-0.5 font-bold">도착</span>
+        <span className="text-caption text-imminent dark:text-imminent-dark mt-0.5 font-bold">도착</span>
       </div>
     )
   }
@@ -126,7 +127,7 @@ function ArrivalTime({ item, timetableTrains }) {
       return (
         <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
           <span className="text-base font-black leading-none text-imminent dark:text-imminent-dark">곧</span>
-          <span className="text-[10px] text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
+          <span className="text-caption text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
         </div>
       )
     }
@@ -138,7 +139,7 @@ function ArrivalTime({ item, timetableTrains }) {
         >
           {display}
         </span>
-        <span className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">{sourceLabel}</span>
+        <span className="text-caption font-semibold text-mute dark:text-mute-dark mt-0.5">{sourceLabel}</span>
       </div>
     )
   }
@@ -151,14 +152,14 @@ function ArrivalTime({ item, timetableTrains }) {
         <span className="text-xl font-black leading-none tabular-nums text-ink dark:text-ink-dark">
           {count}
         </span>
-        <span className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">전 역</span>
+        <span className="text-caption font-semibold text-mute dark:text-mute-dark mt-0.5">전 역</span>
       </div>
     )
   }
   return (
     <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
       <span className="text-2xl font-black leading-none tabular-nums text-mute-2 dark:text-mute-2-dark">—</span>
-      <span className="text-[10px] font-semibold text-mute dark:text-mute-dark mt-0.5">운행중</span>
+      <span className="text-caption font-semibold text-mute dark:text-mute-dark mt-0.5">운행중</span>
     </div>
   )
 }
@@ -199,7 +200,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
             style={{ background: item.color }}
           />
-          <span className="text-[9px] font-semibold text-mute dark:text-mute-dark leading-none whitespace-nowrap">
+          <span className="text-caption font-semibold text-mute dark:text-mute-dark leading-none whitespace-nowrap">
             {item.direction}
           </span>
         </div>
@@ -210,12 +211,10 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
               <span className="text-sm font-semibold text-mute dark:text-mute-dark ml-1">행</span>
             </span>
             {item.is_last_train && (
-              <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">
-                막차
-              </span>
+              <StatusChip kind="last">막차</StatusChip>
             )}
             {item.train_type && item.train_type !== '일반' && (
-              <span className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full leading-none flex-shrink-0"
+              <span className="text-caption font-bold text-white px-1.5 py-0.5 rounded-full leading-none flex-shrink-0"
                 style={{ background: item.color }}>
                 {item.train_type}
               </span>
@@ -235,7 +234,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
 
       {/* 하단 업데이트 시간 + 폴링 시간 (별도 행) */}
       {(lastFetchedAt || recptnTime) && (
-        <div className="flex justify-end gap-1.5 text-[10px] font-medium text-mute dark:text-mute-dark mt-0.5">
+        <div className="flex justify-end gap-1.5 text-caption font-medium text-mute dark:text-mute-dark mt-0.5">
           {lastFetchedAt && (
             <span>{secondsAgo}초 전 폴링</span>
           )}
@@ -244,7 +243,7 @@ function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
               ? Math.floor((Date.now() - new Date(item.recptn_dt).getTime()) / 60000)
               : 0
             return ageMin >= 3
-              ? <span className="text-state-warn dark:text-amber-400 font-extrabold">{recptnTime} 기준 · 데이터 {ageMin}분 지연</span>
+              ? <span className="text-ease dark:text-ease-dark font-extrabold">{recptnTime} 기준 · 데이터 {ageMin}분 지연</span>
               : <span>{recptnTime} 기준</span>
           })()}
         </div>
@@ -299,9 +298,9 @@ export default function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClic
   return (
     <div className="flex-1 overflow-y-auto">
       {(stale || isRealtimeStale(lastSuccessfulRealtimeAt)) && (
-        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60">
-          <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 leading-tight">
+        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface-2-dark border border-line dark:border-line-dark">
+          <span className="w-2 h-2 rounded-full bg-ease dark:bg-ease-dark flex-shrink-0" />
+          <p className="text-caption font-bold text-ease dark:text-ease-dark leading-tight">
             실시간 데이터가 {stale ? '잠시 끊겼습니다' : '지연되고 있습니다'}. 시간표 정보를 우선 확인하세요.
           </p>
         </div>

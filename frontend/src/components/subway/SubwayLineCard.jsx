@@ -1,6 +1,7 @@
 import { useCountdown } from '../../hooks/useCountdown'
 import useAppStore from '../../stores/useAppStore'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
+import StatusChip from '../ui/StatusChip'
 
 function timeToMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -12,7 +13,7 @@ function NextTrainBadge({ train, color, darkColor }) {
   const darkMode = useAppStore((s) => s.darkMode)
 
   if (!train) {
-    return <p className="text-meta font-medium text-mute dark:text-mute-dark">운행 종료</p>
+    return <p className="text-label font-medium text-mute dark:text-mute-dark">운행 종료</p>
   }
 
   const baseColor = darkMode ? (darkColor ?? color) : color
@@ -26,7 +27,7 @@ function NextTrainBadge({ train, color, darkColor }) {
       >
         {isExpired ? '곧 출발' : `${mm}:${ss}`}
       </span>
-      <span className="text-meta font-semibold text-text dark:text-text-dark mb-1 leading-none">
+      <span className="text-label font-semibold text-text dark:text-text-dark mb-1 leading-none">
         {train.depart_at} · {train.destination}행
       </span>
     </div>
@@ -59,7 +60,7 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
       {/* 컬러 헤더 */}
       <div className="px-4 py-3 flex items-center gap-2.5" style={{ backgroundColor: color }}>
         <span className="text-white font-black text-[15px] tracking-tight">{lineName}</span>
-        <span className="text-white/85 text-meta font-semibold">{dirLabel}</span>
+        <span className="text-white/85 text-label font-semibold">{dirLabel}</span>
       </div>
 
       {/* 다음 열차 — lightColor는 라이트 모드용, 다크에선 surface-dark */}
@@ -68,22 +69,18 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
         style={{ backgroundColor: darkMode ? undefined : lightColor }}
       >
         <div className="flex items-center gap-2 mb-1.5">
-          <p className="text-meta font-bold text-mute dark:text-mute-dark tracking-wide">다음 열차</p>
+          <p className="text-label font-bold text-mute dark:text-mute-dark tracking-wide">다음 열차</p>
           {nextTrain && isLast && (
-            <span className="text-micro font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full leading-none">
-              막차
-            </span>
+            <StatusChip kind="last">막차</StatusChip>
           )}
           {nextTrain && isFirst && (
-            <span className="text-micro font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-full leading-none">
-              첫차
-            </span>
+            <StatusChip kind="beta">첫차</StatusChip>
           )}
         </div>
         <div className="flex items-center justify-between gap-3">
           <NextTrainBadge train={nextTrain} color={color} darkColor={darkColor} />
           {missWaitMin != null && (
-            <span className="text-meta font-semibold text-text dark:text-text-dark bg-surface dark:bg-surface-dark shadow-pill px-2.5 py-1 rounded-full whitespace-nowrap">
+            <span className="text-label font-semibold text-text dark:text-text-dark bg-surface dark:bg-surface-dark shadow-pill px-2.5 py-1 rounded-full whitespace-nowrap">
               놓치면 {missWaitMin}분 더 기다림
             </span>
           )}
@@ -95,10 +92,10 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
         <ul className="divide-y divide-line dark:divide-line-dark bg-surface dark:bg-surface-dark">
           {preview.map((t, i) => (
             <li key={i} className="flex items-center px-4 py-2.5 gap-3">
-              <span className="text-meta font-bold tabular-nums text-ink dark:text-ink-dark min-w-[46px]">
+              <span className="text-label font-bold tabular-nums text-ink dark:text-ink-dark min-w-[46px]">
                 {t.depart_at}
               </span>
-              <span className="text-meta font-medium text-mute dark:text-mute-dark">{t.destination}행</span>
+              <span className="text-label font-medium text-mute dark:text-mute-dark">{t.destination}행</span>
             </li>
           ))}
         </ul>

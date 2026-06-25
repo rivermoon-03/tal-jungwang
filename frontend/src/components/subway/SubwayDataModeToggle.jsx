@@ -1,17 +1,16 @@
-import SegmentTabs from '../common/SegmentTabs'
+import SegmentTabs from '../ui/SegmentTabs'
 
-const TABS = [
-  { id: 'realtime',  label: '실시간' },
+const ITEMS = [
   { id: 'timetable', label: '시간표' },
+  { id: 'realtime',  label: '실시간' },
 ]
 
-export default function SubwayDataModeToggle({ value, onChange, size = 'sm' }) {
+export default function SubwayDataModeToggle({ value, onChange }) {
   return (
     <SegmentTabs
-      tabs={TABS}
+      items={ITEMS}
       active={value}
       onChange={onChange}
-      size={size}
     />
   )
 }

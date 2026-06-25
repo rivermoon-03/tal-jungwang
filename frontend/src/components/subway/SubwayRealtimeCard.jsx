@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Star } from 'lucide-react';
 import useFavorites from '../../hooks/useFavorites';
+import StatusChip from '../ui/StatusChip';
+import { formatEta } from '../../utils/eta';
 
 // 실시간 데이터가 N분 전 수신된 값임을 알리는 배지 + 탭/호버 시 안내 툴팁.
 // "지하철이 지연됐다"가 아니라 "데이터가 지연됐다"는 점을 명시한다.
@@ -21,7 +23,7 @@ function StaleHintBadge({ ageMin, stale }) {
     }
   }, [open])
 
-  const label = stale ? '실시간 일시 끊김' : `데이터 ${ageMin}분 지연`
+  const label = stale ? '끊김' : `${ageMin}분 전`
   const minLabel = stale ? '수 분' : `${ageMin}분`
 
   return (
@@ -31,15 +33,14 @@ function StaleHintBadge({ ageMin, stale }) {
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
         aria-label="실시간 데이터 지연 안내"
         aria-expanded={open}
-        className="inline-flex items-center gap-1 text-[10px] font-bold text-state-warn dark:text-amber-400 cursor-pointer underline decoration-dotted decoration-amber-400/70 underline-offset-2"
+        className="inline-flex items-center min-h-[44px] min-w-[44px] justify-center px-1"
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-        {label}
+        <StatusChip kind="beta">{label}</StatusChip>
       </button>
       {open && (
         <div
           role="tooltip"
-          className="absolute left-0 top-full mt-1.5 z-30 w-[240px] px-3 py-2 rounded-lg bg-slate-900/95 dark:bg-slate-100 text-white dark:text-slate-900 text-[11px] font-medium leading-relaxed shadow-lg"
+          className="absolute left-0 top-full mt-1.5 z-30 w-[240px] px-3 py-2 rounded-lg bg-ink text-surface dark:bg-ink-dark dark:text-surface-dark text-caption font-medium leading-relaxed shadow-lg"
         >
           외부 API의 데이터 지연으로 실시간 정보의 정확성을 보장할 수 없는 상태예요.
           화면에 보이는 도착 정보는 약 {minLabel} 전 수신된 데이터로,
@@ -63,8 +64,6 @@ function makeSubwayFavKey(lineName, stationName) {
   return `subway:${stationName}:up`
 }
 
-// 임박 상태 강조 색 — imminent 토큰값과 동일.
-const ACCENT = '#e26a4d'
 function getStatusInfo(code) {
   // 0:진입, 1:도착, 2:출발, 3:전역출발, 4:전역진입, 5:전역도착
   const map = {
@@ -104,34 +103,30 @@ function getStationCount(train) {
   return null
 }
 
-// 메인 도착 라벨: 세분화된 상태 → 정거장 수 → 시간 → smart_status
+// 메인 도착 라벨: formatEta 우선 → 세분화 상태 → 정거장 수 → smart_status
 function arrivalLabel(train) {
   if (!train) return null
-  
-  // 1. 세분화된 상태 코드 처리 (0~5)
+
+  // 1. 세분화된 상태 코드 처리 (0~5) — 임박 상태 우선
   const statusInfo = getStatusInfo(train.status_code)
   if (statusInfo) {
     return statusInfo.label
   }
 
-  // 2. 정거장 수 추출 시도 (사용자 요청: 남은 정거장 수 우선)
+  // 2. formatEta — 초 데이터 기반
+  const secs = train.arrive_seconds
+  if (secs != null) {
+    const { text } = formatEta(secs)
+    if (text !== '운행 정보 없음') return text
+  }
+
+  // 3. 정거장 수 추출 시도
   const count = getStationCount(train)
   if (count != null && count > 0) {
     return `${count}개 역 전`
   }
 
-  // 3. 실시간 시간 데이터가 있는 경우
-  const secs = train.arrive_seconds
-  if (secs != null && secs > 0 && secs < 60) {
-    return '곧 도착'
-  }
-  if (secs != null && secs > 0) {
-    const mins = Math.ceil(secs / 60)
-    return mins <= 0 ? '곧 도착' : `${mins}분 후`
-  }
-
-  // 4. 시간은 없지만 백엔드에서 정제된 상태 메시지가 있는 경우
-  // 만약 smart_status가 단순 역 이름이라면 (locationSub와 중복) '운행 중'으로 표시
+  // 4. 백엔드 smart_status
   if (train.smart_status && train.smart_status !== '운행 중') {
     const loc = train.current_station || (train.location_msg ? cleanMsg(train.location_msg) : '')
     if (train.smart_status === loc) return '운행 중'
@@ -149,24 +144,31 @@ function locationSub(train) {
   return null
 }
 
+// ETA 긴급 여부 결정
+function isEtaImminent(train) {
+  const statusInfo = train ? getStatusInfo(train.status_code) : null
+  if (statusInfo?.level === 'urgent') return true
+  const secs = train?.arrive_seconds
+  if (secs != null && secs <= 90) return true
+  return false
+}
+
 export function RealtimeSlot({ train, dir, align, onClick }) {
   const statusInfo = train ? getStatusInfo(train.status_code) : null
   let label = arrivalLabel(train)
   const isOidoWait = train?.line === '4호선' && train?.direction === '상행' && train?.status_code === 5 && (train?.location_msg?.includes('오이도') || train?.current_station === '오이도')
-  
+
   if (isOidoWait) {
     label = '오이도'
   }
 
-  const isUrgent = statusInfo?.level === 'urgent' || isOidoWait
+  const isUrgent = statusInfo?.level === 'urgent' || isOidoWait || isEtaImminent(train)
   const isNear = statusInfo?.level === 'near' && !isOidoWait
 
   const sub = train ? locationSub(train) : null
   const isRunning = label === '운행 중'
-  // 타이포그래피 강조: labelSize
-  const labelSize = (isUrgent || isNear) ? 20 : isRunning ? 14 : 18
 
-  // 색상 클래스 결정 (Tesla 토큰)
+  // 색상 클래스 결정
   const labelColorClass = isUrgent
     ? 'text-imminent dark:text-imminent-dark'
     : (isNear || !isRunning)
@@ -183,38 +185,38 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
       style={{ textAlign: align }}
       onClick={train && onClick ? onClick : undefined}
     >
-      <div className="text-[11px] font-bold text-mute dark:text-mute-dark mb-1 tracking-wide">
+      {/* 방향 라벨 — text-label(13px) */}
+      <div className="text-label font-bold text-mute dark:text-mute-dark mb-1 tracking-wide">
         {dir}
       </div>
       {train ? (
         <>
+          {/* 목적지 — text-label(13px) */}
           <div
             className="flex items-center gap-1 flex-wrap mb-1.5"
             style={{ justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}
           >
-            <div className={`text-[14px] font-extrabold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${destColorClass}`}>
+            <div className={`text-label font-extrabold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${destColorClass}`}>
               {train.destination}행
             </div>
             {train.is_last_train && (
-              <span className="text-[9px] font-extrabold text-white bg-imminent dark:bg-imminent-dark px-1.5 py-px rounded-full leading-tight flex-shrink-0">
-                막차
-              </span>
+              <StatusChip kind="last">막차</StatusChip>
             )}
           </div>
+          {/* ETA — text-head(≥15px) 또는 text-body */}
           <div
-            className={`font-black leading-tight tracking-tight ${labelColorClass}`}
-            style={{ fontSize: labelSize }}
+            className={`text-head font-black leading-tight tracking-tight ${labelColorClass}`}
           >
             {label}
           </div>
           {sub && (
-            <div className="text-meta font-medium text-mute-2 dark:text-mute-2-dark mt-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
+            <div className="text-caption font-medium text-mute dark:text-mute-dark mt-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
               {sub}
             </div>
           )}
         </>
       ) : (
-        <div className="text-[13px] font-bold text-mute dark:text-mute-dark">
+        <div className="text-body font-bold text-mute dark:text-mute-dark">
           정보 없음
         </div>
       )}
@@ -225,7 +227,7 @@ export function RealtimeSlot({ train, dir, align, onClick }) {
 /**
  * @param {object} props
  * @param {boolean} [props.demoted]  시간표 모드에서 보조 정보로 표시할 때 true.
- *                                    배경/폰트가 dim 처리되고 "참고" 라벨이 붙는다.
+ *                                    배경/폰트가 dim 처리된다.
  * @param {boolean} [props.stale]     실시간 데이터가 3분 이상 지연됐거나 fallback인 상태.
  * @param {string}  [props.staleSource]  stale 판정용 ISO8601 시각 (recptn_dt 또는 last_success).
  */
@@ -253,8 +255,6 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
     return () => clearInterval(id)
   }, [lastFetchedAt])
 
-  // demoted: 시간표 모드의 보조 카드 → 옅은 배경 + 점선 보더 + dim
-  // urgent는 demoted여도 약한 강조 유지 (사용자가 임박 정보를 놓치지 않게)
   const borderClass = demoted
     ? 'border border-dashed border-line dark:border-line-dark'
     : (isUrgent ? 'border border-transparent' : 'border border-line dark:border-line-dark')
@@ -284,26 +284,28 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
           <Star
             size={16}
             fill={isFavorite ? 'currentColor' : 'none'}
-            className={isFavorite ? 'text-yellow-400' : 'text-slate-300 dark:text-slate-600'}
+            className={isFavorite ? 'text-yellow-400' : 'text-mute dark:text-mute-dark'}
           />
         </button>
       )}
       <div className={`flex items-center gap-2 flex-wrap ${demoted ? 'mb-2' : 'mb-2.5'}`}>
+        {/* 노선 심볼 원형 배지 */}
         <span
           className={`inline-flex items-center justify-center rounded-full text-white flex-shrink-0 font-black leading-none ${
-            demoted ? 'w-[18px] h-[18px] text-[10px] opacity-85' : 'w-[22px] h-[22px] text-[11px]'
+            demoted ? 'w-[18px] h-[18px] text-body opacity-85' : 'w-[22px] h-[22px] text-label'
           }`}
           style={{ background: color }}
         >
           {symbol}
         </span>
-        <span className={`${demoted ? 'text-[12px] font-bold' : 'text-[13px] font-extrabold'} ${titleColorClass}`}>
+        {/* 노선명 — text-label(13px) 또는 text-body */}
+        <span className={`${demoted ? 'text-body font-bold' : 'text-label font-extrabold'} ${titleColorClass}`}>
           {lineName}
         </span>
+        {/* stale 배지 — StatusChip 기반, 점선/색점 없음 */}
         {isTimeStale ? <StaleHintBadge ageMin={ageMin} stale={stale} /> : null}
-        <span className={`ml-auto font-semibold text-mute dark:text-mute-dark ${demoted ? 'text-[10px]' : 'text-[11px]'}`}>
-          {demoted ? '참고 · 실시간 (베타)' : '실시간 (베타)'}
-        </span>
+        {/* 베타 칩 — StatusChip, 이모지/점선 없음 */}
+        <StatusChip kind="beta" className="ml-auto">베타</StatusChip>
       </div>
 
       <div className="grid items-stretch" style={{ gridTemplateColumns: '1fr 1px 1fr' }}>
@@ -325,12 +327,9 @@ export function RealtimeCompactCard({ lineName, symbol, color, upTrain, downTrai
           />
         </div>
       </div>
-      {(upTrain?.recptn_dt || downTrain?.recptn_dt || lastFetchedAt) && (
-        <div className="mt-2 flex justify-end gap-1.5 text-[9px] font-medium text-mute dark:text-mute-dark">
-          {lastFetchedAt && <span>{secondsAgo}초 전 폴링</span>}
-          {(upTrain?.recptn_dt || downTrain?.recptn_dt) && (
-            <span>{(upTrain?.recptn_dt || downTrain?.recptn_dt).substring(11, 16)} 기준</span>
-          )}
+      {lastFetchedAt && (
+        <div className="mt-2 flex justify-end text-caption font-medium text-mute dark:text-mute-dark">
+          <span>{secondsAgo}초 전 폴링</span>
         </div>
       )}
     </div>
