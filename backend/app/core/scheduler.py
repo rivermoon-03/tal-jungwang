@@ -76,7 +76,11 @@ async def _bus_poll_job():
 
 
 async def _cafeteria_refresh_job():
-    """학식 메뉴 캐시를 강제 갱신 (07:00·11:00 KST)."""
+    """학식 메뉴·운영시간 캐시를 강제 갱신 (07~21시 매시 KST).
+
+    메뉴 TTL이 1h라 점심 갱신만으로는 저녁 시간대에 만료되어 cold miss가 났다.
+    개장 시간 내내 매시 재적재해 운영시간/메뉴 캐시를 계속 warm하게 유지한다.
+    """
     from app.services.cafeteria import refresh_menu
 
     try:
@@ -84,6 +88,24 @@ async def _cafeteria_refresh_job():
         logger.info("학식 메뉴 캐시 갱신 완료")
     except Exception:
         logger.exception("학식 메뉴 캐시 갱신 실패")
+
+
+async def _cache_rewarm_job():
+    """정적/준정적 캐시(버스·지하철·셔틀 시간표·지도 마커)를 TTL 만료 전 재적재.
+
+    매일 03:40 KST — bus_arrival_stats(03:30) 직후, GBIS 폴링 휴식(02~04시) 안쪽이라
+    운영 트래픽과 겹치지 않는다. 특히 버스 시간표는 TTL 24h라 하루에 한 번 첫 사용자가
+    cold miss를 맞았는데, 매일 재적재해 그 cold miss를 제거한다.
+    """
+    from app.core.cache_warmer import warm_static
+    from app.core.database import AsyncSessionLocal
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await warm_static(session)
+            logger.info("캐시 재적재 완료: %s", summary)
+    except Exception:
+        logger.exception("캐시 재적재 실패")
 
 
 async def _bus_arrival_stats_refresh_job():
@@ -232,14 +254,14 @@ def setup_scheduler():
     # 컨테이너 재시작 등으로 잠시 밀려도 발화 보장.
     scheduler.add_job(
         _cafeteria_refresh_job,
-        CronTrigger(hour="7-14", minute=0, timezone="Asia/Seoul"),
+        CronTrigger(hour="7-21", minute=0, timezone="Asia/Seoul"),
         id="cafeteria_refresh",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
         misfire_grace_time=600,
     )
-    logger.info("Cafeteria menu refresh scheduler configured (07~14:00 KST hourly)")
+    logger.info("Cafeteria menu refresh scheduler configured (07~21:00 KST hourly)")
 
     # ── 버스 도착 통계 재계산 (매일 03:30 KST) ──
     # bus_arrival_history 28일치를 (route, stop, day_type, hour) 버킷별 분위수로 사전 집계.
@@ -253,6 +275,20 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info("Bus arrival stats refresh scheduler configured (daily 03:30 KST)")
+
+    # ── 정적/준정적 캐시 재적재 (매일 03:40 KST) ──
+    # 버스(24h)·지하철(12h)·셔틀·마커 시간표 캐시를 TTL 만료 전 다시 채워
+    # 첫 사용자 cold miss를 없앤다. stats(03:30) 직후, 폴링 휴식 구간 안쪽.
+    scheduler.add_job(
+        _cache_rewarm_job,
+        CronTrigger(hour=3, minute=40, timezone="Asia/Seoul"),
+        id="cache_rewarm",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+    )
+    logger.info("Static cache rewarm scheduler configured (daily 03:40 KST)")
 
 
 def start_scheduler():
