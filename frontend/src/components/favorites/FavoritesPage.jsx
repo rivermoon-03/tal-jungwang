@@ -85,8 +85,9 @@ function classifyCommute(favKey) {
 // 버스 노선별 다음 출발까지 남은 분 (favKey → minutes)
 function useBusMinutesByFavKey() {
   // 실시간 (GBIS) — 20-1, 시흥33 (본캠), 시흥1 (이마트)
-  const realtimeHanguk = useBusArrivals('224000639')
-  const realtimeEmart  = useBusArrivals('224000513')
+  // 즐겨찾기 표시는 분 단위(formatEta 90초 이상 = "N분")이므로 60초 tick으로 충분.
+  const realtimeHanguk = useBusArrivals('224000639', { tickMs: 60_000 })
+  const realtimeEmart  = useBusArrivals('224000513', { tickMs: 60_000 })
 
   // 3400/6502 정류장별 시간표
   const { data: stationsData } = useBusStations()

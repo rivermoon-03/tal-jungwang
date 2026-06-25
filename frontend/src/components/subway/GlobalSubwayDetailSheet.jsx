@@ -81,10 +81,15 @@ export default function GlobalSubwayDetailSheet() {
   const close = useAppStore((s) => s.closeSubwayDetailSheet)
   const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
 
-  const { data: timetable, loading: ttLoading } = useSubwayTimetable()
-  const { data: realtimeAll, loading: realtimeLoading, refetch } = useSubwayRealtime()
-
   const [visible, setVisible] = useState(false)
+
+  // 시트가 실제로 열려 있거나 닫힘 애니메이션 중일 때만 폴링 활성화
+  // item !== null  : 시트가 열린 상태
+  // visible === true: 닫힘 애니메이션이 아직 재생 중 (데이터 유지 필요)
+  const sheetOpen = item !== null || visible
+
+  const { data: timetable, loading: ttLoading } = useSubwayTimetable()
+  const { data: realtimeAll, loading: realtimeLoading, refetch } = useSubwayRealtime({ enabled: sheetOpen })
   const [refreshCooldown, setRefreshCooldown] = useState(0)
   // 평일/토/일 탭 (day_type key)
   const [dayType, setDayType] = useState('weekday')

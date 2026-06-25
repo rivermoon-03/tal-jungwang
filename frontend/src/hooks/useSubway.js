@@ -19,8 +19,8 @@ export function useSubwayNext({ tickMs = 1000 } = {}) {
   return { data: ticked, loading, error, fetchedAt, refetch }
 }
 
-export function useSubwayRealtime() {
-  const { data, loading, error, fetchedAt, refetch } = useApi('/subway/realtime', { interval: 10_000 })
+export function useSubwayRealtime({ enabled = true } = {}) {
+  const { data, loading, error, fetchedAt, refetch } = useApi('/subway/realtime', { interval: 15_000, enabled })
   const now = useNow(1000)
   const ticked = useMemo(
     () => tickSubwayRealtime(data, fetchedAt, now),

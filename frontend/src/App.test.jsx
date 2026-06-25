@@ -61,10 +61,18 @@ describe('App', () => {
     expect(pcShell).toHaveTextContent('PCMapDashboard')
   })
 
-  it('FloatingDock과 PCDock은 항상 렌더링됨', () => {
+  it('모바일: FloatingDock만 마운트, PCDock 없음', () => {
+    isDesktopMock = false
     render(<App />)
     expect(screen.getByText('FloatingDock')).toBeInTheDocument()
+    expect(screen.queryByText('PCDock')).not.toBeInTheDocument()
+  })
+
+  it('PC: PCDock만 마운트, FloatingDock 없음', () => {
+    isDesktopMock = true
+    render(<App />)
     expect(screen.getByText('PCDock')).toBeInTheDocument()
+    expect(screen.queryByText('FloatingDock')).not.toBeInTheDocument()
   })
 
   // 페이지들은 lazy 로드라 Suspense fallback 이후 비동기로 나타난다 → findAllByText로 대기.
