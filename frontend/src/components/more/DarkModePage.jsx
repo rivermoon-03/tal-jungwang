@@ -23,7 +23,7 @@ export default function DarkModePage({ onBack }) {
       <div className="flex-1 overflow-y-auto px-4 py-3 pb-28 md:pb-6 flex flex-col gap-4">
         {/* explainer */}
         <p className="text-meta font-semibold text-mute dark:text-mute-dark leading-relaxed px-1">
-          라이트·다크 모드를 선택하거나, 기기 설정에 맞게 자동으로 전환합니다. 선택한 설정은 기기에 저장됩니다.
+          라이트·다크 모드를 선택하거나, 기기 설정에 맞게 자동으로 전환해요. 선택한 설정은 기기에 저장돼요.
         </p>
 
         {/* segment control */}
@@ -34,9 +34,9 @@ export default function DarkModePage({ onBack }) {
         {/* description cards */}
         <div className="flex flex-col gap-2">
           {[
-            { title: '라이트', desc: '항상 밝은 화면을 사용합니다.' },
-            { title: '시스템', desc: '기기의 다크모드 설정에 자동으로 따릅니다. (기본값)' },
-            { title: '다크', desc: '항상 어두운 화면을 사용합니다. 배터리 절약에 도움이 됩니다.' },
+            { title: '라이트', desc: '항상 밝은 화면을 써요.' },
+            { title: '시스템', desc: '기기의 다크모드 설정에 자동으로 따라요. (기본값)' },
+            { title: '다크', desc: '항상 어두운 화면을 써요. 배터리 절약에 도움이 돼요.' },
           ].map(({ title, desc }) => (
             <div
               key={title}

@@ -19,15 +19,6 @@ const SKY_TEXT = {
   snowy:         '눈',
 }
 
-// CrowdingCard 배경과 같은 어두운 그라디언트 계열, 날씨별로 hue만 미세하게 다름
-const CARD_BG = {
-  sunny:         'linear-gradient(165deg, #0c3050 0%, #10223c 55%, #0a1628 100%)',
-  partly_cloudy: 'linear-gradient(165deg, #172238 0%, #1b2b3f 55%, #0f172a 100%)',
-  cloudy:        'linear-gradient(165deg, #1a2035 0%, #1e2535 55%, #111827 100%)',
-  rainy:         'linear-gradient(165deg, #0d1520 0%, #131c2e 55%, #0a0f1c 100%)',
-  snowy:         'linear-gradient(165deg, #162040 0%, #1c2a44 55%, #0f172a 100%)',
-}
-
 function toDateStr(d) {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
 }
@@ -55,7 +46,7 @@ function TempSparkline({ points }) {
 
   return (
     <div className="mt-4">
-      <div className="text-[11px] font-bold text-white/50 tracking-wider uppercase mb-1.5">이후 기온 변화</div>
+      <div className="text-caption font-bold text-mute mb-1.5">이후 기온 변화</div>
       <div className="relative" style={{ height: H }}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -65,8 +56,8 @@ function TempSparkline({ points }) {
         >
           <defs>
             <linearGradient id="wc-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(125,211,252,0.20)" />
-              <stop offset="100%" stopColor="rgba(125,211,252,0)" />
+              <stop offset="0%" stopColor="var(--tj-ease)" stopOpacity="0.20" />
+              <stop offset="100%" stopColor="var(--tj-ease)" stopOpacity="0" />
             </linearGradient>
             <filter id="wc-glow" x="-5%" y="-60%" width="110%" height="220%">
               <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="b" />
@@ -76,11 +67,12 @@ function TempSparkline({ points }) {
           <path d={fillD} fill="url(#wc-fill)" />
           <path
             d={pathD}
-            stroke="rgba(125,211,252,0.90)"
+            stroke="var(--tj-ease)"
             strokeWidth="2"
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
+            strokeOpacity="0.85"
             filter="url(#wc-glow)"
           />
           {coords.map((c, i) => {
@@ -92,8 +84,8 @@ function TempSparkline({ points }) {
                 cx={c.x}
                 cy={c.y}
                 r={isMax || isMin ? 3.8 : 2.4}
-                fill="white"
-                opacity={isMax || isMin ? 0.85 : 0.55}
+                fill="var(--tj-ink)"
+                opacity={isMax || isMin ? 0.75 : 0.40}
               />
             )
           })}
@@ -101,14 +93,11 @@ function TempSparkline({ points }) {
 
         {maxIdx >= 0 && (
           <div
-            className="absolute pointer-events-none font-bold tabular-nums"
+            className="absolute pointer-events-none text-caption font-bold tabular-nums text-imminent"
             style={{
               left: `${(coords[maxIdx].x / W) * 100}%`,
               top: `${Math.max(0, coords[maxIdx].y - 15)}px`,
               transform: 'translateX(-50%)',
-              fontSize: 10,
-              color: 'rgba(253,224,71,0.92)',
-              textShadow: '0 1px 5px rgba(0,0,0,.85)',
             }}
           >
             {maxT}°
@@ -116,21 +105,18 @@ function TempSparkline({ points }) {
         )}
         {minIdx >= 0 && minIdx !== maxIdx && (
           <div
-            className="absolute pointer-events-none font-bold tabular-nums"
+            className="absolute pointer-events-none text-caption font-bold tabular-nums text-ease"
             style={{
               left: `${(coords[minIdx].x / W) * 100}%`,
               top: `${Math.min(H - 14, coords[minIdx].y + 4)}px`,
               transform: 'translateX(-50%)',
-              fontSize: 10,
-              color: 'rgba(147,197,253,0.88)',
-              textShadow: '0 1px 5px rgba(0,0,0,.85)',
             }}
           >
             {minT}°
           </div>
         )}
       </div>
-      <div className="flex justify-between px-1 text-[10px] font-semibold tabular-nums text-white/40 mt-1">
+      <div className="flex justify-between px-1 text-caption font-semibold tabular-nums text-mute mt-1">
         {points.map((p) => <span key={p.hour}>{p.hour}시</span>)}
       </div>
     </div>
@@ -189,42 +175,43 @@ export default function WeatherCard() {
   }, [forecastData, weather])
 
   const icon        = weather?.icon ?? 'sunny'
-  const bg          = CARD_BG[icon] ?? CARD_BG.sunny
   const Icon        = SKY_ICON[icon] ?? Sun
 
   const TomorrowIcon = tomorrowSummary ? (SKY_ICON[tomorrowSummary.icon] ?? Sun) : null
 
   return (
-    <article
-      className="relative overflow-hidden rounded-card-lg shadow-card-md"
-      style={{ background: bg }}
-    >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.45) 100%)' }}
-      />
-
-      <div className="relative p-5">
+    <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">
+      <div className="p-5">
         {/* 헤더 — 온도 + 아이콘 가로 배치 */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-end gap-3.5">
-            <span className="text-[44px] font-black text-white tabular-nums tracking-[-0.04em] leading-none">
+            <span className="text-eta-xl font-black text-ink tabular-nums tracking-[-0.04em] leading-none">
               {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
             </span>
             <div className="mb-1">
-              <div className="text-sm font-bold text-white/85 leading-none tracking-tight">
+              <div className="text-body font-bold text-ink leading-none tracking-tight">
                 {SKY_TEXT[icon] ?? weather?.currentSky ?? ''}
               </div>
-              <div className="mt-2 flex gap-2.5 text-xs font-semibold text-white/55">
-                {todayHigh != null && <span><span className="text-yellow-300/85 font-extrabold">↑</span> <span className="text-white/85 font-extrabold tabular-nums">{todayHigh}°</span></span>}
-                {todayLow  != null && <span><span className="text-blue-300/85 font-extrabold">↓</span> <span className="text-white/85 font-extrabold tabular-nums">{todayLow}°</span></span>}
+              <div className="mt-2 flex gap-2.5 text-caption font-semibold text-mute">
+                {todayHigh != null && (
+                  <span>
+                    <span className="text-imminent font-extrabold">↑</span>{' '}
+                    <span className="text-ink-2 font-extrabold tabular-nums">{todayHigh}°</span>
+                  </span>
+                )}
+                {todayLow  != null && (
+                  <span>
+                    <span className="text-ease font-extrabold">↓</span>{' '}
+                    <span className="text-ink-2 font-extrabold tabular-nums">{todayLow}°</span>
+                  </span>
+                )}
                 {weather?.rainProb != null && weather.rainProb > 0 && (
-                  <span>강수 <span className="text-white/85 font-extrabold tabular-nums">{weather.rainProb}%</span></span>
+                  <span>강수 <span className="text-ink-2 font-extrabold tabular-nums">{weather.rainProb}%</span></span>
                 )}
               </div>
             </div>
           </div>
-          <Icon size={44} strokeWidth={1.4} className="text-white/65 shrink-0" aria-hidden="true" />
+          <Icon size={44} strokeWidth={1.4} className="text-mute shrink-0" aria-hidden="true" />
         </div>
 
         {/* 기온 변화 스파크라인 */}
@@ -232,14 +219,14 @@ export default function WeatherCard() {
 
         {/* 내일 날씨 */}
         {tomorrowSummary && TomorrowIcon && (
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-            <span className="text-xs font-bold text-white/55 tracking-wide">내일</span>
+          <div className="mt-4 pt-3 border-t border-line flex items-center justify-between">
+            <span className="text-caption font-bold text-mute tracking-wide">내일</span>
             <div className="flex items-center gap-2">
-              <TomorrowIcon size={18} strokeWidth={1.6} className="text-white/65" aria-hidden="true" />
-              <span className="text-sm font-semibold text-white/70">
+              <TomorrowIcon size={18} strokeWidth={1.6} className="text-mute" aria-hidden="true" />
+              <span className="text-label font-semibold text-ink-2">
                 {SKY_TEXT[tomorrowSummary.icon] ?? ''}
               </span>
-              <span className="text-[15px] font-extrabold tabular-nums text-white tracking-tight">
+              <span className="text-body font-extrabold tabular-nums text-ink tracking-tight">
                 {tomorrowSummary.high}° / {tomorrowSummary.low}°
               </span>
             </div>

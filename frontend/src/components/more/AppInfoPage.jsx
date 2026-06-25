@@ -4,7 +4,7 @@
  * Props:
  *   onBack  () => void
  */
-import { ChevronLeft, Heart } from 'lucide-react'
+import { ChevronLeft, Heart, School } from 'lucide-react'
 
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
 
@@ -48,7 +48,7 @@ export default function AppInfoPage({ onBack }) {
             </div>
           </div>
           <div className="flex items-center gap-3 px-4 py-3.5">
-            <span className="text-mute dark:text-mute-dark flex-shrink-0 w-4 text-center">🏫</span>
+            <School size={16} className="text-mute dark:text-mute-dark flex-shrink-0" aria-hidden="true" />
             <div>
               <p className="text-meta font-bold text-mute dark:text-mute-dark">기관</p>
               <p className="text-[15px] font-extrabold text-ink dark:text-ink-dark tracking-tight mt-0.5">한국공학대학교</p>
