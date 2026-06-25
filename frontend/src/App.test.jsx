@@ -18,6 +18,8 @@ vi.mock('./components/subway/GlobalSubwayLineSheet',        () => ({ default: ()
 vi.mock('./components/subway/GlobalSubwayDetailSheet',      () => ({ default: () => null }))
 vi.mock('./hooks/useTheme', () => ({ useTheme: () => {} }))
 vi.mock('./hooks/useMore',  () => ({ useNotices: () => ({ data: [] }) }))
+vi.mock('./pages/RouteDetailPage', () => ({ default: ({ routeNumber }) => <div data-testid="route-detail-page">RouteDetailPage-{routeNumber}</div> }))
+vi.mock('./pages/CafeteriaVenueDetailPage', () => ({ default: ({ venueId }) => <div data-testid="cafeteria-venue-detail-page">CafeteriaVenueDetailPage-{venueId}</div> }))
 vi.mock('./hooks/useMediaQuery', () => ({
   default: () => false,
   useIsDesktop: () => isDesktopMock,
@@ -84,5 +86,42 @@ describe('App', () => {
     setPath('/more')
     render(<App />)
     expect((await screen.findAllByText(/MorePage/)).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('/route/bus:33: RouteDetailPage 렌더링 + routeNumber=33 전달', async () => {
+    setPath('/route/bus:33')
+    render(<App />)
+    const el = await screen.findByTestId('route-detail-page')
+    expect(el).toBeInTheDocument()
+    expect(el).toHaveTextContent('RouteDetailPage-33')
+  })
+
+  it('/route/33: prefix 없이 routeNumber=33 전달', async () => {
+    setPath('/route/33')
+    render(<App />)
+    const el = await screen.findByTestId('route-detail-page')
+    expect(el).toBeInTheDocument()
+    expect(el).toHaveTextContent('RouteDetailPage-33')
+  })
+
+  it('/cafeteria/student-cafeteria: CafeteriaVenueDetailPage 렌더링 + venueId 전달', async () => {
+    setPath('/cafeteria/student-cafeteria')
+    render(<App />)
+    const el = await screen.findByTestId('cafeteria-venue-detail-page')
+    expect(el).toBeInTheDocument()
+    expect(el).toHaveTextContent('CafeteriaVenueDetailPage-student-cafeteria')
+  })
+
+  it('/cafeteria (슬래시 없음): 기존 CafeteriaPage 그대로 렌더링', async () => {
+    setPath('/cafeteria')
+    render(<App />)
+    expect((await screen.findAllByText(/CafeteriaPage/)).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('/cafeteria/gs25: venueId=gs25 전달 (URL 인코딩된 id)', async () => {
+    setPath('/cafeteria/gs25')
+    render(<App />)
+    const el = await screen.findByTestId('cafeteria-venue-detail-page')
+    expect(el).toHaveTextContent('CafeteriaVenueDetailPage-gs25')
   })
 })
