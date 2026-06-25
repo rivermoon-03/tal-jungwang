@@ -12,7 +12,7 @@ export default function ErrorState({ message, onRetry, className = '' }) {
     <div className={`flex flex-col items-center justify-center gap-3 py-10 px-6 text-center ${className}`}>
       <TriangleAlert size={32} className="text-accent dark:text-accent-dark" aria-hidden="true" />
       {message && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">{message}</p>
+        <p className="text-body text-mute dark:text-mute-dark">{message}</p>
       )}
       {onRetry && (
         <button

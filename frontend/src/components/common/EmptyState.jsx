@@ -12,15 +12,15 @@ export default function EmptyState({ icon, title, desc, ctaLabel, onCta, classNa
   return (
     <div className={`flex flex-col items-center justify-center gap-3 py-10 px-6 text-center ${className}`}>
       {icon && (
-        <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">
+        <span className="text-mute dark:text-mute-dark" aria-hidden="true">
           {icon}
         </span>
       )}
       {title && (
-        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">{title}</p>
+        <p className="text-head text-ink dark:text-white">{title}</p>
       )}
       {desc && (
-        <p className="text-xs text-gray-400 dark:text-gray-500">{desc}</p>
+        <p className="text-body text-mute dark:text-mute-dark">{desc}</p>
       )}
       {ctaLabel && onCta && (
         <button

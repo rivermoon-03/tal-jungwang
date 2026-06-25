@@ -13,20 +13,33 @@
   --dur-sheet: 280ms;
   --dur-slot:  400ms;
 
-  /* ── BMW iDrive / Tesla OS 톤 (2026-05 리디자인) ─────── */
-  --tj-accent:      #4f9fff;     /* iDrive Blue */
+  /* ── Warm Daylight 디자인 토큰 (2026-06 리디자인) ─────── */
+  --tj-bg:          #F4F3F1;
+  --tj-surface:     #FFFFFF;
+  --tj-surface-2:   #FBFAF8;
+  --tj-line:        #E7E4DF;
+  --tj-ink:         #1B2A4A;
+  --tj-ink-2:       #44506A;
+  --tj-mute:        #5A6678;
+  --tj-accent:      #2E8B86;
+  --tj-accent-ink:  #1F6B66;
+  --tj-accent-bg:   #E6F0EF;
+  --tj-imminent:    #C2502E;
+  --tj-ease:        #2F8B5F;
+
+  /* ── 레거시 (이전 토큰 — 기존 컴포넌트 호환 유지) ─────── */
   --tj-accent-2:    #1b3a6e;     /* 짙은 마린 (보조) */
   --tj-accent-dark: #4f9fff;
-  --tj-ink:         #0b0d10;
-  --tj-mute:        #64748b;
   --tj-mute-2:      #cbd2db;
-  --tj-line:        #f1f3f5;     /* 헤어라인 */
   --tj-line-soft:   #eef1f5;
   --tj-bg-soft:     #f7f8fa;
 
   /* 활성 pill — 라이트: 잉크 블랙, 다크: 액센트 블루 */
   --tj-pill-active-bg: #0b0d10;
   --tj-pill-active-fg: #ffffff;
+
+  /* 플로팅 독 — 라이트/다크 모두 어두운 떠있는 바 (ink 토큰처럼 반전되면 안 됨) */
+  --tj-dock-bg: #1B2A4A;
 
   /* 노선색 (지도 마커용 — 진한 단색 유지) */
   --line-201:     #2563eb;
@@ -52,16 +65,30 @@
 }
 
 .dark {
-  --tj-accent:    #4f9fff;
-  --tj-ink:       #ffffff;
-  --tj-mute:      #9ca3af;
+  /* ── Warm Daylight 다크 토큰 (2026-06 리디자인) ─────── */
+  --tj-bg:          #14161A;
+  --tj-surface:     #1E2228;
+  --tj-surface-2:   #181B20;
+  --tj-line:        #2B2F36;
+  --tj-ink:         #F2F2F0;
+  --tj-ink-2:       #B7BEC9;
+  --tj-mute:        #8A93A1;
+  --tj-accent:      #45B5AE;
+  --tj-imminent:    #F0785A;
+  --tj-ease:        #54B883;
+  /* 다크 전용 accent 틴트/텍스트 (라이트값을 그대로 쓰면 다크에서 너무 밝거나 안 읽힘) */
+  --tj-accent-ink:  #6FD0C8;
+  --tj-accent-bg:   #173532;
+
+  /* ── 레거시 (이전 토큰 — 기존 컴포넌트 호환 유지) ─────── */
   --tj-mute-2:    #4b5563;
-  --tj-line:      #1a1a1a;
   --tj-line-soft: #0f0f0f;
   --tj-bg-soft:   #0a0a0a;
   /* 활성 pill 다크: iDrive Blue + 잉크 텍스트 */
   --tj-pill-active-bg: #4f9fff;
   --tj-pill-active-fg: #000000;
+  /* 독: 다크에서도 어두운 떠있는 바 (배경보다 살짝 밝게 구분) */
+  --tj-dock-bg: #242A33;
   --imminent:     #f87171;
   --sh-card:      none;
 }
