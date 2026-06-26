@@ -516,6 +516,7 @@ async def get_timetable_by_route_number(
     *,
     stop_id: int | None = None,
     category: str | None = None,
+    day_type: str | None = None,
 ) -> dict | None:
     """route_number(예: "3400") 문자열로 조회. ID를 모를 때 사용.
     같은 route_number에 여러 row가 있을 때(양방향 분리):
@@ -539,11 +540,13 @@ async def get_timetable_by_route_number(
     if category and len(routes) > 1:
         matched = [r for r in routes if r.category == category]
         if matched:
-            return await get_timetable(db, matched[0].id, d, stop_id=stop_id)
+            return await get_timetable(
+                db, matched[0].id, d, stop_id=stop_id, day_type=day_type
+            )
 
     if stop_id is not None and len(routes) > 1:
         # 여러 row 중 해당 stop에 실제 시간표 데이터가 있는 row를 우선 선택
-        day = _day_type(d)
+        day = day_type or _day_type(d)
         for route in routes:
             check_stmt = (
                 select(BusTimetableEntry.id)
@@ -556,15 +559,26 @@ async def get_timetable_by_route_number(
             )
             exists = (await db.execute(check_stmt)).scalar_one_or_none()
             if exists is not None:
-                return await get_timetable(db, route.id, d, stop_id=stop_id)
+                return await get_timetable(
+                    db, route.id, d, stop_id=stop_id, day_type=day_type
+                )
 
-    return await get_timetable(db, routes[0].id, d, stop_id=stop_id)
+    return await get_timetable(
+        db, routes[0].id, d, stop_id=stop_id, day_type=day_type
+    )
 
 
 async def get_timetable(
-    db: AsyncSession, route_id: int, d: date, *, stop_id: int | None = None
+    db: AsyncSession,
+    route_id: int,
+    d: date,
+    *,
+    stop_id: int | None = None,
+    day_type: str | None = None,
 ) -> dict | None:
-    day = _day_type(d)
+    # day_type 명시 시(요일 탭 선택 등) 날짜보다 우선 — 프론트가 평일에 토/일 탭을
+    # 눌러도 해당 요일 시간표를 조회하도록 한다.
+    day = day_type or _day_type(d)
     cache_key = f"bus:timetable:{route_id}:{day}:{stop_id if stop_id is not None else 'all'}"
     cached = await get_cached_json(cache_key)
     if cached is not None:
