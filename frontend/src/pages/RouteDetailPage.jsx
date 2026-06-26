@@ -390,6 +390,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   // is_realtime 플래그 (시간표 응답에서 직접 읽기)
   const isRealtime = ttData?.is_realtime ?? false
 
+  // 시간표 그룹 표시 여부 (실제 렌더용).
+  // GBIS 정류장(stopGbisId != null)에서는 기본적으로 도착 정보 그룹만 보여주지만,
+  // 시간표 전용 노선(is_realtime=false)은 그 정류장에 실시간 도착 데이터가 없어
+  // 도착 그룹이 비고 시간표 그룹마저 숨기면 화면이 통째로 빈다(예: 시화터미널의 3400).
+  // 따라서 실시간이 아닌 노선이면 GBIS 정류장에서도 출발 시간표를 보여준다.
+  const showTimetableSection = showTimetableGroup || !isRealtime
+
   // 이전 도착 기록 (history-preview → ArrivalHistory 어댑터) — 실시간 노선에서만 의미 있음
   const { data: histData, loading: histLoading } = useBusHistoryPreview(routeNumber)
 
@@ -645,14 +652,15 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                 )}
 
                 {/* ── 그룹 구분선 (is_realtime=true이고 두 그룹 모두 표시할 때만) ── */}
-                {isRealtime && showArrivalGroup && showTimetableGroup && (
+                {isRealtime && showArrivalGroup && showTimetableSection && (
                   <div className="my-6 border-t border-line dark:border-line-dark" />
                 )}
 
                 {/* ── 그룹 B: 기점 출발 시간표
                     표시 조건: (stop 없음) 또는 (stop이 시간표 전용 정류장)
+                              또는 (시간표 전용 노선 — GBIS 정류장이어도 표시)
                 ── */}
-                {showTimetableGroup && (
+                {showTimetableSection && (
                 <section aria-label="기점 출발 시간표">
                   {/* 그룹 B 헤더 */}
                   <div className="mb-2">

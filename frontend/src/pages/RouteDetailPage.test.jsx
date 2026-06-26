@@ -709,6 +709,41 @@ describe('RouteDetailPage', () => {
     expect(screen.getByText('07:00')).toBeInTheDocument()
   })
 
+  it('[stop=시화터미널 + 시간표전용노선] GBIS 정류장이라도 is_realtime=false면 출발 시간표가 표시됨 (3400 빈 화면 회귀)', () => {
+    // 시화터미널은 gbisStationId='224000861'(GBIS 정류장)이지만,
+    // 3400은 gbis_route_id=NULL → is_realtime=false인 시간표 전용 노선.
+    // 도착 정보 그룹은 실시간 데이터가 없어 비고, 시간표 그룹마저 숨기면
+    // 화면이 통째로 빈다(사용자 신고). 시간표 전용 노선은 시간표를 보여줘야 한다.
+    vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
+      data: {
+        route_no: '3400',
+        direction_name: '서울행',
+        origin_stop_name: '한국공학대학교 시흥터미널',
+        is_realtime: false,
+        gbis_route_id: null,
+        stops: [],
+        timetable: {
+          weekday: [{ depart_at: '05:40', is_last: false }, { depart_at: '23:20', is_last: true }],
+          saturday: [],
+          sunday: [],
+        },
+        first_bus: '05:40',
+        last_bus: '23:20',
+        total_trips: 2,
+      },
+      loading: false,
+      error: null,
+    })
+    render(<RouteDetailPage routeNumber="3400" stop="시화터미널" />)
+
+    // 출발 시간표 섹션(그룹B)이 표시되어야 함 (빈 화면이면 안 됨)
+    expect(screen.getByRole('region', { name: /기점 출발 시간표/ })).toBeInTheDocument()
+    // 시간표 시각도 렌더
+    expect(screen.getByText('05:40')).toBeInTheDocument()
+    // 도착 정보 섹션(그룹A)은 숨겨짐 (is_realtime=false)
+    expect(screen.queryByRole('region', { name: /내 정류장 도착 정보/ })).not.toBeInTheDocument()
+  })
+
   it('[stop 없음] stop prop 미전달: 도착 정보와 출발 시간표가 모두 표시됨 (기존 동작 유지)', () => {
     vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
       data: {
