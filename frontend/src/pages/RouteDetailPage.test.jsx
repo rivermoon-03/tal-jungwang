@@ -310,9 +310,42 @@ describe('RouteDetailPage', () => {
       error: null,
     })
     render(<RouteDetailPage routeNumber="3400" />)
-    const nextLabels = screen.queryAllByText('다음 차')
+    // 라벨은 "다음 차" 또는 "다음 차 (n분 뒤)" 형태 — 부분 매칭으로 확인
+    const nextLabels = screen.queryAllByText(/다음 차/)
     if (new Date().getHours() < 23 || new Date().getMinutes() < 58) {
       expect(nextLabels.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('다음 차 행 라벨에 잔여 시간 "(n분 뒤)"가 함께 표시됨', () => {
+    vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
+      data: {
+        route_no: '3400',
+        direction_name: '서울행',
+        is_realtime: false,
+        gbis_route_id: null,
+        stops: [],
+        timetable: {
+          weekday: [
+            { depart_at: '00:01', is_last: false },
+            { depart_at: '23:58', is_last: false },
+            { depart_at: '23:59', is_last: true },
+          ],
+          saturday: [],
+          sunday: [],
+        },
+        first_bus: '00:01',
+        last_bus: '23:59',
+        total_trips: 3,
+      },
+      loading: false,
+      error: null,
+    })
+    render(<RouteDetailPage routeNumber="3400" />)
+    // 23시 이전이면 다음 차는 23:58 → 1분 넘게 남아 "(n분 뒤)" 형태가 보장됨
+    if (new Date().getHours() < 23) {
+      const nextLabel = screen.getByText(/다음 차/)
+      expect(nextLabel.textContent).toMatch(/다음 차 \(\d+분 뒤\)/)
     }
   })
 
