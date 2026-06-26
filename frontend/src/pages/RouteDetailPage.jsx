@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Star, ChevronLeft, Bus } from 'lucide-react'
 import { useBusTimetableByRoute, useBusHistoryPreview, useBusRoutes } from '../hooks/useBus'
 import useFavorites from '../hooks/useFavorites'
@@ -231,7 +231,7 @@ function TimetableRow({ entry, nowMin, isNext = false }) {
         <StatusChip kind="last">막차</StatusChip>
       ) : isNext ? (
         <span className="text-[11px] font-extrabold text-accent-ink px-[9px] py-[3px] rounded-full bg-accent/15">
-          다음 차
+          다음 차{delta ? ` (${delta})` : ''}
         </span>
       ) : isPast ? (
         <span className="text-[11px] font-extrabold text-mute/70">지난 차</span>
@@ -421,6 +421,23 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
     return schedule.findIndex((e) => timeToMinutes(e.depart_at) >= nowMin)
   }, [schedule, nowMin])
 
+  // 시간표 전용 노선(is_realtime=false)은 시각 전체가 한 화면에 안 들어와
+  // 새벽 첫차부터 보여주면 다음 차를 찾기 어렵다. 진입 시 다음 차 직전 2개가
+  // 보이는 위치를 시작점으로 자동 스크롤한다. (실시간 노선은 도착 카드를 가리지
+  // 않도록 적용하지 않는다.)
+  const scrollRef = useRef(null)
+  const anchorRowRef = useRef(null)
+  const anchorIdx = nextIdx < 0 ? -1 : Math.max(0, nextIdx - 2)
+  useEffect(() => {
+    if (isRealtime) return
+    if (anchorIdx <= 0) return // 다음 차가 앞쪽이면 그대로 맨 위에서 시작
+    const c = scrollRef.current
+    const t = anchorRowRef.current
+    if (!c || !t) return
+    const top = t.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop
+    c.scrollTop = Math.max(0, top)
+  }, [isRealtime, anchorIdx, dayTab, resolvedCategory, ttData])
+
   // 실시간 라이브 데이터 — histData에서 가장 가까운 arrivals[0] (is_realtime=true일 때만)
   const liveEntry = useMemo(() => {
     if (!isRealtime) return null
@@ -583,7 +600,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
         </div>
 
         {/* 스크롤 영역: 시간표 리스트 */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
           <div className="px-4 pt-3 pb-6">
             {ttLoading && (
               <div className="mt-8">
@@ -684,7 +701,10 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                     {schedule.map((entry, idx) => {
                       const isNextSlot = idx === nextIdx
                       return (
-                        <div key={`${entry.depart_at}-${idx}`}>
+                        <div
+                          key={`${entry.depart_at}-${idx}`}
+                          ref={idx === anchorIdx ? anchorRowRef : undefined}
+                        >
                           {/* 실시간 노선에서만: 다음 차 직전에 인라인 라이브 행 삽입 */}
                           {isRealtime && isNextSlot && liveEntry && (
                             <InlineLiveRow liveData={liveEntry} />
