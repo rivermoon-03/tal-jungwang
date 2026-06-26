@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { maybeLoadWebAds } from './utils/ads'
 
 // React 마운트 전에 동기적으로 dark 클래스 설정 — useEffect 지연으로 인한 플래시 방지
 if (localStorage.getItem('tal_dark') === '1') {
@@ -38,3 +39,6 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// 웹(브라우저 탭)에서만 AdSense 자동광고 로드 — 설치형 PWA/TWA·앱 빌드 제외.
+maybeLoadWebAds()

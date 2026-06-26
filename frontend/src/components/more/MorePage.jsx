@@ -244,6 +244,19 @@ export default function MorePage() {
           </div>
           <ChevronRight size={18} aria-hidden="true" style={{ color: 'var(--tj-mute)' }} />
         </button>
+
+        {/* 개인정보처리방침 (마켓 등록용 안정 URL /privacy) */}
+        <button
+          type="button"
+          onClick={() => {
+            window.history.pushState({}, '', '/privacy')
+            window.dispatchEvent(new PopStateEvent('popstate'))
+          }}
+          className="pressable w-full text-center text-label font-semibold text-mute dark:text-mute-dark"
+          style={{ marginTop: 12, padding: '8px', background: 'transparent', cursor: 'pointer' }}
+        >
+          개인정보처리방침
+        </button>
       </div>
     </div>
   )

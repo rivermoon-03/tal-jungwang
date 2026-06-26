@@ -20,6 +20,7 @@ const CafeteriaPage = lazy(() => import('./pages/CafeteriaPage'))
 const MorePage = lazy(() => import('./pages/MorePage'))
 const RouteDetailPage = lazy(() => import('./pages/RouteDetailPage'))
 const CafeteriaVenueDetailPage = lazy(() => import('./pages/CafeteriaVenueDetailPage'))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 
 const VALID_HASH_TABS = ['main', 'map', 'transit', 'subway', 'more']
 
@@ -30,6 +31,7 @@ function hashToTab(hash) {
 }
 
 function pathnameToPage(pathname) {
+  if (pathname.startsWith('/privacy'))    return 'privacy'
   if (pathname.startsWith('/schedule'))   return 'schedule'
   // /cafeteria/:id (상세)와 /cafeteria (탭) 구분
   if (pathname.startsWith('/cafeteria/')) return 'cafeteria-venue'
@@ -173,6 +175,9 @@ export default function App() {
   } else if (currentPage === 'more-page') {
     pageContent = <MorePage />
     mobileContent = <MorePage />
+  } else if (currentPage === 'privacy') {
+    pageContent = <PrivacyPage />
+    mobileContent = <PrivacyPage />
   } else if (currentPage === 'route-detail') {
     pageContent = <RouteDetailPage routeNumber={routeNumber} stop={routeStop} />
     mobileContent = <RouteDetailPage routeNumber={routeNumber} stop={routeStop} />
