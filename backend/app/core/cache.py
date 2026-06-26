@@ -58,3 +58,20 @@ async def set_cached_json(key: str, value: dict | list, ttl: int) -> None:
         )
     except Exception as exc:
         logger.warning("Cache write failed [%s]: %s", key, exc)
+
+
+async def delete_keys(pattern: str) -> int:
+    """glob 패턴에 매칭되는 캐시 키를 모두 삭제한다. 삭제한 키 수 반환 (오류 시 0).
+
+    scan_iter로 비차단 순회한다(KEYS 미사용 — 운영 Redis 블로킹 방지).
+    """
+    try:
+        redis = await get_redis()
+        deleted = 0
+        async for key in redis.scan_iter(match=pattern, count=100):
+            await redis.delete(key)
+            deleted += 1
+        return deleted
+    except Exception as exc:
+        logger.warning("Cache delete failed [%s]: %s", pattern, exc)
+        return 0

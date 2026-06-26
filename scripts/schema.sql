@@ -145,7 +145,7 @@ CREATE INDEX idx_crowding_route_stop_at
 CREATE TABLE schedule_periods (
     id              SERIAL       PRIMARY KEY,
     period_type     VARCHAR(20)  NOT NULL
-                    CHECK (period_type IN ('SEMESTER','VACATION','EXAM','HOLIDAY','SUSPENDED')),
+                    CHECK (period_type IN ('SEMESTER','VACATION','EXAM','HOLIDAY','SUSPENDED','SEASONAL')),
     name            VARCHAR(100) NOT NULL,
     start_date      DATE         NOT NULL,
     end_date        DATE         NOT NULL CHECK (end_date >= start_date),

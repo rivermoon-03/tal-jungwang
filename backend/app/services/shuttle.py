@@ -3,11 +3,14 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.cache import get_cached_json, set_cached_json
+from app.core.cache import delete_keys, get_cached_json, set_cached_json
 from app.core.calendar import get_day_type, get_holiday_name, is_holiday
 from app.models.shuttle import SchedulePeriod, ShuttleRoute, ShuttleTimetableEntry
 
 _PERIOD_TTL = 3600       # 1시간 — 운행 기간은 자주 안 바뀜
+_PERIOD_MISS_TTL = 300   # 5분 — '운행기간 없음' 네거티브 캐시는 짧게.
+                         # 방학 중 새 period(계절학기 등)를 추가해도 곧 자가회복되게.
+                         # (mistakes.md §5 — 네거티브 캐시 TTL이 길면 추가가 몇 시간 안 보였음.)
 _SCHEDULE_TTL = 3600     # 1시간
 _ENTRIES_TTL = 3600      # 1시간
 
@@ -29,7 +32,7 @@ async def _load_period(db: AsyncSession, d: date) -> dict | None:
     period = result.scalar_one_or_none()
 
     if not period:
-        await set_cached_json(cache_key, {}, ttl=_PERIOD_TTL)
+        await set_cached_json(cache_key, {}, ttl=_PERIOD_MISS_TTL)
         return None
 
     data = {
@@ -78,6 +81,18 @@ async def _load_entries(db: AsyncSession, period_id: int, day: str) -> list[dict
 async def get_current_period(db: AsyncSession, d: date) -> SchedulePeriod | None:
     """하위호환용 — 내부적으로 캐시된 _load_period 사용."""
     return await _load_period(db, d)
+
+
+async def invalidate_shuttle_cache() -> int:
+    """셔틀 운행기간/시간표 Redis 캐시를 모두 무효화한다. 삭제 키 수 반환.
+
+    schedule_periods·shuttle_timetable_entries 변경(마이그레이션·시드) 후,
+    또는 재배포 startup에서 호출한다. 방학 중 캐시된 'period 없음'(네거티브 캐시)이
+    새로 추가된 기간을 가리지 않도록 정리한다.
+    """
+    cleared = await delete_keys("shuttle:period:*")
+    cleared += await delete_keys("shuttle:entries:*")
+    return cleared
 
 
 async def get_schedule(

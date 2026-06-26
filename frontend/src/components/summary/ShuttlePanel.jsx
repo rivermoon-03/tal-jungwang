@@ -182,8 +182,20 @@ export default function ShuttlePanel() {
     })
   }
 
+  const isSeasonal = schedule?.schedule_type === 'SEASONAL'
+
   return (
     <div className="space-y-2">
+      {isSeasonal && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-micro font-extrabold px-2 py-0.5 rounded-full bg-accent/12 text-accent dark:text-accent-dark tracking-wide">
+            계절학기
+          </span>
+          <span className="text-caption text-mute dark:text-mute-dark truncate">
+            방학 축소 운행 시간표예요
+          </span>
+        </div>
+      )}
       <DualDirectionCard
         symbol="셔"
         symbolColor="var(--tj-accent)"

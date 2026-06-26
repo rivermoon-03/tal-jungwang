@@ -11,7 +11,7 @@ class SchedulePeriod(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     period_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    # SEMESTER | VACATION | EXAM | HOLIDAY | SUSPENDED
+    # SEMESTER | VACATION | EXAM | HOLIDAY | SUSPENDED | SEASONAL(계절학기)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     start_date: Mapped[date] = mapped_column(nullable=False)
     end_date: Mapped[date] = mapped_column(nullable=False)
