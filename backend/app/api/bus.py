@@ -118,6 +118,9 @@ async def bus_timetable_by_route_number(
     response: Response,
     route_number: str,
     date_str: str | None = Query(None, alias="date"),
+    schedule_type: str | None = Query(
+        None, description="weekday/saturday/sunday — 명시 시 date보다 우선(요일 탭 전환)"
+    ),
     stop_id: int | None = Query(None),
     category: str | None = Query(None, description="등교 또는 하교 — 방향별 route 선택"),
     db: AsyncSession = Depends(get_db),
@@ -126,7 +129,14 @@ async def bus_timetable_by_route_number(
         d = date.fromisoformat(date_str) if date_str else datetime.now(ZoneInfo("Asia/Seoul")).date()
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식은 YYYY-MM-DD 이어야 합니다.")
-    result = await get_timetable_by_route_number(db, route_number, d, stop_id=stop_id, category=category)
+    if schedule_type is not None and schedule_type not in ("weekday", "saturday", "sunday"):
+        raise HTTPException(
+            status_code=400,
+            detail="schedule_type은 weekday/saturday/sunday 중 하나여야 합니다.",
+        )
+    result = await get_timetable_by_route_number(
+        db, route_number, d, stop_id=stop_id, category=category, day_type=schedule_type
+    )
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
