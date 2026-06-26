@@ -87,6 +87,15 @@ async def lifespan(app: FastAPI):
             except Exception:
                 logger.exception("초기 지하철 시간표 로드 실패")
 
+        # 셔틀 캐시 무효화 후 워밍: 방학 중 캐시된 'period 없음'(네거티브)이
+        # 새로 추가된 운행기간(계절학기 등)을 가리지 않도록, 재배포 startup에서 정리한다.
+        try:
+            from app.services.shuttle import invalidate_shuttle_cache
+            cleared = await invalidate_shuttle_cache()
+            logger.info("셔틀 캐시 무효화 완료: %d개 키 삭제", cleared)
+        except Exception:
+            logger.exception("셔틀 캐시 무효화 실패")
+
         # 정적/준정적 캐시 워밍업 (cache-aside 항목, 첫 사용자 cold miss 방지).
         # 셔틀·지하철 시간표·지도 마커·버스 시간표를 한 번에 적재한다.
         try:
