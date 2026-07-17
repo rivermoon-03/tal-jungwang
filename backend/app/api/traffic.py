@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -21,14 +21,34 @@ _TRAFFIC_RUSH_TTL = 60    # 출퇴근 시간대 1분
 _TRAFFIC_NORMAL_TTL = 300  # 평시 5분
 
 
-def _traffic_ttl() -> int:
+# 러시아워/평시 판정이 바뀌는 시각(KST, 24h). 07~10시, 16~19시가 러시아워.
+_TTL_BOUNDARY_HOURS = (7, 10, 16, 19)
+
+
+def _seconds_until_next_boundary(now: datetime) -> int:
+    """now 이후 가장 가까운 러시아워/평시 경계 시각까지 남은 초(자정 넘김 포함)."""
+    candidates = []
+    for h in _TTL_BOUNDARY_HOURS:
+        candidate = datetime.combine(now.date(), time(hour=h), tzinfo=_KST)
+        if candidate <= now:
+            candidate += timedelta(days=1)
+        candidates.append(candidate)
+    return int((min(candidates) - now).total_seconds())
+
+
+def _traffic_ttl(now: datetime | None = None) -> int:
     """현재 KST 시각에 따른 교통 캐시 TTL 반환.
     출퇴근 (07~09, 16~18): 60초 / 그 외: 300초
+
+    캐시 저장 시점의 러시/평시 판정만으로 TTL을 고정하면, 예를 들어 08:59에
+    저장된 5분(300초) 평시 TTL 캐시가 09:00~09:04 러시아워 구간까지 그대로
+    남아 최대 5분간 stale해질 수 있다. 이를 막기 위해 "다음 경계까지 남은
+    시간"과 기존 TTL 중 더 짧은 쪽으로 clamp한다.
     """
-    hour = datetime.now(_KST).hour
-    if 7 <= hour < 10 or 16 <= hour < 19:
-        return _TRAFFIC_RUSH_TTL
-    return _TRAFFIC_NORMAL_TTL
+    now = now or datetime.now(_KST)
+    hour = now.hour
+    base_ttl = _TRAFFIC_RUSH_TTL if (7 <= hour < 10 or 16 <= hour < 19) else _TRAFFIC_NORMAL_TTL
+    return max(1, min(base_ttl, _seconds_until_next_boundary(now)))
 
 router = APIRouter(prefix="/api/v1/traffic", tags=["traffic"])
 
