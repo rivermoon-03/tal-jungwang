@@ -58,7 +58,7 @@ export default function NoticesPopover({ open, onClose, anchorRef }) {
           type="button"
           onClick={onClose}
           aria-label="닫기"
-          className="w-7 h-7 rounded-btn flex items-center justify-center text-dock-text-mute hover:text-white hover:bg-dock-active-bg transition-colors duration-snap ease-ios"
+          className="w-7 h-7 rounded-btn flex items-center justify-center text-dock-text-mute hover:text-white hover:bg-dock-active-bg transition-colors duration-snap ease-out"
         >
           <X size={16} aria-hidden="true" />
         </button>

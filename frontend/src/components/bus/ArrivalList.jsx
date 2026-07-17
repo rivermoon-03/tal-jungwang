@@ -129,12 +129,13 @@ export default function ArrivalList({ arrivals, stationId, onTimetableClick, sta
                     </span>
                   </div>
                   <div className="space-y-3">
-                    {groups.map((g) => (
+                    {groups.map((g, i) => (
                       <BusArrivalCard
                         key={g[0].route_no}
                         arrivals={g}
                         stationId={stationId}
                         onTimetableClick={onTimetableClick}
+                        index={i}
                       />
                     ))}
                   </div>

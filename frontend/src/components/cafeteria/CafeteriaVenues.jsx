@@ -19,6 +19,7 @@ import useAppStore from '../../stores/useAppStore'
 import { ALL_VENUES, RESTAURANTS, VENUE_GROUPS, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
 import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryStyle, getCategoryIcon } from '../../utils/venueOpen'
 import SegmentTabs from '../ui/SegmentTabs'
+import { staggerStyle } from '../../utils/motion'
 
 // ── 탭 정의 ────────────────────────────────────────────────
 const TABS = [
@@ -377,8 +378,10 @@ function VenueSlimList({ venues, nowDate, onVenueClick }) {
       {venues.map((venue, i) => (
         <div
           key={venue.id}
+          className="tj-card-enter"
           style={{
             borderBottom: i < venues.length - 1 ? '1px solid var(--tj-line)' : 'none',
+            ...staggerStyle(i),
           }}
         >
           <SimpleVenueCard venue={venue} nowDate={nowDate} onVenueClick={onVenueClick} />

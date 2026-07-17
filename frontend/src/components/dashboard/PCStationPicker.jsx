@@ -134,7 +134,7 @@ function DirectionToggle({ direction, onPick }) {
             onClick={() => onPick(d)}
             aria-pressed={active}
             aria-label={d}
-            className={`px-3 py-1.5 rounded-pill text-label font-semibold tracking-[-0.01em] pressable transition-colors duration-press ease-ios ${
+            className={`px-3 py-1.5 rounded-pill text-label font-semibold tracking-[-0.01em] pressable transition-colors duration-press ease-out ${
               active
                 ? 'bg-ink text-white dark:bg-accent dark:text-black'
                 : 'text-mute dark:text-mute'
@@ -154,7 +154,7 @@ function Chip({ label, active, onClick, accent = false }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`whitespace-nowrap pressable shrink-0 text-label font-semibold px-2.5 py-1.5 rounded-btn transition-colors duration-press ease-ios ${
+      className={`whitespace-nowrap pressable shrink-0 text-label font-semibold px-2.5 py-1.5 rounded-btn transition-colors duration-press ease-out ${
         active
           ? (accent
               ? 'bg-accent text-black'
