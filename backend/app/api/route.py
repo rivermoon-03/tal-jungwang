@@ -1,10 +1,9 @@
 import asyncio
-import json
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from app.core.cache import get_redis
+from app.core.cache import get_or_fetch_with_lock
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.route import DrivingRouteResponse, RouteRequest, WalkingRouteResponse
@@ -79,26 +78,17 @@ def _walk_cache_key(origin_lat: float, origin_lng: float,
 async def taxi_to_station(request: Request, response: Response):
     """학교 셔틀 탑승지 → 정왕역 자동차 이동 시간 (카카오모빌리티, 5분 캐시)."""
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=1200"
-    try:
-        redis = await get_redis()
-        cached = await redis.get(_TAXI_CACHE_KEY)
-        if cached:
-            return ApiResponse.ok({"duration_seconds": int(cached)})
-    except Exception:
-        pass
 
-    try:
+    async def _fetch() -> dict:
         result = await fetch_driving_route(
             origin_x=_SCHOOL_LNG, origin_y=_SCHOOL_LAT,
             dest_x=_STATION_LNG, dest_y=_STATION_LAT,
         )
-        secs = result.get("duration_seconds", 0)
-        try:
-            redis = await get_redis()
-            await redis.setex(_TAXI_CACHE_KEY, _TAXI_CACHE_TTL, str(secs))
-        except Exception:
-            pass
-        return ApiResponse.ok({"duration_seconds": secs})
+        return {"duration_seconds": result.get("duration_seconds", 0)}
+
+    try:
+        payload = await get_or_fetch_with_lock(_TAXI_CACHE_KEY, _TAXI_CACHE_TTL, _fetch)
+        return ApiResponse.ok(payload)
     except httpx.HTTPError:
         return ApiResponse.ok({"duration_seconds": None})
 
@@ -117,26 +107,16 @@ async def walking_route(request: Request, response: Response, req: RouteRequest)
 
     cache_key = _walk_cache_key(origin_lat, origin_lng, dest_lat, dest_lng)
 
-    try:
-        redis = await get_redis()
-        cached = await redis.get(cache_key)
-        if cached:
-            return ApiResponse[WalkingRouteResponse].ok(json.loads(cached))
-    except Exception:
-        pass
-
-    result = await fetch_walking_route(
-        start_x=origin_lng,
-        start_y=origin_lat,
-        end_x=dest_lng,
-        end_y=dest_lat,
+    result = await get_or_fetch_with_lock(
+        cache_key,
+        _WALKING_CACHE_TTL,
+        lambda: fetch_walking_route(
+            start_x=origin_lng,
+            start_y=origin_lat,
+            end_x=dest_lng,
+            end_y=dest_lat,
+        ),
     )
-
-    try:
-        redis = await get_redis()
-        await redis.setex(cache_key, _WALKING_CACHE_TTL, json.dumps(result))
-    except Exception:
-        pass
 
     return ApiResponse[WalkingRouteResponse].ok(result)
 
@@ -149,43 +129,33 @@ async def taxi_destinations(request: Request, response: Response):
 
     async def fetch_one(dest: dict) -> dict:
         cache_key = f"route:taxi_dest_v2:{dest['id']}"
-        try:
-            redis = await get_redis()
-            cached = await redis.get(cache_key)
-            if cached:
-                return json.loads(cached)
-        except Exception:
-            pass
 
-        try:
-            result = await fetch_driving_route(
-                origin_x=_TAXI_ORIGIN_LNG, origin_y=_TAXI_ORIGIN_LAT,
-                dest_x=dest["lng"], dest_y=dest["lat"],
-            )
-            item = {
-                "id": dest["id"],
-                "name": dest["name"],
-                "duration_seconds": result["duration_seconds"],
-                "distance_meters": result["distance_meters"],
-                "taxi_fee": result["taxi_fee"],
-                "coordinates": result["coordinates"],
-            }
-        except Exception:
-            item = {
-                "id": dest["id"],
-                "name": dest["name"],
-                "duration_seconds": None,
-                "distance_meters": None,
-                "taxi_fee": None,
-                "coordinates": [],
-            }
+        async def _fetch() -> dict:
+            try:
+                result = await fetch_driving_route(
+                    origin_x=_TAXI_ORIGIN_LNG, origin_y=_TAXI_ORIGIN_LAT,
+                    dest_x=dest["lng"], dest_y=dest["lat"],
+                )
+                return {
+                    "id": dest["id"],
+                    "name": dest["name"],
+                    "duration_seconds": result["duration_seconds"],
+                    "distance_meters": result["distance_meters"],
+                    "taxi_fee": result["taxi_fee"],
+                    "coordinates": result["coordinates"],
+                }
+            except Exception:
+                # 실패해도 null placeholder를 캐싱한다(기존 동작 유지) — 카드 자체는 항상 보이게.
+                return {
+                    "id": dest["id"],
+                    "name": dest["name"],
+                    "duration_seconds": None,
+                    "distance_meters": None,
+                    "taxi_fee": None,
+                    "coordinates": [],
+                }
 
-        try:
-            redis = await get_redis()
-            await redis.setex(cache_key, _TAXI_DEST_TTL, json.dumps(item, ensure_ascii=False))
-        except Exception:
-            pass
-        return item
+        return await get_or_fetch_with_lock(cache_key, _TAXI_DEST_TTL, _fetch)
 
     results = await asyncio.gather(*[fetch_one(d) for d in _TAXI_DESTINATIONS])
     return ApiResponse.ok({"destinations": list(results)})
@@ -205,25 +175,15 @@ async def driving_route(request: Request, response: Response, req: RouteRequest)
 
     cache_key = _coord_cache_key("route:driving", origin_lat, origin_lng, dest_lat, dest_lng)
 
-    try:
-        redis = await get_redis()
-        cached = await redis.get(cache_key)
-        if cached:
-            return ApiResponse[DrivingRouteResponse].ok(json.loads(cached))
-    except Exception:
-        pass
-
-    result = await fetch_driving_route(
-        origin_x=origin_lng,
-        origin_y=origin_lat,
-        dest_x=dest_lng,
-        dest_y=dest_lat,
+    result = await get_or_fetch_with_lock(
+        cache_key,
+        _DRIVING_CACHE_TTL,
+        lambda: fetch_driving_route(
+            origin_x=origin_lng,
+            origin_y=origin_lat,
+            dest_x=dest_lng,
+            dest_y=dest_lat,
+        ),
     )
-
-    try:
-        redis = await get_redis()
-        await redis.setex(cache_key, _DRIVING_CACHE_TTL, json.dumps(result))
-    except Exception:
-        pass
 
     return ApiResponse[DrivingRouteResponse].ok(result)
