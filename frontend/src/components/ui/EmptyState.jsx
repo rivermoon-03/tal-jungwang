@@ -27,7 +27,7 @@ export default function EmptyState({ icon, title, desc, action, className = '' }
         <button
           type="button"
           onClick={action.onClick}
-          className="mt-1 px-5 min-h-[40px] text-caption font-bold rounded-btn bg-surface-2 text-mute active:scale-95 transition-transform duration-press ease-ios"
+          className="mt-1 px-5 min-h-[40px] text-caption font-bold rounded-btn bg-surface-2 text-mute active:scale-[0.94] transition-transform duration-press ease-spring"
         >
           {action.label}
         </button>

@@ -956,7 +956,7 @@ function ScheduleSectionView({
               justifyContent: 'center',
               cursor: 'pointer',
               transition:
-                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+                'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
             }}
           >
             <BarChart3 size={14} strokeWidth={2.2} aria-hidden="true" />
@@ -979,7 +979,7 @@ function ScheduleSectionView({
               whiteSpace: 'nowrap',
               cursor: 'pointer',
               transition:
-                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+                'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
             }}
           >
             ★ 즐겨찾기
@@ -1011,7 +1011,7 @@ function ScheduleSectionView({
                     fontWeight: 700,
                     cursor: 'pointer',
                     transition:
-                      'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+                      'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
                   }}
                 >
                   {g.label}

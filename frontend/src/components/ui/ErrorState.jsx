@@ -20,7 +20,7 @@ export default function ErrorState({ message, onRetry, className = '' }) {
         <button
           type="button"
           onClick={onRetry}
-          className="mt-1 px-6 min-h-[44px] text-body font-bold rounded-btn bg-accent text-white active:scale-95 transition-transform duration-press ease-ios"
+          className="mt-1 px-6 min-h-[44px] text-body font-bold rounded-btn bg-accent text-white active:scale-[0.94] transition-transform duration-press ease-spring"
         >
           다시 시도
         </button>

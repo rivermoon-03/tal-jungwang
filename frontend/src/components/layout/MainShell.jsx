@@ -49,7 +49,7 @@ export default function MainShell() {
             text-[13px] font-bold text-accent dark:text-accent
             shadow-pill
             min-h-[40px]
-            active:scale-95 transition-transform
+            active:scale-[0.94] transition-transform duration-press ease-spring
           "
         >
           <Map size={16} aria-hidden="true" />

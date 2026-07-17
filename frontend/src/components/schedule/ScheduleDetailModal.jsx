@@ -1,11 +1,13 @@
 /**
  * ScheduleDetailModal — bottom-sheet modal with full upcoming schedule.
  * - 세로 리스트 + "다음" 배지 + "N분 뒤"
- * - 드래그 손잡이로 스와이프 다운 닫기
+ * - 모바일: vaul(Drawer) 기반 스와이프 다운 닫기(Phase C). PC: 좌측 패널 내
+ *   콘텐츠 교체형 크로스페이드(기존 UX 유지, vaul 미적용 — 오프캔버스 슬라이드가 아님).
  * - FloatingDock 위로 띄워지도록 bottom padding 확보
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Drawer } from 'vaul'
 import { X, Clock, Star, MapPin } from 'lucide-react'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
@@ -726,171 +728,159 @@ const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
 export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null }) {
-  const sheetRef = useRef(null)
-  const [dragY, setDragY] = useState(0)
-  const startY = useRef(null)
-
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) onClose()
-  }
-
-  useEffect(() => {
-    if (!open) return
-    function onKey(e) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  const isPC =
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
-      setDragY(0)
     }
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  // ─ drag-to-dismiss on handle ──────────────────────────────────────────
-  function onDragStart(e) {
-    const y = e.touches ? e.touches[0].clientY : e.clientY
-    startY.current = y
-  }
-  function onDragMove(e) {
-    if (startY.current == null) return
-    const y = e.touches ? e.touches[0].clientY : e.clientY
-    const dy = Math.max(0, y - startY.current)
-    setDragY(dy)
-  }
-  function onDragEnd() {
-    if (startY.current == null) return
-    const finalY = dragY
-    startY.current = null
-    if (finalY > 120) {
-      onClose()
-    } else {
-      setDragY(0)
+  // PC는 백드롭/포커스트랩이 없는 non-modal 패널이라 자체 Escape 핸들러가 필요
+  // (모바일은 vaul/Radix Dialog가 Escape를 자동 처리).
+  useEffect(() => {
+    if (!isPC || !open) return
+    function onKey(e) {
+      if (e.key === 'Escape') onClose()
     }
-  }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isPC, open, onClose])
 
-  if (!open) return null
+  // PC는 이전에도 애니메이션 없이 즉시 마운트/언마운트했으므로 동일하게 유지.
+  if (isPC && !open) return null
+  // 모바일은 vaul(Presence)이 닫힘 트랜지션 동안 계속 마운트를 유지해야 하므로
+  // open=false여도 바로 리턴하지 않고 아래에서 Drawer.Root에 open만 전달한다.
+  if (!isPC && !open && !title) return null
 
   const fallbackColor = TYPE_COLOR[type] ?? '#64748B'
   const color = accentColor ?? fallbackColor
   const typeLabel = TYPE_LABEL[type] ?? ''
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[100] md:left-0 md:right-auto md:w-[38%] md:bottom-[68px] flex items-end md:items-stretch justify-center md:justify-stretch pointer-events-none"
-      aria-modal="true"
-      role="dialog"
-      aria-label={`${title} 시간표`}
-    >
-      {/* 모바일: 검정 backdrop. PC: backdrop 없음 (좌측 패널 영역만 차지) */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in pointer-events-auto md:hidden"
-        onClick={handleBackdrop}
+  const header = (
+    <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-line">
+      <span
+        className="w-3 h-3 rounded-full flex-shrink-0"
+        style={{ background: color }}
       />
-
-      <div
-        ref={sheetRef}
-        className="relative z-10 w-full md:max-w-none md:w-full bg-surface dark:bg-surface rounded-t-[28px] md:rounded-none shadow-2xl md:shadow-none flex flex-col pointer-events-auto md:h-full md:animate-panel-swap animate-slide-up"
-        style={{
-          maxHeight: '88dvh',
-          transform: `translateY(${dragY}px)`,
-          transition: startY.current == null ? 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* drag handle — tap/swipe to dismiss */}
-        <button
-          onClick={onClose}
-          onTouchStart={onDragStart}
-          onTouchMove={onDragMove}
-          onTouchEnd={onDragEnd}
-          onMouseDown={onDragStart}
-          onMouseMove={startY.current != null ? onDragMove : undefined}
-          onMouseUp={onDragEnd}
-          onMouseLeave={startY.current != null ? onDragEnd : undefined}
-          aria-label="닫기 (아래로 드래그)"
-          className="flex justify-center pt-3 pb-2 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
-          style={{ touchAction: 'none' }}
-        >
-          <span className="w-12 h-1.5 rounded-full bg-line dark:bg-line" />
-        </button>
-
-        {/* header */}
-        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-line">
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ background: color }}
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-display text-ink dark:text-ink truncate" style={{ letterSpacing: '-0.03em' }}>
-              {title}
-            </p>
-            <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
-          </div>
-          {onShowMap && (
-            <button
-              onClick={onShowMap}
-              aria-label="지도에서 보기"
-              title="지도에서 보기"
-              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
-            >
-              <MapPin size={18} className="text-ink-2 dark:text-mute" />
-            </button>
-          )}
-          {onToggleFav && (
-            <button
-              onClick={onToggleFav}
-              aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-              title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
-            >
-              <Star
-                size={18}
-                fill={isFavorite ? 'var(--tj-accent)' : 'none'}
-                className={isFavorite ? 'text-accent dark:text-accent' : 'text-mute dark:text-mute'}
-              />
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            aria-label="닫기"
-            className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
-          >
-            <X size={18} className="text-ink-2 dark:text-mute" />
-          </button>
-        </div>
-
-        <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center gap-1.5">
-          <Clock size={12} className="text-mute" />
-          <p className="text-caption text-mute">
-            오늘 기준 · {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-          </p>
-        </div>
-
-        {/* scrollable content — bottom padding 확보해 FloatingDock 위로 */}
-        <div
-          className="flex-1 overflow-y-auto px-4 pt-2"
-          style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
-        >
-          {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
-            <div className="-mx-4 mb-4 border-b border-line dark:border-line pb-2">
-              <p className="text-caption font-semibold text-mute dark:text-mute px-4 mb-3 uppercase tracking-wide">경유 노선</p>
-              <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
-            </div>
-          )}
-          {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} />}
-          {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
-          {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
-          {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
-        </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-display text-ink dark:text-ink truncate" style={{ letterSpacing: '-0.03em' }}>
+          {title}
+        </p>
+        <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
       </div>
-    </div>,
-    document.body
+      {onShowMap && (
+        <button
+          onClick={onShowMap}
+          aria-label="지도에서 보기"
+          title="지도에서 보기"
+          className="pressable p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
+        >
+          <MapPin size={18} className="text-ink-2 dark:text-mute" />
+        </button>
+      )}
+      {onToggleFav && (
+        <button
+          onClick={onToggleFav}
+          aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          className="pressable p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
+        >
+          <Star
+            size={18}
+            fill={isFavorite ? 'var(--tj-accent)' : 'none'}
+            className={isFavorite ? 'text-accent dark:text-accent' : 'text-mute dark:text-mute'}
+          />
+        </button>
+      )}
+      <button
+        onClick={onClose}
+        aria-label="닫기"
+        className="pressable p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
+      >
+        <X size={18} className="text-ink-2 dark:text-mute" />
+      </button>
+    </div>
+  )
+
+  const body = (
+    <>
+      <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center gap-1.5">
+        <Clock size={12} className="text-mute" />
+        <p className="text-caption text-mute">
+          오늘 기준 · {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+        </p>
+      </div>
+
+      {/* scrollable content — bottom padding 확보해 FloatingDock 위로 */}
+      <div
+        className="flex-1 overflow-y-auto px-4 pt-2"
+        style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
+      >
+        {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
+          <div className="-mx-4 mb-4 border-b border-line dark:border-line pb-2">
+            <p className="text-caption font-semibold text-mute dark:text-mute px-4 mb-3 uppercase tracking-wide">경유 노선</p>
+            <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
+          </div>
+        )}
+        {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} />}
+        {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
+        {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
+        {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
+      </div>
+    </>
+  )
+
+  // ── PC: 좌측 패널 내 콘텐츠 교체형 크로스페이드 (기존 UX, vaul 미적용) ──
+  if (isPC) {
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[100] left-0 right-auto w-[38%] bottom-[68px] flex items-stretch justify-stretch pointer-events-none"
+        aria-modal="true"
+        role="dialog"
+        aria-label={`${title} 시간표`}
+      >
+        <div
+          className="relative z-10 w-full bg-surface dark:bg-surface flex flex-col pointer-events-auto h-full animate-panel-swap"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {header}
+          {body}
+        </div>
+      </div>,
+      document.body
+    )
+  }
+
+  // ── 모바일: vaul(Drawer) — 스와이프 다운으로 닫기(Phase C) ──
+  return (
+    <Drawer.Root
+      open={open}
+      onOpenChange={(o) => { if (!o) onClose() }}
+      dismissible
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+          style={{ transition: `opacity var(--dur-motion-sheet) var(--e-out)` }}
+        />
+        <Drawer.Content
+          className="fixed bottom-0 left-0 right-0 z-[100] bg-surface dark:bg-surface rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden outline-none"
+          style={{ maxHeight: '88dvh' }}
+        >
+          <Drawer.Title className="sr-only">{title} 시간표</Drawer.Title>
+          {/* 드래그 핸들 — vaul이 전체 시트 드래그를 처리하므로 시각적 표시만 담당 */}
+          <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
+            <span className="w-12 h-1.5 rounded-full bg-line dark:bg-line" />
+          </div>
+          {header}
+          {body}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   )
 }

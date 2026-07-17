@@ -95,7 +95,7 @@ export default function PCDock() {
               href={href}
               onClick={(e) => handleNav(e, href)}
               aria-current={active ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center gap-1 w-[68px] h-[52px] rounded-btn pressable text-label font-bold transition-colors duration-snap ease-ios ${
+              className={`flex flex-col items-center justify-center gap-1 w-[68px] h-[52px] rounded-btn pressable text-label font-bold transition-colors duration-snap ease-out ${
                 active ? 'bg-dock-active-bg text-white' : 'text-dock-text-mute hover:text-dock-text'
               }`}
             >
@@ -140,7 +140,7 @@ export default function PCDock() {
         type="button"
         title="패널 접고 지도 풀스크린"
         onClick={toggleMapFullscreen}
-        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-ios"
+        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-out"
       >
         {mapFullscreen
           ? <PanelLeftOpen size={18} aria-hidden="true" />
@@ -150,7 +150,7 @@ export default function PCDock() {
         type="button"
         title={darkMode ? '라이트 모드로' : '다크 모드로'}
         onClick={toggleDarkMode}
-        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-ios"
+        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-out"
       >
         {darkMode
           ? <Sun size={18} aria-hidden="true" />
@@ -163,7 +163,7 @@ export default function PCDock() {
         aria-haspopup="dialog"
         aria-expanded={noticesOpen}
         onClick={() => setNoticesOpen((v) => !v)}
-        className={`relative flex items-center justify-center w-10 h-10 rounded-btn pressable transition-colors duration-snap ease-ios ${
+        className={`relative flex items-center justify-center w-10 h-10 rounded-btn pressable transition-colors duration-snap ease-out ${
           noticesOpen ? 'bg-white text-black' : 'bg-accent text-black hover:opacity-90'
         }`}
       >

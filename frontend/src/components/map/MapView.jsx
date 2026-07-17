@@ -945,7 +945,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
           >
             {/* 내 위치 FAB */}
             <button
-              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
+              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
               onClick={handleLocationFab}
               aria-label="내 위치"
               title="내 위치"
@@ -954,7 +954,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
             </button>
             {/* 학교로 FAB */}
             <button
-              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
+              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
               onClick={panToSchool}
               aria-label="학교로"
               title="학교로"

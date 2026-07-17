@@ -12,6 +12,7 @@ import { formatEta } from '../../utils/eta'
 import RouteBadge from '../ui/RouteBadge'
 import StatusChip from '../ui/StatusChip'
 import MiniTrack from './MiniTrack'
+import { staggerStyle } from '../../utils/motion'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CrowdedBadge / RouteProgressStrip — 외부 호환을 위해 유지
@@ -144,7 +145,7 @@ function computeDisplay(arrivals) {
 // 카드
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation = null }) {
+function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation = null, index = null }) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
   const cfg = getRouteDisplayConfig(first.route_no)
@@ -222,7 +223,8 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
       >
         <span className="inline-flex items-baseline">
           <span
-            className={`font-bold tracking-[-.05em] ${
+            key={etaText}
+            className={`tj-number-pulse font-bold tracking-[-.05em] ${
               imminent
                 ? 'text-imminent dark:text-imminent text-[30px]'
                 : muted
@@ -290,7 +292,11 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
   }
 
   return (
-    <div data-route={first.route_no} className="relative">
+    <div
+      data-route={first.route_no}
+      className={`relative ${index != null ? 'tj-card-enter' : ''}`}
+      style={index != null ? staggerStyle(index) : undefined}
+    >
       <button
         className={`w-full text-left pressable ${wrapperBase}`}
         onClick={handleCardClick}

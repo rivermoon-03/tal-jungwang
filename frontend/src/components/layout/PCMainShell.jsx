@@ -15,14 +15,14 @@ export default function PCMainShell({ children }) {
 
   return (
     <div
-      className="hidden md:grid w-full h-full transition-[grid-template-columns] duration-panel ease-snap"
+      className="hidden md:grid w-full h-full transition-[grid-template-columns] duration-panel ease-out"
       style={{
         gridTemplateColumns: mapFullscreen ? '0% 100%' : '38% 62%',
       }}
     >
       <aside className="relative overflow-y-auto bg-bg dark:bg-bg min-w-0">
         <div
-          className={`w-full h-full ${mapFullscreen ? 'opacity-0' : 'opacity-100'} transition-opacity duration-snap ease-ios`}
+          className={`w-full h-full ${mapFullscreen ? 'opacity-0' : 'opacity-100'} transition-opacity duration-snap ease-inout`}
         >
           {children}
         </div>

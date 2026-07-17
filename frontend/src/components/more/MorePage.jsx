@@ -49,7 +49,7 @@ function QuickCard({ icon, label, sub, onClick }) {
         gap: 4,
         fontFamily: 'inherit',
         transition:
-          'background var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+          'background var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
       }}
     >
       <div style={{ color: 'var(--tj-ink)' }} className="dark:text-ink">{icon}</div>
