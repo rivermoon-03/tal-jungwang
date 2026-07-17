@@ -226,25 +226,31 @@ def setup_scheduler():
     심야 (23~05): 수집 안 함
     """
     # 러시아워: 매시 00, 20, 40분
+    # TTL 20분 수집 주기, misfire_grace_time 10분으로 Railway 재시작 등
+    # 일시적 밀림도 다음 사이클에서 자가복구 가능하도록.
     scheduler.add_job(
         _collect_job,
         CronTrigger(hour="7-9", minute="*/20"),
         id="traffic_rush_morning",
         replace_existing=True,
+        misfire_grace_time=600,
     )
     scheduler.add_job(
         _collect_job,
         CronTrigger(hour="16-18", minute="*/20"),
         id="traffic_rush_evening",
         replace_existing=True,
+        misfire_grace_time=600,
     )
 
     # 비러시아워: 매시 정각
+    # TTL 60분 수집 주기, misfire_grace_time 10분으로 다른 잡들과 일관성 유지.
     scheduler.add_job(
         _collect_job,
         CronTrigger(hour="5-6,10-15,19-22", minute="0"),
         id="traffic_offpeak",
         replace_existing=True,
+        misfire_grace_time=600,
     )
 
     logger.info("Traffic collection scheduler configured")
