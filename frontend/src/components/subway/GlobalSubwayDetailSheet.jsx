@@ -301,7 +301,7 @@ export default function GlobalSubwayDetailSheet() {
                 key={dir}
                 disabled
                 className={[
-                  'flex-1 rounded-[8px] py-2 px-1.5 text-[13px] font-bold leading-snug transition-all',
+                  'flex-1 rounded-badge py-2 px-1.5 text-[13px] font-bold leading-snug transition-all',
                   isOn
                     ? 'bg-surface dark:bg-surface-dark text-ink dark:text-ink-dark shadow-sm'
                     : 'text-mute dark:text-mute-dark',
@@ -318,7 +318,7 @@ export default function GlobalSubwayDetailSheet() {
 
           {/* ── 실시간 히어로 블록 (fresh일 때만) ─────────────── */}
           {fresh && nextRealtimeTrain && (
-            <div data-testid="realtime-section" className="mx-4 mt-3 rounded-[14px] overflow-hidden border border-line dark:border-line-dark">
+            <div data-testid="realtime-section" className="mx-4 mt-3 rounded-card overflow-hidden border border-line dark:border-line-dark">
               {/* 다음 열차 메인 */}
               <div className="px-4 py-3.5">
                 <p

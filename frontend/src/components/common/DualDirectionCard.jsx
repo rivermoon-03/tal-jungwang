@@ -238,7 +238,7 @@ function NormalSlot({ slot, align }) {
   const { dir, route, minutes, nextMinutes, isUrgent, imminentLabel } = slot
   const hasMinutes = minutes != null && Number.isFinite(minutes)
   const barWidth = hasMinutes ? progressWidth(minutes, isUrgent) : 0
-  const barColor = isUrgent ? 'var(--tj-imminent)' : 'var(--tj-accent, #2E8B86)'
+  const barColor = isUrgent ? 'var(--tj-imminent)' : 'var(--tj-accent, #12a594)'
 
   return (
     <div style={{ textAlign: align }}>

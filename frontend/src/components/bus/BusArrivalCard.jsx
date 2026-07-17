@@ -233,7 +233,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
             {imminent ? (
               <span className="relative inline-block">
                 {etaText}
-                <span aria-hidden className="absolute -inset-2 rounded-[14px] pointer-events-none animate-halo-pulse dark:animate-halo-pulse-dark" />
+                <span aria-hidden className="absolute -inset-2 rounded-card pointer-events-none animate-halo-pulse dark:animate-halo-pulse-dark" />
               </span>
             ) : (
               etaText

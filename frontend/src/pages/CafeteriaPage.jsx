@@ -86,7 +86,7 @@ function MealGridSection({ meal, dayKey }) {
               <div
                 key={`${item}-${i}`}
                 className={[
-                  'rounded-[14px] px-[14px] py-4 flex items-center min-h-[64px]',
+                  'rounded-card px-[14px] py-4 flex items-center min-h-[64px]',
                   isMain
                     ? 'bg-accent-bg border border-accent-bg'
                     : 'bg-surface border border-line',
