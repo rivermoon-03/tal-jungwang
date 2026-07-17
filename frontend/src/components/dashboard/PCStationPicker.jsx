@@ -84,13 +84,13 @@ export default function PCStationPicker() {
       {/* 헤더 — 카드 없이 텍스트만 */}
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <div className="text-caption font-extrabold text-accent leading-none">
+          <div className="text-caption font-semibold text-accent leading-none">
             {statusLabel}
           </div>
-          <div className="text-[22px] font-black text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1.5 truncate">
+          <div className="text-[22px] font-semibold text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1.5 truncate">
             {stationLabel}
           </div>
-          <div className="text-label font-semibold text-mute dark:text-mute-dark mt-1">
+          <div className="text-label font-semibold text-mute dark:text-mute mt-1">
             {autoMode ? '가장 가까운 정류장' : '수동 선택됨'}
           </div>
         </div>
@@ -121,7 +121,7 @@ export default function PCStationPicker() {
 function DirectionToggle({ direction, onPick }) {
   return (
     <div
-      className="flex bg-surface-alt dark:bg-surface-dark-alt rounded-pill p-[3px] shrink-0"
+      className="flex bg-surface-2 dark:bg-bg rounded-pill p-[3px] shrink-0"
       role="group"
       aria-label="방향"
     >
@@ -134,10 +134,10 @@ function DirectionToggle({ direction, onPick }) {
             onClick={() => onPick(d)}
             aria-pressed={active}
             aria-label={d}
-            className={`px-3 py-1.5 rounded-pill text-label font-extrabold tracking-[-0.01em] pressable transition-colors duration-press ease-ios ${
+            className={`px-3 py-1.5 rounded-pill text-label font-semibold tracking-[-0.01em] pressable transition-colors duration-press ease-ios ${
               active
                 ? 'bg-ink text-white dark:bg-accent dark:text-black'
-                : 'text-mute dark:text-mute-dark'
+                : 'text-mute dark:text-mute'
             }`}
           >
             {d}
@@ -154,12 +154,12 @@ function Chip({ label, active, onClick, accent = false }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`whitespace-nowrap pressable shrink-0 text-label font-extrabold px-2.5 py-1.5 rounded-btn transition-colors duration-press ease-ios ${
+      className={`whitespace-nowrap pressable shrink-0 text-label font-semibold px-2.5 py-1.5 rounded-btn transition-colors duration-press ease-ios ${
         active
           ? (accent
               ? 'bg-accent text-black'
               : 'bg-ink text-white dark:bg-accent dark:text-black')
-          : 'bg-surface text-text dark:bg-surface-dark-alt dark:text-text-dark shadow-card-md'
+          : 'bg-surface text-ink-2 dark:bg-bg dark:text-ink-2 shadow-card-md'
       }`}
     >
       {label}

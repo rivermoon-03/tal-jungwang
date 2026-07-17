@@ -77,8 +77,8 @@ export default function TrafficFlowCard() {
         {/* 헤더 */}
         <header className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-caption font-extrabold text-mute tracking-[0.08em] uppercase">마유로</div>
-            <div className="mt-0.5 text-head font-black text-ink tracking-tight">교통 흐름</div>
+            <div className="text-caption font-semibold text-mute tracking-[0.08em] uppercase">마유로</div>
+            <div className="mt-0.5 text-head font-semibold text-ink tracking-tight">교통 흐름</div>
             <div className="mt-1.5 text-caption font-semibold text-mute">
               {dayType === 'weekday' ? '평일' : '주말'}
               {sampleDays > 0 ? ` · 최근 ${sampleDays}일 평균` : ''}
@@ -94,7 +94,7 @@ export default function TrafficFlowCard() {
                   key={tab.id}
                   type="button"
                   onClick={() => setDirection(tab.id)}
-                  className={`px-3.5 py-1.5 text-label font-extrabold rounded-full transition tracking-tight ${
+                  className={`px-3.5 py-1.5 text-label font-semibold rounded-full transition tracking-tight ${
                     active ? 'bg-accent text-accent-ink shadow-sm' : 'text-mute hover:text-ink'
                   }`}
                 >
@@ -115,7 +115,7 @@ export default function TrafficFlowCard() {
                 className={`self-center w-2.5 h-2.5 rounded-full ${status.colorClass}`}
                 style={{ backgroundColor: 'currentColor', boxShadow: 'none' }}
               />
-              <span className={`text-eta font-black tracking-[-0.04em] leading-none ${status.colorClass}`}>
+              <span className={`text-eta font-bold tracking-[-0.04em] leading-none ${status.colorClass}`}>
                 {status.label}
               </span>
             </div>
@@ -128,7 +128,7 @@ export default function TrafficFlowCard() {
               <div className="text-caption font-bold text-mute tracking-wide mb-1.5">
                 {String(futurePeak.hour).padStart(2, '0')}시경 예상
               </div>
-              <div className={`text-head font-black tracking-tight text-imminent`}>
+              <div className={`text-head font-semibold tracking-tight text-imminent`}>
                 {futurePeak.label}
               </div>
             </div>

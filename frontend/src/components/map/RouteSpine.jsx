@@ -27,7 +27,7 @@ export default function RouteSpine({ leftLabel, rightLabel, activeSide = 'right'
             style={{ background: MUTED, top: '50%', transform: 'translateY(-50%)' }}
           />
           <span
-            className="relative mx-auto text-label font-bold px-1.5 bg-surface dark:bg-surface-dark"
+            className="relative mx-auto text-label font-bold px-1.5 bg-surface dark:bg-surface"
             style={{ color: ACCENT }}
           >
             {arrowRight ? '→' : '←'}
@@ -40,8 +40,8 @@ export default function RouteSpine({ leftLabel, rightLabel, activeSide = 'right'
       </div>
 
       <div className="flex justify-between mt-1 text-caption font-semibold">
-        <span className={arrowRight ? 'text-mute dark:text-mute-dark' : 'text-ink dark:text-ink-dark'}>{leftLabel}</span>
-        <span className={arrowRight ? 'text-ink dark:text-ink-dark' : 'text-mute dark:text-mute-dark'}>{rightLabel}</span>
+        <span className={arrowRight ? 'text-mute dark:text-mute' : 'text-ink dark:text-ink'}>{leftLabel}</span>
+        <span className={arrowRight ? 'text-ink dark:text-ink' : 'text-mute dark:text-mute'}>{rightLabel}</span>
       </div>
     </div>
   )

@@ -83,7 +83,7 @@ export default function PCDock() {
     <nav
       role="navigation"
       aria-label="PC 하단 dock"
-      className="flex h-[68px] items-center gap-3 px-5 bg-dock-bg border-t border-line-dark"
+      className="flex h-[68px] items-center gap-3 px-5 bg-dock-bg border-t border-line"
     >
       {/* 탭들 */}
       <div className="flex items-center gap-2">
@@ -106,23 +106,23 @@ export default function PCDock() {
         })}
       </div>
 
-      <div className="w-px h-9 bg-line-dark mx-1" />
+      <div className="w-px h-9 bg-line mx-1" />
 
       {/* 시각 · 요일 */}
       <div className="flex items-center gap-3">
         <div className="flex items-baseline gap-2">
-          <span className="text-[18px] font-black text-white tracking-[-0.02em] tabular-nums leading-none">
+          <span className="text-[18px] font-semibold text-white tracking-[-0.02em] tabular-nums leading-none">
             {hh}:{mm}
           </span>
           <span className="text-[12px] font-bold text-dock-text leading-none">{dayLabel}</span>
         </div>
 
-        <div className="w-px h-6 bg-line-dark" />
+        <div className="w-px h-6 bg-line" />
 
         {/* 날씨 */}
         <div className="flex items-center gap-2 text-dock-text">
           <WeatherIcon size={20} strokeWidth={2} className="text-white/85" aria-hidden="true" />
-          <span className="text-[16px] font-black text-white tabular-nums leading-none">
+          <span className="text-[16px] font-semibold text-white tabular-nums leading-none">
             {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--°'}
           </span>
           {weather?.currentSky && (

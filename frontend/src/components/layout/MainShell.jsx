@@ -23,7 +23,7 @@ export default function MainShell() {
 
   return (
     <div
-      className="h-dvh w-full flex flex-col md:hidden bg-bg dark:bg-bg-dark overflow-hidden"
+      className="h-dvh w-full flex flex-col md:hidden bg-bg dark:bg-bg overflow-hidden"
       style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
     >
       {/* 지도 영역: 컴팩트 띠 or 전체 확장 */}
@@ -44,9 +44,9 @@ export default function MainShell() {
             absolute right-3 bottom-3 z-[60]
             flex items-center gap-1.5
             bg-white/95 dark:bg-[#272a33]/95
-            border border-line dark:border-border-dark
-            rounded-[13px] px-3 py-2
-            text-[13px] font-bold text-accent dark:text-accent-dark
+            border border-line dark:border-line
+            rounded-card px-3 py-2
+            text-[13px] font-bold text-accent dark:text-accent
             shadow-pill
             min-h-[40px]
             active:scale-95 transition-transform

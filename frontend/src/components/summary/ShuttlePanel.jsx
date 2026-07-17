@@ -3,8 +3,8 @@ import { CalendarOff, MoonStar } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import Skeleton from '../common/Skeleton'
-import EmptyState from '../common/EmptyState'
-import ErrorState from '../common/ErrorState'
+import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
 import DualDirectionCard from '../common/DualDirectionCard'
 
 /**
@@ -188,10 +188,10 @@ export default function ShuttlePanel() {
     <div className="space-y-2">
       {isSeasonal && (
         <div className="flex items-center gap-2 px-1">
-          <span className="text-micro font-extrabold px-2 py-0.5 rounded-full bg-accent/12 text-accent dark:text-accent-dark tracking-wide">
+          <span className="text-micro font-semibold px-2 py-0.5 rounded-full bg-accent/12 text-accent dark:text-accent tracking-wide">
             계절학기
           </span>
-          <span className="text-caption text-mute dark:text-mute-dark truncate">
+          <span className="text-caption text-mute dark:text-mute truncate">
             방학 축소 운행 시간표예요
           </span>
         </div>

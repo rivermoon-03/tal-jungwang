@@ -73,13 +73,13 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
   const visibleStart = startIdx
 
   // 라인·도트의 회색 톤은 라이트/다크 모드별 mute 토큰값을 인라인 style로 사용
-  const PAST_COLOR = darkMode ? '#4b5563' /* mute-2-dark */ : '#cbd2db' /* mute-2 */
-  const FUTURE_COLOR = darkMode ? '#6b7280' /* mute-dark */ : '#94a3b8' /* mute */
+  const PAST_COLOR = darkMode ? '#4b5563' /* line-strong */ : '#cbd2db' /* line-strong */
+  const FUTURE_COLOR = darkMode ? '#6b7280' /* mute */ : '#94a3b8' /* mute */
 
   return (
-    <div className="bg-surface dark:bg-surface-dark rounded-card mx-4 mb-4 shadow-card overflow-hidden">
+    <div className="bg-surface dark:bg-surface rounded-card mx-4 mb-4 shadow-card overflow-hidden">
       <div className="px-4 pt-3.5 pb-1.5">
-        <span className="text-meta font-bold text-mute dark:text-mute-dark uppercase tracking-wider">노선도</span>
+        <span className="text-meta font-bold text-mute dark:text-mute uppercase tracking-wider">노선도</span>
       </div>
       <div className="px-4 pb-3">
         {visible.map((stationName, i) => {
@@ -105,7 +105,7 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                 {/* 역 dot */}
                 {isTrain ? (
                   <div
-                    className="flex items-center justify-center rounded-full bg-surface dark:bg-surface-dark z-10"
+                    className="flex items-center justify-center rounded-full bg-surface dark:bg-surface z-10"
                     style={{
                       width: 26,
                       height: 26,
@@ -118,7 +118,7 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                   </div>
                 ) : (
                   <div
-                    className="rounded-full flex-shrink-0 border-2 border-white dark:border-surface-dark z-0"
+                    className="rounded-full flex-shrink-0 border-2 border-white dark:border-surface z-0"
                     style={{
                       width: isView ? 14 : 9,
                       height: isView ? 14 : 9,
@@ -152,30 +152,30 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                 <span
                   className={`leading-none ${
                     isView
-                      ? 'text-[15px] font-black tracking-tight'
+                      ? 'text-[15px] font-semibold tracking-tight'
                       : isTrain
-                        ? 'text-[14px] font-extrabold tracking-tight'
+                        ? 'text-[14px] font-semibold tracking-tight'
                         : 'text-meta font-semibold'
                   } ${
                     isView
-                      ? 'text-ink dark:text-ink-dark'
+                      ? 'text-ink dark:text-ink'
                       : isTrain
-                        ? 'text-imminent dark:text-imminent-dark'
+                        ? 'text-imminent dark:text-imminent'
                         : isPast
-                          ? 'text-mute-2 dark:text-mute-2-dark'
-                          : 'text-mute dark:text-mute-dark'
+                          ? 'text-line-strong dark:text-line-strong'
+                          : 'text-mute dark:text-mute'
                   }`}
                   style={isView ? { color } : {}}
                 >
                   {stationName}
                 </span>
                 {isView && (
-                  <span className="text-chip font-extrabold px-2 py-0.5 rounded-chip text-white" style={{ background: color }}>
+                  <span className="text-chip font-semibold px-2 py-0.5 rounded-chip text-white" style={{ background: color }}>
                     현위치
                   </span>
                 )}
                 {isTrain && (
-                  <span className="text-chip font-extrabold text-white bg-imminent dark:bg-imminent-dark px-2 py-0.5 rounded-full">
+                  <span className="text-chip font-semibold text-white bg-imminent dark:bg-imminent px-2 py-0.5 rounded-full">
                     {showDestinationOnDot && trainHere?.destination
                       ? `${trainHere.destination}행 접근`
                       : '접근 중'}

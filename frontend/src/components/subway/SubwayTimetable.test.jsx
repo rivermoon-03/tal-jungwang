@@ -74,13 +74,13 @@ describe('SubwayTimetable', () => {
     expect(nextLi.className).toMatch(/bg-accent-bg/)
   })
 
-  it('다음 열차 시각은 font-black(굵게) 렌더된다', () => {
+  it('다음 열차 시각은 font-bold(굵게) 렌더된다', () => {
     const { container } = render(<SubwayTimetable {...defaultProps} />)
     const items = container.querySelectorAll('li')
     const nextLi = items[1]
     const timeSpan = nextLi.querySelector('[class*="tabular-nums"]')
     expect(timeSpan).toBeTruthy()
-    expect(timeSpan.className).toMatch(/font-black/)
+    expect(timeSpan.className).toMatch(/font-bold/)
   })
 
   // ── 과거 열차 ──────────────────────────────────────────────────────────

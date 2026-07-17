@@ -409,10 +409,9 @@ export function getVenueBuilding(location) {
 }
 
 /**
- * 건물 키 → 은은한 구분색 객체 { color, bg }
- * Warm Daylight 톤 안에서 채도 낮게. 다크모드는 CSS 토큰 쪽에서 처리하므로
- * 여기서는 라이트 모드 기준 값을 반환하되, CSS var 형태로 참조한다.
- * 실제 적용 시 bg/color 속성을 직접 style에 인라인한다.
+ * 건물 키 → 카테고리 칩 팔레트(DESIGN.md) 기반 구분색 { color, bg }
+ * CSS 변수(--tj-chip-*)를 그대로 참조하므로 라이트/다크 전환은 .dark 스코프에서
+ * 자동 처리된다 — 호출부에서 다크모드 분기가 필요 없다.
  *
  * @param {string} building
  * @returns {{ color: string, bg: string }}
@@ -420,16 +419,38 @@ export function getVenueBuilding(location) {
 export function getBuildingColor(building) {
   switch (building) {
     case 'TIP':
-      // 따뜻한 남색 계열 — 주 캠퍼스 빌딩
-      return { color: '#4A6FA5', bg: '#EEF2F9', darkColor: '#93B3D8', darkBg: '#1A2535' }
+      // 주 캠퍼스 빌딩 — blue
+      return { color: 'var(--tj-chip-blue-fg)', bg: 'var(--tj-chip-blue-bg)' }
     case 'E동':
-      // 따뜻한 테라코타 계열 — E동 식당
-      return { color: '#8A5340', bg: '#F6EEEA', darkColor: '#C4907A', darkBg: '#2A1B14' }
+      // 테라코타 계열에 가장 가까운 — yellow
+      return { color: 'var(--tj-chip-yellow-fg)', bg: 'var(--tj-chip-yellow-bg)' }
     case '중앙도서관':
-      // 차분한 세이지 그린 계열 — 도서관
-      return { color: '#3D7058', bg: '#EBF4EE', darkColor: '#7AB89A', darkBg: '#14261E' }
+      // 세이지 그린 계열 — green
+      return { color: 'var(--tj-chip-green-fg)', bg: 'var(--tj-chip-green-bg)' }
     default:
-      // 기본 뮤트 계열
-      return { color: '#6B7280', bg: '#F3F4F6', darkColor: '#9CA3AF', darkBg: '#1F2937' }
+      // 기본 중립
+      return { color: 'var(--tj-chip-gray-fg)', bg: 'var(--tj-chip-gray-bg)' }
   }
+}
+
+/**
+ * 학식/매점 카테고리 → 카테고리 칩 팔레트(DESIGN.md) 기반 구분색 { color, bg }
+ * CSS 변수(--tj-chip-*)를 그대로 참조하므로 라이트/다크 전환은 .dark 스코프에서
+ * 자동 처리된다 — 호출부에서 다크모드 분기가 필요 없다.
+ *
+ * @param {string} category
+ * @returns {{ color: string, bg: string }}
+ */
+export function getCategoryStyle(category) {
+  const TONE = {
+    '한식':      'yellow',
+    '중식':      'yellow',
+    '분식':      'red',
+    '양식':      'green',
+    '패스트푸드': 'purple',
+    '카페':      'gray',
+    '편의점':    'blue',
+  }
+  const tone = TONE[category] ?? 'gray'
+  return { color: `var(--tj-chip-${tone}-fg)`, bg: `var(--tj-chip-${tone}-bg)` }
 }

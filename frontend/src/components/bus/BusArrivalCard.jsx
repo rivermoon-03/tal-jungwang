@@ -40,24 +40,24 @@ export function RouteProgressStrip({ routeNo, stationId, hasArrival }) {
   return (
     <div className="px-4 pb-3">
       <div className="flex items-start">
-        <div className="mt-[6px] w-3 shrink-0 h-px bg-line dark:bg-line-dark" />
+        <div className="mt-[6px] w-3 shrink-0 h-px bg-line dark:bg-line" />
         {waypoints.map((wp, i) => (
           <Fragment key={wp.id}>
             <div className="relative flex-1 flex items-center mt-[6px]">
-              <div className={`w-full h-px ${activeSegIdx === i ? 'bg-accent' : 'bg-line dark:bg-line-dark'}`} />
+              <div className={`w-full h-px ${activeSegIdx === i ? 'bg-accent' : 'bg-line dark:bg-line'}`} />
               {activeSegIdx === i && (
                 <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-accent shadow" />
               )}
             </div>
             <div className="flex flex-col items-center shrink-0">
-              <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-accent bg-surface dark:bg-surface-dark' : 'border-mute-2 dark:border-mute-2-dark bg-surface dark:bg-surface-dark-alt'}`} />
-              <span className={`text-[12px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute-dark'}`}>
+              <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-accent bg-surface dark:bg-surface' : 'border-line-strong dark:border-line-strong bg-surface dark:bg-bg'}`} />
+              <span className={`text-[12px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute'}`}>
                 {wp.label}
               </span>
             </div>
           </Fragment>
         ))}
-        <div className="flex-1 mt-[6px] h-px bg-line dark:bg-line-dark" />
+        <div className="flex-1 mt-[6px] h-px bg-line dark:bg-line" />
       </div>
     </div>
   )
@@ -174,7 +174,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
   })()
 
   const wrapperBase =
-    'relative rounded-card bg-surface shadow-card dark:bg-surface-dark dark:border dark:border-line-dark dark:shadow-none'
+    'relative rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none'
 
   const content = (
     <div className="flex items-center gap-[14px] px-[18px] pt-[14px] pb-4">
@@ -192,7 +192,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
 
         {/* 행선지 */}
         <div className="flex items-center gap-2 leading-tight">
-          <span className={`truncate text-head font-extrabold tracking-[-.01em] ${muted ? 'text-mute' : 'text-ink'}`}>
+          <span className={`truncate text-head font-semibold tracking-[-.01em] ${muted ? 'text-mute' : 'text-ink'}`}>
             {headLabel}
           </span>
           {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
@@ -222,12 +222,12 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
       >
         <span className="inline-flex items-baseline">
           <span
-            className={`font-black tracking-[-.05em] ${
+            className={`font-bold tracking-[-.05em] ${
               imminent
-                ? 'text-imminent dark:text-imminent-dark text-[30px]'
+                ? 'text-imminent dark:text-imminent text-[30px]'
                 : muted
-                ? 'text-mute font-extrabold text-[24px]'
-                : 'text-ink dark:text-ink-dark text-[30px]'
+                ? 'text-mute font-semibold text-[24px]'
+                : 'text-ink dark:text-ink text-[30px]'
             }`}
           >
             {imminent ? (
@@ -240,7 +240,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
             )}
           </span>
           {isMinutes && !imminent && (
-            <span className={`ml-[2px] text-body font-extrabold ${muted ? 'text-mute' : 'text-mute'}`}>분</span>
+            <span className={`ml-[2px] text-body font-semibold ${muted ? 'text-mute' : 'text-mute'}`}>분</span>
           )}
         </span>
         {etaSub && !muted && (
@@ -265,7 +265,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
       <Star
         size={16}
         fill={isFavorite ? 'currentColor' : 'none'}
-        className={isFavorite ? 'text-state-warn' : 'text-mute'}
+        className={isFavorite ? 'text-imminent' : 'text-mute'}
       />
     </button>
   )

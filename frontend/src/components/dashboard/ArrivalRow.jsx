@@ -166,8 +166,8 @@ export default function ArrivalRow({
                 etaResult.tone === 'none'
                   ? 'text-body text-mute font-bold whitespace-nowrap'
                   : urgent || etaResult.tone === 'imminent'
-                    ? 'text-eta text-imminent font-black leading-none'
-                    : 'text-eta text-ink font-black leading-none'
+                    ? 'text-eta text-imminent font-bold leading-none'
+                    : 'text-eta text-ink font-bold leading-none'
               }
             >
               {etaResult.text}

@@ -204,7 +204,7 @@ export default function GlobalSubwayDetailSheet() {
 
       {/* 시트 본체 */}
       <div
-        className="fixed bottom-0 left-0 right-0 h-[84vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[100] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-none flex flex-col overflow-hidden"
+        className="fixed bottom-0 left-0 right-0 h-[84vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[100] bg-surface dark:bg-surface rounded-t-[18px] md:rounded-none flex flex-col overflow-hidden"
         style={(() => {
           const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
           if (isDesktop) {
@@ -225,7 +225,7 @@ export default function GlobalSubwayDetailSheet() {
       >
         {/* 그래버 */}
         <div className="flex justify-center pt-3.5 pb-1 flex-shrink-0 md:hidden">
-          <div className="w-11 h-1 rounded-full bg-mute-2 dark:bg-mute-2-dark" />
+          <div className="w-11 h-1 rounded-full bg-line-strong dark:bg-line-strong" />
         </div>
 
         {/* ── 컬러 헤더 ──────────────────────────────────────── */}
@@ -235,7 +235,7 @@ export default function GlobalSubwayDetailSheet() {
         >
           <TrainFront size={18} strokeWidth={2} className="text-white flex-shrink-0 opacity-95" />
           <div className="flex-1 min-w-0">
-            <p className="text-[16px] font-black text-white leading-none">
+            <p className="text-[16px] font-semibold text-white leading-none">
               {displayed.station}역
             </p>
             <p className="text-[13px] font-semibold text-white/85 mt-0.5">
@@ -260,7 +260,7 @@ export default function GlobalSubwayDetailSheet() {
                 })
               }
               aria-label="노선도 보기"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[9px] text-[13px] font-bold bg-black/18 text-white hover:bg-black/30 transition-all min-h-[44px]"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-button text-[13px] font-bold bg-black/18 text-white hover:bg-black/30 transition-all min-h-[44px]"
             >
               <Map size={13} />
               <span>노선도</span>
@@ -271,7 +271,7 @@ export default function GlobalSubwayDetailSheet() {
           <button
             onClick={handleManualRefresh}
             disabled={refreshCooldown > 0 || realtimeLoading}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[9px] text-[13px] font-bold transition-all min-h-[44px] ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-button text-[13px] font-bold transition-all min-h-[44px] ${
               refreshCooldown > 0 ? 'bg-black/10 text-white/40' : 'bg-black/18 text-white hover:bg-black/30'
             }`}
           >
@@ -291,7 +291,7 @@ export default function GlobalSubwayDetailSheet() {
         {/* ── 방향 토글(세그먼트) ─────────────────────────────── */}
         {/* direction은 상위에서 이미 결정되므로, 여기선 표시만 */}
         <div
-          className="flex mx-4 mt-3 mb-0 rounded-[11px] p-[3px] gap-[3px] flex-shrink-0"
+          className="flex mx-4 mt-3 mb-0 rounded-button p-[3px] gap-[3px] flex-shrink-0"
           style={{ background: 'var(--tj-bg)' }}
         >
           {['상행', '하행'].map((dir) => {
@@ -303,8 +303,8 @@ export default function GlobalSubwayDetailSheet() {
                 className={[
                   'flex-1 rounded-badge py-2 px-1.5 text-[13px] font-bold leading-snug transition-all',
                   isOn
-                    ? 'bg-surface dark:bg-surface-dark text-ink dark:text-ink-dark shadow-sm'
-                    : 'text-mute dark:text-mute-dark',
+                    ? 'bg-surface dark:bg-surface text-ink dark:text-ink shadow-sm'
+                    : 'text-mute dark:text-mute',
                 ].join(' ')}
               >
                 {dir}
@@ -318,25 +318,25 @@ export default function GlobalSubwayDetailSheet() {
 
           {/* ── 실시간 히어로 블록 (fresh일 때만) ─────────────── */}
           {fresh && nextRealtimeTrain && (
-            <div data-testid="realtime-section" className="mx-4 mt-3 rounded-card overflow-hidden border border-line dark:border-line-dark">
+            <div data-testid="realtime-section" className="mx-4 mt-3 rounded-card overflow-hidden border border-line dark:border-line">
               {/* 다음 열차 메인 */}
               <div className="px-4 py-3.5">
                 <p
-                  className="text-[12px] font-black tracking-[0.08em] mb-2"
+                  className="text-[12px] font-semibold tracking-[0.08em] mb-2"
                   style={{ color: etaUrgent ? 'var(--tj-imminent)' : 'var(--tj-accent)' }}
                 >
                   이 열차 실시간
                 </p>
                 <div className="flex items-end justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[17px] font-black text-ink dark:text-ink-dark leading-tight">
+                    <p className="text-[17px] font-semibold text-ink dark:text-ink leading-tight">
                       {nextRealtimeTrain.destination}행
                       {nextRealtimeTrain.is_last_train && (
                         <StatusChip kind="last" className="ml-2">막차</StatusChip>
                       )}
                     </p>
                     {(nextRealtimeTrain.status_msg || nextRealtimeTrain.location_msg) && (
-                      <p className="text-[13px] font-medium text-mute dark:text-mute-dark mt-1">
+                      <p className="text-[13px] font-medium text-mute dark:text-mute mt-1">
                         {cleanMsg(nextRealtimeTrain.status_msg)}
                         {nextRealtimeTrain.location_msg
                           ? ` · ${cleanMsg(nextRealtimeTrain.location_msg)}`
@@ -348,16 +348,16 @@ export default function GlobalSubwayDetailSheet() {
                   <div className="text-right flex-shrink-0 leading-none" style={{ color: etaColor }}>
                     {etaMinutes != null ? (
                       <>
-                        <span className="text-[44px] font-black tracking-tight">{etaMinutes}</span>
-                        <span className="text-[16px] font-black ml-0.5">분</span>
+                        <span className="text-[44px] font-bold tracking-tight">{etaMinutes}</span>
+                        <span className="text-[16px] font-bold ml-0.5">분</span>
                         {etaClockStr && (
-                          <p className="text-[13px] font-bold text-mute dark:text-mute-dark mt-1">
+                          <p className="text-[13px] font-bold text-mute dark:text-mute mt-1">
                             {etaClockStr} 도착
                           </p>
                         )}
                       </>
                     ) : (
-                      <span className="text-[20px] font-black">
+                      <span className="text-[20px] font-bold">
                         {getEtaLabel(nextRealtimeTrain)}
                       </span>
                     )}
@@ -367,11 +367,11 @@ export default function GlobalSubwayDetailSheet() {
 
               {/* 다음 다음 열차 (있을 때) */}
               {secondRealtimeTrain && (
-                <div className="flex items-center gap-2 px-4 py-3 border-t border-line dark:border-line-dark">
-                  <div className="w-[5px] h-[5px] rounded-full bg-mute dark:bg-mute-dark flex-shrink-0" />
+                <div className="flex items-center gap-2 px-4 py-3 border-t border-line dark:border-line">
+                  <div className="w-[5px] h-[5px] rounded-full bg-mute dark:bg-mute flex-shrink-0" />
                   <p className="text-[14px] font-semibold text-ink-2 dark:text-ink-2-dark">
                     다음 열차{' '}
-                    <span className="font-black text-ink dark:text-ink-dark">
+                    <span className="font-semibold text-ink dark:text-ink">
                       {getEtaLabel(secondRealtimeTrain)}
                     </span>{' '}
                     · {secondRealtimeTrain.destination}행
@@ -387,15 +387,15 @@ export default function GlobalSubwayDetailSheet() {
           {/* ── 첫차/막차 요약 ──────────────────────────────────── */}
           {(firstAt || lastAt) && (
             <div
-              className="grid mx-4 mt-3 rounded-[12px] overflow-hidden"
+              className="grid mx-4 mt-3 rounded-card overflow-hidden"
               style={{
                 gridTemplateColumns: '1fr 1px 1fr',
                 background: 'var(--tj-bg)',
               }}
             >
               <div className="text-center py-3">
-                <p className="text-[13px] font-bold text-mute dark:text-mute-dark mb-0.5">첫차</p>
-                <p className="text-[16px] font-black text-ink dark:text-ink-dark tabular-nums">
+                <p className="text-[13px] font-bold text-mute dark:text-mute mb-0.5">첫차</p>
+                <p className="text-[16px] font-semibold text-ink dark:text-ink tabular-nums">
                   {firstAt ?? '—'}
                 </p>
               </div>
@@ -404,8 +404,8 @@ export default function GlobalSubwayDetailSheet() {
                 style={{ width: 1, height: 28, background: 'var(--tj-line)' }}
               />
               <div className="text-center py-3">
-                <p className="text-[13px] font-bold text-mute dark:text-mute-dark mb-0.5">막차</p>
-                <p className="text-[16px] font-black text-ink dark:text-ink-dark tabular-nums">
+                <p className="text-[13px] font-bold text-mute dark:text-mute mb-0.5">막차</p>
+                <p className="text-[16px] font-semibold text-ink dark:text-ink tabular-nums">
                   {lastAt ?? '—'}
                 </p>
               </div>
@@ -415,7 +415,7 @@ export default function GlobalSubwayDetailSheet() {
           {/* ── 시간표 섹션 (메인) ──────────────────────────────── */}
           <div className="mt-3 flex-1">
             {/* 요일 탭 */}
-            <div className="flex gap-[18px] px-4 border-b border-line dark:border-line-dark">
+            <div className="flex gap-[18px] px-4 border-b border-line dark:border-line">
               {DAY_TABS.map(({ key, label }) => (
                 <button
                   key={key}
@@ -423,8 +423,8 @@ export default function GlobalSubwayDetailSheet() {
                   className={[
                     'border-none bg-transparent text-[14px] font-bold py-2.5 px-0.5 -mb-px border-b-2 transition-colors',
                     dayType === key
-                      ? 'text-ink dark:text-ink-dark border-b-2'
-                      : 'text-mute dark:text-mute-dark border-b-transparent',
+                      ? 'text-ink dark:text-ink border-b-2'
+                      : 'text-mute dark:text-mute border-b-transparent',
                   ].join(' ')}
                   style={
                     dayType === key
@@ -449,11 +449,11 @@ export default function GlobalSubwayDetailSheet() {
                 lineLightColor={displayed.lightColor}
               />
             ) : !ttLoading ? (
-              <div className="flex items-center justify-center py-12 text-[14px] font-semibold text-mute dark:text-mute-dark">
+              <div className="flex items-center justify-center py-12 text-[14px] font-semibold text-mute dark:text-mute">
                 시간표 데이터가 없어요
               </div>
             ) : (
-              <div className="flex items-center justify-center py-12 text-[14px] font-semibold text-mute dark:text-mute-dark">
+              <div className="flex items-center justify-center py-12 text-[14px] font-semibold text-mute dark:text-mute">
                 불러오는 중이에요
               </div>
             )}

@@ -19,9 +19,9 @@ const OPERATOR = 'moonlandingplan (탈것:정왕 운영자)'
 
 function Section({ title, children }) {
   return (
-    <section className="bg-surface dark:bg-surface-dark rounded-card shadow-card px-5 py-4">
-      <h2 className="text-body font-extrabold text-ink dark:text-ink-dark mb-2">{title}</h2>
-      <div className="text-meta leading-relaxed text-ink-2 dark:text-mute-dark flex flex-col gap-1.5">
+    <section className="bg-surface dark:bg-surface rounded-card shadow-card px-5 py-4">
+      <h2 className="text-body font-semibold text-ink dark:text-ink mb-2">{title}</h2>
+      <div className="text-meta leading-relaxed text-ink-2 dark:text-mute flex flex-col gap-1.5">
         {children}
       </div>
     </section>
@@ -30,20 +30,20 @@ function Section({ title, children }) {
 
 export default function PrivacyPolicyPage({ onBack }) {
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg-dark animate-slide-in-right">
+    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
       <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
         <button
           onClick={onBack}
           aria-label="뒤로"
-          className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line-dark transition-colors"
+          className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
         >
-          <ChevronLeft size={22} className="text-ink dark:text-ink-dark" />
+          <ChevronLeft size={22} className="text-ink dark:text-ink" />
         </button>
-        <h1 className="text-panel-ttl text-ink dark:text-ink-dark">개인정보처리방침</h1>
+        <h1 className="text-panel-ttl text-ink dark:text-ink">개인정보처리방침</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 pb-28 md:pb-6 flex flex-col gap-3">
-        <p className="text-meta text-mute dark:text-mute-dark px-1">
+        <p className="text-meta text-mute dark:text-mute px-1">
           탈것:정왕(이하 “서비스”)은 이용자의 개인정보를 중요하게 생각하며, 아래와 같이
           개인정보를 처리합니다. {EFFECTIVE_DATE}
         </p>
@@ -76,10 +76,10 @@ export default function PrivacyPolicyPage({ onBack }) {
           <p>서비스는 아래 외부 서비스를 이용하며, 각 사업자의 개인정보처리방침이
             적용됩니다.</p>
           <p>· <b>Google</b>(광고 게재 시 AdSense/AdMob, 지도/경로 등) —
-            <a className="text-accent dark:text-accent-dark underline" href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">정책 보기</a></p>
+            <a className="text-accent dark:text-accent underline" href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">정책 보기</a></p>
           <p>· <b>카카오</b>(지도/경로 일부 기능)</p>
           <p>· 호스팅/인프라 사업자(Vercel, Railway)</p>
-          <p className="text-mute dark:text-mute-dark">앱(설치형) 환경에서는 웹 광고를
+          <p className="text-mute dark:text-mute">앱(설치형) 환경에서는 웹 광고를
             게재하지 않으며, 인앱 광고가 필요한 경우 정책에 맞는 광고 SDK를 사용합니다.</p>
         </Section>
 
@@ -97,7 +97,7 @@ export default function PrivacyPolicyPage({ onBack }) {
           <p>운영: {OPERATOR}</p>
         </Section>
 
-        <p className="text-label text-mute dark:text-mute-dark px-1 pt-1">
+        <p className="text-label text-mute dark:text-mute px-1 pt-1">
           본 방침은 법령·서비스 변경에 따라 개정될 수 있으며, 변경 시 본 페이지를 통해
           고지합니다.
         </p>

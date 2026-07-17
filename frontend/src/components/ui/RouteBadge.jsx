@@ -9,7 +9,7 @@ export default function RouteBadge({ route, variant = 'solid', className = '' })
   const color = tjLineColor(route)
 
   const base =
-    'inline-flex items-center justify-center rounded-[12px] px-2 py-[3px] text-[15px] font-extrabold tabular-nums leading-none select-none'
+    'inline-flex items-center justify-center rounded-badge px-2 py-[3px] text-[15px] font-semibold tabular-nums leading-none select-none'
 
   const inlineStyle =
     variant === 'solid'

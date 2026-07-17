@@ -74,7 +74,7 @@ export default function GlobalSubwayLineSheet() {
           opacity + 작은 Y 이동으로 패널 콘텐츠가 교체되듯 페이드 인.
           GlobalSubwayDetailSheet(z-[100]) 위로 올라와야 하므로 z-[120]. */}
       <div
-        className="fixed bottom-0 left-0 right-0 h-[70vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[120] bg-surface dark:bg-surface-dark rounded-t-[18px] md:rounded-none flex flex-col overflow-hidden"
+        className="fixed bottom-0 left-0 right-0 h-[70vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[120] bg-surface dark:bg-surface rounded-t-[18px] md:rounded-none flex flex-col overflow-hidden"
         style={(() => {
           const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
           if (isDesktop) {
@@ -95,7 +95,7 @@ export default function GlobalSubwayLineSheet() {
       >
         {/* 핸들 */}
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-11 h-1 rounded-full bg-mute-2 dark:bg-mute-2-dark" />
+          <div className="w-11 h-1 rounded-full bg-line-strong dark:bg-line-strong" />
         </div>
 
         {/* 헤더 */}

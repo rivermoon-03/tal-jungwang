@@ -40,7 +40,7 @@ function StaleHintBadge({ ageMin, stale }) {
       {open && (
         <div
           role="tooltip"
-          className="absolute left-0 top-full mt-1.5 z-30 w-[240px] px-3 py-2 rounded-lg bg-ink text-surface dark:bg-ink-dark dark:text-surface-dark text-caption font-medium leading-relaxed shadow-lg"
+          className="absolute left-0 top-full mt-1.5 z-30 w-[240px] px-3 py-2 rounded-lg bg-ink text-surface dark:bg-ink dark:text-surface text-caption font-medium leading-relaxed shadow-lg"
         >
           외부 API의 데이터 지연으로 실시간 정보의 정확성을 보장할 수 없는 상태예요.
           화면에 보이는 도착 정보는 약 {minLabel} 전 수신된 데이터로,
@@ -170,14 +170,14 @@ export const RealtimeSlot = memo(function RealtimeSlot({ train, dir, align, onCl
 
   // 색상 클래스 결정
   const labelColorClass = isUrgent
-    ? 'text-imminent dark:text-imminent-dark'
+    ? 'text-imminent dark:text-imminent'
     : (isNear || !isRunning)
-      ? 'text-ink dark:text-ink-dark'
-      : 'text-mute dark:text-mute-dark'
+      ? 'text-ink dark:text-ink'
+      : 'text-mute dark:text-mute'
 
   const destColorClass = isUrgent
-    ? 'text-imminent dark:text-imminent-dark'
-    : 'text-ink dark:text-ink-dark'
+    ? 'text-imminent dark:text-imminent'
+    : 'text-ink dark:text-ink'
 
   return (
     <div
@@ -186,7 +186,7 @@ export const RealtimeSlot = memo(function RealtimeSlot({ train, dir, align, onCl
       onClick={train && onClick ? onClick : undefined}
     >
       {/* 방향 라벨 — text-label(13px) */}
-      <div className="text-label font-bold text-mute dark:text-mute-dark mb-1 tracking-wide">
+      <div className="text-label font-bold text-mute dark:text-mute mb-1 tracking-wide">
         {dir}
       </div>
       {train ? (
@@ -196,7 +196,7 @@ export const RealtimeSlot = memo(function RealtimeSlot({ train, dir, align, onCl
             className="flex items-center gap-1 flex-wrap mb-1.5"
             style={{ justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}
           >
-            <div className={`text-label font-extrabold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${destColorClass}`}>
+            <div className={`text-label font-semibold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${destColorClass}`}>
               {train.destination}행
             </div>
             {train.is_last_train && (
@@ -205,18 +205,18 @@ export const RealtimeSlot = memo(function RealtimeSlot({ train, dir, align, onCl
           </div>
           {/* ETA — text-head(≥15px) 또는 text-body */}
           <div
-            className={`text-head font-black leading-tight tracking-tight ${labelColorClass}`}
+            className={`text-head font-bold leading-tight tracking-tight ${labelColorClass}`}
           >
             {label}
           </div>
           {sub && (
-            <div className="text-caption font-medium text-mute dark:text-mute-dark mt-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
+            <div className="text-caption font-medium text-mute dark:text-mute mt-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
               {sub}
             </div>
           )}
         </>
       ) : (
-        <div className="text-body font-bold text-mute dark:text-mute-dark">
+        <div className="text-body font-bold text-mute dark:text-mute">
           정보 없음
         </div>
       )}
@@ -256,11 +256,11 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
   }, [lastFetchedAt])
 
   const borderClass = demoted
-    ? 'border border-dashed border-line dark:border-line-dark'
-    : (isUrgent ? 'border border-transparent' : 'border border-line dark:border-line-dark')
-  const bgClass = demoted ? 'bg-surface-alt dark:bg-surface-dark-alt' : 'bg-transparent'
+    ? 'border border-dashed border-line dark:border-line'
+    : (isUrgent ? 'border border-transparent' : 'border border-line dark:border-line')
+  const bgClass = demoted ? 'bg-surface-2 dark:bg-bg' : 'bg-transparent'
   const paddingClass = demoted ? 'px-3 py-2.5' : 'px-3.5 py-3'
-  const titleColorClass = demoted ? 'text-mute dark:text-mute-dark' : 'text-ink dark:text-ink-dark'
+  const titleColorClass = demoted ? 'text-mute dark:text-mute' : 'text-ink dark:text-ink'
 
   return (
     <div
@@ -284,14 +284,14 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
           <Star
             size={16}
             fill={isFavorite ? 'currentColor' : 'none'}
-            className={isFavorite ? 'text-yellow-400' : 'text-mute dark:text-mute-dark'}
+            className={isFavorite ? 'text-yellow-400' : 'text-mute dark:text-mute'}
           />
         </button>
       )}
       <div className={`flex items-center gap-2 flex-wrap ${demoted ? 'mb-2' : 'mb-2.5'}`}>
         {/* 노선 심볼 원형 배지 */}
         <span
-          className={`inline-flex items-center justify-center rounded-full text-white flex-shrink-0 font-black leading-none ${
+          className={`inline-flex items-center justify-center rounded-full text-white flex-shrink-0 font-semibold leading-none ${
             demoted ? 'w-[18px] h-[18px] text-body opacity-85' : 'w-[22px] h-[22px] text-label'
           }`}
           style={{ background: color }}
@@ -299,7 +299,7 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
           {symbol}
         </span>
         {/* 노선명 — text-label(13px) 또는 text-body */}
-        <span className={`${demoted ? 'text-body font-bold' : 'text-label font-extrabold'} ${titleColorClass}`}>
+        <span className={`${demoted ? 'text-body font-bold' : 'text-label font-semibold'} ${titleColorClass}`}>
           {lineName}
         </span>
         {/* stale 배지 — StatusChip 기반, 점선/색점 없음 */}
@@ -317,7 +317,7 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
             onClick={upTrain && onTrainClick ? () => onTrainClick(upTrain) : null}
           />
         </div>
-        <div aria-hidden className="w-px bg-line dark:bg-line-dark" />
+        <div aria-hidden className="w-px bg-line dark:bg-line" />
         <div className="pl-2.5 py-0.5">
           <RealtimeSlot
             train={downTrain}
@@ -328,7 +328,7 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
         </div>
       </div>
       {lastFetchedAt && (
-        <div className="mt-2 flex justify-end text-caption font-medium text-mute dark:text-mute-dark">
+        <div className="mt-2 flex justify-end text-caption font-medium text-mute dark:text-mute">
           <span>{secondsAgo}초 전 폴링</span>
         </div>
       )}

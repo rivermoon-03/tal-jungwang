@@ -51,42 +51,42 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
       ref={rowRef}
       className={`relative flex items-center gap-3 px-4 py-3 rounded-mini transition-colors ${
         isNext
-          ? 'bg-accent/8 dark:bg-accent-dark/12'
+          ? 'bg-accent/8 dark:bg-accent/12'
           : ''
       }`}
     >
       {isNext && (
-        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] bg-accent dark:bg-accent-dark rounded-full" />
+        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] bg-accent dark:bg-accent rounded-full" />
       )}
       <span
         className={`${
           isHHMM
-            ? (isNext ? 'text-eta-mob font-black tabular-nums tracking-tight flex-shrink-0 pl-1.5' : 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0')
+            ? (isNext ? 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0 pl-1.5' : 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0')
             : 'text-sm font-bold leading-snug break-keep min-w-0'
-        } ${isNext ? 'text-accent dark:text-accent-dark' : 'text-ink dark:text-ink-dark'}`}
+        } ${isNext ? 'text-accent dark:text-accent' : 'text-ink dark:text-ink'}`}
       >
         {time}
       </span>
       {(destination || note) && (
-        <span className="text-meta font-medium text-mute dark:text-mute-dark truncate">
+        <span className="text-meta font-medium text-mute dark:text-mute truncate">
           {destination || note}
         </span>
       )}
       <div className="ml-auto flex items-center gap-2 flex-shrink-0">
         {isNext && (
-          <span className="text-micro font-extrabold px-2.5 py-0.5 rounded-full bg-accent dark:bg-accent-dark text-white dark:text-ink tracking-wide">
+          <span className="text-micro font-semibold px-2.5 py-0.5 rounded-full bg-accent dark:bg-accent text-white dark:text-ink tracking-wide">
             다음
           </span>
         )}
         {isLast && (
-          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-ink dark:bg-mute-2 text-white dark:text-ink">
+          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink">
             막차
           </span>
         )}
         {mins != null && (
           <span
-            className={`text-meta font-extrabold tabular-nums tracking-tight ${
-              isNext ? 'text-accent dark:text-accent-dark' : 'text-mute dark:text-mute-dark'
+            className={`text-meta font-semibold tabular-nums tracking-tight ${
+              isNext ? 'text-accent dark:text-accent' : 'text-mute dark:text-mute'
             }`}
           >
             {fmtDelta(mins)}
@@ -100,8 +100,8 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
 function PastRow({ time }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 opacity-50">
-      <span className="text-meta font-semibold text-mute dark:text-mute-dark tabular-nums">{time}</span>
-      <span className="text-caption font-medium text-mute-2 dark:text-mute-2-dark ml-auto">지난 시각</span>
+      <span className="text-meta font-semibold text-mute dark:text-mute tabular-nums">{time}</span>
+      <span className="text-caption font-medium text-line-strong dark:text-line-strong ml-auto">지난 시각</span>
     </div>
   )
 }
@@ -113,7 +113,7 @@ function TimeGrid({ times }) {
       {times.map((t, i) => (
         <div
           key={`${t}-${i}`}
-          className="text-center py-2 px-1 rounded-mini bg-surface-alt dark:bg-surface-dark-alt text-sm font-bold text-text dark:text-text-dark tabular-nums"
+          className="text-center py-2 px-1 rounded-mini bg-surface-2 dark:bg-bg text-sm font-bold text-ink-2 dark:text-ink-2 tabular-nums"
         >
           {t}
         </div>
@@ -250,7 +250,7 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
       </p>
       {allDone && allItems.length > 0 && (
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-caption font-bold text-ink-2 dark:text-mute bg-surface-2 dark:bg-surface-dark px-2 py-0.5 rounded-full">
+          <span className="text-caption font-bold text-ink-2 dark:text-mute bg-surface-2 dark:bg-surface px-2 py-0.5 rounded-full">
             금일 운행 종료
           </span>
         </div>
@@ -463,13 +463,13 @@ function ShuttleContent({ direction, accentColor }) {
         >
           <span className="text-[20px] leading-none mt-0.5 flex-shrink-0">⚠</span>
           <div className="flex-1 min-w-0 dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
-            <div className="text-[15px] font-black tracking-tight leading-tight">
+            <div className="text-[15px] font-semibold tracking-tight leading-tight">
               {isSecondCampus
                 ? '일요일·공휴일엔 2캠 셔틀버스가 운행하지 않습니다'
                 : '주말·공휴일엔 셔틀버스가 운행하지 않습니다'}
             </div>
             <div className="text-meta font-semibold mt-1 opacity-90">
-              아래는 <span className="font-extrabold">{useSaturday ? '토요일' : '평일'} 기준 시간표</span>입니다.
+              아래는 <span className="font-semibold">{useSaturday ? '토요일' : '평일'} 기준 시간표</span>입니다.
             </div>
           </div>
           {isSecondCampus && (
@@ -483,7 +483,7 @@ function ShuttleContent({ direction, accentColor }) {
                 type="button"
                 onClick={() => setFallbackKind('weekday')}
                 aria-pressed={!useSaturday}
-                className="px-2.5 py-1 text-caption font-extrabold tracking-tight transition-colors"
+                className="px-2.5 py-1 text-caption font-semibold tracking-tight transition-colors"
                 style={{
                   background: !useSaturday ? '#d4a14a' : 'transparent',
                   color: !useSaturday ? '#fff' : '#a07517',
@@ -495,7 +495,7 @@ function ShuttleContent({ direction, accentColor }) {
                 type="button"
                 onClick={() => setFallbackKind('saturday')}
                 aria-pressed={useSaturday}
-                className="px-2.5 py-1 text-caption font-extrabold tracking-tight transition-colors"
+                className="px-2.5 py-1 text-caption font-semibold tracking-tight transition-colors"
                 style={{
                   background: useSaturday ? '#d4a14a' : 'transparent',
                   color: useSaturday ? '#fff' : '#a07517',
@@ -508,26 +508,26 @@ function ShuttleContent({ direction, accentColor }) {
         </div>
       )}
       {data?.schedule_name && !usingFallback && (
-        <p className="text-meta font-semibold text-mute dark:text-mute-dark mb-1">
+        <p className="text-meta font-semibold text-mute dark:text-mute mb-1">
           {data.schedule_name} · 총 {times.length}회 · 남은 {future.length}회
         </p>
       )}
       {data?.schedule_name && usingFallback && !selectedEmpty && (
-        <p className="text-meta font-semibold text-mute dark:text-mute-dark mb-1">
+        <p className="text-meta font-semibold text-mute dark:text-mute mb-1">
           {data.schedule_name} · 총 {times.length}회
         </p>
       )}
       {selectedEmpty ? (
         <p className="text-body font-semibold text-mute text-center py-6 px-4 leading-relaxed">
-          선택한 <span className="font-extrabold">{useSaturday ? '토요일' : '평일'}</span> 시간표가 비어 있어요.
+          선택한 <span className="font-semibold">{useSaturday ? '토요일' : '평일'}</span> 시간표가 비어 있어요.
           {isSecondCampus && (
-            <><br />위 배너에서 <span className="font-extrabold">{useSaturday ? '평일' : '토요일'}</span>을 눌러보세요.</>
+            <><br />위 배너에서 <span className="font-semibold">{useSaturday ? '평일' : '토요일'}</span>을 눌러보세요.</>
           )}
         </p>
       ) : allDone ? (
         <>
           <div className="flex items-center gap-2 px-1 mb-1">
-            <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full">
+            <span className="text-meta font-semibold text-ink-2 dark:text-ink-2 bg-line dark:bg-line px-2.5 py-1 rounded-full">
               금일 운행 종료
             </span>
           </div>
@@ -664,7 +664,7 @@ function BusHistoryContent({ routeNumber, category }) {
     <div>
       <BusEtaCard realtimeEta={data?.realtime_eta} predictedEta={data?.predicted_eta} />
       <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
-      <p className="text-caption text-mute dark:text-mute-dark mb-3 leading-relaxed">
+      <p className="text-caption text-mute dark:text-mute mb-3 leading-relaxed">
         실시간 GBIS 기반 노선 · 시간표 없음{stopName ? ` · ${stopName}` : ''}
         <br />과거 실제 도착 기록을 날짜별로 표시합니다
       </p>
@@ -674,23 +674,23 @@ function BusHistoryContent({ routeNumber, category }) {
         {colViews.map((col, ci) => (
           <div key={ci} className="flex-1 min-w-0">
             {/* 헤더 */}
-            <div className="text-center py-2 border-b border-line dark:border-border-dark mb-0.5">
+            <div className="text-center py-2 border-b border-line dark:border-line mb-0.5">
               <span className="block text-caption font-bold text-ink-2 dark:text-ink-2-dark whitespace-nowrap">
                 {col.label}
               </span>
-              <span className="block text-caption text-mute dark:text-mute-dark whitespace-nowrap">
+              <span className="block text-caption text-mute dark:text-mute whitespace-nowrap">
                 {col.day_label}
               </span>
               {col.totalCount === 0 ? (
-                <span className="block text-caption text-mute dark:text-mute-dark mt-0.5">데이터 없음</span>
+                <span className="block text-caption text-mute dark:text-mute mt-0.5">데이터 없음</span>
               ) : (
-                <span className="block text-caption text-mute dark:text-mute-dark mt-0.5">총 {col.totalCount}회</span>
+                <span className="block text-caption text-mute dark:text-mute mt-0.5">총 {col.totalCount}회</span>
               )}
             </div>
 
             {/* 시간 리스트 */}
             {col.totalCount === 0 ? (
-              <p className="py-6 text-center text-caption text-mute dark:text-mute-dark">데이터가 없습니다</p>
+              <p className="py-6 text-center text-caption text-mute dark:text-mute">데이터가 없습니다</p>
             ) : (
               col.times.map((t, i) => {
                 const isNext = i === col.nextIdx
@@ -702,10 +702,10 @@ function BusHistoryContent({ routeNumber, category }) {
                     ref={isAnchor ? anchorRef : undefined}
                     className={`py-0.5 text-center tabular-nums text-sm rounded-md
                       ${isNext
-                        ? 'font-extrabold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                        ? 'font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : isPast
-                          ? 'text-mute dark:text-mute-dark'
-                          : 'font-semibold text-ink dark:text-ink-dark'
+                          ? 'text-mute dark:text-mute'
+                          : 'font-semibold text-ink dark:text-ink'
                       }`}
                   >
                     {t}
@@ -796,7 +796,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
       <div
         ref={sheetRef}
-        className="relative z-10 w-full md:max-w-none md:w-full bg-surface dark:bg-surface-dark rounded-t-[28px] md:rounded-none shadow-2xl md:shadow-none flex flex-col pointer-events-auto md:h-full md:animate-panel-swap animate-slide-up"
+        className="relative z-10 w-full md:max-w-none md:w-full bg-surface dark:bg-surface rounded-t-[28px] md:rounded-none shadow-2xl md:shadow-none flex flex-col pointer-events-auto md:h-full md:animate-panel-swap animate-slide-up"
         style={{
           maxHeight: '88dvh',
           transform: `translateY(${dragY}px)`,
@@ -818,17 +818,17 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           className="flex justify-center pt-3 pb-2 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
           style={{ touchAction: 'none' }}
         >
-          <span className="w-12 h-1.5 rounded-full bg-line dark:bg-border-dark" />
+          <span className="w-12 h-1.5 rounded-full bg-line dark:bg-line" />
         </button>
 
         {/* header */}
-        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-border-dark">
+        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-line">
           <span
             className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ background: color }}
           />
           <div className="flex-1 min-w-0">
-            <p className="text-display text-ink dark:text-ink-dark truncate" style={{ letterSpacing: '-0.03em' }}>
+            <p className="text-display text-ink dark:text-ink truncate" style={{ letterSpacing: '-0.03em' }}>
               {title}
             </p>
             <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
@@ -838,9 +838,9 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
               onClick={onShowMap}
               aria-label="지도에서 보기"
               title="지도에서 보기"
-              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
+              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
             >
-              <MapPin size={18} className="text-ink-2 dark:text-mute-dark" />
+              <MapPin size={18} className="text-ink-2 dark:text-mute" />
             </button>
           )}
           {onToggleFav && (
@@ -848,21 +848,21 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
               onClick={onToggleFav}
               aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
               title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
+              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
             >
               <Star
                 size={18}
                 fill={isFavorite ? 'var(--tj-accent)' : 'none'}
-                className={isFavorite ? 'text-accent dark:text-accent-dark' : 'text-mute dark:text-mute-dark'}
+                className={isFavorite ? 'text-accent dark:text-accent' : 'text-mute dark:text-mute'}
               />
             </button>
           )}
           <button
             onClick={onClose}
             aria-label="닫기"
-            className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
+            className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
           >
-            <X size={18} className="text-ink-2 dark:text-mute-dark" />
+            <X size={18} className="text-ink-2 dark:text-mute" />
           </button>
         </div>
 
@@ -879,8 +879,8 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
         >
           {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
-            <div className="-mx-4 mb-4 border-b border-line dark:border-border-dark pb-2">
-              <p className="text-caption font-semibold text-mute dark:text-mute-dark px-4 mb-3 uppercase tracking-wide">경유 노선</p>
+            <div className="-mx-4 mb-4 border-b border-line dark:border-line pb-2">
+              <p className="text-caption font-semibold text-mute dark:text-mute px-4 mb-3 uppercase tracking-wide">경유 노선</p>
               <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
             </div>
           )}

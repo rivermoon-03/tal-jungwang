@@ -52,11 +52,11 @@ function QuickCard({ icon, label, sub, onClick }) {
           'background var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
       }}
     >
-      <div style={{ color: 'var(--tj-ink)' }} className="dark:text-ink-dark">{icon}</div>
-      <div className="text-body font-extrabold text-ink dark:text-ink-dark">
+      <div style={{ color: 'var(--tj-ink)' }} className="dark:text-ink">{icon}</div>
+      <div className="text-body font-semibold text-ink dark:text-ink">
         {label}
       </div>
-      <div className="text-label font-semibold text-mute dark:text-mute-dark">{sub}</div>
+      <div className="text-label font-semibold text-mute dark:text-mute">{sub}</div>
     </button>
   )
 }
@@ -99,7 +99,7 @@ export default function MorePage() {
   const hasMoreNotices = allNotices.length > recent.length
 
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg-dark animate-fade-in-up">
+    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-fade-in-up">
       <PageHeader title="더보기" />
 
       <div className="flex-1 overflow-y-auto px-4 pt-1 pb-28 md:pb-6">
@@ -108,7 +108,7 @@ export default function MorePage() {
 
         {/* 빠른 설정 */}
         <div
-          className="text-label font-black text-mute dark:text-mute-dark uppercase tracking-widest"
+          className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest"
           style={{ margin: '6px 0 8px', letterSpacing: '0.14em' }}
         >
           빠른 설정
@@ -139,7 +139,7 @@ export default function MorePage() {
         {recent.length > 0 && (
           <>
             <div
-              className="text-label font-black text-mute dark:text-mute-dark uppercase tracking-widest"
+              className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest"
               style={{ marginBottom: 8, letterSpacing: '0.14em' }}
             >
               최근 공지
@@ -152,7 +152,7 @@ export default function MorePage() {
                 overflow: 'hidden',
                 marginBottom: 14,
               }}
-              className="bg-white dark:bg-surface-dark"
+              className="bg-white dark:bg-surface"
             >
               {recent.map((n, i) => (
                 <button
@@ -169,7 +169,7 @@ export default function MorePage() {
                   }}
                 >
                   <div
-                    className="text-body font-extrabold text-ink dark:text-ink-dark"
+                    className="text-body font-semibold text-ink dark:text-ink"
                     style={{
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -179,7 +179,7 @@ export default function MorePage() {
                     {n.title}
                   </div>
                   <div
-                    className="text-label font-semibold text-mute dark:text-mute-dark"
+                    className="text-label font-semibold text-mute dark:text-mute"
                     style={{ marginTop: 2 }}
                   >
                     {fmtDateShort(n.created_at)}
@@ -189,7 +189,7 @@ export default function MorePage() {
               <button
                 type="button"
                 onClick={() => setSubPage('notices')}
-                className="pressable w-full flex items-center justify-center gap-1 text-label font-extrabold text-mute dark:text-mute-dark"
+                className="pressable w-full flex items-center justify-center gap-1 text-label font-semibold text-mute dark:text-mute"
                 style={{
                   padding: '10px 14px',
                   borderTop: '1px solid var(--tj-line-soft)',
@@ -210,7 +210,7 @@ export default function MorePage() {
         <button
           type="button"
           onClick={openAppInfo}
-          className="pressable w-full flex items-center justify-between bg-white dark:bg-surface-dark"
+          className="pressable w-full flex items-center justify-between bg-white dark:bg-surface"
           style={{
             borderRadius: 14,
             border: '1px solid var(--tj-line)',
@@ -237,7 +237,7 @@ export default function MorePage() {
               <Info size={18} />
             </div>
             <div
-              className="text-body font-extrabold text-ink dark:text-ink-dark"
+              className="text-body font-semibold text-ink dark:text-ink"
             >
               앱 정보
             </div>
@@ -252,7 +252,7 @@ export default function MorePage() {
             window.history.pushState({}, '', '/privacy')
             window.dispatchEvent(new PopStateEvent('popstate'))
           }}
-          className="pressable w-full text-center text-label font-semibold text-mute dark:text-mute-dark"
+          className="pressable w-full text-center text-label font-semibold text-mute dark:text-mute"
           style={{ marginTop: 12, padding: '8px', background: 'transparent', cursor: 'pointer' }}
         >
           개인정보처리방침

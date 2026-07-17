@@ -89,7 +89,7 @@ export default function Dashboard() {
     <section
       ref={scrollRef}
       onScroll={(e) => setSavedScroll(e.currentTarget.scrollTop)}
-      className="h-full overflow-auto bg-white dark:bg-surface-dark"
+      className="h-full overflow-auto bg-white dark:bg-surface"
       aria-label="대시보드"
     >
       <ModeTabs />
