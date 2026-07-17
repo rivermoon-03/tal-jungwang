@@ -86,18 +86,20 @@ export default {
         'route-halo-trunk-dark':    'rgba(37,99,235,.32)',
         'route-halo-local-dark':    'rgba(8,145,178,.36)',
 
-        // ── 노선 칩 색 (Soft Tinted — 카드 내부용 신규) ──
-        'chip-green-bg':   '#eef5f0', 'chip-green-fg':   '#3a7a52',
-        'chip-blue-bg':    '#e6efff', 'chip-blue-fg':    '#2e5fb3',
-        'chip-red-bg':     '#f5e6e2', 'chip-red-fg':     '#8a3a2c',
-        'chip-purple-bg':  '#f0e8fc', 'chip-purple-fg':  '#5b3aa8',
-        'chip-yellow-bg':  '#fef6e6', 'chip-yellow-fg':  '#a07517',
-        // 다크 페어
-        'chip-green-bg-dark':  '#1a2820', 'chip-green-fg-dark':  '#5fb085',
-        'chip-blue-bg-dark':   '#1a2030', 'chip-blue-fg-dark':   '#7aa5e3',
-        'chip-red-bg-dark':    '#2a1818', 'chip-red-fg-dark':    '#e07a6a',
-        'chip-purple-bg-dark': '#1f1828', 'chip-purple-fg-dark': '#a78ce0',
-        'chip-yellow-bg-dark': '#2a2410', 'chip-yellow-fg-dark': '#d4a14a',
+        // ── 카테고리 칩 팔레트 (Soft Tinted — DESIGN.md "카테고리 칩 팔레트", CSS 변수 단일 출처) ──
+        'chip-green-bg':   'var(--tj-chip-green-bg)',  'chip-green-fg':   'var(--tj-chip-green-fg)',
+        'chip-blue-bg':    'var(--tj-chip-blue-bg)',   'chip-blue-fg':    'var(--tj-chip-blue-fg)',
+        'chip-red-bg':     'var(--tj-chip-red-bg)',    'chip-red-fg':     'var(--tj-chip-red-fg)',
+        'chip-purple-bg':  'var(--tj-chip-purple-bg)', 'chip-purple-fg':  'var(--tj-chip-purple-fg)',
+        'chip-yellow-bg':  'var(--tj-chip-yellow-bg)', 'chip-yellow-fg':  'var(--tj-chip-yellow-fg)',
+        'chip-gray-bg':    'var(--tj-chip-gray-bg)',   'chip-gray-fg':    'var(--tj-chip-gray-fg)',
+        // 레거시 별칭(-dark 접미) — 값은 위와 동일 var()라 라이트/다크 전환은 CSS에서 이미 처리됨.
+        // 이름 자체(전수 치환)는 Phase B 몫 — 컴포넌트에서는 -dark 접미 없이 위 키를 그대로 쓴다.
+        'chip-green-bg-dark':  'var(--tj-chip-green-bg)',  'chip-green-fg-dark':  'var(--tj-chip-green-fg)',
+        'chip-blue-bg-dark':   'var(--tj-chip-blue-bg)',   'chip-blue-fg-dark':   'var(--tj-chip-blue-fg)',
+        'chip-red-bg-dark':    'var(--tj-chip-red-bg)',    'chip-red-fg-dark':    'var(--tj-chip-red-fg)',
+        'chip-purple-bg-dark': 'var(--tj-chip-purple-bg)', 'chip-purple-fg-dark': 'var(--tj-chip-purple-fg)',
+        'chip-yellow-bg-dark': 'var(--tj-chip-yellow-bg)', 'chip-yellow-fg-dark': 'var(--tj-chip-yellow-fg)',
 
         // ── 레거시 (호환을 위해 유지, 값은 신규 팔레트로 정리) ──
         // bg-soft / line-soft / bg-soft-light / route-201 / route-33 / route-1 / suinbundang
@@ -230,10 +232,9 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%':      { opacity: '0.4' },
         },
-        fadeIn: {
-          '0%':   { opacity: '0', transform: 'translateY(4px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
+        // fadeIn keyframe은 index.css에 단일 출처로 정의됨(.animate-fade-in).
+        // 여기서 중복 정의하면 이름 충돌로 두 정의 중 하나가 조용히 무시되므로
+        // Phase B에서 제거함(2026-07).
         slideInLeft: {
           '0%':   { transform: 'translateX(-100%)', opacity: '0.4' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
@@ -248,7 +249,6 @@ export default {
         'halo-pulse-dark': 'haloPulseDark 1.6s ease-out infinite',
         'user-pulse':      'userPulse 2.5s ease-out infinite',
         'dot-blink':       'dotBlink 1.5s ease-in-out infinite',
-        'fade-in':         'fadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         'slide-in-left':   'slideInLeft 280ms cubic-bezier(0.16, 1, 0.3, 1)',
         'panel-swap':      'panelSwap 240ms cubic-bezier(0.16, 1, 0.3, 1)',
       },

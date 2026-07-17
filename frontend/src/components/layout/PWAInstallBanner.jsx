@@ -110,7 +110,7 @@ export default function PWAInstallBanner() {
               style={{ backgroundColor: '#1b3a6e' }}
               aria-hidden="true"
             >
-              <span className="text-white font-black text-xl">TU</span>
+              <span className="text-white font-semibold text-xl">TU</span>
             </div>
 
             <h2 className="text-center font-bold text-ink text-lg mb-1">

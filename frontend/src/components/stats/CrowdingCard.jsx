@@ -123,13 +123,13 @@ export default function CrowdingCard() {
             <div className="text-caption text-mute mb-1">지금</div>
             {currentPoint ? (
               <div
-                className="text-eta font-extrabold tracking-tight leading-none"
+                className="text-eta font-bold tracking-tight leading-none"
                 style={{ color: crowdedColor(currentPoint.crowded) }}
               >
                 {crowdedLabel(currentPoint.crowded)}
               </div>
             ) : (
-              <div className="text-title font-extrabold text-mute leading-none">--</div>
+              <div className="text-title font-bold text-mute leading-none">--</div>
             )}
           </div>
           {futurePeak && futurePeak.crowded >= 2.5 && (

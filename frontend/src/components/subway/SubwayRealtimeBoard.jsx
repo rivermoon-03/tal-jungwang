@@ -39,8 +39,8 @@ export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
   const ageMin = Math.floor((Date.now() - ms) / 60000)
   if (ageMin < 3) return null
   return (
-    <span className={`inline-flex items-center gap-1 text-caption font-bold text-ease dark:text-ease-dark ${className}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-ease dark:bg-ease-dark" />
+    <span className={`inline-flex items-center gap-1 text-caption font-bold text-ease ${className}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-ease" />
       {prefix}데이터 {ageMin}분 지연
     </span>
   )
@@ -95,26 +95,26 @@ function ArrivalTime({ item, timetableTrains }) {
   if (imminent) {
     if (item.status_code === 1 || item.status_code === 2) {
       return (
-        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
+        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line pl-3">
           <span
-            className="text-base font-black leading-none tabular-nums text-imminent dark:text-imminent-dark"
+            className="text-base font-bold leading-none tabular-nums text-imminent dark:text-imminent"
             style={{ animation: 'pulse 1.5s ease-in-out infinite' }}
           >
             이미
           </span>
-          <span className="text-caption text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
+          <span className="text-caption text-imminent dark:text-imminent mt-0.5 font-semibold">도착</span>
         </div>
       )
     }
     return (
-      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
+      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line pl-3">
         <span
-          className="text-base font-black leading-none tabular-nums text-imminent dark:text-imminent-dark"
+          className="text-base font-bold leading-none tabular-nums text-imminent dark:text-imminent"
           style={{ animation: 'pulse 1.5s ease-in-out infinite' }}
         >
           곧
         </span>
-        <span className="text-caption text-imminent dark:text-imminent-dark mt-0.5 font-bold">도착</span>
+        <span className="text-caption text-imminent dark:text-imminent mt-0.5 font-bold">도착</span>
       </div>
     )
   }
@@ -125,21 +125,21 @@ function ArrivalTime({ item, timetableTrains }) {
     const sourceLabel = hasRealtimeSecs ? '후 도착' : '시간표 기준'
     if (isUrgent) {
       return (
-        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
-          <span className="text-base font-black leading-none text-imminent dark:text-imminent-dark">곧</span>
-          <span className="text-caption text-imminent dark:text-imminent-dark mt-0.5 font-extrabold">도착</span>
+        <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line pl-3">
+          <span className="text-base font-bold leading-none text-imminent dark:text-imminent">곧</span>
+          <span className="text-caption text-imminent dark:text-imminent mt-0.5 font-semibold">도착</span>
         </div>
       )
     }
     return (
-      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
+      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line pl-3">
         <span
-          className="text-xl font-black leading-none tabular-nums tracking-tight"
+          className="text-xl font-bold leading-none tabular-nums tracking-tight"
           style={{ color: timerColor }}
         >
           {display}
         </span>
-        <span className="text-caption font-semibold text-mute dark:text-mute-dark mt-0.5">{sourceLabel}</span>
+        <span className="text-caption font-semibold text-mute dark:text-mute mt-0.5">{sourceLabel}</span>
       </div>
     )
   }
@@ -148,18 +148,18 @@ function ArrivalTime({ item, timetableTrains }) {
   const count = getStationCount(item.ordkey)
   if (count) {
     return (
-      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
-        <span className="text-xl font-black leading-none tabular-nums text-ink dark:text-ink-dark">
+      <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line pl-3">
+        <span className="text-xl font-bold leading-none tabular-nums text-ink dark:text-ink">
           {count}
         </span>
-        <span className="text-caption font-semibold text-mute dark:text-mute-dark mt-0.5">전 역</span>
+        <span className="text-caption font-semibold text-mute dark:text-mute mt-0.5">전 역</span>
       </div>
     )
   }
   return (
-    <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line-dark pl-3">
-      <span className="text-2xl font-black leading-none tabular-nums text-mute-2 dark:text-mute-2-dark">—</span>
-      <span className="text-caption font-semibold text-mute dark:text-mute-dark mt-0.5">운행중</span>
+    <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line pl-3">
+      <span className="text-2xl font-bold leading-none tabular-nums text-line-strong dark:text-line-strong">—</span>
+      <span className="text-caption font-semibold text-mute dark:text-mute mt-0.5">운행중</span>
     </div>
   )
 }
@@ -179,18 +179,18 @@ const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, ti
 
   const rowBg = imminent
     ? 'bg-[rgba(226,106,77,0.06)] dark:bg-[rgba(248,113,113,0.08)]'
-    : 'bg-surface dark:bg-surface-dark'
+    : 'bg-surface dark:bg-surface'
 
-  const destColor = imminent ? 'text-imminent dark:text-imminent-dark' : 'text-ink dark:text-ink-dark'
+  const destColor = imminent ? 'text-imminent dark:text-imminent' : 'text-ink dark:text-ink'
   const recptnTime = item.recptn_dt ? item.recptn_dt.substring(11, 16) : ''
 
   return (
     <div
-      className={`relative flex flex-col gap-1 px-4 py-3.5 border-b border-line dark:border-line-dark cursor-pointer active:bg-surface-alt dark:active:bg-surface-dark-alt transition-colors ${rowBg}`}
+      className={`relative flex flex-col gap-1 px-4 py-3.5 border-b border-line dark:border-line cursor-pointer active:bg-surface-2 dark:active:bg-bg transition-colors ${rowBg}`}
       onClick={() => onClick?.(item)}
     >
       {imminent && (
-        <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-imminent dark:bg-imminent-dark" />
+        <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-imminent dark:bg-imminent" />
       )}
       <div className="flex items-center gap-3">
       {/* 좌: 노선 dot + 목적지 + 위치 */}
@@ -200,15 +200,15 @@ const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, ti
             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
             style={{ background: item.color }}
           />
-          <span className="text-caption font-semibold text-mute dark:text-mute-dark leading-none whitespace-nowrap">
+          <span className="text-caption font-semibold text-mute dark:text-mute leading-none whitespace-nowrap">
             {item.direction}
           </span>
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap pb-1.5">
-            <span className={`text-xl font-extrabold leading-tight tracking-tight ${destColor}`}>
+            <span className={`text-xl font-semibold leading-tight tracking-tight ${destColor}`}>
               {item.destination}
-              <span className="text-sm font-semibold text-mute dark:text-mute-dark ml-1">행</span>
+              <span className="text-sm font-semibold text-mute dark:text-mute ml-1">행</span>
             </span>
             {item.is_last_train && (
               <StatusChip kind="last">막차</StatusChip>
@@ -220,7 +220,7 @@ const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, ti
               </span>
             )}
           </div>
-          <div className="text-meta font-medium text-mute dark:text-mute-dark mt-0.5 truncate">
+          <div className="text-meta font-medium text-mute dark:text-mute mt-0.5 truncate">
             {formatSubtext(item)}
           </div>
         </div>
@@ -234,7 +234,7 @@ const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, ti
 
       {/* 하단 업데이트 시간 + 폴링 시간 (별도 행) */}
       {(lastFetchedAt || recptnTime) && (
-        <div className="flex justify-end gap-1.5 text-caption font-medium text-mute dark:text-mute-dark mt-0.5">
+        <div className="flex justify-end gap-1.5 text-caption font-medium text-mute dark:text-mute mt-0.5">
           {lastFetchedAt && (
             <span>{secondsAgo}초 전 폴링</span>
           )}
@@ -243,7 +243,7 @@ const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, ti
               ? Math.floor((Date.now() - new Date(item.recptn_dt).getTime()) / 60000)
               : 0
             return ageMin >= 3
-              ? <span className="text-ease dark:text-ease-dark font-extrabold">{recptnTime} 기준 · 데이터 {ageMin}분 지연</span>
+              ? <span className="text-ease font-semibold">{recptnTime} 기준 · 데이터 {ageMin}분 지연</span>
               : <span>{recptnTime} 기준</span>
           })()}
         </div>
@@ -256,9 +256,9 @@ const Section = memo(function Section({ lineName, color, items, lastFetchedAt, o
   if (items.length === 0) return null
   return (
     <div>
-      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-surface-alt dark:bg-surface-dark-alt border-b border-line dark:border-line-dark">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-surface-2 dark:bg-bg border-b border-line dark:border-line">
         <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: color }} />
-        <span className="text-meta font-extrabold text-text dark:text-text-dark tracking-tight">{lineName}</span>
+        <span className="text-meta font-semibold text-ink-2 dark:text-ink-2 tracking-tight">{lineName}</span>
       </div>
       {items.map((item) => (
         <RealtimeRow
@@ -285,7 +285,7 @@ const Section = memo(function Section({ lineName, color, items, lastFetchedAt, o
 const SubwayRealtimeBoard = memo(function SubwayRealtimeBoard({ arrivals, lastFetchedAt, onRowClick, timetableLookup, stale, lastSuccessfulRealtimeAt }) {
   if (!arrivals || arrivals.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12 text-meta font-semibold text-mute dark:text-mute-dark">
+      <div className="flex items-center justify-center py-12 text-meta font-semibold text-mute dark:text-mute">
         현재 운행 중인 열차 정보가 없습니다
       </div>
     )
@@ -298,9 +298,9 @@ const SubwayRealtimeBoard = memo(function SubwayRealtimeBoard({ arrivals, lastFe
   return (
     <div className="flex-1 overflow-y-auto">
       {(stale || isRealtimeStale(lastSuccessfulRealtimeAt)) && (
-        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface-2-dark border border-line dark:border-line-dark">
-          <span className="w-2 h-2 rounded-full bg-ease dark:bg-ease-dark flex-shrink-0" />
-          <p className="text-caption font-bold text-ease dark:text-ease-dark leading-tight">
+        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface-2-dark border border-line dark:border-line">
+          <span className="w-2 h-2 rounded-full bg-ease flex-shrink-0" />
+          <p className="text-caption font-bold text-ease leading-tight">
             실시간 데이터가 {stale ? '잠시 끊겼습니다' : '지연되고 있습니다'}. 시간표 정보를 우선 확인하세요.
           </p>
         </div>

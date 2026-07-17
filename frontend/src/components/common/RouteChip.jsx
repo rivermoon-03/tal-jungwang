@@ -15,12 +15,12 @@ const TONE_BY_ROUTE = {
 }
 
 const TONE_CLASS = {
-  green:  'bg-chip-green-bg text-chip-green-fg dark:bg-chip-green-bg-dark dark:text-chip-green-fg-dark',
-  blue:   'bg-chip-blue-bg text-chip-blue-fg dark:bg-chip-blue-bg-dark dark:text-chip-blue-fg-dark',
-  red:    'bg-chip-red-bg text-chip-red-fg dark:bg-chip-red-bg-dark dark:text-chip-red-fg-dark',
-  purple: 'bg-chip-purple-bg text-chip-purple-fg dark:bg-chip-purple-bg-dark dark:text-chip-purple-fg-dark',
-  yellow: 'bg-chip-yellow-bg text-chip-yellow-fg dark:bg-chip-yellow-bg-dark dark:text-chip-yellow-fg-dark',
-  gray:   'bg-surface-alt text-text dark:bg-surface-dark-alt dark:text-text-dark',
+  green:  'bg-chip-green-bg text-chip-green-fg dark:bg-chip-green-bg dark:text-chip-green-fg',
+  blue:   'bg-chip-blue-bg text-chip-blue-fg dark:bg-chip-blue-bg dark:text-chip-blue-fg',
+  red:    'bg-chip-red-bg text-chip-red-fg dark:bg-chip-red-bg dark:text-chip-red-fg',
+  purple: 'bg-chip-purple-bg text-chip-purple-fg dark:bg-chip-purple-bg dark:text-chip-purple-fg',
+  yellow: 'bg-chip-yellow-bg text-chip-yellow-fg dark:bg-chip-yellow-bg dark:text-chip-yellow-fg',
+  gray:   'bg-surface-2 text-ink-2 dark:bg-bg dark:text-ink-2',
 }
 
 function getTone(route) {

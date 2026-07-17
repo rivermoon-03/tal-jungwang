@@ -17,7 +17,7 @@ import { useMemo, useState } from 'react'
 import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
 import { ALL_VENUES, RESTAURANTS, VENUE_GROUPS, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
-import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryIcon } from '../../utils/venueOpen'
+import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryStyle, getCategoryIcon } from '../../utils/venueOpen'
 import SegmentTabs from '../ui/SegmentTabs'
 
 // ── 탭 정의 ────────────────────────────────────────────────
@@ -52,24 +52,9 @@ function kstWeekday(nowMs) {
   return KST_FMT_WEEKDAY.format(new Date(nowMs))
 }
 
-// ── 카테고리 아이콘 칩 색상 매핑 ────────────────────────────
-function getCategoryStyle(category, isDark) {
-  const map = {
-    '한식':     { color: isDark ? '#F4A460' : '#8B4513', bg: isDark ? '#2D1A0A' : '#FFF5E6' },
-    '분식':     { color: isDark ? '#FF8C69' : '#C0392B', bg: isDark ? '#2D0A0A' : '#FEF0F0' },
-    '중식':     { color: isDark ? '#FFD700' : '#B8860B', bg: isDark ? '#2D260A' : '#FEFAE6' },
-    '양식':     { color: isDark ? '#98D1B5' : '#2E7D5E', bg: isDark ? '#0A2118' : '#EAF6EF' },
-    '패스트푸드': { color: isDark ? '#FFB347' : '#D4530A', bg: isDark ? '#2D1800' : '#FFF1E6' },
-    '카페':     { color: isDark ? '#C4A882' : '#6B4F2A', bg: isDark ? '#1E1610' : '#F6F0E8' },
-    '편의점':   { color: isDark ? '#93B3D8' : '#4A6FA5', bg: isDark ? '#1A2535' : '#EEF2F9' },
-  }
-  return map[category] ?? { color: isDark ? '#9CA3AF' : '#6B7280', bg: isDark ? '#1F2937' : '#F3F4F6' }
-}
-
 // ── 카테고리 아이콘 원형 칩 ──────────────────────────────────
 function CategoryIconChip({ category }) {
-  const isDark = useAppStore((s) => s.darkMode)
-  const { color, bg } = getCategoryStyle(category, isDark)
+  const { color, bg } = getCategoryStyle(category)
   const Icon = getCategoryIcon(category)
   return (
     <div
@@ -92,8 +77,7 @@ function CategoryIconChip({ category }) {
 // ── 건물별 위치 칩 ────────────────────────────────────────
 function LocationChip({ location }) {
   const building = getVenueBuilding(location)
-  const { color, bg, darkColor, darkBg } = getBuildingColor(building)
-  const isDark = useAppStore((s) => s.darkMode)
+  const { color, bg } = getBuildingColor(building)
   return (
     <span
       style={{
@@ -101,8 +85,8 @@ function LocationChip({ location }) {
         fontSize: 12,
         fontWeight: 700,
         letterSpacing: '-0.01em',
-        color: isDark ? darkColor : color,
-        background: isDark ? darkBg : bg,
+        color,
+        background: bg,
         borderRadius: 6,
         padding: '2px 7px',
         lineHeight: 1.5,
@@ -318,8 +302,7 @@ function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
 
 // ── 그룹 헤더 — 건물별 ──────────────────────────────────────
 function BuildingGroupHeader({ building }) {
-  const isDark = useAppStore((s) => s.darkMode)
-  const { color, bg, darkColor, darkBg } = getBuildingColor(building)
+  const { color, bg } = getBuildingColor(building)
   return (
     <div
       style={{
@@ -334,8 +317,8 @@ function BuildingGroupHeader({ building }) {
           fontSize: 14,
           fontWeight: 800,
           letterSpacing: '-0.02em',
-          color: isDark ? darkColor : color,
-          background: isDark ? darkBg : bg,
+          color,
+          background: bg,
           borderRadius: 8,
           padding: '3px 10px',
         }}
@@ -349,9 +332,8 @@ function BuildingGroupHeader({ building }) {
 
 // ── 그룹 헤더 — 카테고리별 ──────────────────────────────────
 function CategoryGroupHeader({ category }) {
-  const isDark = useAppStore((s) => s.darkMode)
   const Icon = getCategoryIcon(category)
-  const { color, bg } = getCategoryStyle(category, isDark)
+  const { color, bg } = getCategoryStyle(category)
   return (
     <div
       style={{

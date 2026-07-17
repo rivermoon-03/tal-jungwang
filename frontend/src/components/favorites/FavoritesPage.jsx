@@ -10,7 +10,7 @@ import { Star } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import FavoritesList from './FavoritesList'
 import FavoritesTimeline from './FavoritesTimeline'
-import EmptyState from '../common/EmptyState'
+import EmptyState from '../ui/EmptyState'
 import SegmentTabs from '../common/SegmentTabs'
 import PageHeader from '../layout/PageHeader'
 import ScheduleDetailModal from '../schedule/ScheduleDetailModal'
@@ -390,7 +390,7 @@ export default function FavoritesPage({ onGoSchedule }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-bg-dark animate-fade-in-up">
+    <div className="flex flex-col h-full bg-white dark:bg-bg animate-fade-in-up">
       <PageHeader title="즐겨찾기" />
 
       <div className="flex items-center justify-between gap-2 px-4 pb-2">
@@ -409,17 +409,16 @@ export default function FavoritesPage({ onGoSchedule }) {
 
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6 flex flex-col gap-3">
         {allEmpty ? (
-          <div className="rounded-[18px] overflow-hidden shadow-card bg-white dark:bg-surface-dark border border-slate-100 dark:border-border-dark">
+          <div className="rounded-sheet overflow-hidden shadow-card bg-white dark:bg-surface border border-slate-100 dark:border-line">
             <EmptyState
               icon={<Star size={28} strokeWidth={1.6} />}
               title="즐겨찾는 노선이 없어요"
               desc="노선 목록에서 별 아이콘을 탭해 추가"
-              ctaLabel="시간표에서 추가"
-              onCta={onGoSchedule}
+              action={{ label: '시간표에서 추가', onClick: onGoSchedule }}
             />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-[18px] overflow-hidden shadow-card bg-white dark:bg-surface-dark border border-slate-100 dark:border-border-dark">
+          <div className="rounded-sheet overflow-hidden shadow-card bg-white dark:bg-surface border border-slate-100 dark:border-line">
             <EmptyState
               icon={<Star size={28} strokeWidth={1.6} />}
               title={`${commute}용 즐겨찾기가 없어요`}

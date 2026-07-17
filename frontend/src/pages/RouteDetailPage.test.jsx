@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import RouteDetailPage from './RouteDetailPage'
 import * as useBusModule from '../hooks/useBus'
 
@@ -100,6 +100,11 @@ vi.mock('../hooks/useFavorites', () => ({
 
 describe('RouteDetailPage', () => {
   beforeEach(() => {
+    // 요일 탭 판정이 실제 시각(new Date())에 의존하므로, 주말에 테스트가 깨지지
+    // 않도록 평일(2026-01-06 화요일 정오 KST)로 Date만 고정한다
+    // (setTimeout/setInterval/rAF는 실타이머 유지 — RTL 비동기 effect 영향 방지).
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-01-06T12:00:00+09:00'))
     vi.clearAllMocks()
     vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
       data: DEFAULT_MOCK_DATA,
@@ -116,6 +121,10 @@ describe('RouteDetailPage', () => {
       loading: false,
       error: null,
     })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('노선 번호 뱃지가 렌더링됨 (route_no 또는 routeNumber)', () => {

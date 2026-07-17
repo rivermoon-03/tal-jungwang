@@ -52,7 +52,7 @@ export default function ScheduleSection({
       className={`pressable transition-all duration-150 ${
         disabled ? 'opacity-50' : ''
       } ${
-        onClick && !disabled ? 'cursor-pointer hover:border-line dark:hover:border-line-dark' : ''
+        onClick && !disabled ? 'cursor-pointer hover:border-line dark:hover:border-line' : ''
       }`}
       style={{
         padding: 12,
@@ -84,7 +84,7 @@ export default function ScheduleSection({
                 flexShrink: 1,
                 minWidth: 0,
               }}
-              className="dark:text-ink-dark"
+              className="dark:text-ink"
             >
               {title}
             </span>
@@ -93,7 +93,7 @@ export default function ScheduleSection({
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
-                  color: 'var(--tj-mute-2)',
+                  color: 'var(--tj-line-strong)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -141,20 +141,20 @@ export default function ScheduleSection({
           {/* 시간 라인 */}
           <div style={{ marginTop: 4, fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', minHeight: 16 }}>
             {disabled ? (
-              <span style={{ color: 'var(--tj-mute-2)' }}>{disabledLabel}</span>
+              <span style={{ color: 'var(--tj-line-strong)' }}>{disabledLabel}</span>
             ) : endOfDay ? (
-              <span style={{ color: 'var(--tj-mute-2)', fontWeight: 600 }}>오늘 버스가 끊겼어요</span>
+              <span style={{ color: 'var(--tj-line-strong)', fontWeight: 600 }}>오늘 버스가 끊겼어요</span>
             ) : realtimeOnly ? (
               <StatusChip kind="realtime">실시간</StatusChip>
             ) : loading ? (
               <Skeleton width="9rem" height="0.95rem" rounded="rounded-md" />
             ) : (
               <>
-                <span style={{ fontWeight: 800, color: 'var(--tj-ink)' }} className="dark:text-ink-dark">
+                <span style={{ fontWeight: 800, color: 'var(--tj-ink)' }} className="dark:text-ink">
                   다음 {renderTimeValue(next)}
                 </span>
                 {afterNext && (
-                  <span style={{ color: 'var(--tj-mute-2)', fontWeight: 500, marginLeft: 8 }}>
+                  <span style={{ color: 'var(--tj-line-strong)', fontWeight: 500, marginLeft: 8 }}>
                     그 다음 {renderTimeValue(afterNext)}
                   </span>
                 )}
@@ -176,7 +176,7 @@ export default function ScheduleSection({
               color: 'var(--tj-mute)',
               textAlign: 'right',
             }}
-            className="dark:text-mute-dark"
+            className="dark:text-mute"
           >
             <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.2 }}>금일</span>
             <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.2 }}>종료</span>
@@ -195,7 +195,7 @@ export default function ScheduleSection({
               fontVariantNumeric: 'tabular-nums',
               color: minutesUntil <= 3 ? 'var(--tj-accent)' : 'var(--tj-ink)',
             }}
-            className={minutesUntil <= 3 ? 'tj-urgent dark:text-ink-dark' : 'dark:text-ink-dark'}
+            className={minutesUntil <= 3 ? 'tj-urgent dark:text-ink' : 'dark:text-ink'}
           >
             {minutesUntil <= 0 ? (
               <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
@@ -233,7 +233,7 @@ export default function ScheduleSection({
         )}
 
         {onClick && (
-          <ChevronRight size={14} className="text-mute dark:text-mute-dark flex-shrink-0" aria-hidden="true" />
+          <ChevronRight size={14} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
         )}
       </div>
 

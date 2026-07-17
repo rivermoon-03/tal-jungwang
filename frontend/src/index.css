@@ -47,6 +47,14 @@
   --tj-delayed-bg:   #fee2e2;
   --tj-realtime:     #12a594;
 
+  /* 카테고리 칩 팔레트(DESIGN.md "카테고리 칩 팔레트") — sage/teal과 어울리는 최소 채도 5색 + 중립 */
+  --tj-chip-green-bg:  #eef5f0; --tj-chip-green-fg:  #3a7a52;
+  --tj-chip-blue-bg:   #e6efff; --tj-chip-blue-fg:   #2e5fb3;
+  --tj-chip-red-bg:    #f5e6e2; --tj-chip-red-fg:    #8a3a2c;
+  --tj-chip-purple-bg: #f0e8fc; --tj-chip-purple-fg: #5b3aa8;
+  --tj-chip-yellow-bg: #fef6e6; --tj-chip-yellow-fg: #a07517;
+  --tj-chip-gray-bg:   #f3f4f6; --tj-chip-gray-fg:   #6b7280;
+
   /* 레거시 상태 별칭(호환 유지) — 신규 semantic을 그대로 참조해 값 중복 제거 */
   --state-ok:   var(--tj-ease);
   --state-warn: var(--tj-imminent);
@@ -99,6 +107,14 @@
   --tj-delayed:      #ff6369;
   --tj-delayed-bg:   #3b1219;
   --tj-realtime:     #12a594;
+
+  /* 카테고리 칩 팔레트(다크) */
+  --tj-chip-green-bg:  #1a2820; --tj-chip-green-fg:  #5fb085;
+  --tj-chip-blue-bg:   #1a2030; --tj-chip-blue-fg:   #7aa5e3;
+  --tj-chip-red-bg:    #2a1818; --tj-chip-red-fg:    #e07a6a;
+  --tj-chip-purple-bg: #1f1828; --tj-chip-purple-fg: #a78ce0;
+  --tj-chip-yellow-bg: #2a2410; --tj-chip-yellow-fg: #d4a14a;
+  --tj-chip-gray-bg:   #1f2937; --tj-chip-gray-fg:   #9ca3af;
 
   /* 활성 pill 다크: accent teal + 화이트 텍스트 */
   --tj-pill-active-bg: var(--tj-accent);

@@ -193,7 +193,7 @@ export default function App() {
 
   return (
     <>
-      <div className="flex flex-col h-dvh bg-bg dark:bg-bg-dark transition-colors duration-snap ease-ios">
+      <div className="flex flex-col h-dvh bg-bg dark:bg-bg transition-colors duration-snap ease-ios">
         <PWAInstallBanner />
 
         <main className="flex-1 overflow-hidden min-h-0 relative">

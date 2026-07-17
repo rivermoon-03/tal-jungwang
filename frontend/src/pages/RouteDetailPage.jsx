@@ -68,11 +68,11 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   if (histLoading) {
     return (
       <div
-        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
+        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
         role="status"
         aria-live="polite"
       >
-        <span className="text-[14px] font-semibold text-mute dark:text-mute-dark">
+        <span className="text-[14px] font-semibold text-mute dark:text-mute">
           실시간 도착 정보를 가져오는 중이에요
         </span>
       </div>
@@ -82,10 +82,10 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   if (!histData) {
     return (
       <div
-        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
+        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
         role="status"
       >
-        <span className="text-[14px] font-semibold text-mute dark:text-mute-dark">
+        <span className="text-[14px] font-semibold text-mute dark:text-mute">
           실시간 도착 정보를 가져오는 중이에요
         </span>
       </div>
@@ -101,28 +101,28 @@ function RealtimeArrivalCard({ histData, histLoading }) {
 
     return (
       <div
-        className="bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
+        className="bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
         role="status"
         aria-live="polite"
       >
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <span className="block text-[11px] font-extrabold tracking-[.06em] text-accent uppercase mb-0.5">
+            <span className="block text-[11px] font-semibold tracking-[.06em] text-accent uppercase mb-0.5">
               실시간 도착
             </span>
-            <span className="block text-[22px] font-black text-ink dark:text-ink-dark leading-tight tabular-nums">
+            <span className="block text-[22px] font-bold text-ink dark:text-ink leading-tight tabular-nums">
               {primaryLabel ?? '—'}
             </span>
             {primary?.arrive_at_hhmm && (
-              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute-dark mt-0.5">
+              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute mt-0.5">
                 {primary.arrive_at_hhmm} 도착 예정
               </span>
             )}
           </div>
           {secondaryLabel && (
             <div className="flex-none text-right pl-3 border-l border-[#BEDAD7]">
-              <span className="block text-[11px] font-extrabold text-mute mb-0.5">다음 차</span>
-              <span className="block text-[17px] font-black text-ink dark:text-ink-dark tabular-nums">{secondaryLabel}</span>
+              <span className="block text-[11px] font-semibold text-mute mb-0.5">다음 차</span>
+              <span className="block text-[17px] font-semibold text-ink dark:text-ink tabular-nums">{secondaryLabel}</span>
               {secondary?.arrive_at_hhmm && (
                 <span className="block text-[11px] font-semibold text-mute">{secondary.arrive_at_hhmm}</span>
               )}
@@ -136,10 +136,10 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   // realtime_eta 없음 — 예측 시각 표시 금지, 중립 안내만 표시
   return (
     <div
-      className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
+      className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
       role="status"
     >
-      <span className="text-[14px] font-semibold text-mute dark:text-mute-dark">
+      <span className="text-[14px] font-semibold text-mute dark:text-mute">
         실시간 도착 정보가 없어요
       </span>
     </div>
@@ -170,11 +170,11 @@ function InlineLiveRow({ liveData }) {
       role="status"
       aria-live="polite"
     >
-      <span className="flex-none w-9 h-9 rounded-[11px] bg-accent flex items-center justify-center shadow-[0_4px_10px_rgba(18,165,148,.4)]">
+      <span className="flex-none w-9 h-9 rounded-button bg-accent flex items-center justify-center shadow-[0_4px_10px_rgba(18,165,148,.4)]">
         <Bus size={18} className="text-white" />
       </span>
       <div className="flex-1 min-w-0">
-        <span className="block text-[15px] font-black text-imminent leading-tight tracking-[-0.01em]">
+        <span className="block text-[15px] font-semibold text-imminent leading-tight tracking-[-0.01em]">
           {arrivalStopLabel}
         </span>
         <span className="block text-[11.5px] font-semibold text-accent mt-0.5">
@@ -183,7 +183,7 @@ function InlineLiveRow({ liveData }) {
       </div>
       {eta && (
         <div className="flex-none text-right pl-3 border-l border-[#BEDAD7]">
-          <span className="block text-[15px] font-black text-ink tabular-nums">{eta}</span>
+          <span className="block text-[15px] font-bold text-ink tabular-nums">{eta}</span>
           <span className="block text-[11px] font-bold text-mute mt-0.5">다음 차</span>
         </div>
       )}
@@ -213,8 +213,8 @@ function TimetableRow({ entry, nowMin, isNext = false }) {
           isPast
             ? 'text-[15px] font-bold text-mute'
             : isNext
-              ? 'text-[16px] font-black text-accent-ink'
-              : 'text-[16px] font-extrabold text-ink-2',
+              ? 'text-[16px] font-bold text-accent-ink'
+              : 'text-[16px] font-semibold text-ink-2',
         ].join(' ')}
       >
         {entry.depart_at}
@@ -230,13 +230,13 @@ function TimetableRow({ entry, nowMin, isNext = false }) {
       {entry.is_last ? (
         <StatusChip kind="last">막차</StatusChip>
       ) : isNext ? (
-        <span className="text-[11px] font-extrabold text-accent-ink px-[9px] py-[3px] rounded-full bg-accent/15">
+        <span className="text-[11px] font-semibold text-accent-ink px-[9px] py-[3px] rounded-full bg-accent/15">
           다음 차{delta ? ` (${delta})` : ''}
         </span>
       ) : isPast ? (
-        <span className="text-[11px] font-extrabold text-mute/70">지난 차</span>
+        <span className="text-[11px] font-semibold text-mute/70">지난 차</span>
       ) : delta ? (
-        <span className="text-[11px] font-extrabold text-mute">{delta}</span>
+        <span className="text-[11px] font-semibold text-mute">{delta}</span>
       ) : null}
     </div>
   )
@@ -291,7 +291,7 @@ function DirectionTabs({ categories, active, onChange }) {
     <div
       role="tablist"
       aria-label="방향 선택"
-      className="flex gap-[5px] bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark rounded-card p-1 mb-[10px]"
+      className="flex gap-[5px] bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-card p-1 mb-[10px]"
     >
       {categories.map((cat) => {
         const isActive = cat === active
@@ -305,8 +305,8 @@ function DirectionTabs({ categories, active, onChange }) {
               'flex-1 flex items-center justify-center min-h-[38px] rounded-button',
               'text-[14px] font-semibold select-none transition-all',
               isActive
-                ? 'bg-ink dark:bg-accent text-white dark:text-black font-extrabold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
-                : 'text-mute dark:text-mute-dark',
+                ? 'bg-ink dark:bg-accent text-white dark:text-black font-semibold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
+                : 'text-mute dark:text-mute',
             ].join(' ')}
           >
             {CATEGORY_LABELS[cat] ?? cat}
@@ -482,14 +482,14 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   }
 
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg-dark">
+    <div className="flex flex-col h-full bg-bg dark:bg-bg">
       {/* ── 헤더 ── */}
-      <header className="flex-none flex items-center gap-[11px] px-4 pt-[18px] pb-[13px] bg-surface dark:bg-surface-dark border-b border-line dark:border-line-dark">
+      <header className="flex-none flex items-center gap-[11px] px-4 pt-[18px] pb-[13px] bg-surface dark:bg-surface border-b border-line dark:border-line">
         <button
           type="button"
           aria-label="뒤로"
           onClick={handleBack}
-          className="w-[42px] h-[42px] rounded-[13px] flex-none flex items-center justify-center bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark text-ink-2 dark:text-ink-2-dark"
+          className="w-[42px] h-[42px] rounded-card flex-none flex items-center justify-center bg-surface-2 dark:bg-bg border border-line dark:border-line text-ink-2 dark:text-ink-2-dark"
         >
           <ChevronLeft size={20} />
         </button>
@@ -498,20 +498,20 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
           <RouteBadge route={routeDisplayName} />
           <div className="min-w-0">
             {headLabel && (
-              <span className="block text-[16px] font-extrabold text-ink dark:text-ink-dark tracking-[-0.02em] truncate">
+              <span className="block text-[16px] font-semibold text-ink dark:text-ink tracking-[-0.02em] truncate">
                 {headLabel}
               </span>
             )}
             {stop ? (
-              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute-dark mt-px truncate">
+              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute mt-px truncate">
                 {stop} 기준
               </span>
             ) : originStopName ? (
-              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute-dark mt-px truncate">
+              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute mt-px truncate">
                 {originStopName} 출발
               </span>
             ) : subLabel ? (
-              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute-dark mt-px">
+              <span className="block text-[11.5px] font-semibold text-mute dark:text-mute mt-px">
                 {subLabel}
               </span>
             ) : null}
@@ -522,12 +522,12 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
           type="button"
           aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           onClick={() => toggleFav({ type: 'bus', label: routeNumber })}
-          className="w-[42px] h-[42px] rounded-[13px] flex-none flex items-center justify-center bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark"
+          className="w-[42px] h-[42px] rounded-card flex-none flex items-center justify-center bg-surface-2 dark:bg-bg border border-line dark:border-line"
         >
           <Star
             size={19}
             fill={isFavorite ? 'currentColor' : 'none'}
-            className={isFavorite ? 'text-state-warn' : 'text-mute dark:text-mute-dark'}
+            className={isFavorite ? 'text-imminent' : 'text-mute dark:text-mute'}
           />
         </button>
       </header>
@@ -538,7 +538,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
         <div className="flex-none px-4 pt-3 pb-0">
           {stops.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-3">
-              <span className="text-[11.5px] font-extrabold tracking-[.04em] text-mute flex-none mr-0.5">
+              <span className="text-[11.5px] font-semibold tracking-[.04em] text-mute flex-none mr-0.5">
                 정류장
               </span>
               {stops.map((stop) => {
@@ -550,11 +550,11 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                     aria-pressed={isActive}
                     onClick={() => setActiveStop(stop.id)}
                     className={[
-                      'flex-none inline-flex items-center px-[13px] py-[7px] rounded-[18px]',
+                      'flex-none inline-flex items-center px-[13px] py-[7px] rounded-pill',
                       'text-[13px] font-semibold whitespace-nowrap transition-colors',
                       isActive
-                        ? 'bg-accent-bg border border-[#83cdc1] text-accent-ink dark:text-accent font-extrabold'
-                        : 'bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-ink-2 dark:text-ink-2-dark',
+                        ? 'bg-accent-bg border border-[#83cdc1] text-accent-ink dark:text-accent font-semibold'
+                        : 'bg-surface dark:bg-surface border border-line dark:border-line text-ink-2 dark:text-ink-2-dark',
                     ].join(' ')}
                   >
                     {stop.name}
@@ -574,7 +574,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
           {/* 평일/토/일 세그먼트 */}
           <div
             role="tablist"
-            className="flex gap-[5px] bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark rounded-card p-1"
+            className="flex gap-[5px] bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-card p-1"
           >
             {DAY_TABS.map((tab) => {
               const isActive = tab.id === dayTab
@@ -588,8 +588,8 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                     'flex-1 flex items-center justify-center min-h-[40px] rounded-button',
                     'text-[14px] font-semibold select-none transition-all',
                     isActive
-                      ? 'bg-ink dark:bg-accent text-white dark:text-black font-extrabold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
-                      : 'text-mute dark:text-mute-dark',
+                      ? 'bg-ink dark:bg-accent text-white dark:text-black font-semibold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
+                      : 'text-mute dark:text-mute',
                   ].join(' ')}
                 >
                   {tab.label}
@@ -629,12 +629,12 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                   <section aria-label="내 정류장 도착 정보">
                     {/* 그룹 A 헤더 */}
                     <div className="mb-2">
-                      <h2 className="text-[13.5px] font-extrabold text-ink dark:text-ink-dark tracking-[-0.01em]">
+                      <h2 className="text-[13.5px] font-semibold text-ink dark:text-ink tracking-[-0.01em]">
                         {histData?.stop_name
                           ? `${histData.stop_name} 도착 정보`
                           : '내 정류장 도착 정보'}
                       </h2>
-                      <p className="text-[12px] font-semibold text-mute dark:text-mute-dark mt-0.5">
+                      <p className="text-[12px] font-semibold text-mute dark:text-mute mt-0.5">
                         이 정류장에 버스가 도착하는 시각이에요
                       </p>
                     </div>
@@ -648,13 +648,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
 
                     {/* 이전 도착 기록 */}
                     <div className="mt-4">
-                      <h3 className="text-[12.5px] font-extrabold text-ink-2 dark:text-ink-2-dark tracking-[-0.01em] mb-2">
+                      <h3 className="text-[12.5px] font-semibold text-ink-2 dark:text-ink-2-dark tracking-[-0.01em] mb-2">
                         {histData?.stop_name
                           ? `${histData.stop_name} 도착 기록`
                           : '이전 도착 기록'}
                       </h3>
                       {histLoading ? (
-                        <div className="bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-[16px] px-4 py-4 text-[13px] font-semibold text-mute text-center">
+                        <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card px-4 py-4 text-[13px] font-semibold text-mute text-center">
                           기록 불러오는 중...
                         </div>
                       ) : (
@@ -670,7 +670,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
 
                 {/* ── 그룹 구분선 (is_realtime=true이고 두 그룹 모두 표시할 때만) ── */}
                 {isRealtime && showArrivalGroup && showTimetableSection && (
-                  <div className="my-6 border-t border-line dark:border-line-dark" />
+                  <div className="my-6 border-t border-line dark:border-line" />
                 )}
 
                 {/* ── 그룹 B: 기점 출발 시간표
@@ -681,15 +681,15 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                 <section aria-label="기점 출발 시간표">
                   {/* 그룹 B 헤더 */}
                   <div className="mb-2">
-                    <h2 className="text-[13.5px] font-extrabold text-ink dark:text-ink-dark tracking-[-0.01em]">
+                    <h2 className="text-[13.5px] font-semibold text-ink dark:text-ink tracking-[-0.01em]">
                       {originStopName
                         ? `${originStopName} 출발 시간표`
                         : '출발 시간표'}
                       {headLabel && (
-                        <span className="font-semibold text-mute dark:text-mute-dark"> · {headLabel}</span>
+                        <span className="font-semibold text-mute dark:text-mute"> · {headLabel}</span>
                       )}
                     </h2>
-                    <p className="text-[12px] font-semibold text-mute dark:text-mute-dark mt-0.5">
+                    <p className="text-[12px] font-semibold text-mute dark:text-mute mt-0.5">
                       {isRealtime
                         ? '기점에서 출발하는 정해진 시각이에요. 도착 시각과 달라요.'
                         : '기점에서 출발하는 시각이에요.'}
@@ -697,7 +697,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                   </div>
 
                   {/* 시간표 리스트 */}
-                  <div className="bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-[18px] overflow-hidden">
+                  <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-sheet overflow-hidden">
                     {schedule.map((entry, idx) => {
                       const isNextSlot = idx === nextIdx
                       return (
@@ -720,12 +720,12 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                         {totalTrips && (
                           <span>
                             {DAY_TABS.find((t) => t.id === dayTab)?.label} 총{' '}
-                            <strong className="text-ink font-extrabold">{totalTrips}회</strong>
+                            <strong className="text-ink font-semibold">{totalTrips}회</strong>
                             {intervalLabel && (
-                              <> · 배차 <strong className="text-ink font-extrabold">{intervalLabel}</strong></>
+                              <> · 배차 <strong className="text-ink font-semibold">{intervalLabel}</strong></>
                             )}
                             {lastBus && (
-                              <> · 막차 <strong className="text-ink font-extrabold">{lastBus}</strong></>
+                              <> · 막차 <strong className="text-ink font-semibold">{lastBus}</strong></>
                             )}
                           </span>
                         )}

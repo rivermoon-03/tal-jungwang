@@ -64,7 +64,7 @@ function MealGridSection({ meal, dayKey }) {
     <div className="mb-5">
       {/* 섹션 헤더: type + time */}
       <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-[17px] font-extrabold text-ink leading-tight">
+        <span className="text-[17px] font-semibold text-ink leading-tight">
           {meal.type}
         </span>
         {meal.time && (
@@ -96,7 +96,7 @@ function MealGridSection({ meal, dayKey }) {
                   className={[
                     'text-[16px] leading-snug',
                     isMain
-                      ? 'font-extrabold text-accent'
+                      ? 'font-semibold text-accent'
                       : 'font-semibold text-ink',
                   ].join(' ')}
                 >
@@ -249,7 +249,7 @@ export default function CafeteriaPage() {
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
-                    className="h-28 rounded-[16px] bg-surface-2 animate-pulse"
+                    className="h-28 rounded-card bg-surface-2 animate-pulse"
                   />
                 ))}
               </div>

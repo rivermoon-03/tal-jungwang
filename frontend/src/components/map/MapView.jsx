@@ -895,7 +895,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
   if (!kakaoKey) {
     return (
-      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface-dark overflow-hidden select-none">
+      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-mute text-base font-medium">카카오맵 (API 키 설정 후 활성화)</p>
         </div>
@@ -905,7 +905,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
   if (!sdkReady) {
     return (
-      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface-dark overflow-hidden select-none">
+      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-mute text-base font-medium">지도를 불러오는 중...</p>
         </div>
@@ -950,7 +950,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
               aria-label="내 위치"
               title="내 위치"
             >
-              <Navigation size={17} className="text-accent dark:text-accent-dark" />
+              <Navigation size={17} className="text-accent dark:text-accent" />
             </button>
             {/* 학교로 FAB */}
             <button
