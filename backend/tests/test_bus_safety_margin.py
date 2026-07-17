@@ -61,6 +61,7 @@ class _FakeRoute:
         self.direction_name = "테스트"
         self.category = "test"
         self.is_realtime = is_realtime
+        self.gbis_route_id = "1" if is_realtime else None
 
 
 class _FakeStop:
@@ -111,6 +112,8 @@ async def test_get_arrivals_applies_margin_to_realtime_only():
     fake_redis.get = AsyncMock(return_value=json.dumps(payload))
 
     with patch.object(bus_mod, "get_redis", AsyncMock(return_value=fake_redis)), \
+         patch.object(bus_mod, "get_cached_json", AsyncMock(return_value=None)), \
+         patch.object(bus_mod, "set_cached_json", AsyncMock()), \
          patch.object(bus_mod, "_resolve_avg_intervals", AsyncMock(return_value={})), \
          patch.object(bus_mod, "_resolve_arrival_stats", AsyncMock(return_value={})):
         result = await bus_mod.get_arrivals(

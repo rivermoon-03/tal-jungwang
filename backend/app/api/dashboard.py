@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -27,6 +27,7 @@ _DEFAULT_BUS_STATION_ID = 3
 @limiter.limit("30/minute")
 async def dashboard(
     request: Request,
+    response: Response,
     station_id: int = Query(_DEFAULT_BUS_STATION_ID, description="버스 정류장 ID"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -34,6 +35,7 @@ async def dashboard(
 
     세 서비스를 병렬 조회하여 프론트 초기 로딩 시 API 호출 횟수를 줄인다.
     """
+    response.headers["Cache-Control"] = "public, max-age=10, stale-while-revalidate=30"
     now = datetime.now(KST)
     d = now.date()
     t = now.time()

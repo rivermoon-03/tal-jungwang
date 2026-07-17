@@ -14,6 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from fastapi import Response
+
 from app.api import recommend as recommend_mod
 
 
@@ -86,6 +88,7 @@ async def test_recommend_transport_starts_traffic_label_and_arrivals_in_parallel
         # 직접 만들어 데코레이터가 받아들이도록 한다.
         result = await recommend_mod.recommend_transport(
             request=_make_request(),
+            response=Response(),
             origin_lat=37.34,
             origin_lng=126.73,
             db=db,
@@ -150,6 +153,7 @@ async def test_recommend_transport_traffic_label_prefix_included():
          patch.object(recommend_mod, "_get_bus_ride_seconds", side_effect=fake_get_bus_ride_seconds):
         result = await recommend_mod.recommend_transport(
             request=_make_request(),
+            response=Response(),
             origin_lat=37.34,
             origin_lng=126.73,
             db=db,
@@ -183,6 +187,7 @@ async def test_recommend_transport_no_bus_arrivals_falls_back_to_walking():
          patch.object(recommend_mod, "_get_bus_ride_seconds", side_effect=fake_get_bus_ride_seconds):
         result = await recommend_mod.recommend_transport(
             request=_make_request(),
+            response=Response(),
             origin_lat=37.34,
             origin_lng=126.73,
             db=db,

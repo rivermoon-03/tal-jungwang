@@ -4,7 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import httpx
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -89,10 +89,12 @@ async def _get_bus_ride_seconds(stop_lat: float, stop_lng: float) -> int:
 @limiter.limit("30/minute")
 async def recommend_transport(
     request: Request,
+    response: Response,
     origin_lat: float = Query(..., ge=-90.0, le=90.0),
     origin_lng: float = Query(..., ge=-180.0, le=180.0),
     db: AsyncSession = Depends(get_db),
 ):
+    response.headers["Cache-Control"] = "public, max-age=10, stale-while-revalidate=30"
     now = datetime.now(KST)
     d = now.date()
     t = now.time()
