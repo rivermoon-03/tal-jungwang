@@ -87,7 +87,8 @@ def _classify_speed(speed: float, road_name: str = "") -> tuple[int, str]:
 
 
 @router.get("")
-async def get_traffic():
+@limiter.limit("30/minute")
+async def get_traffic(request: Request):
     """주요 도로 실시간 교통 정보 조회.
 
     한국공학대 ↔ 정왕역 경로를 TMAP으로 탐색하고,
@@ -169,7 +170,7 @@ async def get_traffic():
 
 
 @router.get("/debug/segments")
-async def debug_segments():
+async def debug_segments(_user: str = Depends(verify_token)):
     """TMAP이 반환하는 모든 도로 구간명을 필터 없이 반환한다. (개발용)"""
     tasks = [
         fetch_driving_traffic(
