@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# 디자인 인벤토리 등 로컬 전용 스탠드얼론 페이지 (커밋 제외)
+test/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
