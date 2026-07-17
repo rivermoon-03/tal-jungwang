@@ -56,8 +56,8 @@ export default function MiniTrack({
     return '1fr 1fr 1fr 1fr'
   })()
 
-  const dotMute  = 'bg-mute-2 dark:bg-mute-2-dark'
-  const dotInk   = 'bg-ink dark:bg-ink-dark'
+  const dotMute  = 'bg-line-strong dark:bg-line-strong'
+  const dotInk   = 'bg-ink dark:bg-ink'
 
   // 시작 노드: 14px · 채움 · halo
   const startDotCls = muted
@@ -66,8 +66,8 @@ export default function MiniTrack({
 
   // 경유 노드: 11px · hollow (surface 배경 + border)
   const midDotCls = muted
-    ? `w-[11px] h-[11px] rounded-full justify-self-center border-[2px] border-mute-2 dark:border-mute-2-dark bg-surface dark:bg-surface-dark`
-    : `w-[11px] h-[11px] rounded-full justify-self-center border-[2.5px] border-ink-2 dark:border-ink-dark bg-surface dark:bg-surface-dark`
+    ? `w-[11px] h-[11px] rounded-full justify-self-center border-[2px] border-line-strong dark:border-line-strong bg-surface dark:bg-surface`
+    : `w-[11px] h-[11px] rounded-full justify-self-center border-[2.5px] border-ink-2 dark:border-ink bg-surface dark:bg-surface`
 
   // 종점 노드: 14px · 채움 · halo
   const endDotCls = muted
@@ -88,8 +88,8 @@ export default function MiniTrack({
       data-track-seg
       className={
         muted
-          ? 'h-[3px] rounded-[2px] bg-mute-2 dark:bg-mute-2-dark'
-          : 'h-[3px] rounded-[2px] bg-ink dark:bg-ink-dark opacity-[.6]'
+          ? 'h-[3px] rounded-[2px] bg-line-strong dark:bg-line-strong'
+          : 'h-[3px] rounded-[2px] bg-ink dark:bg-ink opacity-[.6]'
       }
     />
   )
@@ -110,19 +110,19 @@ export default function MiniTrack({
 
   // 라벨 스타일 — 시안 1: 13px
   const startLabelCls = muted
-    ? 'text-left truncate text-[13px] font-extrabold tracking-[-.01em] text-mute-2 dark:text-mute-2-dark'
-    : `text-left truncate text-[13px] font-extrabold tracking-[-.01em] ${cat.label}`
+    ? 'text-left truncate text-[13px] font-semibold tracking-[-.01em] text-line-strong dark:text-line-strong'
+    : `text-left truncate text-[13px] font-semibold tracking-[-.01em] ${cat.label}`
 
   const midLabelCls = muted
-    ? 'text-center truncate text-[13px] font-bold tracking-[-.005em] text-mute-2 dark:text-mute-2-dark'
-    : 'text-center truncate text-[13px] font-bold tracking-[-.005em] text-ink-2 dark:text-ink-dark'
+    ? 'text-center truncate text-[13px] font-bold tracking-[-.005em] text-line-strong dark:text-line-strong'
+    : 'text-center truncate text-[13px] font-bold tracking-[-.005em] text-ink-2 dark:text-ink'
 
   const endLabelCls = muted
-    ? 'text-right truncate text-[13px] font-bold tracking-[-.005em] text-mute-2 dark:text-mute-2-dark'
-    : 'text-right truncate text-[13px] font-extrabold tracking-[-.005em] text-ink dark:text-ink-dark'
+    ? 'text-right truncate text-[13px] font-bold tracking-[-.005em] text-line-strong dark:text-line-strong'
+    : 'text-right truncate text-[13px] font-semibold tracking-[-.005em] text-ink dark:text-ink'
 
   // 역할 라벨 스타일 — 12px, mute
-  const roleLabelCls = 'text-[12px] font-semibold text-mute dark:text-mute-dark leading-none'
+  const roleLabelCls = 'text-[12px] font-semibold text-mute dark:text-mute leading-none'
 
   return (
     <div className="mt-[9px] pr-1">
@@ -139,7 +139,7 @@ export default function MiniTrack({
               right: '7px',
               height: '3px',
               transform: 'translateY(-50%)',
-              background: `linear-gradient(90deg, ${gradStart} 0%, var(--tj-ink, #1B2A4A) 65%, var(--tj-ink, #1B2A4A) 100%)`,
+              background: `linear-gradient(90deg, ${gradStart} 0%, var(--tj-ink, #1a211e) 65%, var(--tj-ink, #1a211e) 100%)`,
             }}
           />
         )}

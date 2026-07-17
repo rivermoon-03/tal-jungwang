@@ -63,9 +63,9 @@ describe('MiniTrack', () => {
       />
     )
     const startDot = container.querySelector('[data-track-pt="start"]')
-    expect(startDot.className).toMatch(/mute-2/)
+    expect(startDot.className).toMatch(/line-strong/)
     const startLabel = container.querySelector('[data-track-label="start"]')
-    expect(startLabel.className).toMatch(/mute-2/)
+    expect(startLabel.className).toMatch(/line-strong/)
   })
 
   // ── 시안 1: 경로 시각화 강화 ─────────────────────────────────────────────────

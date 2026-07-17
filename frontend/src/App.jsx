@@ -193,7 +193,7 @@ export default function App() {
 
   return (
     <>
-      <div className="flex flex-col h-dvh bg-bg dark:bg-bg-dark transition-colors duration-snap ease-ios">
+      <div className="flex flex-col h-dvh bg-bg dark:bg-bg transition-colors duration-snap ease-inout">
         <PWAInstallBanner />
 
         <main className="flex-1 overflow-hidden min-h-0 relative">
@@ -202,11 +202,13 @@ export default function App() {
               계속 돌면서 store를 덮어쓰는 부작용이 발생함 (PCStationPicker auto-sync 등). */}
           <Suspense fallback={<div className="h-full" />}>
             {isDesktop ? (
-              <div className="h-full">
-                <PCMainShell>{pageContent}</PCMainShell>
+              <div key={currentPage ?? 'home'} className="h-full tj-tab-fade">
+                {/* 지도 홈(currentPage=null)만 38%/62% 분할 + 영구 지도.
+                    시간표·학식·더보기 등은 지도 없이 전체 폭(PC·시간표/설정 시안). */}
+                <PCMainShell showMap={!currentPage}>{pageContent}</PCMainShell>
               </div>
             ) : (
-              <div className="h-full overflow-auto">
+              <div key={currentPage ?? 'home'} className="h-full overflow-auto tj-tab-fade">
                 {mobileContent}
               </div>
             )}

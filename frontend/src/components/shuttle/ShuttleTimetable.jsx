@@ -62,7 +62,7 @@ export default function ShuttleTimetable({ times }) {
   }, [nextIndex])
 
   return (
-    <ul className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-28 md:pb-0">
+    <ul className="flex-1 overflow-y-auto bg-white dark:bg-bg pb-28 md:pb-0">
       {displayList.map((item, i) => {
         const isNext = i === nextIndex
 
@@ -74,18 +74,18 @@ export default function ShuttleTimetable({ times }) {
             <li
               key={item.key}
               ref={isNext ? nextRef : null}
-              className={`flex items-center justify-between px-5 py-3 border-b border-line dark:border-border-dark
+              className={`flex items-center justify-between px-5 py-3 border-b border-line dark:border-line
                 ${isPast ? 'opacity-35 pointer-events-none' : ''}
                 ${isActive || isNext ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
             >
               <div>
-                <span className={`time-num text-lg font-semibold ${isActive || isNext ? 'text-navy dark:text-blue-400' : 'text-ink dark:text-ink-dark'}`}>
+                <span className={`time-num text-lg font-semibold ${isActive || isNext ? 'text-accent dark:text-blue-400' : 'text-ink dark:text-ink'}`}>
                   {item.startTime} – {item.endTime}
                 </span>
-                <span className="ml-2 text-base text-ink-2 dark:text-mute-dark">수시운행</span>
+                <span className="ml-2 text-base text-ink-2 dark:text-mute">수시운행</span>
               </div>
               {(isActive || isNext) && (
-                <span className="text-sm font-bold text-navy dark:text-blue-400 border border-navy dark:border-blue-400 px-2 py-1 rounded">
+                <span className="text-sm font-bold text-accent dark:text-blue-400 border border-accent dark:border-blue-400 px-2 py-1 rounded">
                   {isActive ? '운행 중' : nextLabel(item.startMin - nowMinutes, false)}
                 </span>
               )}
@@ -104,14 +104,14 @@ export default function ShuttleTimetable({ times }) {
           <li
             key={item.key}
             ref={isNext ? nextRef : null}
-            className={`flex items-center justify-between px-5 py-3 border-b border-line dark:border-border-dark
+            className={`flex items-center justify-between px-5 py-3 border-b border-line dark:border-line
               ${isPast ? 'opacity-35 pointer-events-none' : ''}
               ${isNext ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
           >
             {isReturn ? (
               <div>
                 <p className="text-body text-mute">회차편</p>
-                <p className={`text-body font-medium mt-0.5 leading-snug ${isNext ? 'text-navy dark:text-blue-400' : 'text-ink-2 dark:text-ink-2-dark'}`}>
+                <p className={`text-body font-medium mt-0.5 leading-snug ${isNext ? 'text-accent dark:text-blue-400' : 'text-ink-2 dark:text-ink-2-dark'}`}>
                   {schoolTime
                     ? `${schoolTime}에 출발 후 도착하는 버스가 회차하면 탑승하세요`
                     : '수시운행(17:00~18:00) 버스가 회차하면 탑승하세요'}
@@ -119,7 +119,7 @@ export default function ShuttleTimetable({ times }) {
               </div>
             ) : (
               <div>
-                <span className={`time-num text-lg font-semibold ${isNext ? 'text-navy dark:text-blue-400' : 'text-ink dark:text-ink-dark'}`}>
+                <span className={`time-num text-lg font-semibold ${isNext ? 'text-accent dark:text-blue-400' : 'text-ink dark:text-ink'}`}>
                   {item.time}
                 </span>
                 {item.note && (
@@ -128,7 +128,7 @@ export default function ShuttleTimetable({ times }) {
               </div>
             )}
             {isNext && (
-              <span className="text-sm font-bold text-navy dark:text-blue-400 border border-navy dark:border-blue-400 px-2 py-1 rounded">
+              <span className="text-sm font-bold text-accent dark:text-blue-400 border border-accent dark:border-blue-400 px-2 py-1 rounded">
                 {nextLabel(item.minutes - nowMinutes, isReturn)}
               </span>
             )}

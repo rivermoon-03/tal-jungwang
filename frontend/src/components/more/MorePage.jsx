@@ -8,13 +8,14 @@
  * Sub-pages: dark-mode, notifications, notices, info
  */
 import { useState } from 'react'
-import { Bell, Moon, Info, ChevronRight } from 'lucide-react'
+import { Bell, Moon, Info, ChevronRight, Settings as SettingsIcon } from 'lucide-react'
 import NoticeHighlights from './NoticeHighlights'
 import PageHeader from '../layout/PageHeader'
 import DarkModePage from './DarkModePage'
 import NotificationsPage from './NotificationsPage'
 import NoticesPage from './NoticesPage'
 import AppInfoPage from './AppInfoPage'
+import SettingsPage from './SettingsPage'
 import { useNotices } from '../../hooks/useMore'
 import useAppStore from '../../stores/useAppStore'
 
@@ -49,24 +50,26 @@ function QuickCard({ icon, label, sub, onClick }) {
         gap: 4,
         fontFamily: 'inherit',
         transition:
-          'background var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+          'background var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
       }}
     >
-      <div style={{ color: 'var(--tj-ink)' }} className="dark:text-ink-dark">{icon}</div>
-      <div className="text-body font-extrabold text-ink dark:text-ink-dark">
+      <div style={{ color: 'var(--tj-ink)' }} className="dark:text-ink">{icon}</div>
+      <div className="text-body font-semibold text-ink dark:text-ink">
         {label}
       </div>
-      <div className="text-label font-semibold text-mute dark:text-mute-dark">{sub}</div>
+      <div className="text-label font-semibold text-mute dark:text-mute">{sub}</div>
     </button>
   )
 }
 
+const SUB_PAGE_PATHS = { 'app-info': '/more/app-info', settings: '/more/settings' }
+
 export default function MorePage() {
-  const [subPage, setSubPage] = useState(() =>
-    typeof window !== 'undefined' && window.location.pathname === '/more/app-info'
-      ? 'app-info'
-      : null
-  )
+  const [subPage, setSubPage] = useState(() => {
+    if (typeof window === 'undefined') return null
+    const path = window.location.pathname
+    return Object.keys(SUB_PAGE_PATHS).find((id) => SUB_PAGE_PATHS[id] === path) ?? null
+  })
 
   const { data: noticesData } = useNotices()
   const themeMode = useAppStore((s) => s.themeMode)
@@ -76,30 +79,43 @@ export default function MorePage() {
   const leadMin = notifPrefs?.leadMin ?? 10
   const alarmSub = notifPrefs?.enabled === false ? '꺼짐' : `${leadMin}분 전`
 
+  // app-info/settings처럼 안정 URL(/more/*)이 있는 서브페이지만 히스토리에 반영한다.
+  // dark-mode/notifications/notices는 기존과 동일하게 상태 전용(뒤로가기 시 더보기 루트로).
   const closeSubPage = () => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/more/app-info') {
+    if (typeof window !== 'undefined' && Object.values(SUB_PAGE_PATHS).includes(window.location.pathname)) {
       window.history.pushState(null, '', '/more')
     }
     setSubPage(null)
   }
-  const openAppInfo = () => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', '/more/app-info')
+  const openSubPageWithPath = (id) => {
+    if (typeof window !== 'undefined' && SUB_PAGE_PATHS[id]) {
+      window.history.pushState(null, '', SUB_PAGE_PATHS[id])
     }
-    setSubPage('app-info')
+    setSubPage(id)
   }
+  const openAppInfo = () => openSubPageWithPath('app-info')
+  const openSettings = () => openSubPageWithPath('settings')
 
   if (subPage === 'dark-mode')     return <DarkModePage        onBack={() => setSubPage(null)} />
   if (subPage === 'notifications') return <NotificationsPage   onBack={() => setSubPage(null)} />
   if (subPage === 'notices')       return <NoticesPage         onBack={() => setSubPage(null)} />
   if (subPage === 'app-info')      return <AppInfoPage         onBack={closeSubPage} />
+  if (subPage === 'settings') {
+    return (
+      <SettingsPage
+        onBack={closeSubPage}
+        onOpenNotifications={() => setSubPage('notifications')}
+        onOpenAppInfo={openAppInfo}
+      />
+    )
+  }
 
   const allNotices = Array.isArray(noticesData) ? noticesData : []
   const recent = allNotices.slice(0, 2)
   const hasMoreNotices = allNotices.length > recent.length
 
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg-dark animate-fade-in-up">
+    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-fade-in-up">
       <PageHeader title="더보기" />
 
       <div className="flex-1 overflow-y-auto px-4 pt-1 pb-28 md:pb-6">
@@ -108,7 +124,7 @@ export default function MorePage() {
 
         {/* 빠른 설정 */}
         <div
-          className="text-label font-black text-mute dark:text-mute-dark uppercase tracking-widest"
+          className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest"
           style={{ margin: '6px 0 8px', letterSpacing: '0.14em' }}
         >
           빠른 설정
@@ -139,7 +155,7 @@ export default function MorePage() {
         {recent.length > 0 && (
           <>
             <div
-              className="text-label font-black text-mute dark:text-mute-dark uppercase tracking-widest"
+              className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest"
               style={{ marginBottom: 8, letterSpacing: '0.14em' }}
             >
               최근 공지
@@ -152,7 +168,7 @@ export default function MorePage() {
                 overflow: 'hidden',
                 marginBottom: 14,
               }}
-              className="bg-white dark:bg-surface-dark"
+              className="bg-white dark:bg-surface"
             >
               {recent.map((n, i) => (
                 <button
@@ -169,7 +185,7 @@ export default function MorePage() {
                   }}
                 >
                   <div
-                    className="text-body font-extrabold text-ink dark:text-ink-dark"
+                    className="text-body font-semibold text-ink dark:text-ink"
                     style={{
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -179,7 +195,7 @@ export default function MorePage() {
                     {n.title}
                   </div>
                   <div
-                    className="text-label font-semibold text-mute dark:text-mute-dark"
+                    className="text-label font-semibold text-mute dark:text-mute"
                     style={{ marginTop: 2 }}
                   >
                     {fmtDateShort(n.created_at)}
@@ -189,7 +205,7 @@ export default function MorePage() {
               <button
                 type="button"
                 onClick={() => setSubPage('notices')}
-                className="pressable w-full flex items-center justify-center gap-1 text-label font-extrabold text-mute dark:text-mute-dark"
+                className="pressable w-full flex items-center justify-center gap-1 text-label font-semibold text-mute dark:text-mute"
                 style={{
                   padding: '10px 14px',
                   borderTop: '1px solid var(--tj-line-soft)',
@@ -206,44 +222,40 @@ export default function MorePage() {
           </>
         )}
 
-        {/* 앱 정보 진입 */}
-        <button
-          type="button"
-          onClick={openAppInfo}
-          className="pressable w-full flex items-center justify-between bg-white dark:bg-surface-dark"
-          style={{
-            borderRadius: 14,
-            border: '1px solid var(--tj-line)',
-            padding: '12px 14px',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-          aria-label="앱 정보 보기"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                background: 'var(--tj-bg-soft)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--tj-accent)',
-              }}
-              aria-hidden="true"
-            >
-              <Info size={18} />
+        {/* 설정 · 앱 정보 진입 — DESIGN.md 시안 "더보기 · A"의 sc-set 그룹 대응 */}
+        <div className="bg-white dark:bg-surface border border-line dark:border-line rounded-card overflow-hidden divide-y divide-line dark:divide-line">
+          <button
+            type="button"
+            onClick={openSettings}
+            className="pressable w-full flex items-center justify-between px-[14px] py-3"
+            aria-label="설정 열기"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-mini bg-surface-2 dark:bg-bg flex items-center justify-center text-accent" aria-hidden="true">
+                <SettingsIcon size={18} />
+              </div>
+              <div className="text-left">
+                <div className="text-body font-semibold text-ink dark:text-ink">설정</div>
+                <div className="text-label font-semibold text-mute dark:text-mute mt-0.5">개인화 · 알림 · 데이터</div>
+              </div>
             </div>
-            <div
-              className="text-body font-extrabold text-ink dark:text-ink-dark"
-            >
-              앱 정보
+            <ChevronRight size={18} aria-hidden="true" className="text-mute dark:text-mute" />
+          </button>
+          <button
+            type="button"
+            onClick={openAppInfo}
+            className="pressable w-full flex items-center justify-between px-[14px] py-3"
+            aria-label="앱 정보 보기"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-mini bg-surface-2 dark:bg-bg flex items-center justify-center text-accent" aria-hidden="true">
+                <Info size={18} />
+              </div>
+              <div className="text-body font-semibold text-ink dark:text-ink">앱 정보</div>
             </div>
-          </div>
-          <ChevronRight size={18} aria-hidden="true" style={{ color: 'var(--tj-mute)' }} />
-        </button>
+            <ChevronRight size={18} aria-hidden="true" className="text-mute dark:text-mute" />
+          </button>
+        </div>
 
         {/* 개인정보처리방침 (마켓 등록용 안정 URL /privacy) */}
         <button
@@ -252,7 +264,7 @@ export default function MorePage() {
             window.history.pushState({}, '', '/privacy')
             window.dispatchEvent(new PopStateEvent('popstate'))
           }}
-          className="pressable w-full text-center text-label font-semibold text-mute dark:text-mute-dark"
+          className="pressable w-full text-center text-label font-semibold text-mute dark:text-mute"
           style={{ marginTop: 12, padding: '8px', background: 'transparent', cursor: 'pointer' }}
         >
           개인정보처리방침

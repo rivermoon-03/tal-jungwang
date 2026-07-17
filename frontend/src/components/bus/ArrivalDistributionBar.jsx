@@ -22,18 +22,18 @@ export default function ArrivalDistributionBar({
 
   return (
     <div className="w-full">
-      <div className={`relative w-full ${barHeight} rounded-full bg-surface-2 dark:bg-surface-dark-alt overflow-hidden`}>
+      <div className={`relative w-full ${barHeight} rounded-full bg-surface-2 dark:bg-bg overflow-hidden`}>
         <div
           className={`absolute top-0 bottom-0 ${isFull ? 'bg-gradient-to-r from-accent/20 via-accent/40 to-accent/20' : 'bg-accent/30'} rounded-full`}
           style={{ left: `${left}%`, width: `${width}%` }}
         />
         <div
-          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 ${dotSize} rounded-full bg-accent border-2 border-white dark:border-surface-dark shadow-sm`}
+          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 ${dotSize} rounded-full bg-accent border-2 border-white dark:border-surface shadow-sm`}
           style={{ left: `${dot}%` }}
         />
       </div>
       {isFull && (
-        <div className="mt-1.5 flex justify-between text-caption text-mute dark:text-mute-dark font-medium">
+        <div className="mt-1.5 flex justify-between text-caption text-mute dark:text-mute font-medium">
           <span>p10 {p10Min}분</span>
           <span>중앙값 {p50Min}분</span>
           <span>p90 {p90Min}분</span>

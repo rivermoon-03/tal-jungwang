@@ -83,7 +83,7 @@ export default function PCDock() {
     <nav
       role="navigation"
       aria-label="PC 하단 dock"
-      className="flex h-[68px] items-center gap-3 px-5 bg-dock-bg border-t border-line-dark"
+      className="flex h-[68px] items-center gap-3 px-5 bg-dock-bg border-t border-line"
     >
       {/* 탭들 */}
       <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export default function PCDock() {
               href={href}
               onClick={(e) => handleNav(e, href)}
               aria-current={active ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center gap-1 w-[68px] h-[52px] rounded-btn pressable text-label font-bold transition-colors duration-snap ease-ios ${
+              className={`flex flex-col items-center justify-center gap-1 w-[68px] h-[52px] rounded-btn pressable text-label font-bold transition-colors duration-snap ease-out ${
                 active ? 'bg-dock-active-bg text-white' : 'text-dock-text-mute hover:text-dock-text'
               }`}
             >
@@ -106,23 +106,23 @@ export default function PCDock() {
         })}
       </div>
 
-      <div className="w-px h-9 bg-line-dark mx-1" />
+      <div className="w-px h-9 bg-line mx-1" />
 
       {/* 시각 · 요일 */}
       <div className="flex items-center gap-3">
         <div className="flex items-baseline gap-2">
-          <span className="text-[18px] font-black text-white tracking-[-0.02em] tabular-nums leading-none">
+          <span className="text-[18px] font-semibold text-white tracking-[-0.02em] tabular-nums leading-none">
             {hh}:{mm}
           </span>
           <span className="text-[12px] font-bold text-dock-text leading-none">{dayLabel}</span>
         </div>
 
-        <div className="w-px h-6 bg-line-dark" />
+        <div className="w-px h-6 bg-line" />
 
         {/* 날씨 */}
         <div className="flex items-center gap-2 text-dock-text">
           <WeatherIcon size={20} strokeWidth={2} className="text-white/85" aria-hidden="true" />
-          <span className="text-[16px] font-black text-white tabular-nums leading-none">
+          <span className="text-[16px] font-semibold text-white tabular-nums leading-none">
             {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--°'}
           </span>
           {weather?.currentSky && (
@@ -140,7 +140,7 @@ export default function PCDock() {
         type="button"
         title="패널 접고 지도 풀스크린"
         onClick={toggleMapFullscreen}
-        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-ios"
+        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-out"
       >
         {mapFullscreen
           ? <PanelLeftOpen size={18} aria-hidden="true" />
@@ -150,7 +150,7 @@ export default function PCDock() {
         type="button"
         title={darkMode ? '라이트 모드로' : '다크 모드로'}
         onClick={toggleDarkMode}
-        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-ios"
+        className="flex items-center justify-center w-10 h-10 rounded-btn bg-dock-active-bg text-dock-text hover:text-white pressable transition-colors duration-snap ease-out"
       >
         {darkMode
           ? <Sun size={18} aria-hidden="true" />
@@ -163,7 +163,7 @@ export default function PCDock() {
         aria-haspopup="dialog"
         aria-expanded={noticesOpen}
         onClick={() => setNoticesOpen((v) => !v)}
-        className={`relative flex items-center justify-center w-10 h-10 rounded-btn pressable transition-colors duration-snap ease-ios ${
+        className={`relative flex items-center justify-center w-10 h-10 rounded-btn pressable transition-colors duration-snap ease-out ${
           noticesOpen ? 'bg-white text-black' : 'bg-accent text-black hover:opacity-90'
         }`}
       >

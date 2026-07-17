@@ -1,12 +1,18 @@
 /**
  * ScheduleDetailModal — bottom-sheet modal with full upcoming schedule.
  * - 세로 리스트 + "다음" 배지 + "N분 뒤"
- * - 드래그 손잡이로 스와이프 다운 닫기
+ * - 모바일: vaul(Drawer) 기반 스와이프 다운 닫기(Phase C). PC: 좌측 패널 내
+ *   콘텐츠 교체형 크로스페이드(기존 UX 유지, vaul 미적용 — 오프캔버스 슬라이드가 아님).
  * - FloatingDock 위로 띄워지도록 bottom padding 확보
+ * - pcMode="overlay"(기본, GlobalDetailModal 용) — PCMainShell 좌측 38% 패널 위에
+ *   fixed portal로 뜬다(맵 홈 전용 geometry 가정).
+ *   pcMode="inline"(SchedulePage PC 2열 레이아웃 전용) — portal/fixed 없이 부모가 준
+ *   컨테이너를 그대로 채운다(Phase D PC · 시간표).
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Clock, Star, MapPin } from 'lucide-react'
+import { Drawer } from 'vaul'
+import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
@@ -51,42 +57,42 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
       ref={rowRef}
       className={`relative flex items-center gap-3 px-4 py-3 rounded-mini transition-colors ${
         isNext
-          ? 'bg-accent/8 dark:bg-accent-dark/12'
+          ? 'bg-accent/8 dark:bg-accent/12'
           : ''
       }`}
     >
       {isNext && (
-        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] bg-accent dark:bg-accent-dark rounded-full" />
+        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] bg-accent dark:bg-accent rounded-full" />
       )}
       <span
         className={`${
           isHHMM
-            ? (isNext ? 'text-eta-mob font-black tabular-nums tracking-tight flex-shrink-0 pl-1.5' : 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0')
+            ? (isNext ? 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0 pl-1.5' : 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0')
             : 'text-sm font-bold leading-snug break-keep min-w-0'
-        } ${isNext ? 'text-accent dark:text-accent-dark' : 'text-ink dark:text-ink-dark'}`}
+        } ${isNext ? 'text-accent dark:text-accent' : 'text-ink dark:text-ink'}`}
       >
         {time}
       </span>
       {(destination || note) && (
-        <span className="text-meta font-medium text-mute dark:text-mute-dark truncate">
+        <span className="text-meta font-medium text-mute dark:text-mute truncate">
           {destination || note}
         </span>
       )}
       <div className="ml-auto flex items-center gap-2 flex-shrink-0">
         {isNext && (
-          <span className="text-micro font-extrabold px-2.5 py-0.5 rounded-full bg-accent dark:bg-accent-dark text-white dark:text-ink tracking-wide">
+          <span className="text-micro font-semibold px-2.5 py-0.5 rounded-full bg-accent dark:bg-accent text-white dark:text-ink tracking-wide">
             다음
           </span>
         )}
         {isLast && (
-          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-ink dark:bg-mute-2 text-white dark:text-ink">
+          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink">
             막차
           </span>
         )}
         {mins != null && (
           <span
-            className={`text-meta font-extrabold tabular-nums tracking-tight ${
-              isNext ? 'text-accent dark:text-accent-dark' : 'text-mute dark:text-mute-dark'
+            className={`text-meta font-semibold tabular-nums tracking-tight ${
+              isNext ? 'text-accent dark:text-accent' : 'text-mute dark:text-mute'
             }`}
           >
             {fmtDelta(mins)}
@@ -100,8 +106,8 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
 function PastRow({ time }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 opacity-50">
-      <span className="text-meta font-semibold text-mute dark:text-mute-dark tabular-nums">{time}</span>
-      <span className="text-caption font-medium text-mute-2 dark:text-mute-2-dark ml-auto">지난 시각</span>
+      <span className="text-meta font-semibold text-mute dark:text-mute tabular-nums">{time}</span>
+      <span className="text-caption font-medium text-line-strong dark:text-line-strong ml-auto">지난 시각</span>
     </div>
   )
 }
@@ -113,7 +119,7 @@ function TimeGrid({ times }) {
       {times.map((t, i) => (
         <div
           key={`${t}-${i}`}
-          className="text-center py-2 px-1 rounded-mini bg-surface-alt dark:bg-surface-dark-alt text-sm font-bold text-text dark:text-text-dark tabular-nums"
+          className="text-center py-2 px-1 rounded-mini bg-surface-2 dark:bg-bg text-sm font-bold text-ink-2 dark:text-ink-2 tabular-nums"
         >
           {t}
         </div>
@@ -122,9 +128,89 @@ function TimeGrid({ times }) {
   )
 }
 
+// ─── 그리드 뷰 (Phase D — DESIGN.md 시안 "시간표 · A") ────────────────────
+// 리스트 뷰(TimeRow/PastRow)와 같은 오늘 전체 시각을 4열 그리드로 보여준다.
+// 다음 차만 accent 채움, 지난 시각은 흐리게 — 인라인 반올림/포맷 로직 없이
+// 순수 표시 전용(날짜 계산은 각 Content 컴포넌트가 기존 헬퍼로 미리 끝낸다).
+function TimeGridView({ items, gridRef }) {
+  if (!items.length) return null
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {items.map((it) => (
+        <div
+          key={it.key}
+          ref={it.isNext ? gridRef : undefined}
+          className={`relative text-center py-2.5 px-1 rounded-mini text-sm font-semibold tabular-nums tracking-tight transition-colors ${
+            it.isNext
+              ? 'bg-accent dark:bg-accent text-white font-bold'
+              : it.isPast
+                ? 'bg-transparent text-mute dark:text-mute'
+                : 'bg-surface-2 dark:bg-bg text-ink-2 dark:text-ink-2'
+          }`}
+        >
+          {it.time}
+          {it.isLast && !it.isNext && (
+            <span className="absolute -top-1.5 -right-1 text-[9px] font-bold px-1 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink leading-tight">
+              막차
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// 그리드 뷰 하단 "다음 차 HH:MM · N분 후" 요약 — 기존 minutesUntil/fmtDelta 재사용(반올림 로직 인라인 복제 금지).
+function NextMeta({ nextTime }) {
+  if (!nextTime) return null
+  const mins = Math.max(0, minutesUntil(nextTime))
+  return (
+    <p className="text-caption text-mute dark:text-mute mt-2.5 mb-0.5 px-0.5">
+      다음 차 <b className="text-accent-ink dark:text-accent font-bold">{nextTime}</b> · {fmtDelta(mins)}
+    </p>
+  )
+}
+
+// 리스트/그리드 전환 세그 버튼. DESIGN.md 시안의 sc-viewseg 대응.
+// TODO(F3): 선택 상태를 zustand persist로 이관(설정 화면의 "시간표 보기" 기본값과 연동).
+// 지금은 모달을 열 때마다 'list'로 초기화되는 로컬 state.
+function ViewModeToggle({ value, onChange }) {
+  return (
+    <div
+      role="group"
+      aria-label="시간표 보기 방식"
+      className="inline-flex items-center gap-0.5 p-0.5 rounded-button bg-surface-2 dark:bg-bg border border-line dark:border-line flex-shrink-0"
+    >
+      {[
+        { id: 'grid', label: '그리드', Icon: LayoutGrid },
+        { id: 'list', label: '리스트', Icon: List },
+      ].map(({ id, label, Icon }) => {
+        const active = value === id
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            aria-pressed={active}
+            aria-label={`${label}로 보기`}
+            title={`${label}로 보기`}
+            className={`pressable flex items-center justify-center w-8 h-8 rounded-mini transition-colors ${
+              active
+                ? 'bg-surface dark:bg-surface-2 text-ink dark:text-ink shadow-sh-card'
+                : 'text-mute dark:text-mute'
+            }`}
+          >
+            <Icon size={14} aria-hidden="true" />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── per-type content ───────────────────────────────────────────────────
 
-function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
+function BusContent({ routeCode, routeId = null, stopId = null, accentColor, viewMode = 'list' }) {
   // routeId가 있으면 방향 정확한 /bus/timetable/{route_id} 사용 (등교/하교 분리 route에 필수)
   const byId    = useBusTimetable(routeId)
   const byRoute = useBusTimetableByRoute(routeId == null ? routeCode : null, stopId != null ? { stopId } : undefined)
@@ -154,6 +240,19 @@ function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
   if (error) return <ErrorMsg />
   if (!allTimes.length) return <EmptyMsg text="오늘 운행 정보가 없어요" />
 
+  const items = allTimes.map((t, i) => {
+    const [th, tm] = (t ?? '').split(':').map(Number)
+    const td = new Date(now)
+    if (!Number.isNaN(th) && !Number.isNaN(tm)) td.setHours(th, tm, 0, 0)
+    return {
+      key: `${t}-${i}`,
+      time: t,
+      isPast: td <= now,
+      isNext: i === firstFutureIdx,
+      isLast: i === allTimes.length - 1,
+    }
+  })
+
   return (
     <div className="flex flex-col gap-2">
       {data?.schedule_type && (
@@ -161,16 +260,27 @@ function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
           {scheduleTypeLabel(data.schedule_type)} 시간표 · 첫차 {allTimes[0]} ~ 막차 {allTimes[allTimes.length - 1]} · 총 {allTimes.length}회 · 남은 {futureCount}회
         </p>
       )}
-      {allTimes.map((t, i) => {
-        const [th, tm] = (t ?? '').split(':').map(Number)
-        const td = new Date(now)
-        if (!Number.isNaN(th) && !Number.isNaN(tm)) td.setHours(th, tm, 0, 0)
-        const isPast = td <= now
-        if (isPast) return <PastRow key={`p-${t}-${i}`} time={t} />
-        const isNext = i === firstFutureIdx
-        const isLast = i === allTimes.length - 1
-        return <TimeRow key={`f-${t}-${i}`} time={t} isNext={isNext} isLast={isLast} accentColor={accentColor} rowRef={isNext ? nextRef : undefined} />
-      })}
+      {viewMode === 'grid' ? (
+        <>
+          <TimeGridView items={items} gridRef={nextRef} />
+          <NextMeta nextTime={allTimes[firstFutureIdx] ?? null} />
+        </>
+      ) : (
+        items.map((it) =>
+          it.isPast
+            ? <PastRow key={`p-${it.key}`} time={it.time} />
+            : (
+              <TimeRow
+                key={`f-${it.key}`}
+                time={it.time}
+                isNext={it.isNext}
+                isLast={it.isLast}
+                accentColor={accentColor}
+                rowRef={it.isNext ? nextRef : undefined}
+              />
+            )
+        )
+      )}
     </div>
   )
 }
@@ -187,7 +297,7 @@ const SUBWAY_KEY_META = {
   siheung_dn: { dataKey: 'siheung_dn', label: '하행 (원시 방면)' },
 }
 
-function SubwayContent({ accentColor, subwayKey }) {
+function SubwayContent({ accentColor, subwayKey, viewMode = 'list' }) {
   const { data, loading, error } = useSubwayTimetable()
   const now = new Date()
   const nowStr = toHHMM(now)
@@ -207,6 +317,8 @@ function SubwayContent({ accentColor, subwayKey }) {
         allItems={list}
         items={items}
         accentColor={accentColor}
+        viewMode={viewMode}
+        nowStr={nowStr}
       />
     )
   }
@@ -224,18 +336,22 @@ function SubwayContent({ accentColor, subwayKey }) {
         allItems={upList}
         items={upItems}
         accentColor={accentColor}
+        viewMode={viewMode}
+        nowStr={nowStr}
       />
       <DirectionBlock
         label="하행 (인천 방면)"
         allItems={downList}
         items={downItems}
         accentColor={accentColor}
+        viewMode={viewMode}
+        nowStr={nowStr}
       />
     </div>
   )
 }
 
-function DirectionBlock({ label, allItems = [], items, accentColor }) {
+function DirectionBlock({ label, allItems = [], items, accentColor, viewMode = 'list', nowStr }) {
   const nextRef = useRef(null)
   const allDone = items.length === 0
   useEffect(() => {
@@ -243,6 +359,17 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
       nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
     }
   }, [items.length])
+
+  // 그리드 뷰용 전체(과거+다음+이후) 항목 — allDone(금일 종료)일 땐 기존 TimeGrid(과거 전용) 그대로 사용.
+  const firstFutureIdx = allItems.findIndex((t) => (t.depart_at ?? '') >= nowStr)
+  const gridItems = allItems.map((t, i) => ({
+    key: `${t.depart_at}-${i}`,
+    time: t.depart_at,
+    isPast: firstFutureIdx === -1 ? true : i < firstFutureIdx,
+    isNext: i === firstFutureIdx,
+    isLast: i === allItems.length - 1,
+  }))
+
   return (
     <div>
       <p className="text-caption font-bold text-ink-2 dark:text-mute mb-2">
@@ -250,13 +377,18 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
       </p>
       {allDone && allItems.length > 0 && (
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-caption font-bold text-ink-2 dark:text-mute bg-surface-2 dark:bg-surface-dark px-2 py-0.5 rounded-full">
+          <span className="text-caption font-bold text-ink-2 dark:text-mute bg-surface-2 dark:bg-surface px-2 py-0.5 rounded-full">
             금일 운행 종료
           </span>
         </div>
       )}
       {allDone ? (
         <TimeGrid times={allItems.map((t) => t.depart_at)} />
+      ) : viewMode === 'grid' ? (
+        <>
+          <TimeGridView items={gridItems} gridRef={nextRef} />
+          <NextMeta nextTime={items[0]?.depart_at ?? null} />
+        </>
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((t, i) => (
@@ -463,13 +595,13 @@ function ShuttleContent({ direction, accentColor }) {
         >
           <span className="text-[20px] leading-none mt-0.5 flex-shrink-0">⚠</span>
           <div className="flex-1 min-w-0 dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
-            <div className="text-[15px] font-black tracking-tight leading-tight">
+            <div className="text-[15px] font-semibold tracking-tight leading-tight">
               {isSecondCampus
                 ? '일요일·공휴일엔 2캠 셔틀버스가 운행하지 않습니다'
                 : '주말·공휴일엔 셔틀버스가 운행하지 않습니다'}
             </div>
             <div className="text-meta font-semibold mt-1 opacity-90">
-              아래는 <span className="font-extrabold">{useSaturday ? '토요일' : '평일'} 기준 시간표</span>입니다.
+              아래는 <span className="font-semibold">{useSaturday ? '토요일' : '평일'} 기준 시간표</span>입니다.
             </div>
           </div>
           {isSecondCampus && (
@@ -483,7 +615,7 @@ function ShuttleContent({ direction, accentColor }) {
                 type="button"
                 onClick={() => setFallbackKind('weekday')}
                 aria-pressed={!useSaturday}
-                className="px-2.5 py-1 text-caption font-extrabold tracking-tight transition-colors"
+                className="px-2.5 py-1 text-caption font-semibold tracking-tight transition-colors"
                 style={{
                   background: !useSaturday ? '#d4a14a' : 'transparent',
                   color: !useSaturday ? '#fff' : '#a07517',
@@ -495,7 +627,7 @@ function ShuttleContent({ direction, accentColor }) {
                 type="button"
                 onClick={() => setFallbackKind('saturday')}
                 aria-pressed={useSaturday}
-                className="px-2.5 py-1 text-caption font-extrabold tracking-tight transition-colors"
+                className="px-2.5 py-1 text-caption font-semibold tracking-tight transition-colors"
                 style={{
                   background: useSaturday ? '#d4a14a' : 'transparent',
                   color: useSaturday ? '#fff' : '#a07517',
@@ -508,26 +640,26 @@ function ShuttleContent({ direction, accentColor }) {
         </div>
       )}
       {data?.schedule_name && !usingFallback && (
-        <p className="text-meta font-semibold text-mute dark:text-mute-dark mb-1">
+        <p className="text-meta font-semibold text-mute dark:text-mute mb-1">
           {data.schedule_name} · 총 {times.length}회 · 남은 {future.length}회
         </p>
       )}
       {data?.schedule_name && usingFallback && !selectedEmpty && (
-        <p className="text-meta font-semibold text-mute dark:text-mute-dark mb-1">
+        <p className="text-meta font-semibold text-mute dark:text-mute mb-1">
           {data.schedule_name} · 총 {times.length}회
         </p>
       )}
       {selectedEmpty ? (
         <p className="text-body font-semibold text-mute text-center py-6 px-4 leading-relaxed">
-          선택한 <span className="font-extrabold">{useSaturday ? '토요일' : '평일'}</span> 시간표가 비어 있어요.
+          선택한 <span className="font-semibold">{useSaturday ? '토요일' : '평일'}</span> 시간표가 비어 있어요.
           {isSecondCampus && (
-            <><br />위 배너에서 <span className="font-extrabold">{useSaturday ? '평일' : '토요일'}</span>을 눌러보세요.</>
+            <><br />위 배너에서 <span className="font-semibold">{useSaturday ? '평일' : '토요일'}</span>을 눌러보세요.</>
           )}
         </p>
       ) : allDone ? (
         <>
           <div className="flex items-center gap-2 px-1 mb-1">
-            <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full">
+            <span className="text-meta font-semibold text-ink-2 dark:text-ink-2 bg-line dark:bg-line px-2.5 py-1 rounded-full">
               금일 운행 종료
             </span>
           </div>
@@ -664,7 +796,7 @@ function BusHistoryContent({ routeNumber, category }) {
     <div>
       <BusEtaCard realtimeEta={data?.realtime_eta} predictedEta={data?.predicted_eta} />
       <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
-      <p className="text-caption text-mute dark:text-mute-dark mb-3 leading-relaxed">
+      <p className="text-caption text-mute dark:text-mute mb-3 leading-relaxed">
         실시간 GBIS 기반 노선 · 시간표 없음{stopName ? ` · ${stopName}` : ''}
         <br />과거 실제 도착 기록을 날짜별로 표시합니다
       </p>
@@ -674,23 +806,23 @@ function BusHistoryContent({ routeNumber, category }) {
         {colViews.map((col, ci) => (
           <div key={ci} className="flex-1 min-w-0">
             {/* 헤더 */}
-            <div className="text-center py-2 border-b border-line dark:border-border-dark mb-0.5">
+            <div className="text-center py-2 border-b border-line dark:border-line mb-0.5">
               <span className="block text-caption font-bold text-ink-2 dark:text-ink-2-dark whitespace-nowrap">
                 {col.label}
               </span>
-              <span className="block text-caption text-mute dark:text-mute-dark whitespace-nowrap">
+              <span className="block text-caption text-mute dark:text-mute whitespace-nowrap">
                 {col.day_label}
               </span>
               {col.totalCount === 0 ? (
-                <span className="block text-caption text-mute dark:text-mute-dark mt-0.5">데이터 없음</span>
+                <span className="block text-caption text-mute dark:text-mute mt-0.5">데이터 없음</span>
               ) : (
-                <span className="block text-caption text-mute dark:text-mute-dark mt-0.5">총 {col.totalCount}회</span>
+                <span className="block text-caption text-mute dark:text-mute mt-0.5">총 {col.totalCount}회</span>
               )}
             </div>
 
             {/* 시간 리스트 */}
             {col.totalCount === 0 ? (
-              <p className="py-6 text-center text-caption text-mute dark:text-mute-dark">데이터가 없습니다</p>
+              <p className="py-6 text-center text-caption text-mute dark:text-mute">데이터가 없습니다</p>
             ) : (
               col.times.map((t, i) => {
                 const isNext = i === col.nextIdx
@@ -702,10 +834,10 @@ function BusHistoryContent({ routeNumber, category }) {
                     ref={isAnchor ? anchorRef : undefined}
                     className={`py-0.5 text-center tabular-nums text-sm rounded-md
                       ${isNext
-                        ? 'font-extrabold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                        ? 'font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : isPast
-                          ? 'text-mute dark:text-mute-dark'
-                          : 'font-semibold text-ink dark:text-ink-dark'
+                          ? 'text-mute dark:text-mute'
+                          : 'font-semibold text-ink dark:text-ink'
                       }`}
                   >
                     {t}
@@ -725,172 +857,183 @@ function BusHistoryContent({ routeNumber, category }) {
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null }) {
-  const sheetRef = useRef(null)
-  const [dragY, setDragY] = useState(0)
-  const startY = useRef(null)
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null, pcMode = 'overlay' }) {
+  const isPC =
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) onClose()
-  }
-
-  useEffect(() => {
-    if (!open) return
-    function onKey(e) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  // 그리드/리스트 뷰 토글 — 셔틀(수시운행·회차편 등 특수 라벨이 많아 그리드에 맞지 않음)과
+  // 실시간 버스(BusHistoryContent, 시간표 자체가 없음)는 항상 리스트/이력 뷰로 고정.
+  // TODO(F3): 뷰 선택을 zustand persist로 이관해 모달을 다시 열어도 유지되게 하고,
+  // 설정 화면의 "시간표 보기" 기본값(그리드/리스트)과 연동한다. 지금은 열 때마다 'list'로 리셋.
+  const [viewMode, setViewMode] = useState('list')
+  const supportsGridToggle = (type === 'bus' && !isRealtime) || type === 'subway'
 
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
-      setDragY(0)
     }
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  // ─ drag-to-dismiss on handle ──────────────────────────────────────────
-  function onDragStart(e) {
-    const y = e.touches ? e.touches[0].clientY : e.clientY
-    startY.current = y
-  }
-  function onDragMove(e) {
-    if (startY.current == null) return
-    const y = e.touches ? e.touches[0].clientY : e.clientY
-    const dy = Math.max(0, y - startY.current)
-    setDragY(dy)
-  }
-  function onDragEnd() {
-    if (startY.current == null) return
-    const finalY = dragY
-    startY.current = null
-    if (finalY > 120) {
-      onClose()
-    } else {
-      setDragY(0)
+  // PC는 백드롭/포커스트랩이 없는 non-modal 패널이라 자체 Escape 핸들러가 필요
+  // (모바일은 vaul/Radix Dialog가 Escape를 자동 처리).
+  useEffect(() => {
+    if (!isPC || !open) return
+    function onKey(e) {
+      if (e.key === 'Escape') onClose()
     }
-  }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isPC, open, onClose])
 
-  if (!open) return null
+  // PC는 이전에도 애니메이션 없이 즉시 마운트/언마운트했으므로 동일하게 유지.
+  if (isPC && !open) return null
+  // 모바일은 vaul(Presence)이 닫힘 트랜지션 동안 계속 마운트를 유지해야 하므로
+  // open=false여도 바로 리턴하지 않고 아래에서 Drawer.Root에 open만 전달한다.
+  if (!isPC && !open && !title) return null
 
   const fallbackColor = TYPE_COLOR[type] ?? '#64748B'
   const color = accentColor ?? fallbackColor
   const typeLabel = TYPE_LABEL[type] ?? ''
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[100] md:left-0 md:right-auto md:w-[38%] md:bottom-[68px] flex items-end md:items-stretch justify-center md:justify-stretch pointer-events-none"
-      aria-modal="true"
-      role="dialog"
-      aria-label={`${title} 시간표`}
-    >
-      {/* 모바일: 검정 backdrop. PC: backdrop 없음 (좌측 패널 영역만 차지) */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in pointer-events-auto md:hidden"
-        onClick={handleBackdrop}
+  const header = (
+    <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-line">
+      <span
+        className="w-3 h-3 rounded-full flex-shrink-0"
+        style={{ background: color }}
       />
-
-      <div
-        ref={sheetRef}
-        className="relative z-10 w-full md:max-w-none md:w-full bg-surface dark:bg-surface-dark rounded-t-[28px] md:rounded-none shadow-2xl md:shadow-none flex flex-col pointer-events-auto md:h-full md:animate-panel-swap animate-slide-up"
-        style={{
-          maxHeight: '88dvh',
-          transform: `translateY(${dragY}px)`,
-          transition: startY.current == null ? 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* drag handle — tap/swipe to dismiss */}
+      <div className="flex-1 min-w-0">
+        <p className="text-display text-ink dark:text-ink truncate" style={{ letterSpacing: '-0.03em' }}>
+          {title}
+        </p>
+        <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
+      </div>
+      {onShowMap && (
         <button
-          onClick={onClose}
-          onTouchStart={onDragStart}
-          onTouchMove={onDragMove}
-          onTouchEnd={onDragEnd}
-          onMouseDown={onDragStart}
-          onMouseMove={startY.current != null ? onDragMove : undefined}
-          onMouseUp={onDragEnd}
-          onMouseLeave={startY.current != null ? onDragEnd : undefined}
-          aria-label="닫기 (아래로 드래그)"
-          className="flex justify-center pt-3 pb-2 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
-          style={{ touchAction: 'none' }}
+          onClick={onShowMap}
+          aria-label="지도에서 보기"
+          title="지도에서 보기"
+          className="pressable p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
         >
-          <span className="w-12 h-1.5 rounded-full bg-line dark:bg-border-dark" />
+          <MapPin size={18} className="text-ink-2 dark:text-mute" />
         </button>
-
-        {/* header */}
-        <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-border-dark">
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ background: color }}
+      )}
+      {onToggleFav && (
+        <button
+          onClick={onToggleFav}
+          aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          className="pressable p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
+        >
+          <Star
+            size={18}
+            fill={isFavorite ? 'var(--tj-accent)' : 'none'}
+            className={isFavorite ? 'text-accent dark:text-accent' : 'text-mute dark:text-mute'}
           />
-          <div className="flex-1 min-w-0">
-            <p className="text-display text-ink dark:text-ink-dark truncate" style={{ letterSpacing: '-0.03em' }}>
-              {title}
-            </p>
-            <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
-          </div>
-          {onShowMap && (
-            <button
-              onClick={onShowMap}
-              aria-label="지도에서 보기"
-              title="지도에서 보기"
-              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
-            >
-              <MapPin size={18} className="text-ink-2 dark:text-mute-dark" />
-            </button>
-          )}
-          {onToggleFav && (
-            <button
-              onClick={onToggleFav}
-              aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-              title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-              className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
-            >
-              <Star
-                size={18}
-                fill={isFavorite ? 'var(--tj-accent)' : 'none'}
-                className={isFavorite ? 'text-accent dark:text-accent-dark' : 'text-mute dark:text-mute-dark'}
-              />
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            aria-label="닫기"
-            className="p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface-dark transition-colors flex-shrink-0"
-          >
-            <X size={18} className="text-ink-2 dark:text-mute-dark" />
-          </button>
-        </div>
+        </button>
+      )}
+      <button
+        onClick={onClose}
+        aria-label="닫기"
+        className="pressable p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
+      >
+        <X size={18} className="text-ink-2 dark:text-mute" />
+      </button>
+    </div>
+  )
 
-        <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center gap-1.5">
-          <Clock size={12} className="text-mute" />
-          <p className="text-caption text-mute">
+  const body = (
+    <>
+      <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <Clock size={12} className="text-mute flex-shrink-0" />
+          <p className="text-caption text-mute truncate">
             오늘 기준 · {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </p>
-        </div>
-
-        {/* scrollable content — bottom padding 확보해 FloatingDock 위로 */}
-        <div
-          className="flex-1 overflow-y-auto px-4 pt-2"
-          style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
-        >
-          {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
-            <div className="-mx-4 mb-4 border-b border-line dark:border-border-dark pb-2">
-              <p className="text-caption font-semibold text-mute dark:text-mute-dark px-4 mb-3 uppercase tracking-wide">경유 노선</p>
-              <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
-            </div>
-          )}
-          {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} />}
-          {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
-          {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
-          {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
-        </div>
+        </span>
+        {supportsGridToggle && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </div>
-    </div>,
-    document.body
+
+      {/* scrollable content — bottom padding 확보해 FloatingDock 위로 */}
+      <div
+        className="flex-1 overflow-y-auto px-4 pt-2"
+        style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
+      >
+        {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
+          <div className="-mx-4 mb-4 border-b border-line dark:border-line pb-2">
+            <p className="text-caption font-semibold text-mute dark:text-mute px-4 mb-3 uppercase tracking-wide">경유 노선</p>
+            <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
+          </div>
+        )}
+        {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} />}
+        {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} viewMode={viewMode} />}
+        {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} />}
+        {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
+      </div>
+    </>
+  )
+
+  // ── PC · inline: SchedulePage 2열 레이아웃의 우측 컬럼을 그대로 채운다.
+  // portal/fixed 없음 — 부모(SchedulePage)의 컨테이너가 위치·크기를 결정.
+  if (isPC && pcMode === 'inline') {
+    return (
+      <div className="w-full h-full bg-surface dark:bg-surface flex flex-col animate-panel-swap">
+        {header}
+        {body}
+      </div>
+    )
+  }
+
+  // ── PC · overlay(기본): 좌측 패널 내 콘텐츠 교체형 크로스페이드 (기존 UX, vaul 미적용) ──
+  // GlobalDetailModal 전용 — 맵 홈(PCMainShell 38%/62% split)에서만 트리거되므로
+  // 고정 폭 38% 가정이 유효하다.
+  if (isPC) {
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[100] left-0 right-auto w-[38%] bottom-[68px] flex items-stretch justify-stretch pointer-events-none"
+        aria-modal="true"
+        role="dialog"
+        aria-label={`${title} 시간표`}
+      >
+        <div
+          className="relative z-10 w-full bg-surface dark:bg-surface flex flex-col pointer-events-auto h-full animate-panel-swap"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {header}
+          {body}
+        </div>
+      </div>,
+      document.body
+    )
+  }
+
+  // ── 모바일: vaul(Drawer) — 스와이프 다운으로 닫기(Phase C) ──
+  return (
+    <Drawer.Root
+      open={open}
+      onOpenChange={(o) => { if (!o) onClose() }}
+      dismissible
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+          style={{ transition: `opacity var(--dur-motion-sheet) var(--e-out)` }}
+        />
+        <Drawer.Content
+          className="fixed bottom-0 left-0 right-0 z-[100] bg-surface dark:bg-surface rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden outline-none"
+          style={{ maxHeight: '88dvh' }}
+        >
+          <Drawer.Title className="sr-only">{title} 시간표</Drawer.Title>
+          {/* 드래그 핸들 — vaul이 전체 시트 드래그를 처리하므로 시각적 표시만 담당 */}
+          <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
+            <span className="w-12 h-1.5 rounded-full bg-line dark:bg-line" />
+          </div>
+          {header}
+          {body}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   )
 }

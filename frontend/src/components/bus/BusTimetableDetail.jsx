@@ -32,10 +32,10 @@ function RealtimeWaypointDetail({ routeNo, stationId }) {
   const hourLabel = statsRes?.hour_of_day != null ? `${statsRes.hour_of_day}시` : null
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white dark:bg-bg-dark pb-16 md:pb-0">
+    <div className="flex-1 overflow-y-auto bg-white dark:bg-bg pb-16 md:pb-0">
       {/* 노선 경유 막대 */}
-      <div className="pt-4 pb-2 bg-white dark:bg-surface-dark border-b border-line dark:border-border-dark">
-        <p className="text-label font-semibold text-mute dark:text-mute-dark px-4 mb-3">
+      <div className="pt-4 pb-2 bg-white dark:bg-surface border-b border-line dark:border-line">
+        <p className="text-label font-semibold text-mute dark:text-mute px-4 mb-3">
           경유 노선
         </p>
         <RouteProgressStrip
@@ -49,39 +49,39 @@ function RealtimeWaypointDetail({ routeNo, stationId }) {
       <div className="px-4 pt-4">
         <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
         <div className="flex items-center gap-1.5 mb-3">
-          <Clock size={13} className="text-mute dark:text-mute-dark" />
-          <p className="text-label font-semibold text-mute dark:text-mute-dark">
+          <Clock size={13} className="text-mute dark:text-mute" />
+          <p className="text-label font-semibold text-mute dark:text-mute">
             과거 도착 기록
           </p>
         </div>
 
         {loading ? (
-          <p className="text-body text-mute dark:text-mute-dark py-4 text-center">불러오는 중...</p>
+          <p className="text-body text-mute dark:text-mute py-4 text-center">불러오는 중...</p>
         ) : columns.length === 0 ? (
-          <p className="text-body text-mute dark:text-mute-dark py-4 text-center">아직 도착 기록이 없습니다</p>
+          <p className="text-body text-mute dark:text-mute py-4 text-center">아직 도착 기록이 없습니다</p>
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
             {columns.map((col) => (
               <div
                 key={col.date}
-                className="shrink-0 w-28 rounded-xl border border-line dark:border-border-dark bg-surface dark:bg-surface-dark overflow-hidden"
+                className="shrink-0 w-28 rounded-xl border border-line dark:border-line bg-surface dark:bg-surface overflow-hidden"
               >
-                <div className="px-3 py-2 bg-surface-2 dark:bg-line-dark border-b border-line dark:border-border-dark">
-                  <p className="text-caption font-bold text-ink-2 dark:text-mute-dark truncate">{col.label}</p>
-                  <p className="text-caption text-mute dark:text-mute-dark">{col.day_label}</p>
+                <div className="px-3 py-2 bg-surface-2 dark:bg-line border-b border-line dark:border-line">
+                  <p className="text-caption font-bold text-ink-2 dark:text-mute truncate">{col.label}</p>
+                  <p className="text-caption text-mute dark:text-mute">{col.day_label}</p>
                 </div>
                 <ul className="py-1">
                   {col.times.length === 0 ? (
-                    <li className="px-3 py-1.5 text-caption text-mute dark:text-mute-dark">기록 없음</li>
+                    <li className="px-3 py-1.5 text-caption text-mute dark:text-mute">기록 없음</li>
                   ) : (
                     col.times.map((t, i) => (
-                      <li key={i} className="px-3 py-1 text-body font-mono font-semibold text-ink dark:text-ink-dark tabular-nums">
+                      <li key={i} className="px-3 py-1 text-body font-mono font-semibold text-ink dark:text-ink tabular-nums">
                         {t}
                       </li>
                     ))
                   )}
                 </ul>
-                <p className="px-3 pb-2 text-caption text-mute dark:text-mute-dark">총 {col.totalCount}회</p>
+                <p className="px-3 pb-2 text-caption text-mute dark:text-mute">총 {col.totalCount}회</p>
               </div>
             ))}
           </div>
@@ -108,25 +108,25 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
   }, [nextIndex, loading])
 
   return (
-    <div className="flex flex-col h-full animate-slide-in-right bg-bg dark:bg-bg-dark">
+    <div className="flex flex-col h-full animate-slide-in-right bg-bg dark:bg-bg">
       <div className="flex items-center gap-3 px-4 pt-4 pb-3.5">
-        <button onClick={onBack} aria-label="뒤로" className="w-9 h-9 rounded-mini bg-line dark:bg-line-dark text-ink dark:text-ink-dark flex items-center justify-center pressable">
+        <button onClick={onBack} aria-label="뒤로" className="w-9 h-9 rounded-mini bg-line dark:bg-line text-ink dark:text-ink flex items-center justify-center pressable">
           <ChevronLeft size={20} strokeWidth={2.5} />
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-page-ttl text-ink dark:text-ink-dark">{routeNo}번</h2>
-            <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full tracking-tight">
+            <h2 className="text-page-ttl text-ink dark:text-ink">{routeNo}번</h2>
+            <span className="text-meta font-semibold text-ink-2 dark:text-ink-2 bg-line dark:bg-line px-2.5 py-1 rounded-full tracking-tight">
               {isWaypoint ? '실시간' : '시간표'}
             </span>
             {!isWaypoint && data && (
-              <span className="text-meta font-extrabold text-text dark:text-text-dark bg-line dark:bg-line-dark px-2.5 py-1 rounded-full tracking-tight">
+              <span className="text-meta font-semibold text-ink-2 dark:text-ink-2 bg-line dark:bg-line px-2.5 py-1 rounded-full tracking-tight">
                 {{ weekday: '평일', saturday: '토요일', sunday: '일요일' }[data.schedule_type] ?? data.schedule_type}
               </span>
             )}
           </div>
           {destination && (
-            <p className="text-meta font-semibold text-mute dark:text-mute-dark truncate mt-1">{destination}</p>
+            <p className="text-meta font-semibold text-mute dark:text-mute truncate mt-1">{destination}</p>
           )}
         </div>
       </div>
@@ -137,29 +137,29 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
       ) : (
         <>
           {BOARDING_INFO[routeNo] && (
-            <div className="mx-4 mb-3 flex items-start gap-2.5 px-4 py-3 bg-chip-blue-bg dark:bg-chip-blue-bg-dark rounded-card">
-              <MapPin size={16} className="text-chip-blue-fg dark:text-chip-blue-fg-dark mt-0.5 shrink-0" />
+            <div className="mx-4 mb-3 flex items-start gap-2.5 px-4 py-3 bg-chip-blue-bg dark:bg-chip-blue-bg rounded-card">
+              <MapPin size={16} className="text-chip-blue-fg dark:text-chip-blue-fg mt-0.5 shrink-0" />
               <div>
-                <p className="text-meta font-extrabold text-chip-blue-fg dark:text-chip-blue-fg-dark tracking-wide">{BOARDING_INFO[routeNo].stop}</p>
-                <p className="text-meta font-semibold text-chip-blue-fg dark:text-chip-blue-fg-dark/90 mt-0.5">{BOARDING_INFO[routeNo].desc}</p>
+                <p className="text-meta font-semibold text-chip-blue-fg dark:text-chip-blue-fg tracking-wide">{BOARDING_INFO[routeNo].stop}</p>
+                <p className="text-meta font-semibold text-chip-blue-fg dark:text-chip-blue-fg/90 mt-0.5">{BOARDING_INFO[routeNo].desc}</p>
               </div>
             </div>
           )}
 
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-meta font-semibold text-mute dark:text-mute-dark">불러오는 중...</p>
+              <p className="text-meta font-semibold text-mute dark:text-mute">불러오는 중...</p>
             </div>
           ) : times.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-meta font-semibold text-mute dark:text-mute-dark">시간표 정보가 없습니다.</p>
+              <p className="text-meta font-semibold text-mute dark:text-mute">시간표 정보가 없습니다.</p>
             </div>
           ) : (
-            <ul className="flex-1 overflow-y-auto bg-surface dark:bg-bg-dark pb-16 md:pb-0">
+            <ul className="flex-1 overflow-y-auto bg-surface dark:bg-bg pb-16 md:pb-0">
               {nextIndex === -1 && (
-                <li className="px-5 py-4 bg-surface-alt dark:bg-surface-dark-alt border-b border-line dark:border-line-dark">
-                  <p className="text-meta font-bold text-text dark:text-text-dark">오늘 운행이 끝났습니다</p>
-                  <p className="text-meta font-medium text-mute dark:text-mute-dark mt-0.5">내일 첫차: {times[0]}</p>
+                <li className="px-5 py-4 bg-surface-2 dark:bg-bg border-b border-line dark:border-line">
+                  <p className="text-meta font-bold text-ink-2 dark:text-ink-2">오늘 운행이 끝났습니다</p>
+                  <p className="text-meta font-medium text-mute dark:text-mute mt-0.5">내일 첫차: {times[0]}</p>
                 </li>
               )}
               {times.map((t, i) => {
@@ -171,24 +171,24 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
                   <li
                     key={i}
                     ref={isNext ? nextRef : null}
-                    className={`relative flex items-center px-5 py-3.5 border-b border-line dark:border-line-dark
+                    className={`relative flex items-center px-5 py-3.5 border-b border-line dark:border-line
                       ${isPast ? 'opacity-35 pointer-events-none' : ''}
                       ${isNext ? 'bg-line4-light dark:bg-blue-950/30' : ''}`}
                   >
                     {isNext && (
-                      <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-line-4 dark:bg-accent-dark" />
+                      <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-line-4 dark:bg-accent" />
                     )}
                     <span className={`tabular-nums min-w-[60px] tracking-tight ${
                       isNext
-                        ? 'text-eta-mob font-black text-line-4 dark:text-accent-dark pl-1.5'
-                        : 'text-eta-mob font-bold text-ink dark:text-ink-dark'
+                        ? 'text-eta-mob font-bold text-line-4 dark:text-accent pl-1.5'
+                        : 'text-eta-mob font-bold text-ink dark:text-ink'
                     }`}>
                       {t}
                     </span>
                     {isNext && (
                       <>
-                        <span className="text-micro font-extrabold text-white bg-line-4 dark:bg-accent-dark dark:text-ink px-2.5 py-0.5 rounded-full ml-2 tracking-wide">다음</span>
-                        <span className="ml-auto text-panel-ttl text-line-4 dark:text-accent-dark">{diffMin}분 후</span>
+                        <span className="text-micro font-semibold text-white bg-line-4 dark:bg-accent dark:text-ink px-2.5 py-0.5 rounded-full ml-2 tracking-wide">다음</span>
+                        <span className="ml-auto text-panel-ttl text-line-4 dark:text-accent">{diffMin}분 후</span>
                       </>
                     )}
                   </li>

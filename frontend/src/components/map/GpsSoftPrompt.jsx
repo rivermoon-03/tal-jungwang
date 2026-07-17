@@ -48,7 +48,7 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
 
   return (
     <div
-      className="absolute bottom-24 left-1/2 z-[80] bg-surface dark:bg-surface-dark rounded-card shadow-card w-[calc(100%-32px)] max-w-sm -translate-x-1/2"
+      className="absolute bottom-24 left-1/2 z-[80] bg-surface dark:bg-surface rounded-card shadow-card w-[calc(100%-32px)] max-w-sm -translate-x-1/2"
       style={{
         animation: `slideUpFade 0.3s ${EASE} both`,
         padding: '14px 16px',
@@ -66,30 +66,30 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
         onClick={onClose}
         aria-label="닫기"
       >
-        <X size={14} className="text-mute dark:text-mute-dark" />
+        <X size={14} className="text-mute dark:text-mute" />
       </button>
 
       <div className="flex items-start gap-3">
         <MapPin size={20} className="text-accent flex-shrink-0 mt-0.5" />
         <div className="flex flex-col gap-2 flex-1">
-          <p className="text-body font-bold text-ink dark:text-ink-dark">
+          <p className="text-body font-bold text-ink dark:text-ink">
             위치 권한이 필요해요
           </p>
 
           {isDenied ? (
-            <p className="text-caption text-mute dark:text-mute-dark leading-relaxed">
+            <p className="text-caption text-mute dark:text-mute leading-relaxed">
               브라우저 주소창 왼쪽 자물쇠 아이콘을 탭한 뒤,
               <br />
               <strong>위치 → 허용</strong>으로 변경해 주세요.
             </p>
           ) : (
-            <p className="text-caption text-mute dark:text-mute-dark">
+            <p className="text-caption text-mute dark:text-mute">
               도보 시간 계산과 탑승 가능 여부 확인에 사용돼요.
             </p>
           )}
 
           {error && !isDenied && (
-            <p className="text-caption text-imminent dark:text-imminent-dark">{error}</p>
+            <p className="text-caption text-imminent dark:text-imminent">{error}</p>
           )}
 
           {!isDenied && (
@@ -102,7 +102,7 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
                 {loading ? '요청 중…' : '허용하기'}
               </button>
               <button
-                className="flex-1 py-2 rounded-xl text-label font-semibold text-mute dark:text-mute-dark border border-line dark:border-line-dark bg-surface dark:bg-surface-dark"
+                className="flex-1 py-2 rounded-xl text-label font-semibold text-mute dark:text-mute border border-line dark:border-line bg-surface dark:bg-surface"
                 onClick={onClose}
               >
                 나중에

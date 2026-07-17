@@ -12,15 +12,15 @@ export default function SnapHandle(props) {
       aria-orientation="horizontal"
       aria-label="지도·대시보드 구분선 (위/아래로 밀어 펼치거나 접기)"
       className="h-6 w-full flex items-center justify-center shrink-0
-                 bg-white dark:bg-bg-dark
-                 border-t border-b border-slate-100 dark:border-border-dark
+                 bg-white dark:bg-bg
+                 border-t border-b border-slate-100 dark:border-line
                  select-none"
       style={{ touchAction: 'none', cursor: 'grab' }}
       {...props}
     >
       <span
         aria-hidden="true"
-        className="block w-[52px] h-[7px] rounded-full bg-mute/70 dark:bg-border-dark"
+        className="block w-[52px] h-[7px] rounded-full bg-mute/70 dark:bg-line"
       />
     </div>
   )

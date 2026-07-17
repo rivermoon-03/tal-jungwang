@@ -5,10 +5,10 @@
 export default function RouteGroup({ heading, children, className = '' }) {
   return (
     <section
-      className={`rounded-card bg-surface shadow-card dark:bg-surface-dark dark:border dark:border-line-dark dark:shadow-none overflow-hidden ${className}`}
+      className={`rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none overflow-hidden ${className}`}
     >
       {heading && (
-        <header className="px-3 pt-[7px] pb-[3px] text-ghdr uppercase text-mute dark:text-mute-dark">
+        <header className="px-3 pt-[7px] pb-[3px] text-ghdr uppercase text-mute dark:text-mute">
           {heading}
         </header>
       )}

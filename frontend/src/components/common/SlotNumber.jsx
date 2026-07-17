@@ -30,7 +30,7 @@ export default function SlotNumber({ value, className = '' }) {
       style={{ width, height: '1em' }}
     >
       <span
-        className="block transition-transform duration-slot ease-snap"
+        className="block transition-transform duration-slot ease-inout"
         style={{ transform: `translateY(${translate})` }}
       >
         <span className="block h-[1em] leading-[1em]">{reel.from}</span>

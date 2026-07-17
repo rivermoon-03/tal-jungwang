@@ -23,8 +23,8 @@ import { Moon } from 'lucide-react'
  * 양쪽 모두 empty면 카드 전체가 "오늘 운행 없음" 단일 카드로 대체된다.
  *
  * urgent 상태 → Card state="imminent" 토큰 클래스로 처리
- *   bg-imminent/[0.06] border border-imminent rounded-[16px]
- * 기본 상태 → bg-surface border border-line rounded-[16px]
+ *   bg-imminent/[0.06] border border-imminent rounded-card
+ * 기본 상태 → bg-surface border border-line rounded-card
  */
 export default function DualDirectionCard({
   symbol,
@@ -55,7 +55,7 @@ export default function DualDirectionCard({
     ? 'bg-imminent/[0.06] border border-imminent'
     : 'bg-surface border border-line'
 
-  // Card 기본 형태 (rounded-[16px] p-4)
+  // Card 기본 형태 (rounded-card p-4)
   const interactiveClass = isClickable
     ? 'cursor-pointer transition-transform duration-100 active:scale-[0.98] select-none pressable'
     : ''
@@ -66,7 +66,7 @@ export default function DualDirectionCard({
       onClick={isClickable ? onClick : undefined}
       data-urgent={urgent ? 'true' : 'false'}
       className={[
-        'rounded-[16px] p-4 w-full text-left',
+        'rounded-card p-4 w-full text-left',
         cardClass,
         interactiveClass,
       ].filter(Boolean).join(' ')}
@@ -100,7 +100,7 @@ export default function DualDirectionCard({
         >
           {symbol}
         </span>
-        <span className="text-label font-extrabold text-ink">
+        <span className="text-label font-semibold text-ink">
           {lineName}
         </span>
         {sub && !bothEmpty && (
@@ -238,7 +238,7 @@ function NormalSlot({ slot, align }) {
   const { dir, route, minutes, nextMinutes, isUrgent, imminentLabel } = slot
   const hasMinutes = minutes != null && Number.isFinite(minutes)
   const barWidth = hasMinutes ? progressWidth(minutes, isUrgent) : 0
-  const barColor = isUrgent ? 'var(--tj-imminent)' : 'var(--tj-accent, #2E8B86)'
+  const barColor = isUrgent ? 'var(--tj-imminent)' : 'var(--tj-accent, #12a594)'
 
   return (
     <div style={{ textAlign: align }}>
@@ -421,7 +421,7 @@ function ReturnSlot({ slot, align }) {
       )}
       {descLine2 && (
         <div
-          className="text-caption font-extrabold mt-px"
+          className="text-caption font-semibold mt-px"
           style={{ color: returnColor }}
         >
           {descLine2}
@@ -448,7 +448,7 @@ function FrequentSlot({ slot, align }) {
           {route}
         </div>
       )}
-      <div className="text-head font-black text-ink" style={{ letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+      <div className="text-head font-bold text-ink" style={{ letterSpacing: '-0.01em', lineHeight: 1.1 }}>
         {freqLabel}
       </div>
       {freqSub && (

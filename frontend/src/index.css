@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 /* ── 이징 / 지속시간 토큰 ──────────────────────────────
-   Phase A (2026-04-19): --ease-spring 제거. iOS ease 단일화. */
+   Phase A (2026-04-19): --ease-spring 제거. iOS ease 단일화.
+   Phase A (2026-07): 모션 규율(DESIGN.md §4) e/dur-motion 토큰 추가. */
 :root {
   --ease-ios:  cubic-bezier(0.16, 1, 0.3, 1);
   --ease-snap: cubic-bezier(0.65, 0, 0.35, 1);
@@ -13,33 +14,63 @@
   --dur-sheet: 280ms;
   --dur-slot:  400ms;
 
-  /* ── Warm Daylight 디자인 토큰 (2026-06 리디자인) ─────── */
-  --tj-bg:          #F4F3F1;
-  --tj-surface:     #FFFFFF;
-  --tj-surface-2:   #FBFAF8;
-  --tj-line:        #E7E4DF;
-  --tj-ink:         #1B2A4A;
-  --tj-ink-2:       #44506A;
-  --tj-mute:        #5A6678;
-  --tj-accent:      #2E8B86;
-  --tj-accent-ink:  #1F6B66;
-  --tj-accent-bg:   #E6F0EF;
-  --tj-imminent:    #C2502E;
-  --tj-ease:        #2F8B5F;
+  /* ── 모션 이징(DESIGN.md §4) — Apple 스타일, 결정적 ease-out/스프링/크로스페이드 */
+  --e-out:    cubic-bezier(0.32, 0.72, 0, 1);
+  --e-spring: cubic-bezier(0.5, 1.35, 0.5, 1);
+  --e-inout:  cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-motion-press: 120ms;
+  --dur-motion-base:  200ms;
+  --dur-motion-enter: 300ms;
+  --dur-motion-sheet: 440ms;
 
-  /* ── 레거시 (이전 토큰 — 기존 컴포넌트 호환 유지) ─────── */
-  --tj-accent-2:    #1b3a6e;     /* 짙은 마린 (보조) */
-  --tj-accent-dark: #4f9fff;
-  --tj-mute-2:      #cbd2db;
-  --tj-line-soft:   #eef1f5;
-  --tj-bg-soft:     #f7f8fa;
+  /* ── 디자인 시스템 v1 semantic 토큰 (DESIGN.md §2, Radix sage+teal) ── */
+  --tj-bg:          #fbfdfc;  /* sage1 */
+  --tj-surface:     #ffffff;
+  --tj-surface-2:   #f7f9f8;  /* sage2 */
+  --tj-surface-3:   #eef1f0;  /* sage3 — elevated(시트/팝오버) */
+  --tj-line:        #d7dad9;  /* sage6 */
+  --tj-line-strong: #cbcfcd;  /* sage7 — 강조 보더 */
+  --tj-ink:         #1a211e;  /* sage12 */
+  --tj-ink-2:       #5f6563;  /* sage11 */
+  --tj-mute:        #868e8b;  /* sage9 */
+  --tj-accent:      #12a594;  /* teal9 — 라이트/다크 동일 */
+  --tj-accent-hover:#0d9b8a;  /* teal10 */
+  --tj-accent-ink:  #008573;  /* teal11 */
+  --tj-accent-bg:   #e0f8f3;  /* teal3 */
+  --tj-focus-ring:  rgba(18, 165, 148, .40);
 
-  /* 활성 pill — 라이트: 잉크 블랙, 다크: 액센트 블루 */
-  --tj-pill-active-bg: #0b0d10;
+  /* 상태 semantic(DESIGN.md §2 하단): 임박=amber · 여유=green · 지연=red · 실시간=accent */
+  --tj-imminent:     #f59e0b;
+  --tj-imminent-bg:  #fef3c7;
+  --tj-ease:         #16a34a;
+  --tj-delayed:      #dc2626;
+  --tj-delayed-bg:   #fee2e2;
+  --tj-realtime:     #12a594;
+
+  /* 카테고리 칩 팔레트(DESIGN.md "카테고리 칩 팔레트") — sage/teal과 어울리는 최소 채도 5색 + 중립 */
+  --tj-chip-green-bg:  #eef5f0; --tj-chip-green-fg:  #3a7a52;
+  --tj-chip-blue-bg:   #e6efff; --tj-chip-blue-fg:   #2e5fb3;
+  --tj-chip-red-bg:    #f5e6e2; --tj-chip-red-fg:    #8a3a2c;
+  --tj-chip-purple-bg: #f0e8fc; --tj-chip-purple-fg: #5b3aa8;
+  --tj-chip-yellow-bg: #fef6e6; --tj-chip-yellow-fg: #a07517;
+  --tj-chip-gray-bg:   #f3f4f6; --tj-chip-gray-fg:   #6b7280;
+
+  /* 레거시 상태 별칭(호환 유지) — 신규 semantic을 그대로 참조해 값 중복 제거 */
+  --state-ok:   var(--tj-ease);
+  --state-warn: var(--tj-imminent);
+  --state-bad:  var(--tj-delayed);
+
+  /* 활성 pill — 라이트: 잉크, 다크: accent teal */
+  --tj-pill-active-bg: var(--tj-ink);
   --tj-pill-active-fg: #ffffff;
 
-  /* 플로팅 독 — 라이트/다크 모두 어두운 떠있는 바 (ink 토큰처럼 반전되면 안 됨) */
-  --tj-dock-bg: #1B2A4A;
+  /* 플로팅 독 — 라이트/다크 모두 어두운 떠있는 바 (ink 톤 고정, 테마 반전 금지) */
+  --tj-dock-bg: #1a211e;
+
+  /* 저강조 배경/보더(레거시 이름 유지, sage 톤으로 재정의) */
+  --tj-mute-2:    #cbcfcd;  /* sage7 */
+  --tj-line-soft: #eef1f0;  /* sage3 */
+  --tj-bg-soft:   #f7f9f8;  /* sage2 */
 
   /* 노선색 (지도 마커용 — 진한 단색 유지) */
   --line-201:     #2563eb;
@@ -51,46 +82,50 @@
   --line-suin:    #F5A623;
   --line-seohae:  #75bf43;
   --line-shuttle: var(--tj-accent);
-
-  /* 상태 (Muted iDrive) */
-  --state-ok:   #4a9d6a;
-  --state-warn: #d4a14a;
-  --state-bad:  #c8553d;
-  --imminent:   #e26a4d;
-
-  /* 모양 */
-  --r-card: 14px;
-  --r-pill: 999px;
-  --sh-card: 0 2px 8px rgba(0,0,0,.04);
 }
 
 .dark {
-  /* ── Warm Daylight 다크 토큰 (2026-06 리디자인) ─────── */
-  --tj-bg:          #14161A;
-  --tj-surface:     #1E2228;
-  --tj-surface-2:   #181B20;
-  --tj-line:        #2B2F36;
-  --tj-ink:         #F2F2F0;
-  --tj-ink-2:       #B7BEC9;
-  --tj-mute:        #8A93A1;
-  --tj-accent:      #45B5AE;
-  --tj-imminent:    #F0785A;
-  --tj-ease:        #54B883;
-  /* 다크 전용 accent 틴트/텍스트 (라이트값을 그대로 쓰면 다크에서 너무 밝거나 안 읽힘) */
-  --tj-accent-ink:  #6FD0C8;
-  --tj-accent-bg:   #173532;
+  /* ── 디자인 시스템 v1 다크 토큰 — sage 단일 사다리(#101211~), 순흑 OLED 폐기 ── */
+  --tj-bg:          #101211;  /* sage1 dark */
+  --tj-surface:     #171918;  /* sage2 dark */
+  --tj-surface-2:   #202221;  /* sage3 dark */
+  --tj-surface-3:   #272a29;  /* sage4 dark */
+  --tj-line:        #373b39;  /* sage6 dark */
+  --tj-line-strong: #444947;  /* sage7 dark */
+  --tj-ink:         #eceeed;  /* sage12 dark */
+  --tj-ink-2:       #adb5b2;  /* sage11 dark */
+  --tj-mute:        #717d79;  /* sage10 dark */
+  --tj-accent:      #12a594;  /* teal9 — 라이트와 동일 */
+  --tj-accent-hover:#0eb39e;  /* teal10 dark */
+  --tj-accent-ink:  #0bd8b6;  /* teal11 dark */
+  --tj-accent-bg:   #0d2d2a;  /* teal3 dark */
+  --tj-focus-ring:  rgba(18, 165, 148, .55);
 
-  /* ── 레거시 (이전 토큰 — 기존 컴포넌트 호환 유지) ─────── */
-  --tj-mute-2:    #4b5563;
-  --tj-line-soft: #0f0f0f;
-  --tj-bg-soft:   #0a0a0a;
-  /* 활성 pill 다크: iDrive Blue + 잉크 텍스트 */
-  --tj-pill-active-bg: #4f9fff;
-  --tj-pill-active-fg: #000000;
+  --tj-imminent:     #ffb224;
+  --tj-imminent-bg:  #2a2000;
+  --tj-ease:         #3dd68c;
+  --tj-delayed:      #ff6369;
+  --tj-delayed-bg:   #3b1219;
+  --tj-realtime:     #12a594;
+
+  /* 카테고리 칩 팔레트(다크) */
+  --tj-chip-green-bg:  #1a2820; --tj-chip-green-fg:  #5fb085;
+  --tj-chip-blue-bg:   #1a2030; --tj-chip-blue-fg:   #7aa5e3;
+  --tj-chip-red-bg:    #2a1818; --tj-chip-red-fg:    #e07a6a;
+  --tj-chip-purple-bg: #1f1828; --tj-chip-purple-fg: #a78ce0;
+  --tj-chip-yellow-bg: #2a2410; --tj-chip-yellow-fg: #d4a14a;
+  --tj-chip-gray-bg:   #1f2937; --tj-chip-gray-fg:   #9ca3af;
+
+  /* 활성 pill 다크: accent teal + 화이트 텍스트 */
+  --tj-pill-active-bg: var(--tj-accent);
+  --tj-pill-active-fg: #ffffff;
+
   /* 독: 다크에서도 어두운 떠있는 바 (배경보다 살짝 밝게 구분) */
-  --tj-dock-bg: #242A33;
-  --imminent:     #f87171;
-  --sh-card:      none;
+  --tj-dock-bg: #272a29;  /* sage4 dark */
+
+  --tj-mute-2:    #444947;  /* sage7 dark */
+  --tj-line-soft: #202221;  /* sage3 dark */
+  --tj-bg-soft:   #171918;  /* sage2 dark */
 }
 
 /* ── 긴급 펄스 (디자인 번들) ──────────────────────────── */
@@ -102,6 +137,52 @@
   animation: tj-pulse 1.6s ease-in-out infinite;
 }
 
+/* ── 모션 패턴 (Phase C, DESIGN.md §4) ──────────────────────
+   카드 진입: fade + 상승 + 미세 스케일. 리스트 항목은 utils/motion.js의
+   staggerDelay()로 60ms 간격 animation-delay를 부여해 순차 등장시킨다. */
+@keyframes tj-card-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+.tj-card-enter {
+  animation: tj-card-enter var(--dur-motion-enter) var(--e-out) both;
+}
+
+/* 도착 "n분" 숫자 변경 시 미세한 스케일 펄스(과한 애니메이션 금지).
+   소비 컴포넌트가 값이 바뀔 때 key를 갱신해 리마운트시키면 재생된다. */
+@keyframes tj-number-pulse {
+  from { opacity: 0.5; transform: scale(1.06); }
+  to   { opacity: 1;   transform: scale(1);    }
+}
+.tj-number-pulse {
+  animation: tj-number-pulse var(--dur-motion-base) var(--e-out) both;
+}
+
+/* 상위 탭(홈/시간표/학식/더보기) 전환 크로스페이드 */
+@keyframes tj-tab-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.tj-tab-fade {
+  animation: tj-tab-fade var(--dur-motion-base) var(--e-inout) both;
+}
+
+/* 스켈레톤 시머 — 기존 animate-pulse(불투명도만 변화)를 그라디언트 스윕으로 대체 */
+@keyframes tj-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.tj-skeleton {
+  background-image: linear-gradient(
+    100deg,
+    var(--tj-surface-2) 30%,
+    var(--tj-surface-3) 50%,
+    var(--tj-surface-2) 70%
+  );
+  background-size: 300% 100%;
+  animation: tj-shimmer 1.6s ease-in-out infinite;
+}
+
 /* ── 접근성: 모션 최소화 ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -109,6 +190,10 @@
     --dur-snap:  0ms;
     --dur-page:  0ms;
     --dur-sheet: 0ms;
+    --dur-motion-press: 0ms;
+    --dur-motion-base:  0ms;
+    --dur-motion-enter: 0ms;
+    --dur-motion-sheet: 0ms;
   }
   *,
   *::before,
@@ -118,66 +203,6 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* ── A2z 폰트 (로고용) ──────────────────────── */
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-1Thin.woff2') format('woff2');
-    font-weight: 100;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-2ExtraLight.woff2') format('woff2');
-    font-weight: 200;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-3Light.woff2') format('woff2');
-    font-weight: 300;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-4Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-5Medium.woff2') format('woff2');
-    font-weight: 500;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-6SemiBold.woff2') format('woff2');
-    font-weight: 600;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-7Bold.woff2') format('woff2');
-    font-weight: 700;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-8ExtraBold.woff2') format('woff2');
-    font-weight: 800;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'A2z';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/에이투지체-9Black.woff2') format('woff2');
-    font-weight: 900;
-    font-display: swap;
-}
-
-.font-a2z {
-  font-family: 'A2z', sans-serif;
 }
 
 /* ── 전환 애니메이션 ───────────────────────── */
@@ -192,7 +217,7 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.18s var(--ease-ios) both;
+  animation: fadeIn 0.18s var(--e-inout) both;
 }
 
 @keyframes fadeInUp {
@@ -201,21 +226,23 @@
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.22s var(--ease-ios) both;
+  animation: fadeInUp var(--dur-motion-enter) var(--e-out) both;
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.2s var(--ease-ios) both;
+  animation: slideInRight 0.2s var(--e-out) both;
 }
 
 /* ── 탭 / 카드 press 피드백 ─────────────────── */
+/* Phase C: press 패턴(DESIGN.md §4) — scale(0.94) + spring 이징, 120ms 즉각 반응 */
 .pressable {
-  transition: transform var(--dur-press) var(--ease-ios), opacity var(--dur-press) var(--ease-ios);
+  transition: transform var(--dur-motion-press) var(--e-spring), opacity var(--dur-motion-press) var(--e-spring);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .pressable:active {
-  transform: scale(0.98);
-  opacity: 0.9;
+  transform: scale(0.94);
+  opacity: 0.92;
 }
 
 /* ── 시간/숫자 모던 폰트 ────────────────────── */
@@ -244,25 +271,20 @@ html {
 body {
   margin: 0;
   font-family: 'SUIT Variable', SUIT, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;
-  background-color: #ffffff;
-  color: #111111;
+  background-color: var(--tj-bg);
+  color: var(--tj-ink);
   letter-spacing: -0.01em;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   word-break: keep-all;
-  transition: background-color var(--dur-snap) var(--ease-ios), color var(--dur-snap) var(--ease-ios);
-}
-
-.dark body {
-  background-color: #000000;
-  color: #f5f5f5;
+  transition: background-color var(--dur-snap) var(--e-inout), color var(--dur-snap) var(--e-inout);
 }
 
 /* ── 카카오맵 다크모드 ──────────────────────────────────── */
 .dark #kakao-map-canvas {
   filter: invert(93%) hue-rotate(180deg) brightness(0.82) saturate(0.85) contrast(0.92);
-  transition: filter 0.3s var(--ease-ios);
+  transition: filter 0.3s var(--e-out);
 }
 
 /* 마커 이미지 역필터 — 원래 SVG 색상 유지 */
@@ -275,7 +297,7 @@ body {
   to   { transform: translateY(0); }
 }
 .animate-slide-up {
-  animation: slideUp var(--dur-sheet) var(--ease-ios);
+  animation: slideUp var(--dur-sheet) var(--e-out);
 }
 
 /* slide-in-left 애니메이션은 tailwind.config의 animation/keyframes에 등록됨.
@@ -288,7 +310,7 @@ body {
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 .animate-toast-slide-up {
-  animation: toastSlideUp var(--dur-sheet) var(--ease-ios) both;
+  animation: toastSlideUp var(--dur-sheet) var(--e-out) both;
 }
 
 /* ── 스크롤바 숨김 ───────────────────────────── */

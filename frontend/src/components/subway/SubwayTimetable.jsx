@@ -24,7 +24,7 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
     : Math.max(0, entries.length - 2)
 
   return (
-    <ul className="flex-1 overflow-y-auto bg-surface dark:bg-bg-dark pb-28 md:pb-0">
+    <ul className="flex-1 overflow-y-auto bg-surface dark:bg-bg pb-28 md:pb-0">
       {entries.slice(startIdx).map((train, di) => {
         const i = di + startIdx
         const departMin = departMinutes[i]
@@ -38,7 +38,7 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
           <li
             key={i}
             className={[
-              'relative flex items-center px-5 py-3.5 border-b border-line dark:border-line-dark',
+              'relative flex items-center px-5 py-3.5 border-b border-line dark:border-line',
               isNext ? 'bg-accent-bg dark:bg-accent-bg/20' : '',
               isPast && !isNext ? 'pointer-events-none' : '',
             ].filter(Boolean).join(' ')}
@@ -46,16 +46,16 @@ export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx,
             <span
               className={[
                 'tabular-nums min-w-[60px] tracking-tight text-label',
-                isNext ? 'font-black text-ink dark:text-ink-dark' : 'font-bold',
-                isPast && !isNext ? 'text-mute dark:text-mute-dark' : !isNext ? 'text-ink dark:text-ink-dark' : '',
+                isNext ? 'font-bold text-ink dark:text-ink' : 'font-bold',
+                isPast && !isNext ? 'text-mute dark:text-mute' : !isNext ? 'text-ink dark:text-ink' : '',
               ].filter(Boolean).join(' ')}
             >
               {train.depart_at}
             </span>
             <span className={[
               'flex-1 text-label font-medium ml-3',
-              isNext ? 'text-ink dark:text-ink-dark font-bold' : '',
-              isPast && !isNext ? 'text-mute dark:text-mute-dark' : !isNext ? 'text-ink-2 dark:text-ink-2-dark' : '',
+              isNext ? 'text-ink dark:text-ink font-bold' : '',
+              isPast && !isNext ? 'text-mute dark:text-mute' : !isNext ? 'text-ink-2 dark:text-ink-2-dark' : '',
             ].filter(Boolean).join(' ')}>
               {train.destination}행
             </span>

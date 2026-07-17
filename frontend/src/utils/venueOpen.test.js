@@ -3,7 +3,7 @@
  * KST 기준 영업중/마감임박/마감 판정 + 휴무일 처리
  */
 import { describe, it, expect } from 'vitest'
-import { isOpenNow, getVenueBuilding, getBuildingColor, isVacationPeriod, getCategoryIcon } from './venueOpen'
+import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryStyle, isVacationPeriod, getCategoryIcon } from './venueOpen'
 
 // ---------- 테스트용 venue fixtures ----------
 
@@ -409,39 +409,33 @@ describe('getBuildingColor — 건물 → 색상 객체', () => {
     expect(c).toHaveProperty('bg')
   })
 
-  it('TIP 건물은 darkColor/darkBg도 반환해요', () => {
-    const c = getBuildingColor('TIP')
-    expect(c).toHaveProperty('darkColor')
-    expect(c).toHaveProperty('darkBg')
-  })
-
-  it('E동 건물은 darkColor/darkBg도 반환해요', () => {
-    const c = getBuildingColor('E동')
-    expect(c).toHaveProperty('darkColor')
-    expect(c).toHaveProperty('darkBg')
-  })
-
-  it('중앙도서관은 darkColor/darkBg도 반환해요', () => {
-    const c = getBuildingColor('중앙도서관')
-    expect(c).toHaveProperty('darkColor')
-    expect(c).toHaveProperty('darkBg')
-  })
-
-  it('기타 건물도 darkColor/darkBg fallback을 반환해요', () => {
-    const c = getBuildingColor('기타')
-    expect(c).toHaveProperty('darkColor')
-    expect(c).toHaveProperty('darkBg')
-  })
-
-  it('다크 배경(darkBg)은 라이트 배경(bg)보다 어두운 hex여야 해요', () => {
-    // 간단히 hex 명도 비교: darkBg의 R 채널이 bg의 R 채널보다 작아야 함
+  // Phase B(2026-07): 카테고리 칩 팔레트를 CSS 변수(--tj-chip-*)로 일원화하면서
+  // 라이트/다크 전환이 .dark 스코프에서 자동 처리되도록 바뀜.
+  // 더 이상 darkColor/darkBg를 별도로 반환하지 않고, color/bg 자체가 var()를 참조한다.
+  it('color/bg는 --tj-chip-* CSS 변수를 참조해요 (다크모드 자동 전환)', () => {
     const buildings = ['TIP', 'E동', '중앙도서관', '기타']
     buildings.forEach((b) => {
-      const { bg, darkBg } = getBuildingColor(b)
-      const lightR = parseInt(bg.slice(1, 3), 16)
-      const darkR = parseInt(darkBg.slice(1, 3), 16)
-      expect(darkR).toBeLessThan(lightR)
+      const { color, bg } = getBuildingColor(b)
+      expect(color).toMatch(/^var\(--tj-chip-.+-fg\)$/)
+      expect(bg).toMatch(/^var\(--tj-chip-.+-bg\)$/)
     })
+  })
+})
+
+describe('getCategoryStyle — 카테고리 → 색상 객체', () => {
+  it('알려진 카테고리는 --tj-chip-* CSS 변수를 반환해요', () => {
+    const categories = ['한식', '중식', '분식', '양식', '패스트푸드', '카페', '편의점']
+    categories.forEach((c) => {
+      const { color, bg } = getCategoryStyle(c)
+      expect(color).toMatch(/^var\(--tj-chip-.+-fg\)$/)
+      expect(bg).toMatch(/^var\(--tj-chip-.+-bg\)$/)
+    })
+  })
+
+  it('알 수 없는 카테고리는 gray로 폴백해요', () => {
+    const { color, bg } = getCategoryStyle('없는카테고리')
+    expect(color).toBe('var(--tj-chip-gray-fg)')
+    expect(bg).toBe('var(--tj-chip-gray-bg)')
   })
 })
 
