@@ -23,10 +23,17 @@ _TAXI_CACHE_KEY = "route:taxi_to_station"
 _TAXI_CACHE_TTL = 300  # 5분
 
 _WALKING_CACHE_TTL = 86400  # 24시간 (도보 경로는 교통 상황 무관)
+# 5분 = 택시 관련 다른 driving 캐시(_TAXI_CACHE_TTL, taxi-to-station)와 동일 수준.
+# 자동차는 실시간 교통 상황을 반영해야 하므로 walk(24h)만큼 늘리지 않고 유지한다.
 _DRIVING_CACHE_TTL = 300   # 5분 (자동차는 교통 상황 반영)
 
 # 도보 경로 캐시 키 해상도 — 50m grid로 스냅하여 GPS 미세 변동에도 hit되도록
 _WALK_SNAP_STEP = 0.0005  # 위도 1° ≈ 111km → 0.0005° ≈ 55m
+
+# 자동차 경로 캐시 키 해상도 — walk 수준(55m)까지 넓히면 도로망 특성상
+# 살짝 다른 좌표가 완전히 다른 경로(진입 차선/회전 제약 등)로 튈 위험이 있어
+# 안전 범위(30~50m) 내에서 walk보다 약간 좁게 잡는다.
+_DRIVING_SNAP_STEP = 0.0004  # 위도 1° ≈ 111km → 0.0004° ≈ 44m
 
 # 수도권 남서부 bounding box — 익명 호출자가 임의 좌표로 외부 API 쿼터 고갈하는 것 방지
 _BBOX_LAT_MIN, _BBOX_LAT_MAX = 37.0, 37.8
@@ -50,19 +57,20 @@ _TAXI_DESTINATIONS = [
 ]
 
 
-def _coord_cache_key(prefix: str, origin_lat: float, origin_lng: float,
-                     dest_lat: float, dest_lng: float) -> str:
-    """좌표를 소수점 4자리로 반올림하여 캐시 키를 생성한다."""
-    return (
-        f"{prefix}:"
-        f"{origin_lat:.4f},{origin_lng:.4f}"
-        f":{dest_lat:.4f},{dest_lng:.4f}"
-    )
-
-
 def _snap(v: float, step: float = _WALK_SNAP_STEP) -> float:
     """좌표를 step 단위 grid로 스냅."""
     return round(v / step) * step
+
+
+def _coord_cache_key(prefix: str, origin_lat: float, origin_lng: float,
+                     dest_lat: float, dest_lng: float,
+                     step: float = _DRIVING_SNAP_STEP) -> str:
+    """좌표를 step 단위 grid로 스냅하여 캐시 키를 생성한다(기본: driving 44m grid)."""
+    return (
+        f"{prefix}:"
+        f"{_snap(origin_lat, step):.5f},{_snap(origin_lng, step):.5f}"
+        f":{_snap(dest_lat, step):.5f},{_snap(dest_lng, step):.5f}"
+    )
 
 
 def _walk_cache_key(origin_lat: float, origin_lng: float,
