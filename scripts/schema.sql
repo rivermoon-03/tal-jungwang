@@ -140,6 +140,27 @@ CREATE INDEX idx_crowding_route_stop_at
     ON bus_crowding_logs (route_id, stop_id, recorded_at);
 
 -- ────────────────────────────────────────────────────────────
+-- 7b. bus_crowding_stats — 혼잡도 곡선 사전 집계 (30분 버킷 평균)
+-- ────────────────────────────────────────────────────────────
+-- bus_arrival_stats와 동일하게 derivative(매일 03:35 KST 나이틀리로
+-- bus_crowding_logs에서 재계산)이며, ON DELETE CASCADE로 route/stop 삭제 시
+-- 함께 정리된다(다음 refresh에서 재생성).
+-- day_type은 다른 사전집계 테이블의 weekday/saturday/sunday 3분류와 달리
+-- crowding_flow 도메인을 따라 weekday/weekend 2분류다.
+-- bucket = hour*2 + half(0|1), 0~47 (30분 단위).
+CREATE TABLE IF NOT EXISTS bus_crowding_stats (
+    route_id     INTEGER      NOT NULL REFERENCES bus_routes(id) ON DELETE CASCADE,
+    stop_id      INTEGER      NOT NULL REFERENCES bus_stops(id) ON DELETE CASCADE,
+    day_type     VARCHAR(10)  NOT NULL CHECK (day_type IN ('weekday','weekend')),
+    bucket       SMALLINT     NOT NULL CHECK (bucket BETWEEN 0 AND 47),
+    avg_crowded  NUMERIC(4,2) NOT NULL CHECK (avg_crowded BETWEEN 1 AND 4),
+    sample_size  INTEGER      NOT NULL CHECK (sample_size > 0),
+    sample_days  INTEGER      NOT NULL CHECK (sample_days > 0),
+    computed_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (route_id, stop_id, day_type, bucket)
+);
+
+-- ────────────────────────────────────────────────────────────
 -- 8. schedule_periods — 셔틀 운행 기간
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE schedule_periods (

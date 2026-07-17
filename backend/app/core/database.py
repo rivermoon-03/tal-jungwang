@@ -9,6 +9,10 @@ engine = create_async_engine(
     settings.database_url,
     echo=(settings.ENVIRONMENT == "development"),
     pool_pre_ping=True,
+    # 워커수 x pool_size(+max_overflow) <= max_connections(100)의 70% 를 목표로 설정.
+    pool_size=10,
+    max_overflow=5,
+    pool_recycle=1800,
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)

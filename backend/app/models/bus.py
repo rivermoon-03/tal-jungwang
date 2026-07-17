@@ -128,3 +128,28 @@ class BusArrivalStats(Base):
     mean_interval_sec: Mapped[int] = mapped_column(Integer, nullable=False)
     sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BusCrowdingStats(Base):
+    """`bus_crowding_logs` 사전 집계 (30분 버킷 평균 혼잡도).
+
+    day_type은 bus_arrival_stats 등 다른 사전집계 테이블의 3분류
+    (weekday/saturday/sunday)와 달리 crowding_flow.py 도메인을 그대로 따라
+    'weekday'/'weekend' 2분류다 (compute_crowding_flow의 isodow<=5 기준).
+    bucket = hour*2 + half (half: 0=00분대, 1=30분대), 0~47 범위.
+    """
+
+    __tablename__ = "bus_crowding_stats"
+
+    route_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_routes.id", ondelete="CASCADE"), primary_key=True
+    )
+    stop_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_stops.id", ondelete="CASCADE"), primary_key=True
+    )
+    day_type: Mapped[str] = mapped_column(String(10), primary_key=True)  # weekday|weekend
+    bucket: Mapped[int] = mapped_column(SmallInteger, primary_key=True)  # 0~47
+    avg_crowded: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
+    sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    sample_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
