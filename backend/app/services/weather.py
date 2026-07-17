@@ -256,8 +256,49 @@ async def get_forecast(hours: int = 12) -> ForecastResponse:
     return ForecastResponse(items=result.items[:hours])
 
 
+async def refresh_weather_live_cache() -> None:
+    """APScheduler에서 매시간 호출 — 초단기실황(weather:live) 캐시만 갱신.
+
+    현재 기온/체감/실황 상태를 1시간 주기로 갱신한다. 단기예보는 별도 함수에서 처리.
+    """
+    try:
+        ncst_items = await fetch_ultra_srt_ncst()
+        # 경고 판정을 위해 현재 예보 슬롯이 필요하므로 예보도 조회하지만,
+        # 캐시는 현재 실황(CACHE_KEY_LIVE)에만 기록한다.
+        fcst_items = await fetch_village_fcst(hours=12)
+        now = datetime.now(_KST)
+        ncst = _ncst_map(ncst_items)
+        fcst = _fcst_map(fcst_items)
+        result = _build_current(ncst, fcst, now)
+        await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
+        logger.info("초단기실황 캐시 갱신 완료 (temp=%s°)", result.current_temp)
+    except Exception:
+        logger.exception("초단기실황 캐시 갱신 실패")
+
+
+async def refresh_weather_forecast_cache() -> None:
+    """APScheduler에서 3시간 주기(02·05·08·11·14·17·20·23시 발표 후)로 호출 —
+    단기예보(weather:forecast) 캐시만 갱신.
+
+    KMA 단기예보는 3시간 주기 발표이므로, 매시간 호출하면 불필요한 API 중복 호출이 발생한다.
+    이 함수는 발표 후 충분한 시간(발표+15분 등)에 한 번만 호출되어야 한다.
+    """
+    try:
+        fcst_items = await fetch_village_fcst(hours=72)  # 최대 72시간
+        now = datetime.now(_KST)
+        fcst = _fcst_map(fcst_items)
+        result = _build_forecast(fcst, now, hours=72)
+        await set_cached_json(CACHE_KEY_FORECAST, result.model_dump(), CACHE_TTL_FORECAST)
+        logger.info("단기예보 캐시 갱신 완료 (items=%d)", len(result.items))
+    except Exception:
+        logger.exception("단기예보 캐시 갱신 실패")
+
+
 async def refresh_weather_cache() -> None:
-    """APScheduler에서 주기적으로 호출 — weather:live 캐시를 갱신한다."""
+    """호환성 유지용 — 초단기실황 + 단기예보를 동시 갱신 (진구 코드에서 호출 가능).
+
+    새 코드에서는 _weather_live_refresh_job과 _weather_forecast_refresh_job으로 분리.
+    """
     try:
         ncst_items = await fetch_ultra_srt_ncst()
         fcst_items = await fetch_village_fcst(hours=12)

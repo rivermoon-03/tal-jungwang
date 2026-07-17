@@ -26,18 +26,38 @@ async def _collect_job():
         logger.exception("Scheduled traffic collection failed")
 
 
-async def _weather_refresh_job():
-    """날씨 캐시를 갱신하는 스케줄 작업 (05:00~24:00 KST)."""
+async def _weather_live_refresh_job():
+    """초단기실황(현재 기온/체감/실황) 캐시를 매시간 갱신 (05:00~23:59 KST).
+
+    TTL=3600초(1시간), cron=60분 → TTL ≤ cron 간격 준수.
+    """
     hour = datetime.now(_KST).hour
     if not (5 <= hour <= 23):
         return  # 심야 제외
 
-    from app.services.weather import refresh_weather_cache
+    from app.services.weather import refresh_weather_live_cache
 
     try:
-        await refresh_weather_cache()
+        await refresh_weather_live_cache()
     except Exception:
-        logger.exception("날씨 캐시 갱신 실패")
+        logger.exception("초단기실황 캐시 갱신 실패")
+
+
+async def _weather_forecast_refresh_job():
+    """단기예보(12~72시간) 캐시를 3시간 주기로 갱신.
+
+    KMA 단기예보는 02·05·08·11·14·17·20·23시에 발표되고, 발표 후 ~10분부터
+    응답이 가능하다. 본 job은 발표 후 충분한 시간(발표+15분)에 실행되도록
+    CronTrigger(hour="2,5,8,11,14,17,20,23", minute=15)로 등록된다.
+
+    TTL=10800초(3시간), cron=3시간 주기 → TTL ≤ cron 간격 준수.
+    """
+    from app.services.weather import refresh_weather_forecast_cache
+
+    try:
+        await refresh_weather_forecast_cache()
+    except Exception:
+        logger.exception("단기예보 캐시 갱신 실패")
 
 
 async def _bus_report_job():
@@ -244,17 +264,35 @@ def setup_scheduler():
         "Bus arrival polling scheduler configured (every 45s, skip 02:00-03:59 KST)"
     )
 
-    # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
+    # ── 초단기실황 캐시 갱신 (매시간 60분 간격, 05:00~23:59 KST) ──
+    # TTL=1h(3600s), cron=60분 → TTL ≤ cron 간격 준수, cron 1회 누락도 자가회복
     scheduler.add_job(
-        _weather_refresh_job,
+        _weather_live_refresh_job,
         IntervalTrigger(minutes=60),
-        id="weather_refresh",
+        id="weather_live_refresh",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
     )
     logger.info(
-        "Weather cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)"
+        "Weather live (current temp) cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)"
+    )
+
+    # ── 단기예보 캐시 갱신 (3시간 주기: 02:15, 05:15, 08:15, 11:15, 14:15, 17:15, 20:15, 23:15 KST) ──
+    # KMA 발표: 02·05·08·11·14·17·20·23시, 발표 후 ~10분부터 응답 가능
+    # → 발표 후 15분에 조회해 충분한 데이터 확보
+    # TTL=3h(10800s), cron=3시간 주기 → TTL ≤ cron 간격 준수
+    scheduler.add_job(
+        _weather_forecast_refresh_job,
+        CronTrigger(hour="2,5,8,11,14,17,20,23", minute=15, timezone="Asia/Seoul"),
+        id="weather_forecast_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300,  # 5분 허용
+    )
+    logger.info(
+        "Weather forecast cache refresh scheduler configured (every 3h at :15 KST)"
     )
 
     # ── 버스 도착 수집 리포트 (Discord 웹훅, 3시간마다 00/03/06/09/12/15/18/21 KST) ──
