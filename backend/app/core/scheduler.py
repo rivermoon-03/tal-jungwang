@@ -124,6 +124,23 @@ async def _bus_arrival_stats_refresh_job():
         logger.exception("bus_arrival_stats refresh failed")
 
 
+async def _crowding_stats_refresh_job():
+    """매일 03:35 KST에 bus_crowding_stats 전체 재계산.
+
+    bus_arrival_stats(03:30) 직후, cache_rewarm(03:40) 이전. 02:00~03:59 GBIS
+    폴링 휴식 구간 안쪽이라 운영 트래픽/다른 나이틀리 job과 겹치지 않는다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.bus_crowding_stats import refresh_all_crowding_stats
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await refresh_all_crowding_stats(session)
+            logger.info("bus_crowding_stats refresh: %s", result)
+    except Exception:
+        logger.exception("bus_crowding_stats refresh failed")
+
+
 async def _subway_realtime_poll_job():
     """서울 지하철 실시간 도착정보 폴링 (정왕·시흥시청·초지).
 
@@ -293,6 +310,19 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info("Bus arrival stats refresh scheduler configured (daily 03:30 KST)")
+
+    # ── 버스 혼잡도 통계 재계산 (매일 03:35 KST) ──
+    # bus_crowding_logs 60일치를 (route, stop, day_type, 30분버킷)별로 사전 집계.
+    # bus_arrival_stats(03:30) 직후, cache_rewarm(03:40) 이전 슬롯.
+    scheduler.add_job(
+        _crowding_stats_refresh_job,
+        CronTrigger(hour=3, minute=35, timezone="Asia/Seoul"),
+        id="bus_crowding_stats_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("Bus crowding stats refresh scheduler configured (daily 03:35 KST)")
 
     # ── 정적/준정적 캐시 재적재 (매일 03:40 KST) ──
     # 버스(24h)·지하철(12h)·셔틀·마커 시간표 캐시를 TTL 만료 전 다시 채워
