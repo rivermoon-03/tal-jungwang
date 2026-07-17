@@ -100,6 +100,7 @@ async def bus_stations(
 @limiter.limit("60/minute")
 async def bus_arrivals(
     request: Request,
+    response: Response,
     station_id: int,
     db: AsyncSession = Depends(get_db),
 ):
@@ -108,6 +109,7 @@ async def bus_arrivals(
     result = await get_arrivals(db, station_id, now.date(), now.time())
     if not result:
         return ApiResponse.fail("BUS_STATION_NOT_FOUND", "해당 정류장 ID가 존재하지 않습니다.")
+    response.headers["Cache-Control"] = "public, max-age=10, stale-while-revalidate=30"
     return ApiResponse[BusArrivalsResponse].ok(result)
 
 
@@ -262,6 +264,7 @@ def _compute_predicted_eta(
 @limiter.limit("30/minute")
 async def bus_history_preview(
     request: Request,
+    response: Response,
     route_number: str,
     stop_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -281,6 +284,7 @@ async def bus_history_preview(
     """
     # stop_id는 GBIS station id 문자열로 올 수 있어 캐시 키에 그대로 포함
     cache_key = f"bus:history_preview:{route_number}:{stop_id or 'auto'}"
+    response.headers["Cache-Control"] = "public, max-age=120, stale-while-revalidate=600"
     cached = await get_cached_json(cache_key)
     if cached is not None:
         return ApiResponse.ok(cached)
@@ -398,6 +402,7 @@ async def bus_history_preview(
 @limiter.limit("60/minute")
 async def bus_arrival_stats_lookup(
     request: Request,
+    response: Response,
     route_id: int,
     stop_id: int,
     hour: int | None = Query(None, ge=0, le=23),
@@ -422,6 +427,7 @@ async def bus_arrival_stats_lookup(
 
     stats = await get_arrival_stats(db, route_id, stop_id, resolved_day, resolved_hour)
 
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
     return ApiResponse.ok({
         "route_id": route_id,
         "stop_id": stop_id,
@@ -438,6 +444,7 @@ _CROWDING_FLOW_CACHE_TTL = 1800  # 30분 — 혼잡도 누적은 천천히 바�
 @limiter.limit("30/minute")
 async def bus_crowding_flow(
     request: Request,
+    response: Response,
     route_number: str,
     day_type: str = Query("weekday", pattern="^(weekday|weekend)$"),
     db: AsyncSession = Depends(get_db),
@@ -448,6 +455,7 @@ async def bus_crowding_flow(
     실시간 추적 노선(gbis_route_id 존재)만 데이터가 쌓인다.
     """
     cache_key = f"crowding:flow:{route_number}:{day_type}"
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
     cached = await get_cached_json(cache_key)
     if cached is not None:
         return ApiResponse[CrowdingFlowResponse].ok(cached)
@@ -461,10 +469,12 @@ async def bus_crowding_flow(
 @limiter.limit("60/minute")
 async def bus_locations(
     request: Request,
+    response: Response,
     route_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """실시간 버스 위치 조회 (Redis 캐시 30초, 미스 시 GBIS API 호출)."""
+    response.headers["Cache-Control"] = "public, max-age=10, stale-while-revalidate=30"
     stmt = select(BusRoute).where(BusRoute.id == route_id)
     result = await db.execute(stmt)
     route = result.scalar_one_or_none()

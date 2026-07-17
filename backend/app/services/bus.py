@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import date, datetime, time, timedelta, timezone
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -268,9 +269,14 @@ async def get_stations(db: AsyncSession) -> list[dict]:
     return data
 
 
-async def get_arrivals(
-    db: AsyncSession, station_id: int, d: date, now_time: time
-) -> dict | None:
+# 정류장+연결 노선 메타 캐시 TTL(초). admin CRUD 시 invalidate_bus_meta가 즉시
+# 무효화하므로, 이 TTL은 "무효화 누락 시 최대 stale 허용치"로만 작동한다.
+STATION_META_TTL = 300
+
+
+async def _fetch_station_meta(db: AsyncSession, station_id: int) -> dict | None:
+    """station_id(먼저 gbis_station_id 외부 ID, 없으면 내부 PK)로 정류장+노선을 DB에서 조회해
+    직렬화 가능한 최소 필드만 담은 dict로 반환한다."""
     # 정류장 조회 — 먼저 gbis_station_id(외부 ID)로, 없으면 내부 PK(id)로 매칭
     # 프론트엔드는 GBIS 정류장 ID(예: 224000639)를 그대로 전달하므로 외부 ID 우선.
     stmt = (
@@ -290,6 +296,77 @@ async def get_arrivals(
         stop = result.scalar_one_or_none()
     if not stop:
         return None
+
+    return {
+        "id": stop.id,
+        "name": stop.name,
+        "gbis_station_id": stop.gbis_station_id,
+        "lat": float(stop.lat),
+        "lng": float(stop.lng),
+        "routes": [
+            {
+                "id": r.id,
+                "route_number": r.route_number,
+                "direction_name": r.direction_name,
+                "category": r.category,
+                "gbis_route_id": r.gbis_route_id,
+                "is_realtime": r.is_realtime,
+            }
+            for r in stop.routes
+        ],
+    }
+
+
+def _station_meta_to_stop(meta: dict) -> SimpleNamespace:
+    """캐시된 정류장 메타(dict)를 get_arrivals 나머지 로직이 기대하는 속성 접근 형태로 복원.
+    ORM 객체 대신 SimpleNamespace를 써서 DB 재조회 없이 동일한 `stop.x`/`route.x` 접근을 지원."""
+    stop = SimpleNamespace(
+        id=meta["id"],
+        name=meta["name"],
+        gbis_station_id=meta["gbis_station_id"],
+        lat=meta.get("lat"),
+        lng=meta.get("lng"),
+    )
+    stop.routes = [
+        SimpleNamespace(
+            id=r["id"],
+            route_number=r["route_number"],
+            direction_name=r["direction_name"],
+            category=r["category"],
+            gbis_route_id=r["gbis_route_id"],
+            is_realtime=r["is_realtime"],
+        )
+        for r in meta["routes"]
+    ]
+    return stop
+
+
+async def _get_station_meta(db: AsyncSession, station_id: int) -> dict | None:
+    """정류장+노선 메타를 cache-aside로 조회한다. 캐시 히트 시 DB 재조회 없음.
+
+    키: bus:station_meta:{station_id} (station_id는 요청 시 넘어온 원본 값 —
+    gbis_station_id 또는 내부 PK). TTL은 STATION_META_TTL. admin CRUD는
+    invalidate_bus_meta로 즉시 무효화한다.
+    """
+    cache_key = f"bus:station_meta:{station_id}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return cached
+
+    meta = await _fetch_station_meta(db, station_id)
+    if meta is None:
+        return None
+    await set_cached_json(cache_key, meta, ttl=STATION_META_TTL)
+    return meta
+
+
+async def get_arrivals(
+    db: AsyncSession, station_id: int, d: date, now_time: time
+) -> dict | None:
+    meta = await _get_station_meta(db, station_id)
+    if meta is None:
+        return None
+    stop = _station_meta_to_stop(meta)
 
     # 내부 PK로 이후 쿼리를 수행 (시간표 JOIN 등은 stop.id 기준)
     station_id = stop.id
@@ -655,6 +732,17 @@ async def invalidate_bus_meta(route_id: int | None = None) -> None:
         # bus:routes:{category|'all'} — 보통 4개 미만이라 SCAN+UNLINK
         batch: list[str] = []
         async for key in redis.scan_iter(match="bus:routes:*", count=200):
+            batch.append(key)
+            if len(batch) >= 200:
+                await redis.unlink(*batch)
+                batch.clear()
+        if batch:
+            await redis.unlink(*batch)
+            batch.clear()
+
+        # bus:station_meta:{station_id} — get_arrivals 핫패스 캐시. 정류장/노선
+        # 수정 시 stale 방지를 위해 bus:stations와 함께 무효화한다.
+        async for key in redis.scan_iter(match="bus:station_meta:*", count=200):
             batch.append(key)
             if len(batch) >= 200:
                 await redis.unlink(*batch)

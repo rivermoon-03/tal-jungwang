@@ -2,7 +2,7 @@ import asyncio
 import json
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.core.cache import get_redis
 from app.core.limiter import limiter
@@ -76,8 +76,9 @@ def _walk_cache_key(origin_lat: float, origin_lng: float,
 
 @router.get("/taxi-to-station")
 @limiter.limit("30/minute")
-async def taxi_to_station(request: Request):
+async def taxi_to_station(request: Request, response: Response):
     """학교 셔틀 탑승지 → 정왕역 자동차 이동 시간 (카카오모빌리티, 5분 캐시)."""
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=1200"
     try:
         redis = await get_redis()
         cached = await redis.get(_TAXI_CACHE_KEY)
@@ -104,8 +105,9 @@ async def taxi_to_station(request: Request):
 
 @router.post("/walking")
 @limiter.limit("30/minute")
-async def walking_route(request: Request, req: RouteRequest):
+async def walking_route(request: Request, response: Response, req: RouteRequest):
     """도보 경로 탐색 (TMAP, 좌표 기반 10분 캐시)."""
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     origin_lat = req.origin.lat
     origin_lng = req.origin.lng
     dest_lat = req.destination.lat
@@ -141,8 +143,9 @@ async def walking_route(request: Request, req: RouteRequest):
 
 @router.get("/taxi-destinations")
 @limiter.limit("30/minute")
-async def taxi_destinations(request: Request):
+async def taxi_destinations(request: Request, response: Response):
     """학교 정문 → 주요 목적지 자동차 소요 시간 목록 (카카오모빌리티, 20분 캐시)."""
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=1200"
 
     async def fetch_one(dest: dict) -> dict:
         cache_key = f"route:taxi_dest_v2:{dest['id']}"
@@ -190,8 +193,9 @@ async def taxi_destinations(request: Request):
 
 @router.post("/driving")
 @limiter.limit("30/minute")
-async def driving_route(request: Request, req: RouteRequest):
+async def driving_route(request: Request, response: Response, req: RouteRequest):
     """자동차 경로 탐색 (카카오모빌리티, 좌표 기반 5분 캐시)."""
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
     origin_lat = req.origin.lat
     origin_lng = req.origin.lng
     dest_lat = req.destination.lat

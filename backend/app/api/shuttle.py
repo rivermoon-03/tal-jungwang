@@ -55,6 +55,7 @@ async def shuttle_semester_schedule(
 
 @router.get("/next")
 async def shuttle_next(
+    response: Response,
     direction: int | None = Query(None, ge=0, le=3),
     db: AsyncSession = Depends(get_db),
 ):
@@ -64,4 +65,5 @@ async def shuttle_next(
     result = await get_next(db, d, t, direction)
     if not result:
         return ApiResponse.fail("NO_SHUTTLE", "오늘 남은 셔틀이 없습니다.")
+    response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
     return ApiResponse[ShuttleNextResponse].ok(result)
