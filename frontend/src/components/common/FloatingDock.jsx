@@ -35,7 +35,7 @@ export default function FloatingDock() {
       aria-label="하단 탭 메뉴"
       className="fixed left-[14px] right-[14px] bottom-[14px] z-50 flex justify-around items-center py-[9px] rounded-[22px] shadow-dock"
       style={{
-        background: 'var(--tj-dock-bg, #1B2A4A)',
+        background: 'var(--tj-dock-bg, #1a211e)',
         marginBottom: 'env(safe-area-inset-bottom)',
       }}
     >

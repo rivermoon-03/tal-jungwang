@@ -139,7 +139,7 @@ export default function MiniTrack({
               right: '7px',
               height: '3px',
               transform: 'translateY(-50%)',
-              background: `linear-gradient(90deg, ${gradStart} 0%, var(--tj-ink, #1B2A4A) 65%, var(--tj-ink, #1B2A4A) 100%)`,
+              background: `linear-gradient(90deg, ${gradStart} 0%, var(--tj-ink, #1a211e) 65%, var(--tj-ink, #1a211e) 100%)`,
             }}
           />
         )}

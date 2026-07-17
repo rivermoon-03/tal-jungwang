@@ -55,7 +55,7 @@ function Eta({ value, imminent }) {
           {imminent && (
             <span
               aria-hidden="true"
-              className="absolute -inset-2 rounded-[14px] pointer-events-none animate-halo-pulse dark:animate-halo-pulse-dark"
+              className="absolute -inset-2 rounded-card pointer-events-none animate-halo-pulse dark:animate-halo-pulse-dark"
             />
           )}
         </span>

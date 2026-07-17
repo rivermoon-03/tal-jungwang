@@ -23,7 +23,7 @@ export default function SegmentTabs({ items = [], active, onChange }) {
             onClick={() => onChange(item.id)}
             className={[
               'flex-1 flex items-center justify-center',
-              'min-h-[44px] px-3 rounded-[8px]',
+              'min-h-[44px] px-3 rounded-badge',
               'text-label font-semibold select-none',
               'transition-colors duration-press',
               isActive

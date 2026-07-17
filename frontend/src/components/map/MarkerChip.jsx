@@ -21,11 +21,11 @@ export const ROUTE_COLOR_MAP = {
   '수인분당': '#F5A623',
   '4호선':  '#1B5FAD',
   '서해선': '#75bf43',
-  '셔틀':   '#2E8B86',
+  '셔틀':   '#12a594',
   '지하철': '#F5A623',
   'bus':    '#2563EB',
   'subway': '#F5A623',
-  'shuttle':'#2E8B86',
+  'shuttle':'#12a594',
 }
 
 /** 기본 fallback 색 */
@@ -94,7 +94,7 @@ function makeBlip(imminentEta) {
     'width:6px',
     'height:6px',
     'border-radius:999px',
-    `background:${imminentEta ? 'var(--tj-imminent)' : 'var(--tj-accent,#2E8B86)'}`,
+    `background:${imminentEta ? 'var(--tj-imminent)' : 'var(--tj-accent,#12a594)'}`,
     'flex-shrink:0',
   ].join(';')
   return blip
@@ -122,7 +122,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           alignItems: 'center',
           gap: '7px',
           background: 'var(--tj-surface)',
-          border: '1px solid var(--tj-line,#E7E4DF)',
+          border: '1px solid var(--tj-line,#d7dad9)',
           borderRadius: '999px',
           padding: '5px 11px 5px 5px',
           boxShadow: '0 3px 10px rgba(27,42,74,.12)',
@@ -179,7 +179,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
                 width: '6px',
                 height: '6px',
                 borderRadius: '999px',
-                background: imminentEta ? 'var(--tj-imminent)' : 'var(--tj-accent,#2E8B86)',
+                background: imminentEta ? 'var(--tj-imminent)' : 'var(--tj-accent,#12a594)',
                 flexShrink: 0,
               }}
             />
@@ -188,7 +188,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
         ) : (
           <span
             data-role="sub"
-            style={{ fontSize: '13px', color: 'var(--tj-mute,#5A6678)', fontVariantNumeric: 'tabular-nums' }}
+            style={{ fontSize: '13px', color: 'var(--tj-mute,#868e8b)', fontVariantNumeric: 'tabular-nums' }}
           >
             {subLabel ?? '시간표'}
           </span>
@@ -274,7 +274,7 @@ export function createMarkerChipElement({
     'align-items:center',
     'gap:7px',
     'background:var(--tj-surface)',
-    'border:1px solid #E7E4DF',
+    'border:1px solid #d7dad9',
     'border-radius:999px',
     'padding:5px 11px 5px 5px',
     'box-shadow:0 3px 10px rgba(27,42,74,.12)',
@@ -341,7 +341,7 @@ export function createMarkerChipElement({
     subEl.setAttribute('data-role', 'sub')
     subEl.style.cssText = [
       'font-size:13px',
-      'color:var(--tj-mute,#5A6678)',
+      'color:var(--tj-mute,#868e8b)',
       'font-variant-numeric:tabular-nums',
     ].join(';')
     subEl.textContent = subLabel ?? '시간표'
@@ -377,7 +377,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
     'align-items:center',
     'gap:7px',
     'background:var(--tj-surface)',
-    'border:1px solid #E7E4DF',
+    'border:1px solid #d7dad9',
     'border-radius:999px',
     'padding:5px 11px 5px 5px',
     'box-shadow:0 3px 10px rgba(27,42,74,.12)',
@@ -424,7 +424,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
   liveEl.style.cssText = [
     'font-size:14px',
     'font-weight:800',
-    `color:${imminentEta ? 'var(--tj-imminent)' : (earliestMin != null ? 'var(--tj-ink)' : 'var(--tj-mute,#5A6678)')}`,
+    `color:${imminentEta ? 'var(--tj-imminent)' : (earliestMin != null ? 'var(--tj-ink)' : 'var(--tj-mute,#868e8b)')}`,
     'display:inline-flex',
     'align-items:center',
     'gap:4px',
@@ -474,7 +474,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
     'align-items:center',
     'gap:7px',
     'background:var(--tj-surface)',
-    'border:1px solid #E7E4DF',
+    'border:1px solid #d7dad9',
     'border-radius:999px',
     'padding:5px 11px 5px 5px',
     'box-shadow:0 3px 10px rgba(27,42,74,.12)',
@@ -506,7 +506,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
   liveEl.style.cssText = [
     'font-size:14px',
     'font-weight:800',
-    `color:${imminentEta ? 'var(--tj-imminent)' : (bestMin != null ? 'var(--tj-ink)' : 'var(--tj-mute,#5A6678)')}`,
+    `color:${imminentEta ? 'var(--tj-imminent)' : (bestMin != null ? 'var(--tj-ink)' : 'var(--tj-mute,#868e8b)')}`,
     'display:inline-flex',
     'align-items:center',
     'gap:4px',

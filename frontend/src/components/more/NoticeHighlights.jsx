@@ -3,7 +3,7 @@
  *
  * 시안1 특징:
  *   - 좌측 스트라이프 제거 → 핀 아이콘 칩(accent 배경 30×30) + 글로우 효과
- *   - hero bg: linear-gradient(150deg, #1B2A4A, #223861)
+ *   - hero bg: linear-gradient(150deg, #1a211e, #202221) — sage12/sage3(다크) 톤
  *   - 우상단 radial-gradient 글로우 (accent 반투명)
  *   - 카드 안 "전체 공지 보기" chevron CTA
  *
@@ -53,10 +53,10 @@ export default function NoticeHighlights({ onOpen }) {
         overflow: 'hidden',
         padding: '20px 20px 18px',
         borderRadius: 18,
-        background: 'linear-gradient(150deg, #1B2A4A 0%, #223861 100%)',
+        background: 'linear-gradient(150deg, #1a211e 0%, #202221 100%)',
         color: '#fff',
         border: 'none',
-        boxShadow: '0 8px 22px rgba(27,42,74,0.24)',
+        boxShadow: '0 8px 22px rgba(26,33,30,0.24)',
         cursor: 'pointer',
       }}
       aria-label={`공지: ${top.title}`}
@@ -71,7 +71,7 @@ export default function NoticeHighlights({ onOpen }) {
           width: 160,
           height: 160,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(46,139,134,0.45), transparent 70%)',
+          background: 'radial-gradient(circle, rgba(18,165,148,0.45), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -84,7 +84,7 @@ export default function NoticeHighlights({ onOpen }) {
             width: 30,
             height: 30,
             borderRadius: 10,
-            background: 'rgba(46,139,134,0.92)',
+            background: 'rgba(18,165,148,0.92)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
