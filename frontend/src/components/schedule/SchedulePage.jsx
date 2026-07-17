@@ -13,6 +13,7 @@ import RouteBadge from '../common/RouteBadge'
 import Skeleton from '../common/Skeleton'
 import BusArrivalCard, { CrowdedBadge } from '../bus/BusArrivalCard'
 import useAppStore from '../../stores/useAppStore'
+import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
@@ -20,10 +21,25 @@ import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute, getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, CalendarClock } from 'lucide-react'
 import StatsSheet from './StatsSheet'
 import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
 import HolidayBanner from '../common/HolidayBanner'
+
+// PC · 시간표 2열 레이아웃(좌: 노선 리스트 / 우: 상세)에서 아직 아무 노선도
+// 선택하지 않았을 때 우측 컬럼에 보이는 빈 상태.
+function ScheduleDetailEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+      <CalendarClock size={32} className="text-mute dark:text-mute" aria-hidden="true" />
+      <p className="text-label font-semibold text-mute dark:text-mute">
+        왼쪽에서 노선을 선택하면
+        <br />
+        상세 시간표가 여기 표시돼요
+      </p>
+    </div>
+  )
+}
 
 // ─── map marker lookup ──────────────────────────────────────────────────────
 function distanceMeters(lat1, lng1, lat2, lng2) {
@@ -771,6 +787,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
 
 // ─── main component ──────────────────────────────────────────────────────────
 export default function SchedulePage() {
+  const isDesktop = useIsDesktop()
   const [query, setQuery] = useState(readQuery)
 
   useEffect(() => {
@@ -855,58 +872,77 @@ export default function SchedulePage() {
     : mode === 'shuttle' ? setShuttleCampus
     : () => {}
 
+  const detailModalProps = {
+    open: selectedDetail != null,
+    onClose: handleModalClose,
+    type: selectedDetail?.type,
+    routeCode: selectedDetail?.routeCode,
+    routeId: selectedDetail?.routeId ?? null,
+    stopId: selectedDetail?.stopId ?? null,
+    category: selectedDetail?.category ?? null,
+    direction: selectedDetail?.direction,
+    subwayKey: selectedDetail?.subwayKey,
+    accentColor: selectedDetail?.accentColor,
+    isRealtime: selectedDetail?.isRealtime ?? false,
+    title: selectedDetail?.title ?? '',
+    isFavorite: selectedDetail?.favCode ? isFav(selectedDetail.favCode) : false,
+    onToggleFav: selectedDetail?.favCode ? () => handleToggleFav(selectedDetail.favCode) : null,
+    onShowMap:
+      selectedDetail?.mapLat != null && selectedDetail?.mapLng != null
+        ? () => {
+            setMapPanTarget({ lat: selectedDetail.mapLat, lng: selectedDetail.mapLng })
+            handleModalClose()
+            if (window.location.pathname !== '/') {
+              window.history.pushState({}, '', '/')
+              window.dispatchEvent(new PopStateEvent('popstate'))
+            }
+          }
+        : null,
+  }
+
+  const sectionViewProps = {
+    mode,
+    handleModeChange,
+    favoritesOnly,
+    setFavoritesOnly,
+    groups,
+    activeGroupId,
+    setActiveGroup,
+    busGroup,
+    subwayGroup,
+    shuttleCampus,
+    handleCardClick,
+    favCodes,
+    onOpenStats: () => setStatsOpen(true),
+    subwayDataMode,
+    setSubwayDataMode,
+  }
+
   return (
     <div className="flex flex-col h-full bg-surface dark:bg-bg animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
       <PageHeader title="시간표" />
 
-      <ScheduleSectionView
-        mode={mode}
-        handleModeChange={handleModeChange}
-        favoritesOnly={favoritesOnly}
-        setFavoritesOnly={setFavoritesOnly}
-        groups={groups}
-        activeGroupId={activeGroupId}
-        setActiveGroup={setActiveGroup}
-        busGroup={busGroup}
-        subwayGroup={subwayGroup}
-        shuttleCampus={shuttleCampus}
-        handleCardClick={handleCardClick}
-        favCodes={favCodes}
-        onOpenStats={() => setStatsOpen(true)}
-        subwayDataMode={subwayDataMode}
-        setSubwayDataMode={setSubwayDataMode}
-      />
+      {isDesktop ? (
+        // PC · 시간표 시안: 좌(노선 리스트+요일) / 우(선택한 노선의 그리드+통계).
+        // 데이터 훅은 그대로 재사용 — 모바일의 리스트/모달 컴포넌트를 레이아웃만 갈아끼운다.
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <div className="w-[380px] flex-shrink-0 h-full flex flex-col overflow-hidden border-r border-line dark:border-line">
+            <ScheduleSectionView {...sectionViewProps} />
+          </div>
+          <div className="flex-1 min-w-0 h-full overflow-hidden bg-bg dark:bg-bg">
+            {selectedDetail != null
+              ? <ScheduleDetailModal {...detailModalProps} pcMode="inline" />
+              : <ScheduleDetailEmptyState />}
+          </div>
+        </div>
+      ) : (
+        <ScheduleSectionView {...sectionViewProps} />
+      )}
 
       <StatsSheet open={statsOpen} onClose={() => setStatsOpen(false)} />
 
-      <ScheduleDetailModal
-        open={selectedDetail != null}
-        onClose={handleModalClose}
-        type={selectedDetail?.type}
-        routeCode={selectedDetail?.routeCode}
-        routeId={selectedDetail?.routeId ?? null}
-        stopId={selectedDetail?.stopId ?? null}
-        category={selectedDetail?.category ?? null}
-        direction={selectedDetail?.direction}
-        subwayKey={selectedDetail?.subwayKey}
-        accentColor={selectedDetail?.accentColor}
-        isRealtime={selectedDetail?.isRealtime ?? false}
-        title={selectedDetail?.title ?? ''}
-        isFavorite={selectedDetail?.favCode ? isFav(selectedDetail.favCode) : false}
-        onToggleFav={selectedDetail?.favCode ? () => handleToggleFav(selectedDetail.favCode) : null}
-        onShowMap={
-          selectedDetail?.mapLat != null && selectedDetail?.mapLng != null
-            ? () => {
-                setMapPanTarget({ lat: selectedDetail.mapLat, lng: selectedDetail.mapLng })
-                handleModalClose()
-                if (window.location.pathname !== '/') {
-                  window.history.pushState({}, '', '/')
-                  window.dispatchEvent(new PopStateEvent('popstate'))
-                }
-              }
-            : null
-        }
-      />
+      {/* 데스크톱은 위 우측 컬럼에 pcMode="inline"으로 이미 렌더 — 모바일 바텀시트만 추가로 마운트 */}
+      {!isDesktop && <ScheduleDetailModal {...detailModalProps} />}
     </div>
   )
 }

@@ -23,7 +23,7 @@ import DarkModeSegment from './DarkModeSegment'
 // ── 공용 행/섹션 프리미티브 (DESIGN.md sc-set 대응) ──────────────────────
 function SectionLabel({ children }) {
   return (
-    <div className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest px-1 mb-2 mt-5 first:mt-0">
+    <div className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest px-1 mb-2">
       {children}
     </div>
   )
@@ -32,6 +32,18 @@ function SectionLabel({ children }) {
 function SettingsGroup({ children }) {
   return (
     <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card overflow-hidden divide-y divide-line dark:divide-line">
+      {children}
+    </div>
+  )
+}
+
+// 라벨+그룹을 한 단위로 묶어, PC 브레이크포인트에서 2열 그리드의 grid item으로
+// 쓸 수 있게 한다(PC·설정 시안 — 더 넓은 카드 그리드). 모바일은 기존과 동일하게
+// 세로로 쌓인다 — CSS는 열 개수만 바꿀 뿐 컴포넌트 자체를 숨기지 않는다.
+function Section({ label, children }) {
+  return (
+    <div>
+      <SectionLabel>{label}</SectionLabel>
       {children}
     </div>
   )
@@ -139,9 +151,15 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
         <h1 className="text-panel-ttl text-ink dark:text-ink">설정</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-6">
+      {/*
+        PC·설정 시안: 더 넓은 2열 카드 그리드. 모바일은 기존과 동일하게 세로 스택
+        (flex-col gap-5), md 브레이크포인트에서만 grid-cols-2로 reflow — 컴포넌트를
+        숨기는 게 아니라 같은 마크업을 재배치하는 것뿐이라 CSS 반응형으로 충분하다.
+      */}
+      <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-10 md:px-8">
+        <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:gap-6 md:max-w-[1040px] md:mx-auto md:items-start">
         {/* ── 개인화 ── */}
-        <SectionLabel>개인화</SectionLabel>
+        <Section label="개인화">
         <SettingsGroup>
           <div className="px-4 py-3.5">
             <div className="flex items-center gap-3 mb-3">
@@ -232,9 +250,10 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
 
           <Row icon={Home} title="시작 화면" desc="앱을 열었을 때 처음 보이는 화면" right={<ValueChevron value="홈" />} />
         </SettingsGroup>
+        </Section>
 
         {/* ── 알림 ── */}
-        <SectionLabel>알림</SectionLabel>
+        <Section label="알림">
         <SettingsGroup>
           {/* 기존 NotificationsPage("개발 중" 안내)로 이동 — 새 로직 없음, 기존 서브페이지 재사용 */}
           <Row
@@ -258,9 +277,10 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
           />
           <Row icon={Moon} title="방해 금지" desc="이 시간대엔 알림을 보내지 않아요" right={<ValueChevron value="23–07시" />} />
         </SettingsGroup>
+        </Section>
 
         {/* ── 데이터 · 위치 ── */}
-        <SectionLabel>데이터 · 위치</SectionLabel>
+        <Section label="데이터 · 위치">
         <SettingsGroup>
           <Row icon={RefreshCw} title="실시간 새로고침" desc="도착 정보 자동 갱신 주기" right={<ValueChevron value="30초" />} />
           <Row
@@ -271,15 +291,18 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
           />
           <Row icon={MapPin} title="위치 권한" desc="브라우저/기기 설정에서 변경할 수 있어요" right={<ValueChevron value="사용 중" />} />
         </SettingsGroup>
+        </Section>
 
         {/* ── 기타 ── */}
-        <SectionLabel>기타</SectionLabel>
+        <Section label="기타">
         <SettingsGroup>
           <Row icon={Globe} title="언어" right={<ValueChevron value="한국어" />} />
           <Row icon={Trash2} title="캐시 비우기" right={<span className="text-[14px] font-semibold text-mute dark:text-mute">관리 예정</span>} />
           {/* 실제 동작: 기존 AppInfoPage 서브페이지로 이동 */}
           <Row icon={Info} title="앱 정보 · 오픈소스" right={<ChevronRight size={16} className="text-mute dark:text-mute" aria-hidden="true" />} onClick={onOpenAppInfo} />
         </SettingsGroup>
+        </Section>
+        </div>
       </div>
     </div>
   )

@@ -4,6 +4,10 @@
  * - 모바일: vaul(Drawer) 기반 스와이프 다운 닫기(Phase C). PC: 좌측 패널 내
  *   콘텐츠 교체형 크로스페이드(기존 UX 유지, vaul 미적용 — 오프캔버스 슬라이드가 아님).
  * - FloatingDock 위로 띄워지도록 bottom padding 확보
+ * - pcMode="overlay"(기본, GlobalDetailModal 용) — PCMainShell 좌측 38% 패널 위에
+ *   fixed portal로 뜬다(맵 홈 전용 geometry 가정).
+ *   pcMode="inline"(SchedulePage PC 2열 레이아웃 전용) — portal/fixed 없이 부모가 준
+ *   컨테이너를 그대로 채운다(Phase D PC · 시간표).
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -853,7 +857,7 @@ function BusHistoryContent({ routeNumber, category }) {
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null, pcMode = 'overlay' }) {
   const isPC =
     typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
@@ -971,7 +975,20 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
     </>
   )
 
-  // ── PC: 좌측 패널 내 콘텐츠 교체형 크로스페이드 (기존 UX, vaul 미적용) ──
+  // ── PC · inline: SchedulePage 2열 레이아웃의 우측 컬럼을 그대로 채운다.
+  // portal/fixed 없음 — 부모(SchedulePage)의 컨테이너가 위치·크기를 결정.
+  if (isPC && pcMode === 'inline') {
+    return (
+      <div className="w-full h-full bg-surface dark:bg-surface flex flex-col animate-panel-swap">
+        {header}
+        {body}
+      </div>
+    )
+  }
+
+  // ── PC · overlay(기본): 좌측 패널 내 콘텐츠 교체형 크로스페이드 (기존 UX, vaul 미적용) ──
+  // GlobalDetailModal 전용 — 맵 홈(PCMainShell 38%/62% split)에서만 트리거되므로
+  // 고정 폭 38% 가정이 유효하다.
   if (isPC) {
     return createPortal(
       <div
