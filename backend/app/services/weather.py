@@ -21,6 +21,7 @@ _KST = ZoneInfo("Asia/Seoul")
 
 CACHE_KEY_LIVE = "weather:live"
 CACHE_KEY_FORECAST = "weather:forecast"
+CACHE_KEY_FORECAST_RAW = "weather:forecast:raw"  # KMA API 응답 원본(tuple 키 직렬화형)
 CACHE_TTL_LIVE = 3600      # 1시간 — 초단기실황, 사용자 요구에 맞춰 호출 빈도 최소화
 CACHE_TTL_FORECAST = 10800  # 3시간 — 단기예보 발표 주기(02·05·08·11·14·17·20·23시)와 동기화
 
@@ -55,6 +56,21 @@ def _fcst_map(items: list[dict]) -> dict[tuple[str, str], dict[str, str]]:
     for item in items:
         key = (item.get("fcstDate", ""), item.get("fcstTime", ""))
         result.setdefault(key, {})[item.get("category", "")] = item.get("fcstValue", "")
+    return result
+
+
+def _serialize_fcst_map(fcst: dict[tuple[str, str], dict[str, str]]) -> dict[str, dict[str, str]]:
+    """tuple 키 fcst dict를 JSON 직렬화 가능한 형태로 변환 (키: "YYYYMMDD_HHMM")."""
+    return {f"{date}_{time}": values for (date, time), values in fcst.items()}
+
+
+def _deserialize_fcst_map(fcst_json: dict[str, dict[str, str]]) -> dict[tuple[str, str], dict[str, str]]:
+    """JSON 직렬화된 fcst dict를 tuple 키로 복원."""
+    result: dict[tuple[str, str], dict[str, str]] = {}
+    for key_str, values in fcst_json.items():
+        parts = key_str.split("_", 1)
+        if len(parts) == 2:
+            result[(parts[0], parts[1])] = values
     return result
 
 
@@ -259,16 +275,37 @@ async def get_forecast(hours: int = 12) -> ForecastResponse:
 async def refresh_weather_live_cache() -> None:
     """APScheduler에서 매시간 호출 — 초단기실황(weather:live) 캐시만 갱신.
 
-    현재 기온/체감/실황 상태를 1시간 주기로 갱신한다. 단기예보는 별도 함수에서 처리.
+    현재 기온/체감/실황 상태를 1시간 주기로 갱신한다.
+    _build_current()에 필요한 예보 데이터는 refresh_weather_forecast_cache()에서
+    이미 저장된 raw 캐시(weather:forecast:raw)를 먼저 시도한다.
+    캐시 미스 시에만 폴백으로 fetch_village_fcst()를 호출하여 API 호출을 최소화한다.
+
+    이를 통해 매일 단기예보 API(fetch_village_fcst)는 3시간 주기(8회/일)만 호출되고,
+    live job(24회/일)에서는 fetch_village_fcst를 호출하지 않는다.
     """
     try:
         ncst_items = await fetch_ultra_srt_ncst()
-        # 경고 판정을 위해 현재 예보 슬롯이 필요하므로 예보도 조회하지만,
-        # 캐시는 현재 실황(CACHE_KEY_LIVE)에만 기록한다.
-        fcst_items = await fetch_village_fcst(hours=12)
         now = datetime.now(_KST)
         ncst = _ncst_map(ncst_items)
-        fcst = _fcst_map(fcst_items)
+
+        # 1순위: 3시간마다 저장된 raw 예보 캐시 사용
+        fcst_raw_cached = await get_cached_json(CACHE_KEY_FORECAST_RAW)
+        if fcst_raw_cached:
+            try:
+                fcst = _deserialize_fcst_map(fcst_raw_cached)
+                logger.debug("초단기실황 갱신: 예보 캐시 재사용 (slots=%d)", len(fcst))
+            except Exception as e:
+                logger.warning("예보 캐시 역직렬화 실패: %s, 폴백으로 fetch", e)
+                fcst_raw_cached = None
+        else:
+            fcst_raw_cached = None
+
+        # 2순위: 캐시 미스 또는 역직렬화 실패 → 폴백으로 fetch
+        if not fcst_raw_cached:
+            logger.debug("초단기실황 갱신: 예보 캐시 미스, fetch_village_fcst 폴백")
+            fcst_items = await fetch_village_fcst(hours=12)
+            fcst = _fcst_map(fcst_items)
+
         result = _build_current(ncst, fcst, now)
         await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
         logger.info("초단기실황 캐시 갱신 완료 (temp=%s°)", result.current_temp)
@@ -282,14 +319,24 @@ async def refresh_weather_forecast_cache() -> None:
 
     KMA 단기예보는 3시간 주기 발표이므로, 매시간 호출하면 불필요한 API 중복 호출이 발생한다.
     이 함수는 발표 후 충분한 시간(발표+15분 등)에 한 번만 호출되어야 한다.
+
+    또한 원본 fcst dict(tuple 키)를 별도로 캐시(_forecast_raw)해두어,
+    refresh_weather_live_cache()에서 재사용하고 불필요한 fetch_village_fcst 호출을 피하게 한다.
     """
     try:
         fcst_items = await fetch_village_fcst(hours=72)  # 최대 72시간
         now = datetime.now(_KST)
         fcst = _fcst_map(fcst_items)
         result = _build_forecast(fcst, now, hours=72)
+
+        # 예보 응답 저장 (사용자 요청 응답용)
         await set_cached_json(CACHE_KEY_FORECAST, result.model_dump(), CACHE_TTL_FORECAST)
-        logger.info("단기예보 캐시 갱신 완료 (items=%d)", len(result.items))
+
+        # 원본 fcst dict를 직렬화해서 저장 (live job에서 재사용용)
+        fcst_serialized = _serialize_fcst_map(fcst)
+        await set_cached_json(CACHE_KEY_FORECAST_RAW, fcst_serialized, CACHE_TTL_FORECAST)
+
+        logger.info("단기예보 캐시 갱신 완료 (items=%d, raw fcst=%d slots)", len(result.items), len(fcst))
     except Exception:
         logger.exception("단기예보 캐시 갱신 실패")
 
