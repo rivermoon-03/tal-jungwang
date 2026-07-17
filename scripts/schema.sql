@@ -103,6 +103,12 @@ CREATE TABLE bus_arrival_history (
 CREATE INDEX idx_bus_arrival_route_stop_day
     ON bus_arrival_history (route_id, stop_id, day_type, arrived_at);
 
+-- retention.py 나이틀리 정리(90일 보존)는 arrived_at 단독 조건(< now() - interval)
+-- 으로 삭제 대상 5000행을 찾는다. 위 복합 인덱스는 arrived_at이 선두가 아니라
+-- 이 조회에 못 쓰인다 → 단독 인덱스 추가.
+CREATE INDEX idx_bus_arrival_arrived_at
+    ON bus_arrival_history (arrived_at);
+
 -- ────────────────────────────────────────────────────────────
 -- 6. bus_arrival_stats — 분포 사전 집계 (p10/p50/p90/mean)
 -- ────────────────────────────────────────────────────────────
@@ -138,6 +144,12 @@ CREATE TABLE bus_crowding_logs (
 
 CREATE INDEX idx_crowding_route_stop_at
     ON bus_crowding_logs (route_id, stop_id, recorded_at);
+
+-- retention.py 나이틀리 정리(90일 보존)는 recorded_at 단독 조건으로 삭제 대상
+-- 5000행을 찾는다. 위 복합 인덱스는 recorded_at이 선두가 아니라 이 조회에
+-- 못 쓰인다 → 단독 인덱스 추가(traffic_history의 idx_traffic_collected_at과 동일 패턴).
+CREATE INDEX idx_crowding_recorded_at
+    ON bus_crowding_logs (recorded_at);
 
 -- ────────────────────────────────────────────────────────────
 -- 7b. bus_crowding_stats — 혼잡도 곡선 사전 집계 (30분 버킷 평균)

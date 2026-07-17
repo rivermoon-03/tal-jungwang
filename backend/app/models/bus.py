@@ -89,6 +89,8 @@ class BusCrowdingLog(Base):
 
     __table_args__ = (
         Index("idx_crowding_route_stop_at", "route_id", "stop_id", "recorded_at"),
+        # retention.py 나이틀리 삭제(recorded_at 단독 조건)용 인덱스.
+        Index("idx_crowding_recorded_at", "recorded_at"),
     )
 
 
@@ -108,6 +110,8 @@ class BusArrivalHistory(Base):
 
     __table_args__ = (
         Index("idx_bus_arrival_route_stop_day", "route_id", "stop_id", "day_type", "arrived_at"),
+        # retention.py 나이틀리 삭제(arrived_at 단독 조건)용 인덱스.
+        Index("idx_bus_arrival_arrived_at", "arrived_at"),
     )
 
 
