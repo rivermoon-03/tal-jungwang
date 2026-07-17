@@ -3,7 +3,7 @@ import { Sun, Cloud, CloudSun, CloudRain, CloudSnow } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import { useApi } from '../../hooks/useApi'
 
-const SKY_ICON = {
+export const SKY_ICON = {
   sunny:         Sun,
   partly_cloudy: CloudSun,
   cloudy:        Cloud,
@@ -11,7 +11,7 @@ const SKY_ICON = {
   snowy:         CloudSnow,
 }
 
-const SKY_TEXT = {
+export const SKY_TEXT = {
   sunny:         '맑음',
   partly_cloudy: '구름많음',
   cloudy:        '흐림',

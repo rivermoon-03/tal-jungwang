@@ -1,0 +1,87 @@
+/* HomeWeatherHero — 홈 상단 A. 날씨 상태에 따라 배경/이펙트가 바뀐다.
+   맑음=푸른 글로우, 흐림=회색, 비=빗줄기, 눈=눈송이. */
+
+.whero {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  height: 136px;
+  border-radius: 0 0 22px 22px;
+  transition: background 400ms ease;
+}
+
+.whero[data-mood='sunny']  { background: linear-gradient(165deg, #dbeeff 0%, #f2faff 55%, #ffffff 100%); }
+.whero[data-mood='cloudy'] { background: linear-gradient(165deg, #dee2e6 0%, #edeff1 60%, #f6f7f8 100%); }
+.whero[data-mood='rainy']  { background: linear-gradient(165deg, #3c5468 0%, #57728a 55%, #6d8aa1 100%); }
+.whero[data-mood='snowy']  { background: linear-gradient(165deg, #cfe6f5 0%, #e9f4fb 55%, #ffffff 100%); }
+
+.dark .whero[data-mood='sunny']  { background: linear-gradient(165deg, #0d2038 0%, #142639 55%, #182634 100%); }
+.dark .whero[data-mood='cloudy'] { background: linear-gradient(165deg, #202327 0%, #26292d 55%, #2a2d31 100%); }
+.dark .whero[data-mood='rainy']  { background: linear-gradient(165deg, #0e1c28 0%, #16293a 55%, #1c3244 100%); }
+.dark .whero[data-mood='snowy']  { background: linear-gradient(165deg, #14212b 0%, #1a2a35 55%, #21333f 100%); }
+
+/* 맑음: 정적인 햇살 글로우 (모션 없음 — 비/눈과의 대비로 "고요함"을 표현) */
+.whero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(160px 130px at 84% -8%, rgba(255, 255, 255, 0.9), transparent 70%);
+}
+.dark .whero-glow {
+  background: radial-gradient(160px 130px at 84% -8%, rgba(120, 170, 255, 0.28), transparent 70%);
+}
+
+/* 비: 층별 빗줄기 (속도·불투명도 다른 3겹으로 깊이감) */
+.whero-rain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.whero-rain span {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0px, transparent 5px,
+    rgba(255, 255, 255, 0.55) 5px, rgba(255, 255, 255, 0.55) 6px,
+    transparent 6px, transparent 26px
+  );
+  animation: whero-rain-fall linear infinite;
+}
+.whero-rain span:nth-child(1) { background-size: 100% 140px; animation-duration: 0.65s; opacity: 0.55; }
+.whero-rain span:nth-child(2) { background-size: 100% 180px; animation-duration: 0.9s;  opacity: 0.32; }
+.whero-rain span:nth-child(3) { background-size: 100% 220px; animation-duration: 1.3s;  opacity: 0.2; }
+@keyframes whero-rain-fall {
+  from { background-position: 0 0; }
+  to   { background-position: 0 140px; }
+}
+
+/* 눈: 흩날리는 눈송이 (개별 위치/속도는 JS에서 부여) */
+.whero-snow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.whero-snow span {
+  position: absolute;
+  top: -10%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  animation-name: whero-snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes whero-snow-fall {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  12%  { opacity: 0.9; }
+  100% { transform: translate(16px, 160px); opacity: 0.1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whero-rain span,
+  .whero-snow span {
+    animation: none !important;
+    opacity: 0.22;
+  }
+}
