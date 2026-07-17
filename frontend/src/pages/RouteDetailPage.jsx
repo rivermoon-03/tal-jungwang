@@ -68,7 +68,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   if (histLoading) {
     return (
       <div
-        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
+        className="flex items-center gap-3 bg-accent-bg border border-accent/25 dark:border-accent/35 rounded-card px-4 py-3"
         role="status"
         aria-live="polite"
       >
@@ -82,7 +82,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   if (!histData) {
     return (
       <div
-        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
+        className="flex items-center gap-3 bg-accent-bg border border-accent/25 dark:border-accent/35 rounded-card px-4 py-3"
         role="status"
       >
         <span className="text-[14px] font-semibold text-mute dark:text-mute">
@@ -101,7 +101,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
 
     return (
       <div
-        className="bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
+        className="bg-accent-bg border border-accent/25 dark:border-accent/35 rounded-card px-4 py-3"
         role="status"
         aria-live="polite"
       >
@@ -120,7 +120,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
             )}
           </div>
           {secondaryLabel && (
-            <div className="flex-none text-right pl-3 border-l border-[#BEDAD7]">
+            <div className="flex-none text-right pl-3 border-l border-accent/20 dark:border-accent/25">
               <span className="block text-[11px] font-semibold text-mute mb-0.5">다음 차</span>
               <span className="block text-[17px] font-semibold text-ink dark:text-ink tabular-nums">{secondaryLabel}</span>
               {secondary?.arrive_at_hhmm && (
@@ -136,7 +136,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   // realtime_eta 없음 — 예측 시각 표시 금지, 중립 안내만 표시
   return (
     <div
-      className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-card px-4 py-3"
+      className="flex items-center gap-3 bg-accent-bg border border-accent/25 dark:border-accent/35 rounded-card px-4 py-3"
       role="status"
     >
       <span className="text-[14px] font-semibold text-mute dark:text-mute">
@@ -166,11 +166,11 @@ function InlineLiveRow({ liveData }) {
 
   return (
     <div
-      className="flex items-center gap-3 bg-accent-bg border-y border-[#83cdc1] px-4 py-3"
+      className="flex items-center gap-3 bg-accent-bg border-y border-accent/25 dark:border-accent/35 px-4 py-3"
       role="status"
       aria-live="polite"
     >
-      <span className="flex-none w-9 h-9 rounded-button bg-accent flex items-center justify-center shadow-[0_4px_10px_rgba(18,165,148,.4)]">
+      <span className="flex-none w-9 h-9 rounded-button bg-accent flex items-center justify-center shadow-[0_4px_10px_color-mix(in_srgb,var(--tj-accent)_40%,transparent)]">
         <Bus size={18} className="text-white" />
       </span>
       <div className="flex-1 min-w-0">
@@ -182,7 +182,7 @@ function InlineLiveRow({ liveData }) {
         </span>
       </div>
       {eta && (
-        <div className="flex-none text-right pl-3 border-l border-[#BEDAD7]">
+        <div className="flex-none text-right pl-3 border-l border-accent/20 dark:border-accent/25">
           <span className="block text-[15px] font-bold text-ink tabular-nums">{eta}</span>
           <span className="block text-[11px] font-bold text-mute mt-0.5">다음 차</span>
         </div>
@@ -202,7 +202,7 @@ function TimetableRow({ entry, nowMin, isNext = false }) {
   return (
     <div
       className={[
-        'flex items-center gap-3 px-4 py-[9px] border-t border-[#F1EFEA]',
+        'flex items-center gap-3 px-4 py-[9px] border-t border-line dark:border-line',
         isPast ? 'opacity-50' : '',
         isNext ? 'bg-accent-bg' : '',
       ].filter(Boolean).join(' ')}
@@ -305,7 +305,7 @@ function DirectionTabs({ categories, active, onChange }) {
               'flex-1 flex items-center justify-center min-h-[38px] rounded-button',
               'text-[14px] font-semibold select-none transition-all',
               isActive
-                ? 'bg-ink dark:bg-accent text-white dark:text-black font-semibold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
+                ? 'bg-ink dark:bg-accent text-white dark:text-black font-semibold shadow-[0_4px_10px_color-mix(in_srgb,var(--tj-ink)_22%,transparent)]'
                 : 'text-mute dark:text-mute',
             ].join(' ')}
           >
@@ -553,7 +553,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                       'flex-none inline-flex items-center px-[13px] py-[7px] rounded-pill',
                       'text-[13px] font-semibold whitespace-nowrap transition-colors',
                       isActive
-                        ? 'bg-accent-bg border border-[#83cdc1] text-accent-ink dark:text-accent font-semibold'
+                        ? 'bg-accent-bg border border-accent/25 dark:border-accent/35 text-accent-ink dark:text-accent font-semibold'
                         : 'bg-surface dark:bg-surface border border-line dark:border-line text-ink-2 dark:text-ink-2-dark',
                     ].join(' ')}
                   >
@@ -588,7 +588,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                     'flex-1 flex items-center justify-center min-h-[40px] rounded-button',
                     'text-[14px] font-semibold select-none transition-all',
                     isActive
-                      ? 'bg-ink dark:bg-accent text-white dark:text-black font-semibold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
+                      ? 'bg-ink dark:bg-accent text-white dark:text-black font-semibold shadow-[0_4px_10px_color-mix(in_srgb,var(--tj-ink)_22%,transparent)]'
                       : 'text-mute dark:text-mute',
                   ].join(' ')}
                 >
@@ -716,7 +716,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
 
                     {/* 푸터: 통계 */}
                     {(firstBus || lastBus || intervalLabel || totalTrips) && (
-                      <div className="px-4 py-[10px] text-center text-[12.5px] font-semibold text-mute border-t border-[#F1EFEA]">
+                      <div className="px-4 py-[10px] text-center text-[12.5px] font-semibold text-mute border-t border-line dark:border-line">
                         {totalTrips && (
                           <span>
                             {DAY_TABS.find((t) => t.id === dayTab)?.label} 총{' '}

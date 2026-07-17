@@ -203,7 +203,9 @@ export default function App() {
           <Suspense fallback={<div className="h-full" />}>
             {isDesktop ? (
               <div key={currentPage ?? 'home'} className="h-full tj-tab-fade">
-                <PCMainShell>{pageContent}</PCMainShell>
+                {/* 지도 홈(currentPage=null)만 38%/62% 분할 + 영구 지도.
+                    시간표·학식·더보기 등은 지도 없이 전체 폭(PC·시간표/설정 시안). */}
+                <PCMainShell showMap={!currentPage}>{pageContent}</PCMainShell>
               </div>
             ) : (
               <div key={currentPage ?? 'home'} className="h-full overflow-auto tj-tab-fade">
