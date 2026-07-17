@@ -1,14 +1,16 @@
 import asyncio
+import logging
 
-import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.core.cache import get_or_fetch_with_lock
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.route import DrivingRouteResponse, RouteRequest, WalkingRouteResponse
-from app.services.external.kakao import fetch_driving_route
+from app.services.external.kakao import KakaoApiError, fetch_driving_route
 from app.services.external.tmap import fetch_walking_route
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/route", tags=["route"])
 
@@ -89,7 +91,8 @@ async def taxi_to_station(request: Request, response: Response):
     try:
         payload = await get_or_fetch_with_lock(_TAXI_CACHE_KEY, _TAXI_CACHE_TTL, _fetch)
         return ApiResponse.ok(payload)
-    except httpx.HTTPError:
+    except KakaoApiError as exc:
+        logger.warning("택시-정왕역 소요시간 조회 실패, null로 폴백: %s", exc)
         return ApiResponse.ok({"duration_seconds": None})
 
 
@@ -144,8 +147,9 @@ async def taxi_destinations(request: Request, response: Response):
                     "taxi_fee": result["taxi_fee"],
                     "coordinates": result["coordinates"],
                 }
-            except Exception:
+            except KakaoApiError as exc:
                 # 실패해도 null placeholder를 캐싱한다(기존 동작 유지) — 카드 자체는 항상 보이게.
+                logger.warning("택시 목적지 [%s] 소요시간 조회 실패, null로 폴백: %s", dest["id"], exc)
                 return {
                     "id": dest["id"],
                     "name": dest["name"],
@@ -175,15 +179,22 @@ async def driving_route(request: Request, response: Response, req: RouteRequest)
 
     cache_key = _coord_cache_key("route:driving", origin_lat, origin_lng, dest_lat, dest_lng)
 
-    result = await get_or_fetch_with_lock(
-        cache_key,
-        _DRIVING_CACHE_TTL,
-        lambda: fetch_driving_route(
-            origin_x=origin_lng,
-            origin_y=origin_lat,
-            dest_x=dest_lng,
-            dest_y=dest_lat,
-        ),
-    )
+    try:
+        result = await get_or_fetch_with_lock(
+            cache_key,
+            _DRIVING_CACHE_TTL,
+            lambda: fetch_driving_route(
+                origin_x=origin_lng,
+                origin_y=origin_lat,
+                dest_x=dest_lng,
+                dest_y=dest_lat,
+            ),
+        )
+    except KakaoApiError as exc:
+        logger.warning("자동차 경로 탐색 실패: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="경로 탐색 서비스에 일시적으로 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        ) from exc
 
     return ApiResponse[DrivingRouteResponse].ok(result)
