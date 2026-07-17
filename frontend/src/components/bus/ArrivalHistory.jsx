@@ -8,7 +8,7 @@ function CompareRow({ row }) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {/* 어제 (도착) */}
-      <div className="text-center rounded-[10px] py-3 px-1">
+      <div className="text-center rounded-button py-3 px-1">
         <div className="text-[18px] font-extrabold leading-none tracking-tight text-ink-2 tabular-nums">
           {yesterday ?? '-'}
         </div>
@@ -16,7 +16,7 @@ function CompareRow({ row }) {
       </div>
 
       {/* 이틀 전 (도착) */}
-      <div className="text-center rounded-[10px] py-3 px-1">
+      <div className="text-center rounded-button py-3 px-1">
         <div className="text-[18px] font-extrabold leading-none tracking-tight text-ink-2 tabular-nums">
           {dayBefore ?? '-'}
         </div>
@@ -24,7 +24,7 @@ function CompareRow({ row }) {
       </div>
 
       {/* 7일 전 (도착) */}
-      <div className="text-center rounded-[10px] py-3 px-1">
+      <div className="text-center rounded-button py-3 px-1">
         <div className="text-[18px] font-extrabold leading-none tracking-tight text-ink-2 tabular-nums">
           {lastWeek ?? '-'}
         </div>

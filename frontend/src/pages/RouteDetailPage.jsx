@@ -68,7 +68,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   if (histLoading) {
     return (
       <div
-        className="flex items-center gap-3 bg-accent-bg border border-[#9FCAC6] rounded-[16px] px-4 py-3"
+        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
         role="status"
         aria-live="polite"
       >
@@ -82,7 +82,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   if (!histData) {
     return (
       <div
-        className="flex items-center gap-3 bg-accent-bg border border-[#9FCAC6] rounded-[16px] px-4 py-3"
+        className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
         role="status"
       >
         <span className="text-[14px] font-semibold text-mute dark:text-mute-dark">
@@ -101,7 +101,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
 
     return (
       <div
-        className="bg-accent-bg border border-[#9FCAC6] rounded-[16px] px-4 py-3"
+        className="bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
         role="status"
         aria-live="polite"
       >
@@ -136,7 +136,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
   // realtime_eta 없음 — 예측 시각 표시 금지, 중립 안내만 표시
   return (
     <div
-      className="flex items-center gap-3 bg-accent-bg border border-[#9FCAC6] rounded-[16px] px-4 py-3"
+      className="flex items-center gap-3 bg-accent-bg border border-[#83cdc1] rounded-[16px] px-4 py-3"
       role="status"
     >
       <span className="text-[14px] font-semibold text-mute dark:text-mute-dark">
@@ -166,11 +166,11 @@ function InlineLiveRow({ liveData }) {
 
   return (
     <div
-      className="flex items-center gap-3 bg-accent-bg border-y border-[#9FCAC6] px-4 py-3"
+      className="flex items-center gap-3 bg-accent-bg border-y border-[#83cdc1] px-4 py-3"
       role="status"
       aria-live="polite"
     >
-      <span className="flex-none w-9 h-9 rounded-[11px] bg-accent flex items-center justify-center shadow-[0_4px_10px_rgba(46,139,134,.4)]">
+      <span className="flex-none w-9 h-9 rounded-[11px] bg-accent flex items-center justify-center shadow-[0_4px_10px_rgba(18,165,148,.4)]">
         <Bus size={18} className="text-white" />
       </span>
       <div className="flex-1 min-w-0">
@@ -291,7 +291,7 @@ function DirectionTabs({ categories, active, onChange }) {
     <div
       role="tablist"
       aria-label="방향 선택"
-      className="flex gap-[5px] bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark rounded-[14px] p-1 mb-[10px]"
+      className="flex gap-[5px] bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark rounded-card p-1 mb-[10px]"
     >
       {categories.map((cat) => {
         const isActive = cat === active
@@ -302,10 +302,10 @@ function DirectionTabs({ categories, active, onChange }) {
             aria-selected={isActive}
             onClick={() => onChange(cat)}
             className={[
-              'flex-1 flex items-center justify-center min-h-[38px] rounded-[10px]',
+              'flex-1 flex items-center justify-center min-h-[38px] rounded-button',
               'text-[14px] font-semibold select-none transition-all',
               isActive
-                ? 'bg-ink dark:bg-accent text-white dark:text-black font-extrabold shadow-[0_4px_10px_rgba(27,42,74,.22)]'
+                ? 'bg-ink dark:bg-accent text-white dark:text-black font-extrabold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
                 : 'text-mute dark:text-mute-dark',
             ].join(' ')}
           >
@@ -553,7 +553,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                       'flex-none inline-flex items-center px-[13px] py-[7px] rounded-[18px]',
                       'text-[13px] font-semibold whitespace-nowrap transition-colors',
                       isActive
-                        ? 'bg-accent-bg border border-[#9FCAC6] text-accent-ink dark:text-accent font-extrabold'
+                        ? 'bg-accent-bg border border-[#83cdc1] text-accent-ink dark:text-accent font-extrabold'
                         : 'bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-ink-2 dark:text-ink-2-dark',
                     ].join(' ')}
                   >
@@ -574,7 +574,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
           {/* 평일/토/일 세그먼트 */}
           <div
             role="tablist"
-            className="flex gap-[5px] bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark rounded-[14px] p-1"
+            className="flex gap-[5px] bg-surface-2 dark:bg-surface-dark-alt border border-line dark:border-line-dark rounded-card p-1"
           >
             {DAY_TABS.map((tab) => {
               const isActive = tab.id === dayTab
@@ -585,10 +585,10 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                   aria-selected={isActive}
                   onClick={() => setDayTab(tab.id)}
                   className={[
-                    'flex-1 flex items-center justify-center min-h-[40px] rounded-[10px]',
+                    'flex-1 flex items-center justify-center min-h-[40px] rounded-button',
                     'text-[14px] font-semibold select-none transition-all',
                     isActive
-                      ? 'bg-ink dark:bg-accent text-white dark:text-black font-extrabold shadow-[0_4px_10px_rgba(27,42,74,.22)]'
+                      ? 'bg-ink dark:bg-accent text-white dark:text-black font-extrabold shadow-[0_4px_10px_rgba(26,33,30,.22)]'
                       : 'text-mute dark:text-mute-dark',
                   ].join(' ')}
                 >

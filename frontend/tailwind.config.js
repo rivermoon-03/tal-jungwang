@@ -5,61 +5,69 @@ export default {
     extend: {
       colors: {
         // ═══════════════════════════════════════════════════
-        // Warm Daylight 시맨틱 토큰 (2026-06 리디자인, CSS 변수 단일 출처)
+        // 디자인 시스템 v1 semantic 토큰 (DESIGN.md §2, CSS 변수 단일 출처)
         // ═══════════════════════════════════════════════════
         'bg':           'var(--tj-bg)',
         'surface':      'var(--tj-surface)',
         'surface-2':    'var(--tj-surface-2)',
+        'surface-3':    'var(--tj-surface-3)',
         'line':         'var(--tj-line)',
+        'line-strong':  'var(--tj-line-strong)',
         'ink':          'var(--tj-ink)',
         'ink-2':        'var(--tj-ink-2)',
         'mute':         'var(--tj-mute)',
         'accent':       'var(--tj-accent)',
+        'accent-hover': 'var(--tj-accent-hover)',
         'accent-ink':   'var(--tj-accent-ink)',
         'accent-bg':    'var(--tj-accent-bg)',
         'imminent':     'var(--tj-imminent)',
+        'imminent-bg':  'var(--tj-imminent-bg)',
         'ease':         'var(--tj-ease)',
+        'delayed':      'var(--tj-delayed)',
+        'delayed-bg':   'var(--tj-delayed-bg)',
+        'realtime':     'var(--tj-realtime)',
 
         // ═══════════════════════════════════════════════════
-        // BMW iDrive / Tesla OS 톤 (2026-05 redesign) — 레거시 유지
+        // 레거시 별칭 — 값은 위 semantic CSS 변수로 통일(다크 2체계 제거).
+        // 이름 자체의 소거(컴포넌트 전수 치환)는 Phase B 몫.
         // ═══════════════════════════════════════════════════
 
         // ── 라이트 모드 surface · 텍스트 ───────────────────
-        'surface-alt':  '#f7f8fa',   // 패널 내부 보조
-        'text':         '#475569',   // 본문 (destination 등)
+        'surface-alt':  'var(--tj-surface-2)',   // 패널 내부 보조
+        'text':         'var(--tj-ink-2)',       // 본문 (destination 등)
 
-        // ── 다크 모드 surface · 텍스트 (iDrive OLED) ──────
-        'bg-dark':           '#000000',  // OLED 순흑
-        'surface-dark':      '#0a0a0a',  // 카드 (구 #141414)
-        'surface-dark-alt':  '#050505',  // 보조 surface
-        'line-dark':         '#1a1a1a',  // 헤어라인 (구 border-dark)
-        'border-dark':       '#1a1a1a',  // 후방 호환 alias
-        'ink-dark':          '#ffffff',  // primary text (다크)
-        'text-dark':         '#d1d5db',
-        'mute-dark':         '#9ca3af',  // 순흑 위 대비 확보 (구 #6b7280, AA 미달)
-        'mute-2-dark':       '#4b5563',
-        'text-secondary-dark': '#94a3b8', // 후방 호환
+        // ── 다크 모드 surface · 텍스트 (구 iDrive OLED — sage 다크 사다리로 통일) ──
+        'bg-dark':           'var(--tj-bg)',
+        'surface-dark':      'var(--tj-surface)',
+        'surface-dark-alt':  'var(--tj-bg)',      // surface보다 한 단 어두운 보조
+        'line-dark':         'var(--tj-line)',
+        'border-dark':       'var(--tj-line)',    // 후방 호환 alias
+        'ink-dark':          'var(--tj-ink)',
+        'text-dark':         'var(--tj-ink-2)',
+        'mute-dark':         'var(--tj-mute)',
+        'mute-2-dark':       '#444947',           // sage7 dark
+        'text-secondary-dark': 'var(--tj-ink-2)', // 후방 호환
 
         // ── 중립 (레거시 — 신규 컴포넌트는 ink/mute var() 키 사용) ─
-        'mute-2': '#cbd2db',         // disabled / placeholder
+        'mute-2': '#cbcfcd',         // sage7 — disabled / placeholder
 
         // ── 브랜드 액센트 (레거시) ────────────────────────
-        'accent-dark':  '#4f9fff',   // 다크 동일 (구 #7aa7e3)
+        'accent-dark':  'var(--tj-accent)',   // teal9는 라이트/다크 동일이라 accent와 일치
 
         // ── 모드별 식별 색 ────────────────────────────────
-        shuttle: '#1b3a6e',          // 셔틀 전용 (구 navy)
+        shuttle: 'var(--tj-accent)',          // 셔틀 전용 (구 navy #1b3a6e)
 
-        // ── 상태 토큰 (Muted iDrive) ──────────────────────
-        'state-ok':       '#4a9d6a', // sage (구 #16a34a)
-        'state-warn':     '#d4a14a', // ochre (구 #f59e0b)
-        'state-bad':      '#c8553d', // coral (구 #dc2626)
-        'imminent-dark':  '#f87171', // "곧" 빨강 (다크) 레거시
+        // ── 상태 토큰 ──────────────────────────────────────
+        'state-ok':       'var(--tj-ease)',
+        'state-warn':     'var(--tj-imminent)',
+        'state-bad':      'var(--tj-delayed)',
+        'imminent-dark':  'var(--tj-imminent)', // "곧" 배지 (다크) 레거시 — imminent와 통일
 
         // ── Dock 전용 ─────────────────────────────────────
-        'dock-bg':         '#0a0a0a',
-        'dock-active-bg':  '#1a1a1a',
-        'dock-text':       '#d1d5db',
-        'dock-text-mute':  '#6b7280',
+        'dock-bg':         'var(--tj-dock-bg)',
+        'dock-active-bg':  '#272a29',   // sage4 dark
+        'dock-text':       '#eceeed',   // sage12 dark
+        'dock-text-mute':  '#717d79',   // sage10 dark
 
         // ── 노선 색 (지도 마커용 진한 단색 — 그대로 유지) ──
         'line-201':    '#2563eb',
@@ -91,25 +99,14 @@ export default {
         'chip-purple-bg-dark': '#1f1828', 'chip-purple-fg-dark': '#a78ce0',
         'chip-yellow-bg-dark': '#2a2410', 'chip-yellow-fg-dark': '#d4a14a',
 
-        // ── 레거시 (호환을 위해 유지) ─────────────────────
-        'bg-soft':      '#1c1f26',
-        'line-soft':    '#eef1f5',
-        'bg-soft-light':'#f6f7f9',
-        line4: {
-          DEFAULT: '#1B5FAD',
-          light:   '#E8F0FB',
-        },
-        suinbundang: {
-          DEFAULT: '#F5A623',
-          light:   '#FEF6E6',
-        },
-        'route-201': '#2563EB',
-        'route-33':  '#0891B2',
-        'route-1':   '#F97316',
+        // ── 레거시 (호환을 위해 유지, 값은 신규 팔레트로 정리) ──
+        // bg-soft / line-soft / bg-soft-light / route-201 / route-33 / route-1 / suinbundang
+        // 는 실사용처 0건(grep 확인) 이라 제거함(2026-07 Phase A).
+        'line4-light': '#E8F0FB',   // bg-line4-light만 실사용(DEFAULT 미사용이라 제거)
 
-        // ── 도메인 색 (사용처 있음, 점진적으로 shuttle 토큰으로 마이그레이션 예정) ──
+        // ── 도메인 색 — shuttle 토큰과 동일 값으로 통일(구 #1b3a6e 네이비 폐기) ──
         navy: {
-          DEFAULT: '#1b3a6e',
+          DEFAULT: 'var(--tj-accent)',
         },
       },
       fontSize: {
@@ -139,14 +136,23 @@ export default {
         'chip':       ['11px', { lineHeight: '1',    fontWeight: '800' }],
         'chip-pc':    ['10px', { lineHeight: '1',    fontWeight: '800' }],
 
-        // ── Warm Daylight 타이포 스케일 (2026-06 리디자인) ──
+        // ── Warm Daylight 타이포 스케일(2026-06) — text-caption/body/label/head 사용처가
+        //    각각 98/43/67/11곳이라 값(특히 weight) 전수 교체는 화면별 회귀 위험 큼.
+        //    Phase A에서는 굵기(weight)는 유지, 신규 DESIGN.md §3 크기/행간만 반영.
+        //    폰트 굵기 강등은 IMPLEMENTATION-PLAN Phase B 항목.
         'eta-xl': ['38px', { lineHeight: '1',    fontWeight: '800' }],
         'eta':    ['28px', { lineHeight: '1',    fontWeight: '800' }],
         'title':  ['21px', { lineHeight: '1.15', fontWeight: '800' }],
-        'head':   ['17px', { lineHeight: '1.3',  fontWeight: '700' }],
-        'body':   ['15px', { lineHeight: '1.45', fontWeight: '600' }],
-        'label':  ['13px', { lineHeight: '1.3',  fontWeight: '600' }],
-        'caption':['12px', { lineHeight: '1.3',  fontWeight: '600' }],
+        'head':   ['17px', { lineHeight: '23px', fontWeight: '700' }],
+        'body':   ['16px', { lineHeight: '23px', fontWeight: '600' }],
+        'label':  ['15px', { lineHeight: '21px', fontWeight: '600' }],
+        'caption':['13px', { lineHeight: '17px', fontWeight: '600' }],
+
+        // ── DESIGN.md §3 신규 스케일(무충돌 키) — Phase B/D에서 화면 적용 ──
+        'body-sm': ['14px', { lineHeight: '19px', fontWeight: '400' }],
+        'head-sm': ['17px', { lineHeight: '23px', fontWeight: '600' }],
+        'num-lg':  ['29px', { lineHeight: '33px', fontWeight: '600', letterSpacing: '-0.02em' }],
+        'num-xl':  ['37px', { lineHeight: '41px', fontWeight: '700', letterSpacing: '-0.02em' }],
 
         // ── 레거시 (호환 유지, 점진적 제거) ──
         hero:    ['26px', { lineHeight: '1.1',  fontWeight: '900' }],
@@ -159,25 +165,41 @@ export default {
         mono: ['"Courier New"', 'monospace'],
       },
       boxShadow: {
-        card:      '0 2px 8px rgba(0,0,0,0.04)',     // 신규 가벼운 카드 (구 0 4px 14px ...0.06)
+        // DESIGN.md §4 — 최대 2단계, 다크는 그림자 대신 --line 보더로 구분(shadow-sh-card는 :root에서만 유효)
+        'sh-card': '0 1px 3px rgba(0,0,0,.06)',
+        'sh-pop':  '0 8px 24px rgba(0,0,0,.12)',
+
+        // ── 레거시(호환 유지) ──
+        card:      '0 2px 8px rgba(0,0,0,0.04)',
         'card-md': '0 2px 10px rgba(0,0,0,0.06)',
         pill:      '0 4px 14px rgba(0,0,0,0.10)',
         dock:      '0 6px 24px rgba(0,0,0,0.25)',    // 모바일 floating dock
         map:       '0 2px 10px rgba(0,0,0,0.08)',    // 지도 위 floating 컨트롤
       },
       borderRadius: {
-        pill:       '999px',
-        card:       '14px',   // 신규 표준 (구 18px)
-        'card-lg':  '18px',   // 구 card 값 (호환 alias)
-        'card-pc':  '12px',   // PC 패널
-        chip:       '5px',
-        mini:       '10px',   // 위젯 카드
-        'dock-mob': '22px',   // 모바일 floating dock
-        btn:        '10px',
+        // DESIGN.md §4 — 5개 값으로 고정(의미있는 키 이름)
+        badge:  '8px',    // 노선번호 뱃지
+        button: '10px',   // 버튼
+        input:  '10px',   // 인풋
+        card:   '14px',
+        sheet:  '20px',   // 바텀시트/모달
+        pill:   '999px',
+
+        // ── 레거시(호환 유지) — 5토큰 중 가장 가까운 값으로 정리 ──
+        'card-lg':  '20px',  // 구 18px → sheet(20)에 가장 가까움
+        'card-pc':  '14px',  // 구 12px → card(14)
+        chip:       '8px',   // 구 5px → badge(8)
+        mini:       '10px',  // 구 10px(그대로) → button/input(10)
+        btn:        '10px',  // 구 10px(그대로) → button/input(10)
+        // dock-mob(22px)은 실사용처 0건(grep 확인)이라 제거함(2026-07 Phase A).
       },
       transitionTimingFunction: {
         ios:  'cubic-bezier(0.16, 1, 0.3, 1)',
         snap: 'cubic-bezier(0.65, 0, 0.35, 1)',    // 슬롯머신·패널 collapse용
+        // DESIGN.md §4 모션 이징
+        out:   'cubic-bezier(0.32, 0.72, 0, 1)',   // 결정적 ease-out(진입/시트)
+        spring:'cubic-bezier(0.5, 1.35, 0.5, 1)',  // 미세 오버슈트(press·pop·knob)
+        inout: 'cubic-bezier(0.65, 0, 0.35, 1)',   // 크로스페이드
       },
       transitionDuration: {
         press: '120ms',
@@ -186,6 +208,10 @@ export default {
         sheet: '280ms',
         slot:  '400ms',     // 슬롯머신 숫자 전환
         panel: '320ms',     // 좌측 패널 collapse
+        // DESIGN.md §4 모션 duration
+        base:  '200ms',     // 토글/세그/색
+        enter: '300ms',     // 카드/리스트 진입
+        motionSheet: '440ms', // 바텀시트(구 sheet=280ms와 별도 — vaul 등 Phase C 적용)
       },
       keyframes: {
         haloPulse: {
