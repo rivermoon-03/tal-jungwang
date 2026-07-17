@@ -163,6 +163,24 @@ async def _subway_realtime_poll_job():
             logger.exception("지하철 실시간 폴링 실패: %s", station)
 
 
+async def _purge_logs_job():
+    """매일 03:45 KST에 로그성 테이블(bus_crowding_logs·bus_arrival_history·
+    traffic_history)의 보존기간 초과 행을 배치 삭제.
+
+    stats(03:30)·rewarm(03:40) 다음, 버스 폴링 휴식(02~04시) 안쪽이라
+    운영 트래픽/다른 나이틀리 job과 겹치지 않는다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.retention import purge_old_logs
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await purge_old_logs(session)
+            logger.info("로그 보존정책 정리(job) 완료: %s", summary)
+    except Exception:
+        logger.exception("로그 보존정책 정리 실패")
+
+
 def setup_scheduler():
     """스케줄러에 교통정보 수집 작업을 등록한다.
 
@@ -289,6 +307,20 @@ def setup_scheduler():
         misfire_grace_time=600,
     )
     logger.info("Static cache rewarm scheduler configured (daily 03:40 KST)")
+
+    # ── 로그 테이블 보존정책 정리 (매일 03:45 KST) ──
+    # bus_crowding_logs(90d)·bus_arrival_history(90d)·traffic_history(180d)를
+    # 배치 삭제. stats(03:30)·rewarm(03:40) 다음, 폴링 휴식 구간 안쪽.
+    scheduler.add_job(
+        _purge_logs_job,
+        CronTrigger(hour=3, minute=45, timezone="Asia/Seoul"),
+        id="log_retention_purge",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+    )
+    logger.info("Log retention purge scheduler configured (daily 03:45 KST)")
 
 
 def start_scheduler():

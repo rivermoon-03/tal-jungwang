@@ -32,6 +32,10 @@ FIRST_SIGHT_ARRIVAL_SEC = 30
 
 CACHE_TTL = 100  # 캐시 TTL (초) — 폴링 간격(45초)의 2.2배 (1회 미싱 버퍼)
 
+# 혼잡도 로그는 (stop_id, plate)당 이 간격(초)에 한 번만 저장 (crowding_flow.py가
+# 30분 버킷 집계만 하므로 5분 해상도로 충분 — DB 무한증가 방지)
+CROWDING_THROTTLE_SEC = 300
+
 def _predict_sec_from_item(item: dict, suffix: str) -> int:
     """GBIS 응답 한 건에서 predictTimeSec(suffix) 추출. 누락 시 분 단위 폴백.
 
@@ -257,28 +261,60 @@ async def poll_and_collect():
                 db.add_all(new_arrivals)
                 await db.commit()
 
-            # ── 3. 혼잡도 로그 저장 ──────────────────────────────────────────
-            crowding_logs: list[BusCrowdingLog] = []
+            # ── 3. 혼잡도 로그 저장 (plate별 5분 스로틀) ──────────────────────
+            # 45초마다 무조건 INSERT하면 bus_crowding_logs가 무한 증가한다.
+            # 소비처(crowding_flow.py)는 30분 버킷 집계뿐이라 5분 해상도로 충분.
+            crowding_candidates: list[dict] = []
             for item in items:
                 route = due_routes.get(item["route_id"])
                 if not route:
                     continue
-                for crowded_key, sec_key, plate_key in [
-                    ("crowded1", "predict_time_sec1", "plate_no1"),
-                    ("crowded2", "predict_time_sec2", "plate_no2"),
+                for suffix, crowded_key, plate_key in [
+                    ("1", "crowded1", "plate_no1"),
+                    ("2", "crowded2", "plate_no2"),
                 ]:
                     crowded = item.get(crowded_key, 0)
-                    sec = _predict_sec_from_item(item, "1" if sec_key.endswith("1") else "2")
+                    sec = _predict_sec_from_item(item, suffix)
                     plate = item.get(plate_key, "") or ""
                     if crowded and sec:
+                        # 빈 plate 차량들이 한 키로 뭉쳐 전부 드롭되지 않도록
+                        # route.id를 discriminator로 사용
+                        discriminator = plate or f"r{route.id}"
+                        crowding_candidates.append({
+                            "route_id": route.id,
+                            "plate_no": plate,
+                            "crowded": crowded,
+                            "arrive_in_seconds": sec,
+                            "throttle_key": f"bus:crowd_logged:{target['stop_id']}:{discriminator}",
+                        })
+
+            crowding_logs: list[BusCrowdingLog] = []
+            if crowding_candidates:
+                acquired_flags = None
+                try:
+                    pipe = redis.pipeline()
+                    for cand in crowding_candidates:
+                        pipe.set(cand["throttle_key"], "1", ex=CROWDING_THROTTLE_SEC, nx=True)
+                    acquired_flags = await pipe.execute()
+                except Exception:
+                    logger.warning(
+                        "혼잡도 스로틀 조회 실패 — 이번 사이클 혼잡도 저장 스킵 (정류장 %s)",
+                        target["stop_name"], exc_info=True,
+                    )
+
+                if acquired_flags is not None:
+                    for cand, acquired in zip(crowding_candidates, acquired_flags):
+                        if not acquired:
+                            continue  # 최근 5분 내 이미 기록됨
                         crowding_logs.append(BusCrowdingLog(
-                            route_id=route.id,
+                            route_id=cand["route_id"],
                             stop_id=target["stop_id"],
-                            plate_no=plate,
-                            crowded=crowded,
-                            arrive_in_seconds=sec,
+                            plate_no=cand["plate_no"],
+                            crowded=cand["crowded"],
+                            arrive_in_seconds=cand["arrive_in_seconds"],
                             recorded_at=now,
                         ))
+
             if crowding_logs:
                 db.add_all(crowding_logs)
                 await db.commit()
