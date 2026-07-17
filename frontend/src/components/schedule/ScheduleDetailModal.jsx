@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Drawer } from 'vaul'
-import { X, Clock, Star, MapPin } from 'lucide-react'
+import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
@@ -124,9 +124,89 @@ function TimeGrid({ times }) {
   )
 }
 
+// ─── 그리드 뷰 (Phase D — DESIGN.md 시안 "시간표 · A") ────────────────────
+// 리스트 뷰(TimeRow/PastRow)와 같은 오늘 전체 시각을 4열 그리드로 보여준다.
+// 다음 차만 accent 채움, 지난 시각은 흐리게 — 인라인 반올림/포맷 로직 없이
+// 순수 표시 전용(날짜 계산은 각 Content 컴포넌트가 기존 헬퍼로 미리 끝낸다).
+function TimeGridView({ items, gridRef }) {
+  if (!items.length) return null
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {items.map((it) => (
+        <div
+          key={it.key}
+          ref={it.isNext ? gridRef : undefined}
+          className={`relative text-center py-2.5 px-1 rounded-mini text-sm font-semibold tabular-nums tracking-tight transition-colors ${
+            it.isNext
+              ? 'bg-accent dark:bg-accent text-white font-bold'
+              : it.isPast
+                ? 'bg-transparent text-mute dark:text-mute'
+                : 'bg-surface-2 dark:bg-bg text-ink-2 dark:text-ink-2'
+          }`}
+        >
+          {it.time}
+          {it.isLast && !it.isNext && (
+            <span className="absolute -top-1.5 -right-1 text-[9px] font-bold px-1 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink leading-tight">
+              막차
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// 그리드 뷰 하단 "다음 차 HH:MM · N분 후" 요약 — 기존 minutesUntil/fmtDelta 재사용(반올림 로직 인라인 복제 금지).
+function NextMeta({ nextTime }) {
+  if (!nextTime) return null
+  const mins = Math.max(0, minutesUntil(nextTime))
+  return (
+    <p className="text-caption text-mute dark:text-mute mt-2.5 mb-0.5 px-0.5">
+      다음 차 <b className="text-accent-ink dark:text-accent font-bold">{nextTime}</b> · {fmtDelta(mins)}
+    </p>
+  )
+}
+
+// 리스트/그리드 전환 세그 버튼. DESIGN.md 시안의 sc-viewseg 대응.
+// TODO(F3): 선택 상태를 zustand persist로 이관(설정 화면의 "시간표 보기" 기본값과 연동).
+// 지금은 모달을 열 때마다 'list'로 초기화되는 로컬 state.
+function ViewModeToggle({ value, onChange }) {
+  return (
+    <div
+      role="group"
+      aria-label="시간표 보기 방식"
+      className="inline-flex items-center gap-0.5 p-0.5 rounded-button bg-surface-2 dark:bg-bg border border-line dark:border-line flex-shrink-0"
+    >
+      {[
+        { id: 'grid', label: '그리드', Icon: LayoutGrid },
+        { id: 'list', label: '리스트', Icon: List },
+      ].map(({ id, label, Icon }) => {
+        const active = value === id
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            aria-pressed={active}
+            aria-label={`${label}로 보기`}
+            title={`${label}로 보기`}
+            className={`pressable flex items-center justify-center w-8 h-8 rounded-mini transition-colors ${
+              active
+                ? 'bg-surface dark:bg-surface-2 text-ink dark:text-ink shadow-sh-card'
+                : 'text-mute dark:text-mute'
+            }`}
+          >
+            <Icon size={14} aria-hidden="true" />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── per-type content ───────────────────────────────────────────────────
 
-function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
+function BusContent({ routeCode, routeId = null, stopId = null, accentColor, viewMode = 'list' }) {
   // routeId가 있으면 방향 정확한 /bus/timetable/{route_id} 사용 (등교/하교 분리 route에 필수)
   const byId    = useBusTimetable(routeId)
   const byRoute = useBusTimetableByRoute(routeId == null ? routeCode : null, stopId != null ? { stopId } : undefined)
@@ -156,6 +236,19 @@ function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
   if (error) return <ErrorMsg />
   if (!allTimes.length) return <EmptyMsg text="오늘 운행 정보가 없어요" />
 
+  const items = allTimes.map((t, i) => {
+    const [th, tm] = (t ?? '').split(':').map(Number)
+    const td = new Date(now)
+    if (!Number.isNaN(th) && !Number.isNaN(tm)) td.setHours(th, tm, 0, 0)
+    return {
+      key: `${t}-${i}`,
+      time: t,
+      isPast: td <= now,
+      isNext: i === firstFutureIdx,
+      isLast: i === allTimes.length - 1,
+    }
+  })
+
   return (
     <div className="flex flex-col gap-2">
       {data?.schedule_type && (
@@ -163,16 +256,27 @@ function BusContent({ routeCode, routeId = null, stopId = null, accentColor }) {
           {scheduleTypeLabel(data.schedule_type)} 시간표 · 첫차 {allTimes[0]} ~ 막차 {allTimes[allTimes.length - 1]} · 총 {allTimes.length}회 · 남은 {futureCount}회
         </p>
       )}
-      {allTimes.map((t, i) => {
-        const [th, tm] = (t ?? '').split(':').map(Number)
-        const td = new Date(now)
-        if (!Number.isNaN(th) && !Number.isNaN(tm)) td.setHours(th, tm, 0, 0)
-        const isPast = td <= now
-        if (isPast) return <PastRow key={`p-${t}-${i}`} time={t} />
-        const isNext = i === firstFutureIdx
-        const isLast = i === allTimes.length - 1
-        return <TimeRow key={`f-${t}-${i}`} time={t} isNext={isNext} isLast={isLast} accentColor={accentColor} rowRef={isNext ? nextRef : undefined} />
-      })}
+      {viewMode === 'grid' ? (
+        <>
+          <TimeGridView items={items} gridRef={nextRef} />
+          <NextMeta nextTime={allTimes[firstFutureIdx] ?? null} />
+        </>
+      ) : (
+        items.map((it) =>
+          it.isPast
+            ? <PastRow key={`p-${it.key}`} time={it.time} />
+            : (
+              <TimeRow
+                key={`f-${it.key}`}
+                time={it.time}
+                isNext={it.isNext}
+                isLast={it.isLast}
+                accentColor={accentColor}
+                rowRef={it.isNext ? nextRef : undefined}
+              />
+            )
+        )
+      )}
     </div>
   )
 }
@@ -189,7 +293,7 @@ const SUBWAY_KEY_META = {
   siheung_dn: { dataKey: 'siheung_dn', label: '하행 (원시 방면)' },
 }
 
-function SubwayContent({ accentColor, subwayKey }) {
+function SubwayContent({ accentColor, subwayKey, viewMode = 'list' }) {
   const { data, loading, error } = useSubwayTimetable()
   const now = new Date()
   const nowStr = toHHMM(now)
@@ -209,6 +313,8 @@ function SubwayContent({ accentColor, subwayKey }) {
         allItems={list}
         items={items}
         accentColor={accentColor}
+        viewMode={viewMode}
+        nowStr={nowStr}
       />
     )
   }
@@ -226,18 +332,22 @@ function SubwayContent({ accentColor, subwayKey }) {
         allItems={upList}
         items={upItems}
         accentColor={accentColor}
+        viewMode={viewMode}
+        nowStr={nowStr}
       />
       <DirectionBlock
         label="하행 (인천 방면)"
         allItems={downList}
         items={downItems}
         accentColor={accentColor}
+        viewMode={viewMode}
+        nowStr={nowStr}
       />
     </div>
   )
 }
 
-function DirectionBlock({ label, allItems = [], items, accentColor }) {
+function DirectionBlock({ label, allItems = [], items, accentColor, viewMode = 'list', nowStr }) {
   const nextRef = useRef(null)
   const allDone = items.length === 0
   useEffect(() => {
@@ -245,6 +355,17 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
       nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
     }
   }, [items.length])
+
+  // 그리드 뷰용 전체(과거+다음+이후) 항목 — allDone(금일 종료)일 땐 기존 TimeGrid(과거 전용) 그대로 사용.
+  const firstFutureIdx = allItems.findIndex((t) => (t.depart_at ?? '') >= nowStr)
+  const gridItems = allItems.map((t, i) => ({
+    key: `${t.depart_at}-${i}`,
+    time: t.depart_at,
+    isPast: firstFutureIdx === -1 ? true : i < firstFutureIdx,
+    isNext: i === firstFutureIdx,
+    isLast: i === allItems.length - 1,
+  }))
+
   return (
     <div>
       <p className="text-caption font-bold text-ink-2 dark:text-mute mb-2">
@@ -259,6 +380,11 @@ function DirectionBlock({ label, allItems = [], items, accentColor }) {
       )}
       {allDone ? (
         <TimeGrid times={allItems.map((t) => t.depart_at)} />
+      ) : viewMode === 'grid' ? (
+        <>
+          <TimeGridView items={gridItems} gridRef={nextRef} />
+          <NextMeta nextTime={items[0]?.depart_at ?? null} />
+        </>
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((t, i) => (
@@ -731,6 +857,13 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   const isPC =
     typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
+  // 그리드/리스트 뷰 토글 — 셔틀(수시운행·회차편 등 특수 라벨이 많아 그리드에 맞지 않음)과
+  // 실시간 버스(BusHistoryContent, 시간표 자체가 없음)는 항상 리스트/이력 뷰로 고정.
+  // TODO(F3): 뷰 선택을 zustand persist로 이관해 모달을 다시 열어도 유지되게 하고,
+  // 설정 화면의 "시간표 보기" 기본값(그리드/리스트)과 연동한다. 지금은 열 때마다 'list'로 리셋.
+  const [viewMode, setViewMode] = useState('list')
+  const supportsGridToggle = (type === 'bus' && !isRealtime) || type === 'subway'
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
@@ -809,11 +942,14 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
   const body = (
     <>
-      <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center gap-1.5">
-        <Clock size={12} className="text-mute" />
-        <p className="text-caption text-mute">
-          오늘 기준 · {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-        </p>
+      <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <Clock size={12} className="text-mute flex-shrink-0" />
+          <p className="text-caption text-mute truncate">
+            오늘 기준 · {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+          </p>
+        </span>
+        {supportsGridToggle && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </div>
 
       {/* scrollable content — bottom padding 확보해 FloatingDock 위로 */}
@@ -828,8 +964,8 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           </div>
         )}
         {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} />}
-        {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} />}
-        {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} />}
+        {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} viewMode={viewMode} />}
+        {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} />}
         {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
       </div>
     </>
