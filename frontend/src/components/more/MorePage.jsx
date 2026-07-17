@@ -8,13 +8,14 @@
  * Sub-pages: dark-mode, notifications, notices, info
  */
 import { useState } from 'react'
-import { Bell, Moon, Info, ChevronRight } from 'lucide-react'
+import { Bell, Moon, Info, ChevronRight, Settings as SettingsIcon } from 'lucide-react'
 import NoticeHighlights from './NoticeHighlights'
 import PageHeader from '../layout/PageHeader'
 import DarkModePage from './DarkModePage'
 import NotificationsPage from './NotificationsPage'
 import NoticesPage from './NoticesPage'
 import AppInfoPage from './AppInfoPage'
+import SettingsPage from './SettingsPage'
 import { useNotices } from '../../hooks/useMore'
 import useAppStore from '../../stores/useAppStore'
 
@@ -61,12 +62,14 @@ function QuickCard({ icon, label, sub, onClick }) {
   )
 }
 
+const SUB_PAGE_PATHS = { 'app-info': '/more/app-info', settings: '/more/settings' }
+
 export default function MorePage() {
-  const [subPage, setSubPage] = useState(() =>
-    typeof window !== 'undefined' && window.location.pathname === '/more/app-info'
-      ? 'app-info'
-      : null
-  )
+  const [subPage, setSubPage] = useState(() => {
+    if (typeof window === 'undefined') return null
+    const path = window.location.pathname
+    return Object.keys(SUB_PAGE_PATHS).find((id) => SUB_PAGE_PATHS[id] === path) ?? null
+  })
 
   const { data: noticesData } = useNotices()
   const themeMode = useAppStore((s) => s.themeMode)
@@ -76,23 +79,36 @@ export default function MorePage() {
   const leadMin = notifPrefs?.leadMin ?? 10
   const alarmSub = notifPrefs?.enabled === false ? '꺼짐' : `${leadMin}분 전`
 
+  // app-info/settings처럼 안정 URL(/more/*)이 있는 서브페이지만 히스토리에 반영한다.
+  // dark-mode/notifications/notices는 기존과 동일하게 상태 전용(뒤로가기 시 더보기 루트로).
   const closeSubPage = () => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/more/app-info') {
+    if (typeof window !== 'undefined' && Object.values(SUB_PAGE_PATHS).includes(window.location.pathname)) {
       window.history.pushState(null, '', '/more')
     }
     setSubPage(null)
   }
-  const openAppInfo = () => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', '/more/app-info')
+  const openSubPageWithPath = (id) => {
+    if (typeof window !== 'undefined' && SUB_PAGE_PATHS[id]) {
+      window.history.pushState(null, '', SUB_PAGE_PATHS[id])
     }
-    setSubPage('app-info')
+    setSubPage(id)
   }
+  const openAppInfo = () => openSubPageWithPath('app-info')
+  const openSettings = () => openSubPageWithPath('settings')
 
   if (subPage === 'dark-mode')     return <DarkModePage        onBack={() => setSubPage(null)} />
   if (subPage === 'notifications') return <NotificationsPage   onBack={() => setSubPage(null)} />
   if (subPage === 'notices')       return <NoticesPage         onBack={() => setSubPage(null)} />
   if (subPage === 'app-info')      return <AppInfoPage         onBack={closeSubPage} />
+  if (subPage === 'settings') {
+    return (
+      <SettingsPage
+        onBack={closeSubPage}
+        onOpenNotifications={() => setSubPage('notifications')}
+        onOpenAppInfo={openAppInfo}
+      />
+    )
+  }
 
   const allNotices = Array.isArray(noticesData) ? noticesData : []
   const recent = allNotices.slice(0, 2)
@@ -206,44 +222,40 @@ export default function MorePage() {
           </>
         )}
 
-        {/* 앱 정보 진입 */}
-        <button
-          type="button"
-          onClick={openAppInfo}
-          className="pressable w-full flex items-center justify-between bg-white dark:bg-surface"
-          style={{
-            borderRadius: 14,
-            border: '1px solid var(--tj-line)',
-            padding: '12px 14px',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-          aria-label="앱 정보 보기"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                background: 'var(--tj-bg-soft)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--tj-accent)',
-              }}
-              aria-hidden="true"
-            >
-              <Info size={18} />
+        {/* 설정 · 앱 정보 진입 — DESIGN.md 시안 "더보기 · A"의 sc-set 그룹 대응 */}
+        <div className="bg-white dark:bg-surface border border-line dark:border-line rounded-card overflow-hidden divide-y divide-line dark:divide-line">
+          <button
+            type="button"
+            onClick={openSettings}
+            className="pressable w-full flex items-center justify-between px-[14px] py-3"
+            aria-label="설정 열기"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-mini bg-surface-2 dark:bg-bg flex items-center justify-center text-accent" aria-hidden="true">
+                <SettingsIcon size={18} />
+              </div>
+              <div className="text-left">
+                <div className="text-body font-semibold text-ink dark:text-ink">설정</div>
+                <div className="text-label font-semibold text-mute dark:text-mute mt-0.5">개인화 · 알림 · 데이터</div>
+              </div>
             </div>
-            <div
-              className="text-body font-semibold text-ink dark:text-ink"
-            >
-              앱 정보
+            <ChevronRight size={18} aria-hidden="true" className="text-mute dark:text-mute" />
+          </button>
+          <button
+            type="button"
+            onClick={openAppInfo}
+            className="pressable w-full flex items-center justify-between px-[14px] py-3"
+            aria-label="앱 정보 보기"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-mini bg-surface-2 dark:bg-bg flex items-center justify-center text-accent" aria-hidden="true">
+                <Info size={18} />
+              </div>
+              <div className="text-body font-semibold text-ink dark:text-ink">앱 정보</div>
             </div>
-          </div>
-          <ChevronRight size={18} aria-hidden="true" style={{ color: 'var(--tj-mute)' }} />
-        </button>
+            <ChevronRight size={18} aria-hidden="true" className="text-mute dark:text-mute" />
+          </button>
+        </div>
 
         {/* 개인정보처리방침 (마켓 등록용 안정 URL /privacy) */}
         <button
