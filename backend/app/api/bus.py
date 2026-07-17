@@ -411,6 +411,10 @@ async def bus_arrival_stats_lookup(
 
     hour/day_type 미지정 시 현재 KST 시각·요일에서 도출.
     데이터 없으면 stats=None (200).
+
+    `get_arrival_stats`가 Redis single-flight 캐시(`bus:stats:*`, 사전집계 hit 시
+    6h TTL — 나이틀리 03:30 재계산 주기보다 짧아 자가회복, negative/저표본은 10min)를
+    내장하고 있어 이 엔드포인트에서 별도 캐싱은 하지 않는다(다층 캐시 중복 방지).
     """
     from app.services.bus_stats import get_arrival_stats
 

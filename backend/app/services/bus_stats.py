@@ -12,17 +12,27 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.cache import get_cached_json, set_cached_json, get_redis
+from app.core.cache import get_or_fetch_with_lock, get_redis
 
 logger = logging.getLogger(__name__)
 
-STATS_CACHE_TTL = 6 * 3600  # 6h
-STATS_NEGATIVE_TTL = 600  # 10min: stats 없는 페어 negative cache
+STATS_CACHE_TTL = 6 * 3600  # 6h — nightly refresh(03:30 KST)보다 짧아 자가회복
+STATS_NEGATIVE_TTL = 600  # 10min: stats 없는 페어 negative cache (fallback 샘플 누적을 빨리 반영)
 STATS_CACHE_PREFIX = "bus:stats"
+
+# negative sentinel: bus_arrival_stats에 행이 없고, fallback도 샘플 부족인 경우.
+_NO_DATA_SENTINEL: dict[str, Any] = {"sample_size": None}
 
 
 def _cache_key(route_id: int, stop_id: int, day_type: str, hour: int) -> str:
     return f"{STATS_CACHE_PREFIX}:{route_id}:{stop_id}:{day_type}:{hour}"
+
+
+def _resolve_stats_ttl(payload: dict[str, Any]) -> int:
+    """사전집계 hit(풍부한 표본)만 6h, 그 외(negative/저표본 fallback)는 10min."""
+    if payload.get("sample_size") is None or payload.get("is_low_sample"):
+        return STATS_NEGATIVE_TTL
+    return STATS_CACHE_TTL
 
 
 def _sec_to_min(sec: int) -> int:
@@ -71,54 +81,54 @@ async def get_arrival_stats(
     day_type: str,
     hour: int,
 ) -> dict[str, Any] | None:
-    """캐시 → DB lookup.
+    """캐시(single-flight) → DB lookup.
 
     1순위: 사전 집계된 `bus_arrival_stats` (HAVING COUNT >= 8). 풀 분위수 포함.
     2순위: `bus_arrival_history`에서 ±2시간 윈도우 mean only (>= 3 samples).
             `is_low_sample: True` 플래그를 달아 프론트에서 '데이터 부족' 뱃지를 띄운다.
     둘 다 없으면 None (negative caching 포함).
+
+    `get_or_fetch_with_lock`로 캐시-미스 시 동시 요청이 같은 (route_id, stop_id,
+    day_type, hour) 조합의 DB 쿼리를 중복으로 날리지 않도록 single-flight 처리한다
+    (나이틀리 03:30 재계산 직후 전체 캐시가 비워지는 시점에 특히 유효).
+    TTL은 결과에 따라 `_resolve_stats_ttl`이 동적으로 정한다
+    (사전집계 hit=6h, negative/저표본 fallback=10min).
     """
     key = _cache_key(route_id, stop_id, day_type, hour)
-    cached = await get_cached_json(key)
-    if cached is not None:
-        # negative cache sentinel: {"sample_size": None}
-        return None if cached.get("sample_size") is None else cached
 
-    row = (await session.execute(text(
-        "SELECT p10_interval_sec, p50_interval_sec, p90_interval_sec, "
-        "       mean_interval_sec, sample_size, computed_at "
-        "FROM bus_arrival_stats "
-        "WHERE route_id=:r AND stop_id=:s AND day_type=:d AND hour_of_day=:h"
-    ), {"r": route_id, "s": stop_id, "d": day_type, "h": hour})).mappings().first()
+    async def _fetch() -> dict[str, Any]:
+        row = (await session.execute(text(
+            "SELECT p10_interval_sec, p50_interval_sec, p90_interval_sec, "
+            "       mean_interval_sec, sample_size, computed_at "
+            "FROM bus_arrival_stats "
+            "WHERE route_id=:r AND stop_id=:s AND day_type=:d AND hour_of_day=:h"
+        ), {"r": route_id, "s": stop_id, "d": day_type, "h": hour})).mappings().first()
 
-    if row is not None:
-        payload = _row_to_payload(dict(row))
-        await set_cached_json(key, payload, ttl=STATS_CACHE_TTL)
-        return payload
+        if row is not None:
+            return _row_to_payload(dict(row))
 
-    # Fallback: ±2시간 윈도우의 bus_arrival_history 기반 mean only
-    h_lo = max(0, hour - 2)
-    h_hi = min(23, hour + 2)
-    fb = (await session.execute(text(_FALLBACK_SQL), {
-        "r": route_id, "s": stop_id, "d": day_type, "h_lo": h_lo, "h_hi": h_hi,
-    })).mappings().first()
+        # Fallback: ±2시간 윈도우의 bus_arrival_history 기반 mean only
+        h_lo = max(0, hour - 2)
+        h_hi = min(23, hour + 2)
+        fb = (await session.execute(text(_FALLBACK_SQL), {
+            "r": route_id, "s": stop_id, "d": day_type, "h_lo": h_lo, "h_hi": h_hi,
+        })).mappings().first()
 
-    if fb is None or fb["n"] is None or fb["n"] < 3:
-        await set_cached_json(key, {"sample_size": None}, ttl=STATS_NEGATIVE_TTL)
-        return None
+        if fb is None or fb["n"] is None or fb["n"] < 3:
+            return dict(_NO_DATA_SENTINEL)
 
-    mean_min = _sec_to_min(fb["mean_sec"])
-    if mean_min <= 0:
-        await set_cached_json(key, {"sample_size": None}, ttl=STATS_NEGATIVE_TTL)
-        return None
+        mean_min = _sec_to_min(fb["mean_sec"])
+        if mean_min <= 0:
+            return dict(_NO_DATA_SENTINEL)
 
-    payload = {
-        "mean_min": mean_min,
-        "sample_size": int(fb["n"]),
-        "is_low_sample": True,
-    }
-    await set_cached_json(key, payload, ttl=STATS_NEGATIVE_TTL)
-    return payload
+        return {
+            "mean_min": mean_min,
+            "sample_size": int(fb["n"]),
+            "is_low_sample": True,
+        }
+
+    payload = await get_or_fetch_with_lock(key, _resolve_stats_ttl, _fetch)
+    return None if payload.get("sample_size") is None else payload
 
 
 _REFRESH_SQL = """
