@@ -142,7 +142,7 @@ describe('MarkerSheet — 빠듯 상태 미표시 (시안2 요구사항)', () =>
     const arrivals7 = [
       { routeCode: '수인분당', routeColor: null, direction: '인천 방면', minutes: 7 },
     ]
-    const { container } = render(
+    render(
       <MarkerSheet
         station={baseStation}
         arrivals={arrivals7}
@@ -151,7 +151,7 @@ describe('MarkerSheet — 빠듯 상태 미표시 (시안2 요구사항)', () =>
         onDetail={vi.fn()}
       />
     )
-    const html = container.innerHTML
+    const html = document.body.innerHTML
     // state-warn 클래스가 ETA에 적용되면 안 됨
     expect(html).not.toMatch(/text-state-warn/)
   })
@@ -190,7 +190,7 @@ describe('MarkerSheet — ETA 색상 두 단계 (imminent/일반)', () => {
     const imminentArrivals = [
       { routeCode: '수인분당', routeColor: null, direction: '인천 방면', minutes: 2 },
     ]
-    const { container } = render(
+    render(
       <MarkerSheet
         station={baseStation}
         arrivals={imminentArrivals}
@@ -199,14 +199,14 @@ describe('MarkerSheet — ETA 색상 두 단계 (imminent/일반)', () => {
         onDetail={vi.fn()}
       />
     )
-    expect(container.innerHTML).toMatch(/imminent/)
+    expect(document.body.innerHTML).toMatch(/imminent/)
   })
 
   it('ETA 10분은 imminent 클래스가 없어야 한다', () => {
     const normalArrivals = [
       { routeCode: '수인분당', routeColor: null, direction: '인천 방면', minutes: 10 },
     ]
-    const { container } = render(
+    render(
       <MarkerSheet
         station={baseStation}
         arrivals={normalArrivals}
@@ -217,7 +217,7 @@ describe('MarkerSheet — ETA 색상 두 단계 (imminent/일반)', () => {
     )
     // ETA 텍스트 자체엔 imminent가 없어야 함
     // (다른 요소에 imminent가 있을 수 있으니 ETA span 기준으로 확인)
-    const etaSpans = container.querySelectorAll('[data-eta]')
+    const etaSpans = document.body.querySelectorAll('[data-eta]')
     etaSpans.forEach((span) => {
       expect(span.className).not.toMatch(/imminent/)
     })
@@ -226,7 +226,7 @@ describe('MarkerSheet — ETA 색상 두 단계 (imminent/일반)', () => {
 
 describe('MarkerSheet — 시안2 구조 (카드 분리형)', () => {
   it('12px 미만 폰트 클래스(text-[9px]/[10px]/[11px])가 없어야 한다', () => {
-    const { container } = render(
+    render(
       <MarkerSheet
         station={baseStation}
         arrivals={baseArrivals}
@@ -235,7 +235,7 @@ describe('MarkerSheet — 시안2 구조 (카드 분리형)', () => {
         onDetail={vi.fn()}
       />
     )
-    const html = container.innerHTML
+    const html = document.body.innerHTML
     expect(html).not.toContain('text-[9px]')
     expect(html).not.toContain('text-[10px]')
     expect(html).not.toContain('text-[11px]')
