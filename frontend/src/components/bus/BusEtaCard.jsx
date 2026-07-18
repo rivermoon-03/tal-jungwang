@@ -116,12 +116,13 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
           </span>
         </div>
         <div className="px-3.5 pb-3.5 pt-0.5">
-          <div className="text-eta-mob font-bold text-ink dark:text-ink">
-            보통{' '}
-            <span className="font-bold tabular-nums">{predictedEta.hhmm}</span>
-            <span className="text-body font-semibold text-mute dark:text-mute ml-0.5">
-              쯤 도착
-            </span>
+          {/* 각 조각을 flex-wrap 아이템으로 분리 — 큰 숫자(text-eta-mob, lineHeight 1.0)와
+              작은 단어("보통"/"쯤 도착")를 한 인라인 블록에 섞으면 좁은 폭에서 줄바꿈될 때
+              줄간격이 없어 다음 줄과 겹쳐 보이는 문제가 있었다(실사용 리포트: 3400·99-2). */}
+          <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5">
+            <span className="text-body font-semibold text-ink dark:text-ink">보통</span>
+            <span className="text-eta-mob font-bold tabular-nums text-ink dark:text-ink">{predictedEta.hhmm}</span>
+            <span className="text-body font-semibold text-mute dark:text-mute">쯤 도착</span>
           </div>
           <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
             <b className="font-semibold text-ink dark:text-ink">{emphasis}</b>
