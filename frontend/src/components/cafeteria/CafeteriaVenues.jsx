@@ -21,6 +21,7 @@ import { ALL_VENUES, RESTAURANTS, VENUE_GROUPS, BUILDING_GROUPS, CATEGORY_GROUPS
 import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryStyle, getCategoryIcon } from '../../utils/venueOpen'
 import SegmentTabs from '../ui/SegmentTabs'
 import { staggerStyle } from '../../utils/motion'
+import './CafeteriaVenues.css'
 
 // ── 탭 정의 ────────────────────────────────────────────────
 const TABS = [
@@ -99,19 +100,19 @@ function LocationChip({ location }) {
   )
 }
 
-// ── 상태 텍스트 스타일 ────────────────────────────────────
-function StatusText({ primaryLabel, status }) {
-  const isOpen = status === 'open' || status === 'closing' || status === 'always'
-  const isClosing = status === 'closing'
-
-  const color = isClosing
-    ? 'var(--tj-imminent)'
-    : isOpen
-      ? 'var(--tj-ease)'
-      : 'var(--tj-mute)'
-
+// ── 상태 배지 (시안 TO-BE) ─────────────────────────────────
+// 종료/휴무를 회색 텍스트가 아니라 톤다운 적색 배지로 보여 "운영 중"(초록)과
+// 시각 대비를 준다. 색/다크대응은 CafeteriaVenues.css.
+function StatusPill({ primaryLabel, status }) {
+  const cls =
+    status === 'open' || status === 'always'
+      ? 'is-open'
+      : status === 'closing'
+        ? 'is-closing'
+        : 'is-closed' // closed_day / after_close / before_open
   return (
-    <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+    <span className={`cafe-status-pill ${cls}`}>
+      <span className="dot" />
       {primaryLabel}
     </span>
   )
@@ -198,7 +199,7 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
           <div style={{ textAlign: 'right' }}>
-            <StatusText primaryLabel={primaryLabel} status={status} />
+            <StatusPill primaryLabel={primaryLabel} status={status} />
             {subLabel && (
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
                 {subLabel}
@@ -246,6 +247,22 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
           )
         })}
       </div>
+
+      {/* 대표 메뉴 (시안 TO-BE) — 있을 때만, 본문 글자 크기로 강조 */}
+      {Array.isArray(venue.menu) && venue.menu.length > 0 && (
+        <div
+          style={{
+            marginTop: 11,
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--tj-ink)',
+            lineHeight: 1.6,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {venue.menu.join(' · ')}
+        </div>
+      )}
 
       {/* 풋터: note + 휴무 */}
       {(venue.note || venue.closedNote || venue.closedDays?.length > 0) && (
@@ -336,7 +353,7 @@ function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
 
       {/* 상태 */}
       <div style={{ flex: 'none', textAlign: 'right' }}>
-        <StatusText primaryLabel={primaryLabel} status={status} />
+        <StatusPill primaryLabel={primaryLabel} status={status} />
         {subLabel && (
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
             {subLabel}
