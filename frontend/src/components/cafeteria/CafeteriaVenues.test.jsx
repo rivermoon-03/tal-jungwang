@@ -15,9 +15,26 @@ vi.mock('../../hooks/useNow', () => ({
   useNow: vi.fn(() => new Date('2026-06-25T12:00:00+09:00').getTime()),
 }))
 
-// useAppStore 모킹 — 라이트모드
+// useAppStore 모킹 — 라이트모드 + F2 매점 즐겨찾기(venues) 상태를 셀렉터로 반영.
+// mockStoreState는 vi.hoisted로 선언해 factory와 테스트 바디 양쪽에서 공유한다.
+const mockStoreState = vi.hoisted(() => {
+  const state = {
+    darkMode: false,
+    favorites: { routes: [], stations: [], venues: [] },
+  }
+  state.toggleFavoriteVenue = (id) => {
+    const list = state.favorites.venues
+    const idx = list.indexOf(id)
+    if (idx >= 0) list.splice(idx, 1)
+    else list.push(id)
+  }
+  return state
+})
+
 vi.mock('../../stores/useAppStore', () => ({
-  default: vi.fn(() => false),
+  default: vi.fn((selector) =>
+    typeof selector === 'function' ? selector(mockStoreState) : mockStoreState
+  ),
 }))
 
 import CafeteriaVenues from './CafeteriaVenues'
@@ -25,6 +42,7 @@ import CafeteriaVenues from './CafeteriaVenues'
 describe('CafeteriaVenues', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockStoreState.favorites.venues = []
   })
 
   it('CafeteriaVenues가 렌더된다', () => {
@@ -119,6 +137,7 @@ describe('CafeteriaVenues', () => {
 describe('CafeteriaVenues — 정렬 스위치', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockStoreState.favorites.venues = []
   })
 
   // 운영시간 탭으로 이동하는 헬퍼
@@ -176,5 +195,56 @@ describe('CafeteriaVenues — 정렬 스위치', () => {
     // 기본 탭(지금 영업중) — 스위치가 있어야 함
     expect(screen.getByText('장소별')).toBeInTheDocument()
     expect(screen.getByText('카테고리별')).toBeInTheDocument()
+  })
+})
+
+// ─── F2: 매점/식당 즐겨찾기 테스트 ───────────────────────────────────────────
+describe('CafeteriaVenues — F2 매점 즐겨찾기', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockStoreState.favorites.venues = []
+  })
+
+  it('각 카드에 즐겨찾기 별 버튼이 렌더된다', () => {
+    render(<CafeteriaVenues />)
+    const starButtons = screen.getAllByRole('button', { name: '즐겨찾기 추가' })
+    expect(starButtons.length).toBeGreaterThan(0)
+  })
+
+  it('별 버튼 클릭 시 toggleFavoriteVenue가 호출되고 onVenueClick(카드 클릭)은 트리거되지 않는다', () => {
+    const onVenueClick = vi.fn()
+    render(<CafeteriaVenues onVenueClick={onVenueClick} />)
+
+    const starButtons = screen.getAllByRole('button', { name: '즐겨찾기 추가' })
+    fireEvent.click(starButtons[0])
+
+    // 카드 자체의 onClick(onVenueClick)까지 버블링되면 안 된다.
+    expect(onVenueClick).not.toHaveBeenCalled()
+    // 즐겨찾기 상태가 실제로 하나 늘어났어야 한다.
+    expect(mockStoreState.favorites.venues.length).toBe(1)
+  })
+
+  it('즐겨찾기가 없으면 "즐겨찾기 · 지금 영업 중" 섹션이 보이지 않는다', () => {
+    render(<CafeteriaVenues />)
+    expect(screen.queryByTestId('favorite-open-section')).not.toBeInTheDocument()
+  })
+
+  it('즐겨찾기한 곳이 지금 영업 중이면 상단에 "즐겨찾기 · 지금 영업 중" 섹션이 보인다', () => {
+    // GS25는 24시간 연중무휴(alwaysOpen)라 시간대와 무관하게 항상 열려 있다
+    mockStoreState.favorites.venues = ['gs25']
+    render(<CafeteriaVenues />)
+
+    const section = screen.getByTestId('favorite-open-section')
+    expect(section).toBeInTheDocument()
+    expect(section).toHaveTextContent('GS25')
+  })
+
+  it('즐겨찾기한 곳이 지금 영업 중이 아니면 섹션이 보이지 않는다', () => {
+    // E동레스토랑은 학기 중 평일 11:30~13:50, 16:50~18:40만 운영 — 임의로 존재하지 않는 id로 대체 검증
+    // (실제로는 열려 있을 수도 있으므로, 폐점 확정 시간대인 늦은 밤 조합을 피하고
+    //  존재하지 않는 venue id로 "빈 섹션 노출 금지"를 검증한다)
+    mockStoreState.favorites.venues = ['not-a-real-venue-id']
+    render(<CafeteriaVenues />)
+    expect(screen.queryByTestId('favorite-open-section')).not.toBeInTheDocument()
   })
 })
