@@ -1,0 +1,52 @@
+/* CafeteriaVenues — 상태 배지(운영중/마감임박/종료).
+   시안 TO-BE: 종료 상태를 회색 텍스트가 아니라 톤다운 적색 배지로 보여
+   "지금 운영 중"(초록)과 시각 대비를 준다. 순수색이 아니라 color-mix로
+   배경에 녹여 부드럽게 처리(다크모드는 밝은 톤 f87171 사용). */
+
+.cafe-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 7px;
+  padding: 3px 8px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.cafe-status-pill .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* 운영 중 / 24시간 — 톤다운 초록 */
+.cafe-status-pill.is-open {
+  background: color-mix(in srgb, var(--tj-ease) 12%, var(--tj-surface-2));
+  color: color-mix(in srgb, var(--tj-ease) 55%, var(--tj-ink));
+  border: 1px solid color-mix(in srgb, var(--tj-ease) 22%, var(--tj-line));
+}
+.cafe-status-pill.is-open .dot { background: var(--tj-ease); }
+
+/* 마감 임박 — 톤다운 앰버/적 */
+.cafe-status-pill.is-closing {
+  background: color-mix(in srgb, var(--tj-imminent) 12%, var(--tj-surface-2));
+  color: color-mix(in srgb, var(--tj-imminent) 60%, var(--tj-ink));
+  border: 1px solid color-mix(in srgb, var(--tj-imminent) 24%, var(--tj-line));
+}
+.cafe-status-pill.is-closing .dot { background: var(--tj-imminent); }
+
+/* 영업 종료 / 휴무 / 영업 전 — 톤다운 적색(회색 대신) */
+.cafe-status-pill.is-closed {
+  background: color-mix(in srgb, #dc2626 11%, var(--tj-surface-2));
+  color: color-mix(in srgb, #dc2626 62%, var(--tj-ink));
+  border: 1px solid color-mix(in srgb, #dc2626 20%, var(--tj-line));
+}
+.cafe-status-pill.is-closed .dot { background: #dc2626; }
+.dark .cafe-status-pill.is-closed {
+  background: color-mix(in srgb, #f87171 16%, var(--tj-surface-2));
+  color: color-mix(in srgb, #f87171 72%, var(--tj-ink));
+  border-color: color-mix(in srgb, #f87171 26%, var(--tj-line));
+}
+.dark .cafe-status-pill.is-closed .dot { background: #f87171; }
