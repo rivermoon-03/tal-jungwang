@@ -45,10 +45,13 @@ function etaLabel(sec) {
 // ──────────────────────────────────────────────────────────────────
 // 탭 상수
 // ──────────────────────────────────────────────────────────────────
+// sunday 라벨은 '일/공휴일' — 실제 DB 조회 결과 모든 노선에서 saturday/sunday
+// 시간표가 시각까지 완전히 동일하고(app/core/calendar.py가 공휴일도 'sunday'로
+// 매핑), 이 탭이 실질적으로 "주말/공휴일 시간표"를 의미하기 때문.
 const DAY_TABS = [
   { id: 'weekday',  label: '평일' },
   { id: 'saturday', label: '토요일' },
-  { id: 'sunday',   label: '일요일' },
+  { id: 'sunday',   label: '일/공휴일' },
 ]
 
 // 오늘 요일로 기본 탭 결정 (0=일,1=월..6=토)
@@ -607,39 +610,12 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
             </div>
           )}
 
-          {/* 방향 탭 (등교/하교) */}
+          {/* 방향 탭 (등교/하교) — 풀사이즈 유지 */}
           <DirectionTabs
             categories={availableCategories}
             active={resolvedCategory}
             onChange={(cat) => setActiveCategory(cat)}
           />
-
-          {/* 평일/토/일 세그먼트 */}
-          <div
-            role="tablist"
-            className="flex gap-[5px] bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-card p-1"
-          >
-            {DAY_TABS.map((tab) => {
-              const isActive = tab.id === dayTab
-              return (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setDayTab(tab.id)}
-                  className={[
-                    'flex-1 flex items-center justify-center min-h-[40px] rounded-button',
-                    'text-[14px] font-semibold select-none transition-all',
-                    isActive
-                      ? 'bg-ink dark:bg-accent text-white dark:text-black font-semibold shadow-[0_4px_10px_color-mix(in_srgb,var(--tj-ink)_22%,transparent)]'
-                      : 'text-mute dark:text-mute',
-                  ].join(' ')}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
         </div>
 
         {/* 스크롤 영역: 시간표 리스트 */}
@@ -666,12 +642,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
             {!ttLoading && !ttError && (hasRealtimeGroup || hasTimetable) && (
               <>
                 {/* ── 장소 중심 탭: [{도착 정류장} 도착 | {기점} 출발] — 실시간+시간표 둘 다 있을 때만.
-                    기록뷰(showHistory)에서는 탭을 숨겨 뒤로가기에 집중. ── */}
+                    등교/하교(DirectionTabs, 풀사이즈 세그먼트)보다 한 단계 가벼운 작은 pill로 둬
+                    두 선택지가 같은 무게로 쌓이지 않게 한다. 기록뷰(showHistory)에서는 숨겨 집중. ── */}
                 {bothGroups && !showHistory && (
                   <div
                     role="tablist"
                     aria-label="정류장 선택"
-                    className="flex gap-[5px] bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-card p-1 mb-3"
+                    className="flex items-center gap-1.5 mb-3"
                   >
                     {[
                       { id: 'arrive', label: `${histData?.stop_name ?? '내 정류장'} 도착` },
@@ -686,14 +663,14 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                           aria-selected={active}
                           onClick={() => setPlaceTab(t.id)}
                           className={[
-                            'flex-1 min-w-0 flex items-center justify-center min-h-[40px] rounded-button px-2',
-                            'text-[13px] font-semibold select-none transition-all truncate',
+                            'inline-flex items-center h-[30px] max-w-[180px] px-3 rounded-full',
+                            'text-[12px] font-bold select-none transition-colors truncate',
                             active
-                              ? 'bg-ink dark:bg-accent text-white dark:text-black'
-                              : 'text-mute dark:text-mute',
+                              ? 'bg-accent-bg text-accent-ink dark:bg-accent/20 dark:text-accent'
+                              : 'bg-surface-2 dark:bg-bg text-mute dark:text-mute border border-line dark:border-line',
                           ].join(' ')}
                         >
-                          {t.label}
+                          <span className="truncate">{t.label}</span>
                         </button>
                       )
                     })}
@@ -747,21 +724,47 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                 {/* ── 출발 탭 (또는 단일 시간표 그룹) ── */}
                 {((bothGroups && placeTab === 'depart') || (!bothGroups && hasTimetable)) && (
                 <section aria-label="기점 출발 시간표">
-                  {/* 그룹 B 헤더 */}
-                  <div className="mb-2">
-                    <h2 className="text-[13.5px] font-semibold text-ink dark:text-ink tracking-[-0.01em]">
-                      {originStopName
-                        ? `${originStopName} 출발 시간표`
-                        : '출발 시간표'}
-                      {headLabel && (
-                        <span className="font-semibold text-mute dark:text-mute"> · {headLabel}</span>
-                      )}
-                    </h2>
-                    <p className="text-[12px] font-semibold text-mute dark:text-mute mt-0.5">
-                      {isRealtime
-                        ? '기점에서 출발하는 정해진 시각이에요. 도착 시각과 달라요.'
-                        : '기점에서 출발하는 시각이에요.'}
-                    </p>
+                  {/* 그룹 B 헤더 + 요일 전환(우상단 작은 pill 3개) — 요일은 출발 시간표에만
+                      의미가 있어(도착 탭은 항상 실시간·오늘 기준) 별도 풀사이즈 탭 대신
+                      여기 우상단에 작게 둔다. */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <h2 className="text-[13.5px] font-semibold text-ink dark:text-ink tracking-[-0.01em]">
+                        {originStopName
+                          ? `${originStopName} 출발 시간표`
+                          : '출발 시간표'}
+                        {headLabel && (
+                          <span className="font-semibold text-mute dark:text-mute"> · {headLabel}</span>
+                        )}
+                      </h2>
+                      <p className="text-[12px] font-semibold text-mute dark:text-mute mt-0.5">
+                        {isRealtime
+                          ? '기점에서 출발하는 정해진 시각이에요. 도착 시각과 달라요.'
+                          : '기점에서 출발하는 시각이에요.'}
+                      </p>
+                    </div>
+                    <div role="tablist" aria-label="요일 선택" className="flex-none flex items-center gap-0.5 bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-full p-0.5">
+                      {DAY_TABS.map((tab) => {
+                        const active = tab.id === dayTab
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            onClick={() => setDayTab(tab.id)}
+                            className={[
+                              'px-2 py-1 rounded-full text-[10.5px] font-bold whitespace-nowrap transition-colors',
+                              active
+                                ? 'bg-ink dark:bg-accent text-white dark:text-black'
+                                : 'text-mute dark:text-mute',
+                            ].join(' ')}
+                          >
+                            {tab.label}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
 
                   {/* 시간표 리스트 */}

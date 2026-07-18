@@ -168,11 +168,15 @@ describe('RouteDetailPage', () => {
     backSpy.mockRestore()
   })
 
-  it('평일/토/일 세그먼트 탭이 표시됨', () => {
+  it('평일/토/일 요일 전환이 출발 시간표 섹션 우상단에 작게 표시됨 (도착 탭엔 없음)', () => {
+    // 요일은 출발 시간표에만 의미가 있어 도착 탭에는 렌더되지 않는다.
     render(<RouteDetailPage routeNumber="33" />)
+    expect(screen.queryByText('평일')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     expect(screen.getByText('평일')).toBeInTheDocument()
     expect(screen.getByText('토요일')).toBeInTheDocument()
-    expect(screen.getByText('일요일')).toBeInTheDocument()
+    expect(screen.getByText('일/공휴일')).toBeInTheDocument()
   })
 
   it('정류장 칩이 렌더링됨', () => {
