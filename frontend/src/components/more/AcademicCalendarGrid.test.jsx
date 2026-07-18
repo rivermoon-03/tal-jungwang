@@ -2,7 +2,7 @@
  * AcademicCalendarGrid — 월간 그리드 캘린더 단위 테스트.
  * 날짜는 항상 고정된 `now`/이벤트를 넘겨 오늘 날짜에 의존하지 않게 한다.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import AcademicCalendarGrid from './AcademicCalendarGrid'
 import { daysInMonth } from '../../utils/academicCalendar'
@@ -18,8 +18,10 @@ const EVENTS = [
 describe('AcademicCalendarGrid — 그리드 렌더링', () => {
   it('요일 헤더 7개를 렌더링한다', () => {
     render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    // '월' 탭(SegmentTabs)과 요일 헤더 '월'이 텍스트가 같으므로 헤더 영역으로 스코프한다.
+    const header = within(screen.getByTestId('cal-weekday-header'))
     for (const w of ['일', '월', '화', '수', '목', '금', '토']) {
-      expect(screen.getByText(w)).toBeInTheDocument()
+      expect(header.getByText(w)).toBeInTheDocument()
     }
   })
 
@@ -88,5 +90,87 @@ describe('AcademicCalendarGrid — 날짜 선택', () => {
     render(<AcademicCalendarGrid events={EVENTS} initialDate="2026-09-01" now={NOW} />)
     expect(screen.getByText('2026년 9월')).toBeInTheDocument()
     expect(screen.getByText('2학기 개강')).toBeInTheDocument()
+  })
+})
+
+describe('AcademicCalendarGrid — 월/주 탭', () => {
+  it('기본은 월간 뷰이고, "월"/"주" 탭이 렌더링된다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    expect(screen.getByRole('tab', { name: '월' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '주' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByText('2026년 7월')).toBeInTheDocument()
+  })
+
+  it('"주" 탭을 누르면 오늘(2026-07-18, 토)이 속한 주(일~토)로 전환된다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    expect(screen.getByRole('tab', { name: '주' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('7월 12일 ~ 7월 18일')).toBeInTheDocument()
+  })
+
+  it('주간 뷰는 일요일부터 토요일까지 정확히 7일을 보여준다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    const days = ['2026-07-12', '2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16', '2026-07-17', '2026-07-18']
+    for (const d of days) {
+      expect(screen.getByTestId(`week-day-${d}`)).toBeInTheDocument()
+    }
+    // 이전/다음 주 날짜는 없어야 한다.
+    expect(screen.queryByTestId('week-day-2026-07-11')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('week-day-2026-07-19')).not.toBeInTheDocument()
+  })
+
+  it('주간 뷰에서 오늘 날짜 행에 aria-current="date"가 있다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    expect(screen.getByTestId('week-day-2026-07-18')).toHaveAttribute('aria-current', 'date')
+    expect(screen.getByTestId('week-day-2026-07-12')).not.toHaveAttribute('aria-current')
+  })
+
+  it('이벤트가 있는 날은 제목을, 없는 날은 "일정 없음"을 보여준다', () => {
+    render(<AcademicCalendarGrid events={EVENTS} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    // 기말고사 범위(7/9~7/22) 안에 있는 이번 주 전체 날짜에 제목이 보여야 한다.
+    expect(within(screen.getByTestId('week-day-2026-07-15')).getByText('기말고사')).toBeInTheDocument()
+    expect(within(screen.getByTestId('week-day-2026-07-18')).getByText('기말고사')).toBeInTheDocument()
+  })
+
+  it('이벤트가 없는 주로 이동하면 "일정 없음" 문구가 보인다', () => {
+    render(<AcademicCalendarGrid events={EVENTS} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    // 8/9(기말고사 범위 밖)가 있는 다음다음 주로 이동.
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
+    expect(within(screen.getByTestId('week-day-2026-08-08')).getByText('일정 없음')).toBeInTheDocument()
+  })
+
+  it('이전 주/다음 주 버튼으로 한 주씩 이동한다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
+    expect(screen.getByText('7월 19일 ~ 7월 25일')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '이전 주' }))
+    fireEvent.click(screen.getByRole('button', { name: '이전 주' }))
+    expect(screen.getByText('7월 5일 ~ 7월 11일')).toBeInTheDocument()
+  })
+
+  it('월에서 날짜를 선택한 뒤 주 탭으로 전환하면 그 날짜가 속한 주를 보여준다', () => {
+    render(<AcademicCalendarGrid events={EVENTS} now={NOW} />)
+    fireEvent.click(screen.getByTestId('cal-day-2026-07-09'))
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    // 7/9(목)이 속한 주는 7/5(일)~7/11(토).
+    expect(screen.getByText('7월 5일 ~ 7월 11일')).toBeInTheDocument()
+  })
+
+  it('주 탭에서 이동한 뒤 월 탭으로 돌아가면 그 주가 속한 달을 보여준다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
+    // 3주 뒤(7/12 → 8/2 시작 주)는 8월로 넘어간다.
+    fireEvent.click(screen.getByRole('tab', { name: '월' }))
+    expect(screen.getByText('2026년 8월')).toBeInTheDocument()
   })
 })

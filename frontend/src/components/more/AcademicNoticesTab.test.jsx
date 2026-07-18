@@ -101,9 +101,9 @@ describe('AcademicNoticesTab — D-day 배너', () => {
     expect(screen.getAllByText('6월 9일 ~ 6월 22일').length).toBeGreaterThan(0)
   })
 
-  it('다가오는 일정을 월간 캘린더 그리드로 렌더링한다', () => {
+  it('"다가오는 일정" 텍스트 라벨 없이 월간 캘린더 그리드를 바로 렌더링한다', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.getByText('다가오는 일정')).toBeInTheDocument()
+    expect(screen.queryByText('다가오는 일정')).not.toBeInTheDocument()
     // next(기말고사) start_date가 2026-06-09이므로 초기 달은 2026년 6월.
     expect(screen.getByText('2026년 6월')).toBeInTheDocument()
     // 6/9는 이벤트 범위(6/9~6/22) 시작일이라 그리드에 날짜 셀이 존재해야 한다.
@@ -116,10 +116,61 @@ describe('AcademicNoticesTab — D-day 배너', () => {
     expect(screen.queryByText(/^D[-+]\d+$/)).not.toBeInTheDocument()
   })
 
-  it('next와 upcoming이 모두 없으면 캘린더도 렌더링하지 않는다', () => {
+  it('next와 upcoming이 모두 없으면 캘린더 그리드도 렌더링하지 않는다', () => {
     setHooks({ calendar: { data: { next: null, upcoming: [] }, loading: false, error: null } })
     render(<AcademicNoticesTab />)
-    expect(screen.queryByText('다가오는 일정')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cal-day-2026-06-09')).not.toBeInTheDocument()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+  })
+
+  it('D-day 배너는 탭 가능한 버튼이다', () => {
+    render(<AcademicNoticesTab />)
+    expect(screen.getByRole('button', { name: /다가오는 일정 더 보기/ })).toBeInTheDocument()
+  })
+})
+
+describe('AcademicNoticesTab — D-day 배너 탭 → 다가오는 일정 모달', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setHooks()
+  })
+
+  it('배너를 탭하면 모달이 열리고 upcoming 항목(제목+날짜)을 보여준다', () => {
+    render(<AcademicNoticesTab />)
+    expect(screen.queryByText('하계방학 시작')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /다가오는 일정 더 보기/ }))
+
+    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
+    expect(screen.getByText('6월 23일')).toBeInTheDocument()
+    expect(screen.getByText('2학기 개강')).toBeInTheDocument()
+    expect(screen.getByText('9월 1일')).toBeInTheDocument()
+  })
+
+  it('upcoming이 3개 미만이면 있는 만큼만 보여준다', () => {
+    setHooks({
+      calendar: {
+        data: {
+          next: { title: '기말고사', start_date: '2026-06-09', end_date: '2026-06-22' },
+          upcoming: [{ title: '하계방학 시작', start_date: '2026-06-23', end_date: '2026-06-23' }],
+        },
+        loading: false,
+        error: null,
+      },
+    })
+    render(<AcademicNoticesTab />)
+    fireEvent.click(screen.getByRole('button', { name: /다가오는 일정 더 보기/ }))
+    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
+    expect(screen.queryByText('2학기 개강')).not.toBeInTheDocument()
+  })
+
+  it('닫기 버튼을 누르면 모달이 닫힌다', () => {
+    render(<AcademicNoticesTab />)
+    fireEvent.click(screen.getByRole('button', { name: /다가오는 일정 더 보기/ }))
+    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }))
+    expect(screen.queryByText('하계방학 시작')).not.toBeInTheDocument()
   })
 })
 

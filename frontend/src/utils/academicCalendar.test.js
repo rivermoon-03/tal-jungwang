@@ -10,6 +10,11 @@ import {
   monthLabel,
   buildMonthGrid,
   isDateInRange,
+  addDays,
+  startOfWeekSunday,
+  buildWeekGrid,
+  shiftWeek,
+  weekRangeLabel,
 } from './academicCalendar'
 
 // 기준 "오늘" — Asia/Seoul 정오로 고정(자정 경계 흔들림 방지).
@@ -153,5 +158,61 @@ describe('isDateInRange', () => {
   it('startDate/dateStr이 없으면 false', () => {
     expect(isDateInRange(null, '2026-06-09', '2026-06-22')).toBe(false)
     expect(isDateInRange('2026-06-09', null, '2026-06-22')).toBe(false)
+  })
+})
+
+describe('addDays', () => {
+  it('양수 delta는 미래로 이동한다', () => {
+    expect(addDays('2026-07-18', 1)).toBe('2026-07-19')
+    expect(addDays('2026-07-31', 1)).toBe('2026-08-01')
+  })
+
+  it('음수 delta는 과거로 이동하고 연/월 경계를 넘어간다', () => {
+    expect(addDays('2026-07-01', -1)).toBe('2026-06-30')
+    expect(addDays('2026-01-01', -1)).toBe('2025-12-31')
+  })
+})
+
+describe('startOfWeekSunday', () => {
+  it('2026-07-18(토)이 속한 주의 일요일은 2026-07-12', () => {
+    expect(startOfWeekSunday('2026-07-18')).toBe('2026-07-12')
+  })
+
+  it('일요일 자신이면 그대로 반환한다', () => {
+    expect(startOfWeekSunday('2026-07-12')).toBe('2026-07-12')
+  })
+})
+
+describe('buildWeekGrid', () => {
+  it('항상 정확히 7칸(일~토)을 반환한다', () => {
+    const grid = buildWeekGrid('2026-07-18')
+    expect(grid).toHaveLength(7)
+    expect(grid[0]).toEqual({ date: '2026-07-12', day: 12 })
+    expect(grid[6]).toEqual({ date: '2026-07-18', day: 18 })
+  })
+
+  it('월 경계를 걸친 주도 올바르게 만든다', () => {
+    // 2026-07-30(목)이 속한 주는 7/26(일)~8/1(토).
+    const grid = buildWeekGrid('2026-07-30')
+    expect(grid.map((c) => c.date)).toEqual([
+      '2026-07-26', '2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31', '2026-08-01',
+    ])
+  })
+})
+
+describe('shiftWeek', () => {
+  it('delta주만큼 이동한 주의 일요일을 반환한다', () => {
+    expect(shiftWeek('2026-07-18', 1)).toBe('2026-07-19')
+    expect(shiftWeek('2026-07-18', -1)).toBe('2026-07-05')
+  })
+})
+
+describe('weekRangeLabel', () => {
+  it('"M월 D일 ~ M월 D일" 형식으로 그 주(일~토)의 범위를 표시한다', () => {
+    expect(weekRangeLabel('2026-07-18')).toBe('7월 12일 ~ 7월 18일')
+  })
+
+  it('월 경계를 걸친 주도 올바르게 표시한다', () => {
+    expect(weekRangeLabel('2026-07-30')).toBe('7월 26일 ~ 8월 1일')
   })
 })

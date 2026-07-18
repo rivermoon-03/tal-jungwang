@@ -8,11 +8,14 @@ import { useLayoutEffect, useRef, useState } from 'react'
  *   items    {id, label}[]  탭 목록
  *   active   string         활성 탭 id
  *   onChange (id) => void   탭 클릭 핸들러
+ *   size     'md'|'sm'      기본 'md'. 'sm'은 풀사이즈가 아니라 카드/캘린더
+ *            위에 작게 얹히는 용도(컨테이너 폭을 채우지 않고 콘텐츠만큼만 차지).
  *
  * 활성 탭 배경은 실제 DOM 위치를 측정해 슬라이드하는 단일 인디케이터로 구현
  * (DESIGN.md §4 "세그먼트 인디케이터 슬라이드" — e-out/dur-motion-base).
  */
-export default function SegmentTabs({ items = [], active, onChange }) {
+export default function SegmentTabs({ items = [], active, onChange, size = 'md' }) {
+  const compact = size === 'sm'
   const containerRef = useRef(null)
   const btnRefs = useRef(new Map())
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
@@ -53,7 +56,7 @@ export default function SegmentTabs({ items = [], active, onChange }) {
     <div
       ref={containerRef}
       role="tablist"
-      className="relative flex items-center gap-1 bg-surface-2 rounded-btn p-1"
+      className={`relative flex items-center gap-1 bg-surface-2 rounded-btn p-1 ${compact ? 'inline-flex' : ''}`}
     >
       <span
         aria-hidden="true"
@@ -79,9 +82,11 @@ export default function SegmentTabs({ items = [], active, onChange }) {
             aria-selected={isActive}
             onClick={() => onChange(item.id)}
             className={[
-              'relative z-10 flex-1 flex items-center justify-center',
-              'min-h-[44px] px-3 rounded-badge',
-              'text-label font-semibold select-none pressable',
+              'relative z-10 flex items-center justify-center',
+              compact ? 'min-h-[34px] px-3' : 'min-h-[44px] px-3 flex-1',
+              'rounded-badge',
+              compact ? 'text-meta' : 'text-label',
+              'font-semibold select-none pressable',
               'transition-colors duration-base',
               isActive ? 'text-white dark:text-black' : 'bg-transparent text-ink-2',
             ].join(' ')}
