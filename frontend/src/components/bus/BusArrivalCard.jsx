@@ -168,52 +168,24 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
   const wrapperBase =
     'relative rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none'
 
+  // 시안 B — 좌측 ETA 컬럼형. ETA를 왼쪽 세로 컬럼으로 빼 제목/트랙이 풀폭을
+  // 확보(폰에서 제목이 "구로…"로 잘리거나 트랙이 3줄로 wrap되던 문제 해소).
   const content = (
-    <div className="flex items-center gap-[14px] px-[18px] py-4">
-      {/* 노선 뱃지 */}
-      <RouteBadge route={first.route_no} className="shrink-0" />
-
-      {/* 본문 (시안 C: 출발·경유 텍스트는 아래 트랙과 중복이라 생략) */}
-      <div className="flex-1 min-w-0">
-        {/* 행선지 + 상태 */}
-        <div className="flex items-center gap-2 leading-tight">
-          <span className={`truncate text-head font-semibold tracking-[-.01em] ${muted ? 'text-mute' : 'text-ink'}`}>
-            {headLabel}
-          </span>
-          {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
-          {!isTimetable && !muted && (
-            <StatusChip kind="realtime">실시간</StatusChip>
-          )}
-          {isTimetable && first.depart_at && (
-            <span className="text-label font-bold text-mute">
-              {first.depart_at}
-            </span>
-          )}
-        </div>
-
-        <MiniTrack
-          origin={origin}
-          waypoints={waypoints}
-          terminus={terminus}
-          category={category}
-          muted={muted}
-        />
-      </div>
-
-      {/* ETA (우측) — "N분 후" */}
-      <span
+    <div className="flex items-stretch gap-3 px-[16px] py-4">
+      {/* 좌: ETA 컬럼 (큰 숫자 + "분 후") + 다음 차 시각 */}
+      <div
         data-eta
-        className={`text-right shrink-0 leading-none tabular-nums ${imminent ? 'imminent' : ''}`}
+        className={`shrink-0 w-[58px] flex flex-col items-center justify-center border-r border-line dark:border-line pr-3 tabular-nums ${imminent ? 'imminent' : ''}`}
       >
-        <span className="inline-flex items-baseline">
+        <span className="inline-flex items-baseline leading-none">
           <span
             key={etaText}
             className={`tj-number-pulse font-bold tracking-[-.05em] ${
               imminent
-                ? 'text-imminent dark:text-imminent text-[30px]'
+                ? 'text-imminent dark:text-imminent text-[26px]'
                 : muted
-                ? 'text-mute font-semibold text-[24px]'
-                : 'text-ink dark:text-ink text-[30px]'
+                ? 'text-mute font-semibold text-[22px]'
+                : 'text-ink dark:text-ink text-[26px]'
             }`}
           >
             {imminent ? (
@@ -225,34 +197,60 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
               etaText
             )}
           </span>
-          {isMinutes && !imminent && (
-            <span className="ml-[2px] text-body font-semibold text-mute">분 후</span>
-          )}
         </span>
+        {isMinutes && !imminent && (
+          <span className="text-caption font-semibold text-mute mt-0.5">분 후</span>
+        )}
         {etaSub && !muted && (
-          <span className="block mt-[5px] text-caption font-semibold text-mute tracking-[-.005em]">
+          <span className="block mt-1 text-micro font-semibold text-mute text-center leading-tight">
             {etaSub}
           </span>
         )}
-      </span>
+      </div>
 
-      {/* 즐겨찾기 — 원형 테두리 버튼, 카드 세로 중앙, 모바일에서 누르기 쉽게 크게(40px) */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); toggleFav({ type: 'bus', label: first.route_no }) }}
-        aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-        className={`shrink-0 self-center flex items-center justify-center w-10 h-10 rounded-full border pressable ${
-          isFavorite
-            ? 'border-imminent/40 bg-imminent/10'
-            : 'border-line dark:border-line bg-surface dark:bg-surface'
-        }`}
-      >
-        <Star
-          size={19}
-          fill={isFavorite ? 'currentColor' : 'none'}
-          className={isFavorite ? 'text-imminent' : 'text-mute'}
+      {/* 우: 정보 (풀폭) — [badge · 행선지 · 상태 · 별] / 트랙 */}
+      <div className="flex-1 min-w-0 flex flex-col gap-[7px]">
+        <div className="flex items-center gap-2 leading-tight">
+          <RouteBadge route={first.route_no} className="shrink-0" />
+          <span className={`truncate text-head font-semibold tracking-[-.01em] min-w-0 ${muted ? 'text-mute' : 'text-ink'}`}>
+            {headLabel}
+          </span>
+          {isTimetable && first.depart_at && (
+            <span className="shrink-0 text-label font-bold text-mute">
+              {first.depart_at}
+            </span>
+          )}
+          {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
+          {!isTimetable && !muted && (
+            <StatusChip kind="realtime">실시간</StatusChip>
+          )}
+          {/* 즐겨찾기 — 원형 테두리 버튼, 제목 행 우측. 44px 탭영역(내부 패딩). */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleFav({ type: 'bus', label: first.route_no }) }}
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            className={`ml-auto shrink-0 flex items-center justify-center w-9 h-9 rounded-full border pressable ${
+              isFavorite
+                ? 'border-imminent/40 bg-imminent/10'
+                : 'border-line dark:border-line bg-surface dark:bg-surface'
+            }`}
+          >
+            <Star
+              size={18}
+              fill={isFavorite ? 'currentColor' : 'none'}
+              className={isFavorite ? 'text-imminent' : 'text-mute'}
+            />
+          </button>
+        </div>
+
+        <MiniTrack
+          origin={origin}
+          waypoints={waypoints}
+          terminus={terminus}
+          category={category}
+          muted={muted}
         />
-      </button>
+      </div>
     </div>
   )
 
