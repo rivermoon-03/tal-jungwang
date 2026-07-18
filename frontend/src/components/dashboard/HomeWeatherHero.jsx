@@ -210,8 +210,10 @@ export default function HomeWeatherHero({ onOpenMap }) {
 
             <Icon
               size={64}
-              strokeWidth={1.4}
-              className={`shrink-0 ${lightText ? 'text-white/85' : 'text-ink/60 dark:text-white/80'}`}
+              strokeWidth={1.6}
+              className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
+              // 그라디언트 배경(특히 비/저녁 톤)에 아이콘이 묻히지 않게 살짝 그림자로 띄운다.
+              style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
               aria-hidden="true"
             />
           </div>

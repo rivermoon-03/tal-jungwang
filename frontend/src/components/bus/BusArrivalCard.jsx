@@ -216,10 +216,10 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
         />
       </div>
 
-      {/* ETA */}
+      {/* ETA — 우측 상단 즐겨찾기 별(absolute)과 겹치지 않게 오른쪽 여백을 둔다 */}
       <span
         data-eta
-        className={`text-right shrink-0 leading-none tabular-nums ${imminent ? 'imminent' : ''}`}
+        className={`text-right shrink-0 leading-none tabular-nums pr-[22px] ${imminent ? 'imminent' : ''}`}
       >
         <span className="inline-flex items-baseline">
           <span
