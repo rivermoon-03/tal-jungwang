@@ -139,7 +139,11 @@ export default function MarkerSheet({
             'fixed z-[100] flex flex-col overflow-hidden outline-none bg-surface dark:bg-surface',
             isPC
               ? 'left-0 top-0 bottom-[56px] w-[38%] h-auto border-r border-line dark:border-line'
-              : 'bottom-0 left-0 right-0 rounded-t-sheet border-t border-line dark:border-line',
+              // vaul의 snapPoints는 translateY 오프셋을 "컨텐츠가 뷰포트 높이만큼 꽉 찬다"고
+              // 가정해 계산한다. 높이를 content-length(auto)로 두면 도착 건수가 적은
+              // 정류장에서 실제 박스 높이가 오프셋보다 작아 화면 밖으로 완전히 밀려나
+              // 탭해도 시트가 안 보이는 버그가 생긴다(#마커탭무반응) — 고정 높이 필수.
+              : 'bottom-0 left-0 right-0 h-[92dvh] rounded-t-sheet border-t border-line dark:border-line',
           ].join(' ')}
           style={{
             boxShadow: isPC
