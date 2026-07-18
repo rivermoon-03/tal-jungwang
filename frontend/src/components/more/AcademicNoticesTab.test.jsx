@@ -93,23 +93,33 @@ describe('AcademicNoticesTab — D-day 배너', () => {
     setHooks()
   })
 
-  it('"D-N · 제목" 형식과 날짜 범위를 표시한다', () => {
+  it('D-N 배지와 제목, 날짜 범위를 표시한다', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.getByText(/D[-+]\d+ · 기말고사/)).toBeInTheDocument()
-    expect(screen.getByText('6월 9일 ~ 6월 22일')).toBeInTheDocument()
+    expect(screen.getByText(/^D[-+]\d+$/)).toBeInTheDocument()
+    // 선택된 캘린더 날짜 아래에도 같은 제목/날짜범위가 표시될 수 있어 getAllByText로 확인.
+    expect(screen.getAllByText('기말고사').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('6월 9일 ~ 6월 22일').length).toBeGreaterThan(0)
   })
 
-  it('다가오는 일정 리스트를 렌더링한다', () => {
+  it('다가오는 일정을 월간 캘린더 그리드로 렌더링한다', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
-    expect(screen.getByText('2학기 개강')).toBeInTheDocument()
-    expect(screen.getByText('9월 1일')).toBeInTheDocument()
+    expect(screen.getByText('다가오는 일정')).toBeInTheDocument()
+    // next(기말고사) start_date가 2026-06-09이므로 초기 달은 2026년 6월.
+    expect(screen.getByText('2026년 6월')).toBeInTheDocument()
+    // 6/9는 이벤트 범위(6/9~6/22) 시작일이라 그리드에 날짜 셀이 존재해야 한다.
+    expect(screen.getByTestId('cal-day-2026-06-09')).toBeInTheDocument()
   })
 
   it('next가 없으면 D-day 배너를 렌더링하지 않는다', () => {
     setHooks({ calendar: { data: { next: null, upcoming: [] }, loading: false, error: null } })
     render(<AcademicNoticesTab />)
-    expect(screen.queryByText(/D[-+]\d+/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^D[-+]\d+$/)).not.toBeInTheDocument()
+  })
+
+  it('next와 upcoming이 모두 없으면 캘린더도 렌더링하지 않는다', () => {
+    setHooks({ calendar: { data: { next: null, upcoming: [] }, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+    expect(screen.queryByText('다가오는 일정')).not.toBeInTheDocument()
   })
 })
 
