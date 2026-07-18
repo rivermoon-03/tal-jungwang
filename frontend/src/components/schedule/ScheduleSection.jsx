@@ -8,7 +8,6 @@ import RouteBadge from '../common/RouteBadge'
 import { CrowdedBadge } from '../bus/BusArrivalCard'
 import { formatRelAbs } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
-import './ScheduleSection.css'
 
 /**
  * next/afterNext 프롭은 아래 두 가지 형태를 모두 허용한다.
@@ -48,18 +47,15 @@ export default function ScheduleSection({
   // 노선명을 RouteBadge에 그대로 전달 (지하철/셔틀/버스 모두 처리)
   const badgeRoute = routeCode || (type === 'shuttle' ? '셔틀' : title)
 
-  // 타임라인 도트의 라이브 링 — 실시간 전용이거나 다음 차가 임박(≤3분)일 때 액센트.
-  const dotLive = !disabled && !loading && (realtimeOnly || (minutesUntil != null && minutesUntil >= 0 && minutesUntil <= 3))
-
   return (
     <div
-      className={`tj-sched pressable transition-all duration-150 ${
+      className={`pressable transition-all duration-150 ${
         disabled ? 'opacity-50' : ''
       } ${
         onClick && !disabled ? 'cursor-pointer hover:border-line dark:hover:border-line' : ''
       }`}
       style={{
-        padding: '12px 12px 12px 34px',
+        padding: 12,
         borderRadius: 14,
         border: '1px solid var(--tj-line)',
         background: 'transparent',
@@ -70,11 +66,6 @@ export default function ScheduleSection({
       tabIndex={!disabled && onClick ? 0 : undefined}
       onKeyDown={!disabled && onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
     >
-      {/* 좌측 타임라인 레일 (스파인 + 도트) — 시안 v3 */}
-      <span className="tj-sched-rail" aria-hidden="true">
-        <span className={`tj-sched-dot${dotLive ? ' is-live' : ''}`} />
-      </span>
-
       {/* top row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <RouteBadge route={badgeRoute} variant="badge" size="sm" />
