@@ -133,7 +133,7 @@ export default function MarkerSheet({
             'fixed z-[100] flex flex-col overflow-hidden outline-none bg-surface dark:bg-surface',
             isPC
               ? 'left-0 top-0 bottom-[56px] w-[38%] h-auto border-r border-line dark:border-line'
-              : 'bottom-0 left-0 right-0 rounded-t-[20px] border-t border-line dark:border-line',
+              : 'bottom-0 left-0 right-0 rounded-t-sheet border-t border-line dark:border-line',
           ].join(' ')}
           style={{
             boxShadow: isPC

@@ -1022,7 +1022,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           style={{ transition: `opacity var(--dur-motion-sheet) var(--e-out)` }}
         />
         <Drawer.Content
-          className="fixed bottom-0 left-0 right-0 z-[100] bg-surface dark:bg-surface rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden outline-none"
+          className="fixed bottom-0 left-0 right-0 z-[100] bg-surface dark:bg-surface rounded-t-sheet shadow-2xl flex flex-col overflow-hidden outline-none"
           style={{ maxHeight: '88dvh' }}
         >
           <Drawer.Title className="sr-only">{title} 시간표</Drawer.Title>
