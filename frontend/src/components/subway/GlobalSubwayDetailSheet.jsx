@@ -142,6 +142,29 @@ export default function GlobalSubwayDetailSheet() {
   }, [refreshCooldown])
 
   const displayed = item ?? prevItem.current
+
+  // ── 시간표 데이터 ──────────────────────────────────────────
+  // timetableKey는 단일 키(방향 포함)이거나, dayType별 조합일 수 있음
+  // 시도: `${timetableKey}_${dayType}` → fallback: timetableKey 단일
+  // displayed가 아직 없을 수도 있으니(시트가 닫혀 있는 렌더) 옵셔널 체이닝으로 안전하게 계산 —
+  // 아래 useEffect가 Rules of Hooks를 지키려면 early return보다 앞에서 호출돼야 하고,
+  // 그러려면 이 값들도 여기서 먼저 계산돼 있어야 한다.
+  const ttKey = displayed && timetable?.[`${displayed.timetableKey}_${dayType}`]
+    ? `${displayed.timetableKey}_${dayType}`
+    : displayed?.timetableKey
+  const trains = (displayed && timetable?.[ttKey]) ?? []
+
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const nextIndex = trains.findIndex((t) => timeToMinutes(t.depart_at) > nowMin)
+
+  // 다음 차 칸으로 자동 스크롤 — trains 참조가 아니라 ttKey/nextIndex(원시값)에만 의존해
+  // refreshCooldown 등 무관한 리렌더(1초 tick)마다 스크롤이 튀는 것을 방지.
+  // (Rules of Hooks: 아래 "!displayed && !visible" early return보다 반드시 앞에 있어야
+  //  훅 호출 순서가 렌더마다 달라지지 않는다 — React error #310 재발 방지.)
+  useEffect(() => {
+    gridNextRef.current?.scrollIntoView?.({ block: 'center', behavior: 'instant' })
+  }, [ttKey, nextIndex])
+
   if (!displayed && !visible) return null
 
   // ── 실시간 데이터 ──────────────────────────────────────────
@@ -156,16 +179,6 @@ export default function GlobalSubwayDetailSheet() {
   // freshness 판정 (60초 이내 + !stale)
   const fresh = isRealtimeFresh(lastSuccessfulRealtimeAt, stale)
 
-  // ── 시간표 데이터 ──────────────────────────────────────────
-  // timetableKey는 단일 키(방향 포함)이거나, dayType별 조합일 수 있음
-  // 시도: `${timetableKey}_${dayType}` → fallback: timetableKey 단일
-  const ttKey = timetable?.[`${displayed.timetableKey}_${dayType}`]
-    ? `${displayed.timetableKey}_${dayType}`
-    : displayed.timetableKey
-  const trains = timetable?.[ttKey] ?? []
-
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
-  const nextIndex = trains.findIndex((t) => timeToMinutes(t.depart_at) > nowMin)
   const nextTrain = nextIndex >= 0 ? trains[nextIndex] : null
   const { lastIdx, firstIdx } = getSpecialTrainIndices(trains)
 
@@ -175,12 +188,6 @@ export default function GlobalSubwayDetailSheet() {
 
   // 그리드 표시용 items — 순수 매핑(반올림/판정 로직 없음)
   const gridItems = toGridItems(trains, nextIndex, lastIdx)
-
-  // 다음 차 칸으로 자동 스크롤 — trains 참조가 아니라 ttKey/nextIndex(원시값)에만 의존해
-  // refreshCooldown 등 무관한 리렌더(1초 tick)마다 스크롤이 튀는 것을 방지.
-  useEffect(() => {
-    gridNextRef.current?.scrollIntoView?.({ block: 'center', behavior: 'instant' })
-  }, [ttKey, nextIndex])
 
   function handleClose() {
     setVisible(false)
