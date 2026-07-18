@@ -52,6 +52,15 @@ function formatMonthDay(dateStr) {
   return `${m}월 ${d}일`
 }
 
+// 캘린더식 날짜 배지용 — start_date에서 월/일 숫자만 추출({month, day}). 형식 오류면 null.
+export function dateBadgeParts(dateStr) {
+  if (!dateStr) return null
+  const parts = dateStr.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null
+  const [, m, d] = parts
+  return { month: m, day: d }
+}
+
 // start~end가 다르면 "M월 D일 ~ M월 D일" 범위, 같으면 "M월 D일" 단일 날짜.
 export function formatDateOrRange(startDate, endDate) {
   if (!startDate) return ''
