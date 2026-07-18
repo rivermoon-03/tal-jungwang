@@ -1,0 +1,39 @@
+/**
+ * timeOfDay.js — KST 기준 낮/저녁/밤 시간대 판정 유틸
+ *
+ * CLAUDE.md 규칙: 시각은 항상 timezone-aware하게 비교한다. 로컬 브라우저
+ * 시각(`new Date().getHours()`)을 직접 쓰면 사용자 기기 타임존에 따라
+ * 판정이 어긋난다 — `venueOpen.js`의 `toKst()`와 동일한
+ * `Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul' })` 패턴으로
+ * KST hour를 뽑는다.
+ *
+ * 밴드: 낮 06:00~17:00, 저녁 17:00~20:00, 밤 20:00~06:00.
+ */
+
+/**
+ * 주어진 Date를 KST 기준 시(hour, 0~23)로 변환한다.
+ * @param {Date} now
+ * @returns {number}
+ */
+export function getKstHour(now = new Date()) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    hour12: false,
+    hour: '2-digit',
+  })
+  const hour = parseInt(fmt.format(now), 10)
+  // hour12:false 에서 자정=24로 오는 경우 보정
+  return hour === 24 ? 0 : hour
+}
+
+/**
+ * KST 기준 시각으로 낮/저녁/밤 시간대를 판정한다.
+ * @param {Date} now
+ * @returns {'day'|'evening'|'night'}
+ */
+export function getTimeOfDay(now = new Date()) {
+  const hour = getKstHour(now)
+  if (hour >= 6 && hour < 17) return 'day'
+  if (hour >= 17 && hour < 20) return 'evening'
+  return 'night'
+}
