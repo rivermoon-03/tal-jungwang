@@ -493,6 +493,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
             mapLng:     sheetStation.lng ?? null,
             isRealtime: a.arrival_type !== 'timetable',
             title:      a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
+            accentColor: rCfg?.color ?? null,
           },
         })
 

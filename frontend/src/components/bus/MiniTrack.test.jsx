@@ -65,22 +65,16 @@ describe('MiniTrack (칩 라인형 · 시안3)', () => {
     expect(endChip.className).toMatch(/line-strong/)
   })
 
-  it('역할 라벨(출발/경유/종점)이 표시된다', () => {
-    render(
+  it('역할(출발/경유/종점)은 화면에 별도 텍스트로 안 보이고 접근성 라벨(aria-label)로만 남는다', () => {
+    const { container } = render(
       <MiniTrack origin="시화터미널" waypoints={['사당']} terminus="강남" category="express" />
     )
-    expect(screen.getByText('출발')).toBeInTheDocument()
-    expect(screen.getByText('경유')).toBeInTheDocument()
-    expect(screen.getByText('종점')).toBeInTheDocument()
-  })
-
-  it('역할 라벨이 없는 경우 (no waypoints) 출발/종점만', () => {
-    render(
-      <MiniTrack origin="이마트" waypoints={[]} terminus="서울" category="express" />
-    )
-    expect(screen.getByText('출발')).toBeInTheDocument()
-    expect(screen.getByText('종점')).toBeInTheDocument()
+    expect(screen.queryByText('출발')).not.toBeInTheDocument()
     expect(screen.queryByText('경유')).not.toBeInTheDocument()
+    expect(screen.queryByText('종점')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-track-pt="start"]').getAttribute('aria-label')).toBe('출발: 시화터미널')
+    expect(container.querySelector('[data-track-pt="mid"]').getAttribute('aria-label')).toBe('경유: 사당')
+    expect(container.querySelector('[data-track-pt="end"]').getAttribute('aria-label')).toBe('종점: 강남')
   })
 
   it('칩 컨테이너가 flex-wrap이라 폭이 좁아도 겹치지 않고 다음 줄로 넘어간다', () => {

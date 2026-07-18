@@ -45,17 +45,14 @@ export default function MiniTrack({
       {items.map((it, i) => (
         <span key={it.key} className="inline-flex items-center gap-1">
           {i > 0 && arrow}
-          <span className="inline-flex flex-col items-center gap-0.5">
-            <span
-              data-track-pt={it.dataPt}
-              data-track-label={it.dataPt}
-              className={`${chipBase} ${it.cls}`}
-            >
-              {it.name}
-            </span>
-            <span data-track-role={it.dataPt === 'start' ? 'origin' : it.dataPt === 'end' ? 'terminus' : 'waypoint'} className="text-meta text-mute dark:text-mute leading-none">
-              {it.role}
-            </span>
+          <span
+            data-track-pt={it.dataPt}
+            data-track-label={it.dataPt}
+            data-track-role={it.dataPt === 'start' ? 'origin' : it.dataPt === 'end' ? 'terminus' : 'waypoint'}
+            aria-label={`${it.role}: ${it.name}`}
+            className={`${chipBase} ${it.cls}`}
+          >
+            {it.name}
           </span>
         </span>
       ))}
