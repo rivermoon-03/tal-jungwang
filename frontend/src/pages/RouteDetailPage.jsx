@@ -8,7 +8,7 @@ import EmptyState from '../components/ui/EmptyState'
 import ArrivalHistory from '../components/bus/ArrivalHistory'
 import RouteCrowdingSection from '../components/stats/RouteCrowdingSection'
 import { toHistoryRows } from '../utils/historyAdapter'
-import { getGbisStationId } from '../components/dashboard/busStationConfig'
+import { getGbisStationId, getGbisStationIdForRoute } from '../components/dashboard/busStationConfig'
 
 // ──────────────────────────────────────────────────────────────────
 // 헬퍼: "HH:MM" 문자열을 오늘 기준 총 분으로 변환
@@ -398,8 +398,11 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   // 따라서 실시간이 아닌 노선이면 GBIS 정류장에서도 출발 시간표를 보여준다.
   const showTimetableSection = showTimetableGroup || !isRealtime
 
-  // 이전 도착 기록 (history-preview → ArrivalHistory 어댑터) — 실시간 노선에서만 의미 있음
-  const { data: histData, loading: histLoading } = useBusHistoryPreview(routeNumber)
+  // 이전 도착 기록 (history-preview → ArrivalHistory 어댑터) — 실시간 노선에서만 의미 있음.
+  // 카드와 동일하게 방향별 GBIS 추적 정류장을 넘겨, 선택한 방향(등교/하교)의 실시간 도착을 본다.
+  // 미전달 시 백엔드가 history 빈도 기반 정류장으로 폴백해 방향이 어긋날 수 있다.
+  const histStopId = getGbisStationIdForRoute(routeNumber, resolvedCategory ?? undefined)
+  const { data: histData, loading: histLoading } = useBusHistoryPreview(routeNumber, histStopId)
 
   const nowMin = useMemo(() => nowMinutes(), [])
 
@@ -415,6 +418,12 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
     if (!ttData?.timetable) return []
     return ttData.timetable[dayTab] ?? []
   }, [ttData, dayTab])
+
+  // 실시간 도착 그룹과 시간표 그룹을 독립적으로 판정한다.
+  // 시흥33 등교처럼 "실시간은 있지만 정해진 시간표가 없는" 방향이 있어서,
+  // 시간표(schedule) 유무로 화면 전체를 가리면 실시간 도착이 통째로 숨는 버그가 있었다.
+  const hasRealtimeGroup = isRealtime && showArrivalGroup
+  const hasTimetable = showTimetableSection && schedule.length > 0
 
   // 다음 차 인덱스
   const nextIdx = useMemo(() => {
@@ -615,13 +624,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
               </div>
             )}
 
-            {!ttLoading && !ttError && schedule.length === 0 && (
+            {!ttLoading && !ttError && !hasRealtimeGroup && !hasTimetable && (
               <div className="mt-8">
                 <EmptyState title="운행 정보 없음" desc="해당 요일 운행 정보가 없어요" />
               </div>
             )}
 
-            {!ttLoading && !ttError && schedule.length > 0 && (
+            {!ttLoading && !ttError && (hasRealtimeGroup || hasTimetable) && (
               <>
                 {/* ── 그룹 A: 내 정류장 도착 정보
                     표시 조건: (stop 없음 && is_realtime) 또는 (stop이 GBIS 실시간 정류장)
@@ -669,16 +678,17 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                   </section>
                 )}
 
-                {/* ── 그룹 구분선 (is_realtime=true이고 두 그룹 모두 표시할 때만) ── */}
-                {isRealtime && showArrivalGroup && showTimetableSection && (
+                {/* ── 그룹 구분선 (실시간 그룹과 시간표 그룹이 모두 있을 때만) ── */}
+                {hasRealtimeGroup && hasTimetable && (
                   <div className="my-6 border-t border-line dark:border-line" />
                 )}
 
                 {/* ── 그룹 B: 기점 출발 시간표
                     표시 조건: (stop 없음) 또는 (stop이 시간표 전용 정류장)
                               또는 (시간표 전용 노선 — GBIS 정류장이어도 표시)
+                    단, 해당 방향에 시간표 데이터가 있을 때만(hasTimetable).
                 ── */}
-                {showTimetableSection && (
+                {hasTimetable && (
                 <section aria-label="기점 출발 시간표">
                   {/* 그룹 B 헤더 */}
                   <div className="mb-2">
@@ -734,6 +744,14 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                     )}
                   </div>
                 </section>
+                )}
+
+                {/* 실시간 노선인데 이 방향은 정해진 출발 시간표가 없을 때 안내 (예: 시흥33 등교).
+                    시간표가 없다고 화면 전체를 빈 상태로 두지 않고, 위 실시간 도착 그룹은 그대로 노출. */}
+                {hasRealtimeGroup && showTimetableSection && schedule.length === 0 && (
+                  <p className="mt-2 text-[12.5px] font-semibold text-mute dark:text-mute leading-relaxed">
+                    이 방향은 정해진 출발 시간표가 없는 실시간 운행 노선이에요.
+                  </p>
                 )}
 
                 {/* ── 그룹 C: 노선 혼잡도 (실시간 추적 노선에서만 GBIS 혼잡도 로그가 쌓임) ── */}
