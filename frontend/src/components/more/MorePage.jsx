@@ -104,7 +104,6 @@ export default function MorePage() {
     return (
       <SettingsPage
         onBack={closeSubPage}
-        onOpenNotifications={() => setSubPage('notifications')}
         onOpenAppInfo={openAppInfo}
       />
     )

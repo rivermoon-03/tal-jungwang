@@ -9,10 +9,13 @@
  *
  * Props:
  *   onBack               () => void
- *   onOpenNotifications  () => void  — 기존 NotificationsPage("개발 중") 서브페이지로 이동
  *   onOpenAppInfo        () => void  — 기존 AppInfoPage 서브페이지로 이동
+ *
+ * "노선 알림"(F5) 행은 예외적으로 이 컴포넌트가 직접 동작을 갖는다 — 다른
+ * 서브페이지로 이동하지 않고 스위치 하나로 Web Push 구독/해제까지 처리한다.
+ * (utils/pushNotifications.js 참조. 실제 백엔드는 별도 PR로 머지될 예정.)
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Palette, Type, LayoutGrid, List, Navigation, Home,
   Bell, Zap, Utensils, Moon, RefreshCw, MapPin, Globe, Trash2, Info,
@@ -20,6 +23,14 @@ import {
 } from 'lucide-react'
 import DarkModeSegment from './DarkModeSegment'
 import useAppStore from '../../stores/useAppStore'
+import {
+  isPushSupported,
+  hasActivePushSubscription,
+  getNotificationPermission,
+  subscribeToPush,
+  unsubscribeFromPush,
+  syncPushFavorites,
+} from '../../utils/pushNotifications'
 
 // ── 공용 행/섹션 프리미티브 (DESIGN.md sc-set 대응) ──────────────────────
 function SectionLabel({ children }) {
@@ -77,15 +88,19 @@ function ValueChevron({ value, accent = false }) {
   )
 }
 
-// 데모 전용 스위치 — 로컬 state만 반영, 아무 부수효과 없음(TODO 항목 전용).
+// 대부분은 로컬 state만 반영하는 데모 스위치지만(TODO 항목), "노선 알림"(F5)처럼
+// 실제 구독 로직과 연결되는 곳도 있다. onToggle이 없으면(disabled) 탭해도 반응하지 않는다.
 function MiniSwitch({ on, onToggle }) {
+  const disabled = !onToggle
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
+      aria-disabled={disabled}
+      disabled={disabled}
       onClick={onToggle}
-      className={`relative flex-shrink-0 w-[42px] h-[25px] rounded-pill transition-colors duration-base ease-out ${on ? 'bg-accent' : 'bg-line dark:bg-line-strong'}`}
+      className={`relative flex-shrink-0 w-[42px] h-[25px] rounded-pill transition-colors duration-base ease-out ${on ? 'bg-accent' : 'bg-line dark:bg-line-strong'} ${disabled ? 'opacity-50' : ''}`}
     >
       <span
         className={`absolute top-[3px] w-[19px] h-[19px] rounded-full bg-white shadow-sh-card transition-transform duration-base ease-spring ${on ? 'translate-x-[20px]' : 'translate-x-[3px]'}`}
@@ -120,7 +135,7 @@ function DemoSeg({ options, value, onChange }) {
   )
 }
 
-export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInfo }) {
+export default function SettingsPage({ onBack, onOpenAppInfo }) {
   // F4: 글자 크기 — zustand persist(fontScale) + useFontScale이 --tj-font-scale로 반영.
   // tailwind.config.js의 명명된 fontSize 스케일(text-body/caption/label/head 등)에는
   // 실시간 반영되지만, 컴포넌트 인라인 style={{fontSize:N}}이나 text-[Npx] 임의값에는
@@ -138,12 +153,69 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
   const commuteManualDirection = useAppStore((s) => s.commuteManualDirection)
   const setCommuteManualDirection = useAppStore((s) => s.setCommuteManualDirection)
   // ── 데모 전용 로컬 state (persist/백엔드 없음, 이 컴포넌트의 담당 범위 밖) ──────
-  // TODO(F5): 알림 — 도착 임박 알림. 실제 구현은 SW Web Push + 백엔드 구독 저장 필요.
+  // TODO(백로그, F5과 별개): 도착 임박 알림 — 즐겨찾기 노선 N분 전. "노선 알림"(막차/첫차)과는
+  // 다른 기능이라 이 PR 스코프 밖이다. 실제 구현은 SW Web Push + 백엔드 구독 저장 필요.
   const [imminentAlert, setImminentAlert] = useState(false)
   // TODO(F2): 학식 오픈 알림 — 북마크 × isOpenNow() 교집합 기능(F2)이 선행돼야 의미가 생김.
   const [cafeteriaAlert, setCafeteriaAlert] = useState(false)
   // TODO(백로그, Phase E 미배정): 데이터 절약 모드 — 지도/이미지 최소화. 별도 기획 필요.
   const [dataSaver, setDataSaver] = useState(false)
+
+  // ── F5: 노선 알림(막차/첫차 시각 푸시) ────────────────────────────────
+  const favoriteRoutes = useAppStore((s) => s.favorites.routes)
+  const [routeAlertOn, setRouteAlertOn] = useState(false)
+  const [routeAlertBusy, setRouteAlertBusy] = useState(false)
+  // 'default' | 'granted' | 'denied' | 'unsupported'
+  const [routeAlertPermission, setRouteAlertPermission] = useState('default')
+
+  useEffect(() => {
+    let cancelled = false
+    if (!isPushSupported()) {
+      setRouteAlertPermission('unsupported')
+      return undefined
+    }
+    setRouteAlertPermission(getNotificationPermission())
+    hasActivePushSubscription().then((subscribed) => {
+      if (cancelled) return
+      setRouteAlertOn(subscribed)
+      // 이미 구독 중이면 화면을 열 때마다 현재 즐겨찾기로 한 번 최신화한다
+      // (v1 스코프 — favorites 변경 실시간 워처는 만들지 않음).
+      if (subscribed) syncPushFavorites(favoriteRoutes)
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount 시 1회 + 스위치 토글 시에만 재확인
+  }, [])
+
+  const handleToggleRouteAlert = async () => {
+    if (routeAlertBusy) return
+    setRouteAlertBusy(true)
+    try {
+      if (routeAlertOn) {
+        await unsubscribeFromPush()
+        setRouteAlertOn(false)
+      } else {
+        const result = await subscribeToPush(favoriteRoutes)
+        if (result.ok) {
+          setRouteAlertOn(true)
+          setRouteAlertPermission('granted')
+        } else if (result.reason === 'denied') {
+          setRouteAlertPermission('denied')
+        }
+      }
+    } finally {
+      setRouteAlertBusy(false)
+    }
+  }
+
+  const routeAlertPermissionDenied = routeAlertPermission === 'denied'
+  const routeAlertUnsupported = routeAlertPermission === 'unsupported'
+  const routeAlertDesc = routeAlertUnsupported
+    ? '이 브라우저는 알림을 지원하지 않아요'
+    : routeAlertPermissionDenied
+      ? '브라우저 설정에서 알림을 허용해주세요'
+      : '막차·첫차 시각 푸시 (즐겨찾기 노선 기준)'
 
   const fontLabel = ['작게', '보통', '크게'][fontScale] ?? '보통'
 
@@ -276,13 +348,21 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
         {/* ── 알림 ── */}
         <Section label="알림">
         <SettingsGroup>
-          {/* 기존 NotificationsPage("개발 중" 안내)로 이동 — 새 로직 없음, 기존 서브페이지 재사용 */}
+          {/* F5: 막차/첫차 시각 푸시 — Web Push 구독/해제를 이 화면에서 직접 처리 */}
           <Row
             icon={Bell}
             title="노선 알림"
-            desc="막차·첫차 시각 푸시 (F5 예정)"
-            right={<ChevronRight size={16} className="text-mute dark:text-mute" aria-hidden="true" />}
-            onClick={onOpenNotifications}
+            desc={routeAlertDesc}
+            right={
+              <MiniSwitch
+                on={routeAlertOn}
+                onToggle={
+                  routeAlertUnsupported || routeAlertPermissionDenied || routeAlertBusy
+                    ? undefined
+                    : handleToggleRouteAlert
+                }
+              />
+            }
           />
           <Row
             icon={Zap}
