@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CalendarDays, ChevronDown, ExternalLink, Megaphone } from 'lucide-react'
 import { useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../../hooks/useMore'
-import { formatDday, formatDateOrRange } from '../../utils/academicCalendar'
+import { formatDday, formatDateOrRange, dateBadgeParts } from '../../utils/academicCalendar'
 import { formatFullDate } from '../../utils/noticeDate'
 
 // 공지는 useSchoolNotices가 이미 전체(최대 50건)를 한 번에 내려주므로,
@@ -86,27 +86,20 @@ export default function AcademicNoticesTab() {
         <p className="text-body text-mute dark:text-mute text-center py-4">학과 목록을 불러오는 중이에요...</p>
       )}
 
-      {/* D-day 배너 */}
+      {/* 가장 임박한 일정 — 컴팩트 한 줄 배너. [아이콘][D-N][제목(truncate)][날짜] */}
       {!calLoading && next && (
-        <div className="bg-accent-bg dark:bg-accent-bg rounded-card border border-line dark:border-line px-4 py-4 flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-mini bg-accent flex items-center justify-center text-white flex-shrink-0"
-            aria-hidden="true"
-          >
-            <CalendarDays size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-body font-bold text-accent-ink dark:text-accent">
-              {formatDday(next.start_date)} · {next.title}
-            </p>
-            <p className="text-label font-semibold text-mute dark:text-mute mt-0.5">
-              {formatDateOrRange(next.start_date, next.end_date)}
-            </p>
-          </div>
+        <div className="bg-accent-bg dark:bg-accent-bg rounded-card border border-line dark:border-line px-3.5 py-2.5 flex items-center gap-2.5">
+          <CalendarDays size={16} className="text-accent-ink dark:text-accent flex-shrink-0" aria-hidden="true" />
+          <span className="text-body font-bold text-accent-ink dark:text-accent truncate flex-1 min-w-0">
+            {`${formatDday(next.start_date)} · ${next.title}`}
+          </span>
+          <span className="text-label font-semibold text-mute dark:text-mute flex-shrink-0 whitespace-nowrap">
+            {formatDateOrRange(next.start_date, next.end_date)}
+          </span>
         </div>
       )}
 
-      {/* 다가오는 일정 */}
+      {/* 다가오는 일정 — 캘린더식 아젠다(좌측 날짜 배지 + 제목). 긴 리스트 대신 컴팩트. */}
       {upcoming.length > 0 && (
         <div>
           <div
@@ -116,14 +109,24 @@ export default function AcademicNoticesTab() {
             다가오는 일정
           </div>
           <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card overflow-hidden divide-y divide-line dark:divide-line">
-            {upcoming.map((ev, i) => (
-              <div key={`${ev.title}-${ev.start_date}-${i}`} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-body font-semibold text-ink dark:text-ink">{ev.title}</span>
-                <span className="text-label font-semibold text-mute dark:text-mute flex-shrink-0">
-                  {formatDateOrRange(ev.start_date, ev.end_date)}
-                </span>
-              </div>
-            ))}
+            {upcoming.map((ev, i) => {
+              const badge = dateBadgeParts(ev.start_date)
+              return (
+                <div key={`${ev.title}-${ev.start_date}-${i}`} className="flex items-center gap-3 px-3 py-2.5">
+                  {/* 캘린더 셀 느낌의 날짜 배지 (월 작게 / 일 크게) */}
+                  <div className="flex-shrink-0 w-11 rounded-mini bg-surface-2 dark:bg-bg border border-line dark:border-line flex flex-col items-center justify-center py-1 leading-none">
+                    <span className="text-micro font-bold text-mute dark:text-mute">{badge ? `${badge.month}월` : ''}</span>
+                    <span className="text-body font-extrabold text-ink dark:text-ink tabular-nums mt-0.5">{badge ? badge.day : ''}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-body font-semibold text-ink dark:text-ink truncate">{ev.title}</p>
+                    <p className="text-label font-semibold text-mute dark:text-mute mt-0.5 truncate">
+                      {formatDateOrRange(ev.start_date, ev.end_date)}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
