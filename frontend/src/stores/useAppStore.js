@@ -109,7 +109,8 @@ const useAppStore = create(
       setMapExpanded: (v) => set({ mapExpanded: v }),
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
-      favorites: { routes: [], stations: [] },
+      // venues: F2 매점/식당(cafeteriaVenues) 즐겨찾기 id 배열.
+      favorites: { routes: [], stations: [], venues: [] },
       toggleFavoriteRoute: (id) =>
         set((s) => {
           const routes = s.favorites.routes.includes(id)
@@ -123,6 +124,14 @@ const useAppStore = create(
             ? s.favorites.stations.filter((st) => st !== id)
             : [...s.favorites.stations, id]
           return { favorites: { ...s.favorites, stations } }
+        }),
+      // F2: 매점/식당 즐겨찾기 토글. routes/stations와 동일한 불변 배열 갱신 패턴.
+      toggleFavoriteVenue: (id) =>
+        set((s) => {
+          const venues = (s.favorites.venues ?? []).includes(id)
+            ? s.favorites.venues.filter((v) => v !== id)
+            : [...(s.favorites.venues ?? []), id]
+          return { favorites: { ...s.favorites, venues } }
         }),
 
       // ── PWA / 알림 ───────────────────────────────────────────────────
@@ -207,6 +216,17 @@ const useAppStore = create(
           }
         }
       }),
+      // zustand persist 기본 merge는 최상위 키를 얕게(shallow) 덮어쓴다.
+      // favorites처럼 중첩 객체에 새 필드(venues)를 추가하면, 구버전 persisted
+      // state(venues 없음)가 favorites 전체를 통째로 덮어써 새 필드가 사라진다.
+      // → favorites만 얕은 병합을 한 번 더 해 새 필드 기본값을 보존한다.
+      merge: (persistedState, currentState) => {
+        const merged = { ...currentState, ...persistedState }
+        if (persistedState && typeof persistedState === 'object' && persistedState.favorites) {
+          merged.favorites = { ...currentState.favorites, ...persistedState.favorites }
+        }
+        return merged
+      },
       partialize: (state) => ({
         themeMode: state.themeMode,
         fontScale: state.fontScale,

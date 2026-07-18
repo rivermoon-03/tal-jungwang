@@ -14,6 +14,7 @@
  *   - 다크모드 정상 지원
  */
 import { useMemo, useState } from 'react'
+import { Star, StarOff } from 'lucide-react'
 import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
 import { ALL_VENUES, RESTAURANTS, VENUE_GROUPS, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
@@ -116,6 +117,48 @@ function StatusText({ primaryLabel, status }) {
   )
 }
 
+// ── F2: 매점/식당 즐겨찾기 별 버튼 (카드 변형 3종 공통) ────────────
+function FavoriteStarButton({ venueId, size = 15 }) {
+  const isFav = useAppStore(
+    (s) => Array.isArray(s.favorites?.venues) && s.favorites.venues.includes(venueId)
+  )
+  const toggleFavoriteVenue = useAppStore((s) => s.toggleFavoriteVenue)
+
+  return (
+    <button
+      type="button"
+      aria-label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+      aria-pressed={isFav}
+      className="pressable"
+      onClick={(e) => {
+        // 카드 자체도 클릭 가능(role=button)하므로 버블링으로 상세 이동이
+        // 함께 트리거되지 않도록 막는다.
+        e.stopPropagation()
+        if (typeof toggleFavoriteVenue === 'function') toggleFavoriteVenue(venueId)
+      }}
+      style={{
+        flex: 'none',
+        width: 36,
+        height: 36,
+        borderRadius: '50%',
+        border: '1px solid var(--tj-line)',
+        background: isFav ? '#FBF4E5' : 'var(--tj-surface)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        color: isFav ? '#C2902E' : 'var(--tj-mute)',
+        touchAction: 'manipulation',
+      }}
+    >
+      {isFav
+        ? <Star size={size} strokeWidth={2} fill="currentColor" />
+        : <StarOff size={size} strokeWidth={2} />
+      }
+    </button>
+  )
+}
+
 // ── 시안1: 운영시간 탭 ────────────────────────────────────────
 
 /** 학식(meals 구조) 카드 */
@@ -153,13 +196,16 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
             </div>
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <StatusText primaryLabel={primaryLabel} status={status} />
-          {subLabel && (
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
-              {subLabel}
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <StatusText primaryLabel={primaryLabel} status={status} />
+            {subLabel && (
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
+                {subLabel}
+              </div>
+            )}
+          </div>
+          <FavoriteStarButton venueId={venue.id} />
         </div>
       </div>
 
@@ -297,6 +343,9 @@ function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
           </div>
         )}
       </div>
+
+      {/* 즐겨찾기 */}
+      <FavoriteStarButton venueId={venue.id} />
     </div>
   )
 }
@@ -508,6 +557,9 @@ function OpenRow({ venue, statusInfo, onVenueClick }) {
           </span>
         )}
       </div>
+
+      {/* 즐겨찾기 */}
+      <FavoriteStarButton venueId={venue.id} />
     </div>
   )
 }
@@ -643,6 +695,68 @@ function NowOpenTab({ sortBy, nowDate, onVenueClick }) {
   )
 }
 
+// ── F2: 즐겨찾기 · 지금 영업 중 섹션 ───────────────────────────
+/** 즐겨찾기한 매점/식당 중 지금 영업 중인 곳만 상단에 노출.
+ * 즐겨찾기가 없거나 전부 닫혀 있으면 섹션 자체를 숨긴다(빈 섹션 금지). */
+function FavoriteOpenSection({ nowDate, onVenueClick }) {
+  const favoriteVenueIds = useAppStore((s) =>
+    Array.isArray(s.favorites?.venues) ? s.favorites.venues : []
+  )
+
+  const favoriteOpenItems = useMemo(() => {
+    if (!favoriteVenueIds.length) return []
+    return ALL_VENUES
+      .filter((v) => favoriteVenueIds.includes(v.id))
+      .map((venue) => ({ venue, statusInfo: isOpenNow(venue, nowDate) }))
+      .filter(({ statusInfo }) => statusInfo.open)
+  }, [favoriteVenueIds, nowDate])
+
+  if (favoriteOpenItems.length === 0) return null
+
+  return (
+    <div data-testid="favorite-open-section" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 14,
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            color: '#C2902E',
+            background: '#FBF4E5',
+            borderRadius: 8,
+            padding: '3px 10px',
+          }}
+        >
+          <Star size={13} strokeWidth={2} fill="currentColor" />
+          즐겨찾기 · 지금 영업 중
+        </span>
+        <span style={{ flex: 1, height: 1, background: 'var(--tj-line)' }} />
+      </div>
+      <div
+        style={{
+          background: 'var(--tj-surface)',
+          border: '1px solid var(--tj-line)',
+          borderRadius: 18,
+          padding: '0 14px',
+          overflow: 'hidden',
+        }}
+      >
+        {favoriteOpenItems.map(({ venue, statusInfo }, i) => (
+          <div
+            key={venue.id}
+            style={{ borderBottom: i < favoriteOpenItems.length - 1 ? '1px solid var(--tj-line)' : 'none' }}
+          >
+            <OpenRow venue={venue} statusInfo={statusInfo} onVenueClick={onVenueClick} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── 메인 컴포넌트 ────────────────────────────────────────────
 
 export default function CafeteriaVenues({ onVenueClick = () => {} }) {
@@ -681,6 +795,9 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
           지금 <b style={{ color: 'var(--tj-accent-ink)', fontWeight: 800 }}>{timeStr}</b> · {weekdayStr}
         </span>
       </div>
+
+      {/* 즐겨찾기 · 지금 영업 중 (즐겨찾기가 없거나 전부 닫혀 있으면 자동 숨김) */}
+      <FavoriteOpenSection nowDate={nowDate} onVenueClick={onVenueClick} />
 
       {/* 탭 + 정렬 스위치 */}
       <div style={{ marginBottom: 14 }}>
