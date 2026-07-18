@@ -291,14 +291,18 @@ export default function GlobalSubwayDetailSheet() {
             {upcomingScheduleTimes.length > 0 && (
               <div className="text-right flex-shrink-0 leading-none text-white">
                 <p className="leading-none flex items-baseline justify-end gap-1.5">
-                  {upcomingScheduleTimes.map((t, i) => (
-                    <span
-                      key={t}
-                      className={i === 0 ? 'text-title font-bold' : 'text-label font-semibold text-white/70'}
-                    >
-                      {t}
-                    </span>
-                  ))}
+                  {upcomingScheduleTimes.map((t, i) => {
+                    const m = timeToMinutes(t) - nowMin
+                    const label = m <= 0 ? '곧' : `${m}분 후`
+                    return (
+                      <span
+                        key={t}
+                        className={i === 0 ? 'text-title font-bold' : 'text-label font-semibold text-white/70'}
+                      >
+                        {label}
+                      </span>
+                    )
+                  })}
                 </p>
                 <p className="text-meta font-semibold text-white/70 mt-0.5 whitespace-nowrap">
                   {nextRealtimeTrain
