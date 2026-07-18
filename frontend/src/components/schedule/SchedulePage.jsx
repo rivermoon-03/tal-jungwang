@@ -9,7 +9,8 @@ import ScheduleSection from './ScheduleSection'
 import SubwayStationChips from './SubwayStationChips'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
-import SegmentTabs from '../common/SegmentTabs'
+import SegmentTabs from '../ui/SegmentTabs'
+import StationChips from '../ui/StationChips'
 import RouteBadge from '../common/RouteBadge'
 import Skeleton from '../common/Skeleton'
 import BusArrivalCard, { CrowdedBadge } from '../bus/BusArrivalCard'
@@ -971,14 +972,17 @@ function ScheduleSectionView({
 }) {
   return (
     <>
-      {/* top mode tabs + 통계 / 즐겨찾기 필터 */}
-      <div className="px-4 pb-2 flex items-center justify-between gap-2 flex-shrink-0">
-        <SegmentTabs
-          tabs={MODES}
-          active={mode}
-          onChange={handleModeChange}
-        />
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+      {/* 모드 탭(홈 ModeTabs와 동일 ui/SegmentTabs) + 통계·즐겨찾기 유틸.
+          탭은 flex-1로 행을 채우고 유틸 버튼은 우측에 고정. */}
+      <div className="px-4 pt-2 pb-1.5 flex items-center gap-2 flex-shrink-0">
+        <div className="flex-1 min-w-0">
+          <SegmentTabs
+            items={MODES}
+            active={mode}
+            onChange={handleModeChange}
+          />
+        </div>
+        <div className="shrink-0 flex items-center gap-1.5">
           <button
             type="button"
             onClick={onOpenStats}
@@ -1007,7 +1011,7 @@ function ScheduleSectionView({
             aria-pressed={favoritesOnly}
             className="pressable"
             style={{
-              padding: '5px 11px',
+              padding: '6px 11px',
               borderRadius: 999,
               border: favoritesOnly
                 ? '1.5px solid var(--tj-pill-active-bg)'
@@ -1027,37 +1031,17 @@ function ScheduleSectionView({
         </div>
       </div>
 
-      {/* group secondary pills (+ subway 데이터 모드 토글) */}
+      {/* 그룹 칩 + rightAddon — 홈 StationPills 구조 그대로 미러링.
+          그룹칩은 홈과 동일한 StationChips로 통일. 지하철 데이터모드 토글만 우측 부가. */}
       {groups.length > 0 && (
-        <div className="px-4 pb-2 flex items-center gap-2 flex-shrink-0">
-          <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
-            {groups.map((g) => {
-              const isActive = activeGroupId === g.id
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => setActiveGroup(g.id)}
-                  aria-pressed={isActive}
-                  className="pressable whitespace-nowrap flex-shrink-0"
-                  style={{
-                    padding: '5px 11px',
-                    borderRadius: 999,
-                    border: isActive
-                      ? '1.5px solid var(--tj-pill-active-bg)'
-                      : '1.5px solid var(--tj-line)',
-                    background: isActive ? 'var(--tj-pill-active-bg)' : 'transparent',
-                    color: isActive ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition:
-                      'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
-                  }}
-                >
-                  {g.label}
-                </button>
-              )
-            })}
+        <div className="px-4 pb-1.5 flex items-center gap-2 flex-shrink-0">
+          <div role="group" aria-label="그룹 선택" className="flex-1 min-w-0">
+            <StationChips
+              variant="station"
+              items={groups}
+              active={activeGroupId}
+              onChange={setActiveGroup}
+            />
           </div>
           {mode === 'subway' && (
             <div className="shrink-0">
