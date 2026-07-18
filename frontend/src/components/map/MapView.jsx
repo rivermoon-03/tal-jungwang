@@ -939,11 +939,12 @@ export default function MapView({ onMarkerClick, selectedId }) {
           style={{ touchAction: 'none' }}
         />
 
-        {/* 우상단 플로팅 버튼 */}
+        {/* 우하단 플로팅 버튼 — 내 위치 / 학교로. 닫기 버튼(MainShell) 위로 세로 스택.
+            닫기(bottom-5, 약 40px)와 겹치지 않게 bottom을 그 위로 띄운다. */}
         {mapInstance && (
           <div
             className="absolute right-4 flex flex-col gap-2 z-[50]"
-            style={{ top: 'calc(1rem + var(--banner-h, 0px))' }}
+            style={{ bottom: '4.75rem' }}
           >
             {/* 내 위치 FAB */}
             <button
