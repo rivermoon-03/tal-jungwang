@@ -31,29 +31,32 @@
   background: radial-gradient(160px 130px at 84% -8%, rgba(120, 170, 255, 0.28), transparent 70%);
 }
 
-/* 비: 층별 빗줄기 (속도·불투명도 다른 3겹으로 깊이감) */
+/* 비: 미니멀 물방울 (시안 v4, 사용자 확정) — 개별 위치/속도는 JS(RAINDROPS)에서 부여.
+   눈 이펙트(.whero-snow)와 같은 개별 span 패턴이라 실기기에서 지적된 "날카로운
+   대각선 스트라이프"(구 버전) 대신 옅고 짧은 물방울이 자연스럽게 떨어진다. */
 .whero-rain {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 .whero-rain span {
   position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    115deg,
-    transparent 0px, transparent 5px,
-    rgba(255, 255, 255, 0.55) 5px, rgba(255, 255, 255, 0.55) 6px,
-    transparent 6px, transparent 26px
-  );
-  animation: whero-rain-fall linear infinite;
+  top: -8%;
+  width: 3px;
+  height: 8px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 6px 8px -4px rgba(255, 255, 255, 0.3);
+  animation-name: whero-rain-fall;
+  animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  animation-iteration-count: infinite;
 }
-.whero-rain span:nth-child(1) { background-size: 100% 140px; animation-duration: 0.65s; opacity: 0.55; }
-.whero-rain span:nth-child(2) { background-size: 100% 180px; animation-duration: 0.9s;  opacity: 0.32; }
-.whero-rain span:nth-child(3) { background-size: 100% 220px; animation-duration: 1.3s;  opacity: 0.2; }
 @keyframes whero-rain-fall {
-  from { background-position: 0 0; }
-  to   { background-position: 0 140px; }
+  0%   { transform: translateY(0); opacity: 0; }
+  15%  { opacity: 0.9; }
+  85%  { opacity: 0.45; }
+  100% { transform: translateY(150px); opacity: 0; }
 }
 
 /* 눈: 흩날리는 눈송이 (개별 위치/속도는 JS에서 부여) */

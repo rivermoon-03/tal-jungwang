@@ -21,6 +21,13 @@ const SNOWFLAKES = Array.from({ length: 14 }, (_, i) => ({
   size: 3 + (i % 3),
 }))
 
+// 시안 v4(미니멀 물방울, 사용자 확정) — 눈 이펙트와 동일한 개별 span 패턴.
+const RAINDROPS = Array.from({ length: 18 }, (_, i) => ({
+  left: (i * 21.1) % 100,
+  delay: (i * 0.17) % 1.6,
+  duration: 0.7 + (i % 4) * 0.1,
+}))
+
 /**
  * HomeWeatherHero — 모바일 홈 상단 A. 날씨 상태에 따라 배경/이펙트가 변한다
  * (맑음=푸른 글로우 · 흐림=회색 · 비=빗줄기 · 눈=눈송이). 등하교 방향 pill과
@@ -36,6 +43,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const lightText = mood === 'rainy' // 비 배경은 중간톤 이상 어두워 라이트/다크 공통으로 흰 글자 필요
 
   const snowflakes = useMemo(() => SNOWFLAKES, [])
+  const raindrops = useMemo(() => RAINDROPS, [])
 
   const chipCls = lightText
     ? 'bg-black/35 border border-white/15 text-white'
@@ -45,7 +53,18 @@ export default function HomeWeatherHero({ onOpenMap }) {
     <div className="whero" data-mood={mood}>
       {mood === 'sunny' && <div className="whero-glow" aria-hidden="true" />}
       {mood === 'rainy' && (
-        <div className="whero-rain" aria-hidden="true"><span /><span /><span /></div>
+        <div className="whero-rain" aria-hidden="true">
+          {raindrops.map((d, i) => (
+            <span
+              key={i}
+              style={{
+                left: `${d.left}%`,
+                animationDelay: `${d.delay}s`,
+                animationDuration: `${d.duration}s`,
+              }}
+            />
+          ))}
+        </div>
       )}
       {mood === 'snowy' && (
         <div className="whero-snow" aria-hidden="true">
