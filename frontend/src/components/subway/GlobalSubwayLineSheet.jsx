@@ -123,7 +123,7 @@ export default function GlobalSubwayLineSheet() {
         />
         {/* GlobalSubwayDetailSheet(z-[100]) 위로 올라와야 하므로 z-[120] */}
         <Drawer.Content
-          className="fixed bottom-0 left-0 right-0 h-[70vh] z-[120] bg-surface dark:bg-surface rounded-t-[18px] flex flex-col overflow-hidden outline-none"
+          className="fixed bottom-0 left-0 right-0 h-[70vh] z-[120] bg-surface dark:bg-surface rounded-t-sheet flex flex-col overflow-hidden outline-none"
           style={{ boxShadow: '0 -4px 24px rgba(0,0,0,0.15)' }}
         >
           <Drawer.Title className="sr-only">{headerLabel || '지하철 노선도'}</Drawer.Title>

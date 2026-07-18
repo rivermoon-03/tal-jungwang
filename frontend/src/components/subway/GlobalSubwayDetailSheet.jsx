@@ -204,7 +204,7 @@ export default function GlobalSubwayDetailSheet() {
 
       {/* 시트 본체 */}
       <div
-        className="fixed bottom-0 left-0 right-0 h-[84vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[100] bg-surface dark:bg-surface rounded-t-[18px] md:rounded-none flex flex-col overflow-hidden"
+        className="fixed bottom-0 left-0 right-0 h-[84vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[100] bg-surface dark:bg-surface rounded-t-sheet md:rounded-none flex flex-col overflow-hidden"
         style={(() => {
           const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
           if (isDesktop) {
