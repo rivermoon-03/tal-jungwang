@@ -5,7 +5,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-_REQUIRED_API_KEYS = ("KAKAO_MOBILITY_REST_KEY", "TMAP_APP_KEY", "DATA_GO_KR_SERVICE_KEY", "SEOUL_SUBWAY_KEY")
+_REQUIRED_API_KEYS = (
+    "KAKAO_MOBILITY_REST_KEY",
+    "TMAP_APP_KEY",
+    "DATA_GO_KR_SERVICE_KEY",
+    "SEOUL_SUBWAY_KEY",
+    "VAPID_PUBLIC_KEY",
+    "VAPID_PRIVATE_KEY",
+)
 
 
 class Settings(BaseSettings):
@@ -14,6 +21,15 @@ class Settings(BaseSettings):
     TMAP_APP_KEY: str = ""
     DATA_GO_KR_SERVICE_KEY: str = ""
     SEOUL_SUBWAY_KEY: str = ""
+
+    # ── Web Push (VAPID) ─────────────────────────────────────
+    # py_vapid CLI로 생성: `pip install py-vapid && vapid --gen`
+    # (또는 pywebpush 설치 후 `python -m py_vapid --gen`)
+    # 생성된 private_key.pem/public_key.pem을 base64url로 인코딩해 아래 두 값에 넣는다.
+    # 절대 코드/커밋에 실제 값을 남기지 말 것 — Railway 환경변수로만 주입.
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_SUBJECT: str = "mailto:admin@example.com"
 
     # ── PostgreSQL ───────────────────────────────────────────
     DB_HOST: str

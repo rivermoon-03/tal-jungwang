@@ -218,6 +218,25 @@ async def _purge_logs_job():
         logger.exception("로그 보존정책 정리 실패")
 
 
+async def _push_notification_job():
+    """막차/첫차 30분 전 Web Push 알림 (5분 주기).
+
+    구독 수만큼 시간표를 반복 조회하지 않도록 push_notifier.run_push_notification_cycle
+    내부에서 전체 구독의 favorite_codes를 모아 고유 favCode 집합에 대해서만
+    오늘의 막차/첫차를 계산한다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.push_notifier import run_push_notification_cycle
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await run_push_notification_cycle(session)
+            if summary.get("sent") or summary.get("removed"):
+                logger.info("푸시 알림 사이클 완료: %s", summary)
+    except Exception:
+        logger.exception("푸시 알림 사이클 실패")
+
+
 def setup_scheduler():
     """스케줄러에 교통정보 수집 작업을 등록한다.
 
@@ -395,6 +414,20 @@ def setup_scheduler():
         misfire_grace_time=600,
     )
     logger.info("Log retention purge scheduler configured (daily 03:45 KST)")
+
+    # ── 막차/첫차 Web Push 알림 (5분 간격) ──
+    # 알림 판정 윈도우가 30분이라 5분 간격이면 놓쳐도 다음 사이클(최대 5분 후)에
+    # 자가회복 가능. misfire_grace_time=120으로 짧은 지연은 발화 보장.
+    scheduler.add_job(
+        _push_notification_job,
+        IntervalTrigger(minutes=5),
+        id="push_notification_cycle",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=120,
+    )
+    logger.info("Push notification scheduler configured (every 5min)")
 
 
 def start_scheduler():
