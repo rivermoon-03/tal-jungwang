@@ -14,6 +14,10 @@ import { useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../
 import { formatDday, formatDateOrRange } from '../../utils/academicCalendar'
 import { formatFullDate } from '../../utils/noticeDate'
 import AcademicCalendarGrid from './AcademicCalendarGrid'
+import UpcomingScheduleModal from './UpcomingScheduleModal'
+
+// D-day 배너를 탭했을 때 모달에 보여줄 upcoming 항목 최대 개수.
+const UPCOMING_MODAL_MAX = 4
 
 // 공지는 useSchoolNotices가 이미 전체(최대 50건)를 한 번에 내려주므로,
 // 추가 네트워크 호출 없이 "화면에 몇 개를 보여줄지"만 스크롤에 맞춰 늘린다.
@@ -37,6 +41,9 @@ export default function AcademicNoticesTab() {
   const upcoming = Array.isArray(calendarData?.upcoming) ? calendarData.upcoming : []
   // 캘린더 그리드에 표시할 전체 이벤트(가장 임박한 일정 + 그 다음 일정들).
   const allEvents = [next, ...upcoming].filter(Boolean)
+
+  // D-day 배너 탭 → "다가오는 일정" 모달. upcoming(next 제외)의 앞쪽 몇 개만 보여준다.
+  const [showUpcoming, setShowUpcoming] = useState(false)
 
   const { data: noticesData, loading: noticesLoading, error: noticesError } = useSchoolNotices(selectedDept)
   const notices = Array.isArray(noticesData) ? noticesData : []
@@ -89,9 +96,15 @@ export default function AcademicNoticesTab() {
         <p className="text-body text-mute dark:text-mute text-center py-4">학과 목록을 불러오는 중이에요...</p>
       )}
 
-      {/* 가장 임박한 일정 — 초컴팩트 한 줄 배너. [D-N 배지][제목(truncate)][날짜] */}
+      {/* 가장 임박한 일정 — 초컴팩트 한 줄 배너. [D-N 배지][제목(truncate)][날짜]
+          탭하면 upcoming 앞쪽 몇 개를 모달로 보여준다(추가 네트워크 호출 없음). */}
       {!calLoading && next && (
-        <div className="bg-accent-bg dark:bg-accent-bg rounded-card border border-line dark:border-line px-3 py-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setShowUpcoming(true)}
+          aria-label={`다가오는 일정 더 보기 — ${next.title}`}
+          className="pressable w-full bg-accent-bg dark:bg-accent-bg rounded-card border border-line dark:border-line px-3 py-2 flex items-center gap-2 text-left"
+        >
           <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-accent dark:bg-accent text-white dark:text-ink tracking-wide flex-shrink-0 tabular-nums">
             {formatDday(next.start_date)}
           </span>
@@ -101,21 +114,13 @@ export default function AcademicNoticesTab() {
           <span className="text-micro font-semibold text-mute dark:text-mute flex-shrink-0 whitespace-nowrap">
             {formatDateOrRange(next.start_date, next.end_date)}
           </span>
-        </div>
+        </button>
       )}
 
-      {/* 다가오는 일정 — 월간 그리드 캘린더 */}
+      {/* 다가오는 일정 — 월간/주간 캘린더 */}
       {!calLoading && allEvents.length > 0 && (
-        <div>
-          <div
-            className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest mb-2"
-            style={{ letterSpacing: '0.14em' }}
-          >
-            다가오는 일정
-          </div>
-          <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card px-3 py-3">
-            <AcademicCalendarGrid events={allEvents} initialDate={next?.start_date ?? null} />
-          </div>
+        <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card px-3 py-3">
+          <AcademicCalendarGrid events={allEvents} initialDate={next?.start_date ?? null} />
         </div>
       )}
 
@@ -170,6 +175,12 @@ export default function AcademicNoticesTab() {
           </div>
         )}
       </div>
+
+      <UpcomingScheduleModal
+        open={showUpcoming}
+        onClose={() => setShowUpcoming(false)}
+        items={upcoming.slice(0, UPCOMING_MODAL_MAX)}
+      />
     </div>
   )
 }
