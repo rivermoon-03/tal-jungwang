@@ -129,18 +129,6 @@ vi.mock('./SubwayCountdown', () => ({
   default: () => null,
 }))
 
-// SubwayTimetable mock: data-testid=timetable-section 포함
-vi.mock('./SubwayTimetable', () => ({
-  default: ({ entries }) =>
-    entries && entries.length > 0 ? (
-      <div data-testid="timetable-section">
-        {entries.map((e, i) => (
-          <div key={i}>{e.depart_at}</div>
-        ))}
-      </div>
-    ) : null,
-}))
-
 import GlobalSubwayDetailSheet from './GlobalSubwayDetailSheet'
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -181,9 +169,9 @@ describe('GlobalSubwayDetailSheet — "~요" 카피', () => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('GlobalSubwayDetailSheet — 시간표 우선 레이아웃', () => {
-  it('trains 데이터가 있으면 timetable-section이 렌더된다', () => {
+  it('trains 데이터가 있으면 timetable-grid-section이 렌더된다', () => {
     const { container } = render(<GlobalSubwayDetailSheet />)
-    expect(container.querySelector('[data-testid="timetable-section"]')).toBeTruthy()
+    expect(container.querySelector('[data-testid="timetable-grid-section"]')).toBeTruthy()
   })
 
   it('첫차/막차 요약 영역이 렌더된다', () => {

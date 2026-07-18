@@ -132,7 +132,7 @@ function TimeGrid({ times }) {
 // 리스트 뷰(TimeRow/PastRow)와 같은 오늘 전체 시각을 4열 그리드로 보여준다.
 // 다음 차만 accent 채움, 지난 시각은 흐리게 — 인라인 반올림/포맷 로직 없이
 // 순수 표시 전용(날짜 계산은 각 Content 컴포넌트가 기존 헬퍼로 미리 끝낸다).
-function TimeGridView({ items, gridRef }) {
+export function TimeGridView({ items, gridRef }) {
   if (!items.length) return null
   return (
     <div className="grid grid-cols-4 gap-1.5">
