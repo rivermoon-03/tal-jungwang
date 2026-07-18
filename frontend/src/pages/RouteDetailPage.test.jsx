@@ -168,15 +168,37 @@ describe('RouteDetailPage', () => {
     backSpy.mockRestore()
   })
 
-  it('평일/토/일 요일 전환이 출발 시간표 섹션 우상단에 작게 표시됨 (도착 탭엔 없음)', () => {
-    // 요일은 출발 시간표에만 의미가 있어 도착 탭에는 렌더되지 않는다.
+  it('요일 전환 버튼 하나로 평일→토요일→일/공휴일 순환됨 (pill 3개 아님, 도착 탭엔 없음)', () => {
+    // 요일은 출발 시간표에만 의미가 있어 도착 탭에는 버튼 자체가 렌더되지 않는다.
     render(<RouteDetailPage routeNumber="33" />)
-    expect(screen.queryByText('평일')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/요일 전환/)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
-    expect(screen.getByText('평일')).toBeInTheDocument()
-    expect(screen.getByText('토요일')).toBeInTheDocument()
-    expect(screen.getByText('일/공휴일')).toBeInTheDocument()
+    // 고정된 테스트 시각(2026-01-06, 화요일)의 기본값은 평일 — 버튼 하나만 보이고
+    // 나머지 두 요일 라벨은 동시에 렌더되지 않는다(3개 pill이 아님을 확인).
+    const dayBtn = screen.getByLabelText(/요일 전환, 현재 평일/)
+    expect(dayBtn).toBeInTheDocument()
+    expect(screen.queryByText('토요일')).not.toBeInTheDocument()
+    expect(screen.queryByText('일/공휴일')).not.toBeInTheDocument()
+
+    fireEvent.click(dayBtn)
+    expect(screen.getByLabelText(/요일 전환, 현재 토요일/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText(/요일 전환, 현재 토요일/))
+    expect(screen.getByLabelText(/요일 전환, 현재 일\/공휴일/)).toBeInTheDocument()
+
+    // 한 바퀴 더 돌면 평일로 순환
+    fireEvent.click(screen.getByLabelText(/요일 전환, 현재 일\/공휴일/))
+    expect(screen.getByLabelText(/요일 전환, 현재 평일/)).toBeInTheDocument()
+  })
+
+  it('요일 전환 버튼이 스크롤 영역이 아닌 고정 헤더에 있어 시간표 목록과 함께 스크롤되지 않음', () => {
+    render(<RouteDetailPage routeNumber="33" />)
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
+    const dayBtn = screen.getByLabelText(/요일 전환/)
+    // 시간표 리스트를 담은 스크롤 컨테이너(overflow-y-auto) 바깥에 있어야 한다.
+    const scrollContainer = document.querySelector('.overflow-y-auto')
+    expect(scrollContainer.contains(dayBtn)).toBe(false)
   })
 
   it('정류장 칩이 렌더링됨', () => {

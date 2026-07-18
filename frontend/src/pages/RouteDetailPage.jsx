@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Star, ChevronLeft, ChevronRight, Bus } from 'lucide-react'
+import { Star, ChevronLeft, ChevronRight, Bus, Repeat } from 'lucide-react'
 import { useBusTimetableByRoute, useBusHistoryPreview, useBusRoutes, useBusArrivalStats } from '../hooks/useBus'
 import useFavorites from '../hooks/useFavorites'
 import RouteBadge from '../components/ui/RouteBadge'
@@ -53,6 +53,12 @@ const DAY_TABS = [
   { id: 'saturday', label: '토요일' },
   { id: 'sunday',   label: '일/공휴일' },
 ]
+
+// 3개 pill 대신 눌러서 평일→토요일→일/공휴일 순으로 순환하는 버튼 하나로 대체.
+function nextDayTab(current) {
+  const idx = DAY_TABS.findIndex((t) => t.id === current)
+  return DAY_TABS[(idx + 1) % DAY_TABS.length].id
+}
 
 // 오늘 요일로 기본 탭 결정 (0=일,1=월..6=토)
 function defaultDayTab() {
@@ -432,25 +438,39 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   // 정류장 칩 목록
   const stops = ttData?.stops ?? []
 
-  // 현재 탭의 시간표 목록
+  // 현재 탭(dayTab)의 시간표 목록 — 요일 전환에 따라 바뀐다.
   const schedule = useMemo(() => {
     if (!ttData?.timetable) return []
     return ttData.timetable[dayTab] ?? []
   }, [ttData, dayTab])
 
+  // 이 방향이 "어느 요일이든" 출발 시간표를 갖는지 — dayTab(현재 선택된 요일)과 무관하게
+  // 판정한다. schedule.length(오늘 선택된 요일만)로 판정하면, 예를 들어 일요일에
+  // 운행하지 않는 노선에서 사용자가 요일 전환으로 일요일을 선택하는 순간 이 방향
+  // 자체가 "시간표 없음"으로 오판되어 섹션(및 그 안의 요일 전환 버튼)이 통째로
+  // 사라지는 버그가 있었다(사용자가 되돌아갈 방법이 없어짐).
+  const timetableHasAnyDay = useMemo(() => {
+    const t = ttData?.timetable
+    if (!t) return false
+    return Object.values(t).some((arr) => Array.isArray(arr) && arr.length > 0)
+  }, [ttData])
+
   // 실시간 도착 그룹과 시간표 그룹을 독립적으로 판정한다.
   // 시흥33 등교처럼 "실시간은 있지만 정해진 시간표가 없는" 방향이 있어서,
-  // 시간표(schedule) 유무로 화면 전체를 가리면 실시간 도착이 통째로 숨는 버그가 있었다.
+  // 시간표 유무로 화면 전체를 가리면 실시간 도착이 통째로 숨는 버그가 있었다.
   const hasRealtimeGroup = isRealtime && showArrivalGroup
-  const hasTimetable = showTimetableSection && schedule.length > 0
+  const hasTimetableCapability = showTimetableSection && timetableHasAnyDay
   // 실시간 도착 + 출발 시간표가 둘 다 있으면 장소 중심 탭으로 분리한다.
-  const bothGroups = hasRealtimeGroup && hasTimetable
+  const bothGroups = hasRealtimeGroup && hasTimetableCapability
 
   // 장소 중심 탭 상태 — [{도착 정류장} 도착 | {기점} 출발]. 과거 도착 기록은 별도 탭이
   // 아니라 도착 카드 우측 › 화살표로 진입(showHistory). 방향/노선 바뀌면 초기화.
   const [placeTab, setPlaceTab] = useState('arrive')
   const [showHistory, setShowHistory] = useState(false)
   useEffect(() => { setPlaceTab('arrive'); setShowHistory(false) }, [resolvedCategory, routeNumber])
+
+  // 출발 시간표 콘텐츠가 화면에 보이는 중인지 — 요일 전환 버튼 노출 조건과 동일하게 재사용.
+  const showDepartContent = (bothGroups && placeTab === 'depart') || (!bothGroups && hasTimetableCapability)
 
   // 과거 기록 통계 — 평소 배차 간격 + 도착 분포(p10/p50/p90) + 표본수(1주+ 데이터 판정).
   // histData의 route_id/stop_id(카드와 동일 GBIS 정류장) 기준으로 조회.
@@ -616,6 +636,23 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
             active={resolvedCategory}
             onChange={(cat) => setActiveCategory(cat)}
           />
+
+          {/* 요일 전환 — 고정(스크롤 안 되는) 헤더 영역에 둬서 시간표를 스크롤한 채로도
+              항상 탭 가능하게 한다. pill 3개 대신 눌러서 평일→토요일→일/공휴일로
+              순환하는 버튼 하나로 압축(공간 절약). 출발 시간표가 보이는 중일 때만 노출. */}
+          {showDepartContent && (
+            <div className="flex justify-end mt-2 -mb-1">
+              <button
+                type="button"
+                onClick={() => setDayTab((d) => nextDayTab(d))}
+                aria-label={`요일 전환, 현재 ${DAY_TABS.find((t) => t.id === dayTab)?.label}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-line dark:border-line bg-surface-2 dark:bg-bg px-2.5 py-1 text-[11.5px] font-bold text-ink-2 dark:text-ink-2-dark pressable"
+              >
+                <Repeat size={11} strokeWidth={2.4} />
+                {DAY_TABS.find((t) => t.id === dayTab)?.label}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 스크롤 영역: 시간표 리스트 */}
@@ -633,13 +670,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
               </div>
             )}
 
-            {!ttLoading && !ttError && !hasRealtimeGroup && !hasTimetable && (
+            {!ttLoading && !ttError && !hasRealtimeGroup && !hasTimetableCapability && (
               <div className="mt-8">
                 <EmptyState title="운행 정보 없음" desc="해당 요일 운행 정보가 없어요" />
               </div>
             )}
 
-            {!ttLoading && !ttError && (hasRealtimeGroup || hasTimetable) && (
+            {!ttLoading && !ttError && (hasRealtimeGroup || hasTimetableCapability) && (
               <>
                 {/* ── 장소 중심 탭: [{도착 정류장} 도착 | {기점} 출발] — 실시간+시간표 둘 다 있을 때만.
                     등교/하교(DirectionTabs, 풀사이즈 세그먼트)보다 한 단계 가벼운 작은 pill로 둬
@@ -722,52 +759,37 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                 )}
 
                 {/* ── 출발 탭 (또는 단일 시간표 그룹) ── */}
-                {((bothGroups && placeTab === 'depart') || (!bothGroups && hasTimetable)) && (
+                {showDepartContent && (
                 <section aria-label="기점 출발 시간표">
-                  {/* 그룹 B 헤더 + 요일 전환(우상단 작은 pill 3개) — 요일은 출발 시간표에만
-                      의미가 있어(도착 탭은 항상 실시간·오늘 기준) 별도 풀사이즈 탭 대신
-                      여기 우상단에 작게 둔다. */}
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <h2 className="text-[13.5px] font-semibold text-ink dark:text-ink tracking-[-0.01em]">
-                        {originStopName
-                          ? `${originStopName} 출발 시간표`
-                          : '출발 시간표'}
-                        {headLabel && (
-                          <span className="font-semibold text-mute dark:text-mute"> · {headLabel}</span>
-                        )}
-                      </h2>
-                      <p className="text-[12px] font-semibold text-mute dark:text-mute mt-0.5">
-                        {isRealtime
-                          ? '기점에서 출발하는 정해진 시각이에요. 도착 시각과 달라요.'
-                          : '기점에서 출발하는 시각이에요.'}
-                      </p>
-                    </div>
-                    <div role="tablist" aria-label="요일 선택" className="flex-none flex items-center gap-0.5 bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-full p-0.5">
-                      {DAY_TABS.map((tab) => {
-                        const active = tab.id === dayTab
-                        return (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            role="tab"
-                            aria-selected={active}
-                            onClick={() => setDayTab(tab.id)}
-                            className={[
-                              'px-2 py-1 rounded-full text-[10.5px] font-bold whitespace-nowrap transition-colors',
-                              active
-                                ? 'bg-ink dark:bg-accent text-white dark:text-black'
-                                : 'text-mute dark:text-mute',
-                            ].join(' ')}
-                          >
-                            {tab.label}
-                          </button>
-                        )
-                      })}
-                    </div>
+                  {/* 그룹 B 헤더 — 요일 전환 버튼은 고정 헤더 영역(DirectionTabs 아래)으로
+                      옮겨졌다. 이 섹션은 스크롤 영역 안이라 여기 두면 스크롤할 때마다
+                      다시 위로 올라와야 하는 문제가 있었다. */}
+                  <div className="mb-2">
+                    <h2 className="text-[13.5px] font-semibold text-ink dark:text-ink tracking-[-0.01em]">
+                      {originStopName
+                        ? `${originStopName} 출발 시간표`
+                        : '출발 시간표'}
+                      {headLabel && (
+                        <span className="font-semibold text-mute dark:text-mute"> · {headLabel}</span>
+                      )}
+                    </h2>
+                    <p className="text-[12px] font-semibold text-mute dark:text-mute mt-0.5">
+                      {isRealtime
+                        ? '기점에서 출발하는 정해진 시각이에요. 도착 시각과 달라요.'
+                        : '기점에서 출발하는 시각이에요.'}
+                    </p>
                   </div>
 
-                  {/* 시간표 리스트 */}
+                  {/* 시간표 리스트 — 이 방향은 다른 요일엔 시간표가 있지만 지금 선택한
+                      요일(dayTab)엔 없는 경우(예: 일요일 미운행)를 위한 안내. 요일 전환
+                      버튼은 고정 헤더에 있어 이 상태에서도 계속 눌러 다른 요일로 바꿀 수 있다. */}
+                  {schedule.length === 0 ? (
+                    <div className="rounded-sheet border border-line dark:border-line px-4 py-6 text-center">
+                      <p className="text-[13px] font-semibold text-mute dark:text-mute">
+                        {DAY_TABS.find((t) => t.id === dayTab)?.label}엔 정해진 출발 시각이 없어요
+                      </p>
+                    </div>
+                  ) : (
                   <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-sheet overflow-hidden">
                     {schedule.map((entry, idx) => {
                       const isNextSlot = idx === nextIdx
@@ -803,12 +825,14 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                       </div>
                     )}
                   </div>
+                  )}
                 </section>
                 )}
 
-                {/* 실시간 노선인데 이 방향은 정해진 출발 시간표가 없을 때 안내 (예: 시흥33 등교).
-                    단일 도착 그룹(탭 없음)에서만, 기록뷰가 아닐 때 노출. */}
-                {!bothGroups && hasRealtimeGroup && showTimetableSection && schedule.length === 0 && !showHistory && (
+                {/* 실시간 노선인데 이 방향은 정해진 출발 시간표가 "어느 요일이든" 없을 때
+                    안내 (예: 시흥33 등교). timetableHasAnyDay로 판정 — 요일 전환으로
+                    오늘만 비어 보이는 경우와 구분한다. 단일 도착 그룹(탭 없음)에서만. */}
+                {!bothGroups && hasRealtimeGroup && showTimetableSection && !timetableHasAnyDay && !showHistory && (
                   <p className="mt-2 text-[12.5px] font-semibold text-mute dark:text-mute leading-relaxed">
                     이 방향은 정해진 출발 시간표가 없는 실시간 운행 노선이에요.
                   </p>
