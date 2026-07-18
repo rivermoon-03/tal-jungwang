@@ -203,7 +203,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
                     style={{ background: 'var(--tj-ease)' }}
                     aria-hidden="true"
                   />
-                  <span className="flex-1 truncate text-[13px] font-semibold text-ink">
+                  <span className="flex-1 truncate text-caption font-semibold text-ink">
                     {venue.name}
                   </span>
                   <span className="shrink-0 text-caption font-medium text-ink-2 dark:text-mute">
