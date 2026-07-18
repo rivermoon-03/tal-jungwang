@@ -71,7 +71,13 @@ export default function MarkerSheet({
   // vaul이 닫힘 애니메이션을 끝낸 뒤에야 부모의 onClose(언마운트)를 호출한다.
   // (부모는 station이 사라지면 즉시 <MarkerSheet/> 자체를 언마운트하므로
   //  이 컴포넌트가 스스로 열림 상태를 들고 있어야 슬라이드다운을 보여줄 수 있다.)
-  const [open, setOpen] = useState(true)
+  //
+  // open의 초기값은 반드시 false여야 한다 — vaul은 마운트 시점에 이미 open=true이면
+  // "열리는 전환"이 없었다고 보고 스냅포인트 transform을 계산/적용하지 않는다(닫힘 위치
+  // translateY(스냅높이)에 고정된 채 data-state="open"만 찍힘 → 시트가 화면 밖에 붙어
+  // 탭해도 아무 반응이 없는 것처럼 보임). 아래 useEffect가 마운트 직후 false→true로
+  // 전환시켜야 vaul이 실제로 열림 애니메이션/포지션을 계산한다.
+  const [open, setOpen] = useState(false)
   const [snapIdx, setSnapIdx] = useState(0)
 
   // 즐겨찾기
