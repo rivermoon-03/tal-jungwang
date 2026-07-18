@@ -165,15 +165,6 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
 
   const muted = etaText === '—'
 
-  // 출발지·경유 텍스트 — 한국어 자연스러운 형식
-  const originLine = (() => {
-    if (!origin && waypoints.length === 0) return null
-    const parts = []
-    if (origin) parts.push(`${origin} 출발`)
-    if (waypoints.length > 0) parts.push(`${waypoints.join(', ')} 경유`)
-    return parts.join(' · ')
-  })()
-
   const wrapperBase =
     'relative rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none'
 
@@ -182,16 +173,10 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
       {/* 노선 뱃지 */}
       <RouteBadge route={first.route_no} className="shrink-0" />
 
-      {/* 본문 */}
+      {/* 본문 (시안 C: 출발·경유 텍스트는 아래 트랙과 중복이라 생략) */}
       <div className="flex-1 min-w-0">
-        {/* 출발지 · 경유 — 자연스러운 한국어 */}
-        {originLine && (
-          <p className={`text-label leading-none mb-[3px] truncate ${muted ? 'text-mute' : 'text-ink-2'}`}>
-            {originLine}
-          </p>
-        )}
-
-        {/* 행선지 */}
+        {/* 행선지 + 상태 + 즐겨찾기 별(인라인 우측) — 별을 카드 코너 absolute로 두지 않아
+            우측 ETA 숫자와 겹치지 않는다. */}
         <div className="flex items-center gap-2 leading-tight">
           <span className={`truncate text-head font-semibold tracking-[-.01em] ${muted ? 'text-mute' : 'text-ink'}`}>
             {headLabel}
@@ -205,6 +190,18 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
               {first.depart_at}
             </span>
           )}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleFav({ type: 'bus', label: first.route_no }) }}
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            className="ml-auto shrink-0 -mr-0.5 p-1 pressable"
+          >
+            <Star
+              size={16}
+              fill={isFavorite ? 'currentColor' : 'none'}
+              className={isFavorite ? 'text-imminent' : 'text-mute'}
+            />
+          </button>
         </div>
 
         <MiniTrack
@@ -216,10 +213,10 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
         />
       </div>
 
-      {/* ETA — 우측 상단 즐겨찾기 별(absolute)과 겹치지 않게 오른쪽 여백을 둔다 */}
+      {/* ETA (우측) — "N분 후" */}
       <span
         data-eta
-        className={`text-right shrink-0 leading-none tabular-nums pr-[22px] ${imminent ? 'imminent' : ''}`}
+        className={`text-right shrink-0 leading-none tabular-nums ${imminent ? 'imminent' : ''}`}
       >
         <span className="inline-flex items-baseline">
           <span
@@ -242,7 +239,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
             )}
           </span>
           {isMinutes && !imminent && (
-            <span className={`ml-[2px] text-body font-semibold ${muted ? 'text-mute' : 'text-mute'}`}>분</span>
+            <span className="ml-[2px] text-body font-semibold text-mute">분 후</span>
           )}
         </span>
         {etaSub && !muted && (
@@ -252,24 +249,6 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
         )}
       </span>
     </div>
-  )
-
-  const starButton = (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation()
-        toggleFav({ type: 'bus', label: first.route_no })
-      }}
-      aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-      className="absolute top-1.5 right-1.5 p-3 min-w-[44px] min-h-[44px] flex items-center justify-center z-10"
-    >
-      <Star
-        size={16}
-        fill={isFavorite ? 'currentColor' : 'none'}
-        className={isFavorite ? 'text-imminent' : 'text-mute'}
-      />
-    </button>
   )
 
   function handleCardClick() {
@@ -294,16 +273,16 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
   return (
     <div
       data-route={first.route_no}
-      className={`relative ${index != null ? 'tj-card-enter' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick() }
+      }}
+      className={`w-full text-left cursor-pointer pressable ${wrapperBase} ${index != null ? 'tj-card-enter' : ''}`}
       style={index != null ? staggerStyle(index) : undefined}
     >
-      <button
-        className={`w-full text-left pressable ${wrapperBase}`}
-        onClick={handleCardClick}
-      >
-        {content}
-      </button>
-      {starButton}
+      {content}
     </div>
   )
 }
