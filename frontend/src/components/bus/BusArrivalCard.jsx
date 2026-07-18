@@ -169,14 +169,13 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
     'relative rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none'
 
   const content = (
-    <div className="flex items-center gap-[14px] px-[18px] pt-[14px] pb-4">
+    <div className="flex items-center gap-[14px] px-[18px] py-4">
       {/* 노선 뱃지 */}
       <RouteBadge route={first.route_no} className="shrink-0" />
 
       {/* 본문 (시안 C: 출발·경유 텍스트는 아래 트랙과 중복이라 생략) */}
       <div className="flex-1 min-w-0">
-        {/* 행선지 + 상태 + 즐겨찾기 별(인라인 우측) — 별을 카드 코너 absolute로 두지 않아
-            우측 ETA 숫자와 겹치지 않는다. */}
+        {/* 행선지 + 상태 */}
         <div className="flex items-center gap-2 leading-tight">
           <span className={`truncate text-head font-semibold tracking-[-.01em] ${muted ? 'text-mute' : 'text-ink'}`}>
             {headLabel}
@@ -190,18 +189,6 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
               {first.depart_at}
             </span>
           )}
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); toggleFav({ type: 'bus', label: first.route_no }) }}
-            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-            className="ml-auto shrink-0 -mr-0.5 p-1 pressable"
-          >
-            <Star
-              size={16}
-              fill={isFavorite ? 'currentColor' : 'none'}
-              className={isFavorite ? 'text-imminent' : 'text-mute'}
-            />
-          </button>
         </div>
 
         <MiniTrack
@@ -248,6 +235,24 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
           </span>
         )}
       </span>
+
+      {/* 즐겨찾기 — 원형 테두리 버튼, 카드 세로 중앙, 모바일에서 누르기 쉽게 크게(40px) */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); toggleFav({ type: 'bus', label: first.route_no }) }}
+        aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+        className={`shrink-0 self-center flex items-center justify-center w-10 h-10 rounded-full border pressable ${
+          isFavorite
+            ? 'border-imminent/40 bg-imminent/10'
+            : 'border-line dark:border-line bg-surface dark:bg-surface'
+        }`}
+      >
+        <Star
+          size={19}
+          fill={isFavorite ? 'currentColor' : 'none'}
+          className={isFavorite ? 'text-imminent' : 'text-mute'}
+        />
+      </button>
     </div>
   )
 
