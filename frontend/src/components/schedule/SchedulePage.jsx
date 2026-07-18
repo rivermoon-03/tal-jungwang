@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNow } from '../../hooks/useNow'
 import ScheduleSection from './ScheduleSection'
+import SubwayStationChips from './SubwayStationChips'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
 import SegmentTabs from '../common/SegmentTabs'
@@ -443,6 +444,9 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
               loading={loading}
               lineColor={dir.color}
               lastBus={isLastTrain}
+              footer={!loading && (
+                <SubwayStationChips line={dir.subtitle} direction={label} viewStation={stationGroup} />
+              )}
             />
           )
         }),

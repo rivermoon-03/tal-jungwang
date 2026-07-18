@@ -1,33 +1,15 @@
-// 미니 트랙 — 출발·경유·종점 도트+라인 + 라벨 시각화 (시안 1: 경로 트랙 강화)
+// 미니 트랙 — 출발·경유·종점 칩 라인 (시안 3: 칩 라인형)
 // props: origin, waypoints (string[]), terminus, category, muted
+//
+// 이전(시안1)은 정류장 라벨을 고정 컬럼 그리드에 넣어서, 역명이 길거나(시흥시청 등)
+// 경유지가 많으면 좁은 폰 폭(360~390px)에서 라벨이 겹치거나 줄바꿈이 났다. 칩을
+// flex-wrap으로 배치하면 폭이 좁을 때 칩이 자연스레 다음 줄로 넘어갈 뿐 절대
+// 겹치거나 잘리지 않는다.
 
 const COLOR_BY_CATEGORY = {
-  express: {
-    dot:   'bg-line-express',
-    halo:  'shadow-[0_0_0_4px_var(--tw-shadow-color)] shadow-route-halo-express dark:shadow-route-halo-express-dark',
-    label: 'text-line-express',
-    // 그라디언트 start color for track line
-    gradFrom: 'var(--tj-line-express, #dc2626)',
-  },
-  trunk: {
-    dot:   'bg-line-201',
-    halo:  'shadow-[0_0_0_4px_var(--tw-shadow-color)] shadow-route-halo-trunk dark:shadow-route-halo-trunk-dark',
-    label: 'text-line-201',
-    gradFrom: 'var(--tj-line-201, #2563eb)',
-  },
-  local: {
-    dot:   'bg-line-33',
-    halo:  'shadow-[0_0_0_4px_var(--tw-shadow-color)] shadow-route-halo-local dark:shadow-route-halo-local-dark',
-    label: 'text-line-33',
-    gradFrom: 'var(--tj-line-33, #0891b2)',
-  },
-}
-
-// Tailwind 색상 토큰 → CSS 변수 매핑 (그라디언트용)
-const CAT_GRAD_START = {
-  express: '#dc2626',
-  trunk:   '#2563eb',
-  local:   '#0891b2',
+  express: { chipBg: 'bg-line-express' },
+  trunk:   { chipBg: 'bg-line-201' },
+  local:   { chipBg: 'bg-line-33' },
 }
 
 export default function MiniTrack({
@@ -38,154 +20,45 @@ export default function MiniTrack({
   muted = false,
 }) {
   const cat = COLOR_BY_CATEGORY[category] ?? COLOR_BY_CATEGORY.local
-  const gradStart = CAT_GRAD_START[category] ?? CAT_GRAD_START.local
 
-  // Track grid — start dot + alternating segment/dot + end dot
-  // 시안 1: 시작(14px) · 경유(11px) · 종점(14px), 세그먼트는 auto
-  const n = waypoints.length
-  const trackTemplate = (() => {
-    if (n === 0) return '14px 1fr 14px'
-    if (n === 1) return '14px 1fr 11px 1fr 14px'
-    return '14px 1fr 11px 1fr 11px 1fr 14px'
-  })()
+  const originChipCls = muted
+    ? 'bg-line-strong dark:bg-line-strong text-white dark:text-ink'
+    : `${cat.chipBg} text-white`
+  const waypointChipCls = muted
+    ? 'bg-surface-2 dark:bg-surface-2 text-line-strong dark:text-line-strong'
+    : 'bg-surface-2 dark:bg-surface-2 text-ink-2 dark:text-ink'
+  const terminusChipCls = muted
+    ? 'bg-line-strong dark:bg-line-strong text-white dark:text-ink'
+    : 'bg-ink dark:bg-ink text-bg dark:text-bg'
 
-  // Label grid (스테이션 이름 + 역할 행 — 동일 template)
-  const labelTemplate = (() => {
-    if (n === 0) return 'auto 1fr auto'
-    if (n === 1) return '1fr 1fr 1fr'
-    return '1fr 1fr 1fr 1fr'
-  })()
+  const chipBase = 'inline-flex items-center rounded-chip px-2 py-[3px] text-chip truncate max-w-[120px]'
+  const arrow = <span className="text-mute dark:text-mute text-meta shrink-0" aria-hidden="true">→</span>
 
-  const dotMute  = 'bg-line-strong dark:bg-line-strong'
-  const dotInk   = 'bg-ink dark:bg-ink'
-
-  // 시작 노드: 14px · 채움 · halo
-  const startDotCls = muted
-    ? `w-[14px] h-[14px] rounded-full justify-self-start ${dotMute}`
-    : `w-[14px] h-[14px] rounded-full justify-self-start ${cat.dot} ${cat.halo}`
-
-  // 경유 노드: 11px · hollow (surface 배경 + border)
-  const midDotCls = muted
-    ? `w-[11px] h-[11px] rounded-full justify-self-center border-[2px] border-line-strong dark:border-line-strong bg-surface dark:bg-surface`
-    : `w-[11px] h-[11px] rounded-full justify-self-center border-[2.5px] border-ink-2 dark:border-ink bg-surface dark:bg-surface`
-
-  // 종점 노드: 14px · 채움 · halo
-  const endDotCls = muted
-    ? `w-[14px] h-[14px] rounded-full justify-self-end ${dotMute}`
-    : `w-[14px] h-[14px] rounded-full justify-self-end ${dotInk} shadow-[0_0_0_4px_rgba(27,42,74,0.12)] dark:shadow-[0_0_0_4px_rgba(255,255,255,0.10)]`
-
-  const inlineMidDot = (key) => (
-    <span
-      key={key}
-      data-track-pt="mid"
-      className={midDotCls}
-    />
-  )
-
-  const inlineSeg = (key) => (
-    <span
-      key={key}
-      data-track-seg
-      className={
-        muted
-          ? 'h-[3px] rounded-[2px] bg-line-strong dark:bg-line-strong'
-          : 'h-[3px] rounded-[2px] bg-ink dark:bg-ink opacity-[.6]'
-      }
-    />
-  )
-
-  // Build track children: start → seg → [mid → seg]* → end
-  const trackChildren = []
-  trackChildren.push(
-    <span key="s" data-track-pt="start" className={startDotCls} />
-  )
-  trackChildren.push(inlineSeg('s0'))
-  waypoints.forEach((_, i) => {
-    trackChildren.push(inlineMidDot(`v${i}`))
-    trackChildren.push(inlineSeg(`s${i + 1}`))
-  })
-  trackChildren.push(
-    <span key="e" data-track-pt="end" className={endDotCls} />
-  )
-
-  // 라벨 스타일 — 시안 1: 13px
-  const startLabelCls = muted
-    ? 'text-left truncate text-[13px] font-semibold tracking-[-.01em] text-line-strong dark:text-line-strong'
-    : `text-left truncate text-[13px] font-semibold tracking-[-.01em] ${cat.label}`
-
-  const midLabelCls = muted
-    ? 'text-center truncate text-[13px] font-bold tracking-[-.005em] text-line-strong dark:text-line-strong'
-    : 'text-center truncate text-[13px] font-bold tracking-[-.005em] text-ink-2 dark:text-ink'
-
-  const endLabelCls = muted
-    ? 'text-right truncate text-[13px] font-bold tracking-[-.005em] text-line-strong dark:text-line-strong'
-    : 'text-right truncate text-[13px] font-semibold tracking-[-.005em] text-ink dark:text-ink'
-
-  // 역할 라벨 스타일 — 12px, mute
-  const roleLabelCls = 'text-[12px] font-semibold text-mute dark:text-mute leading-none'
+  const items = [
+    { key: 'start', role: '출발', name: origin, cls: originChipCls, dataPt: 'start' },
+    ...waypoints.map((w, i) => ({ key: `mid${i}`, role: '경유', name: w, cls: waypointChipCls, dataPt: 'mid' })),
+    { key: 'end', role: '종점', name: terminus, cls: terminusChipCls, dataPt: 'end' },
+  ]
 
   return (
-    <div className="mt-[9px] pr-1">
-      {/* Track row: 절대 위치 그라디언트 라인 + 노드 그리드 */}
-      <div className="relative" style={{ paddingLeft: '1px', paddingRight: '1px' }}>
-        {/* 그라디언트 라인 (absolute, 노드 중앙 높이) */}
-        {!muted && (
-          <div
-            aria-hidden
-            className="absolute rounded-[2px] opacity-80"
-            style={{
-              top: '50%',
-              left: '7px',
-              right: '7px',
-              height: '3px',
-              transform: 'translateY(-50%)',
-              background: `linear-gradient(90deg, ${gradStart} 0%, var(--tj-ink, #1a211e) 65%, var(--tj-ink, #1a211e) 100%)`,
-            }}
-          />
-        )}
-        {muted && (
-          <div
-            aria-hidden
-            className="absolute rounded-[2px]"
-            style={{
-              top: '50%',
-              left: '7px',
-              right: '7px',
-              height: '3px',
-              transform: 'translateY(-50%)',
-              background: 'var(--tw-bg-opacity, rgba(203,210,219,1))',
-              opacity: 0.5,
-            }}
-          />
-        )}
-        {/* 노드 그리드 (라인 위에 올라감) */}
-        <div
-          className="relative grid items-center"
-          style={{ gridTemplateColumns: trackTemplate, height: '18px' }}
-        >
-          {trackChildren}
-        </div>
-      </div>
-
-      {/* 역 이름 라벨 행 */}
-      <div className="grid mt-[6px] gap-0" style={{ gridTemplateColumns: labelTemplate }}>
-        <span data-track-label="start" className={startLabelCls}>{origin}</span>
-        {n === 0 ? <span /> : null}
-        {waypoints.map((w, i) => (
-          <span key={i} data-track-label="mid" className={midLabelCls}>{w}</span>
-        ))}
-        <span data-track-label="end" className={endLabelCls}>{terminus}</span>
-      </div>
-
-      {/* 역할 라벨 행 (출발/경유/종점) */}
-      <div className="grid mt-[2px] gap-0" style={{ gridTemplateColumns: labelTemplate }}>
-        <span data-track-role="origin" className={`text-left ${roleLabelCls}`}>출발</span>
-        {n === 0 ? <span /> : null}
-        {waypoints.map((_, i) => (
-          <span key={i} data-track-role="waypoint" className={`text-center ${roleLabelCls}`}>경유</span>
-        ))}
-        <span data-track-role="terminus" className={`text-right ${roleLabelCls}`}>종점</span>
-      </div>
+    <div className="mt-[9px] flex flex-wrap items-center gap-x-1 gap-y-1.5 pr-1">
+      {items.map((it, i) => (
+        <span key={it.key} className="inline-flex items-center gap-1">
+          {i > 0 && arrow}
+          <span className="inline-flex flex-col items-center gap-0.5">
+            <span
+              data-track-pt={it.dataPt}
+              data-track-label={it.dataPt}
+              className={`${chipBase} ${it.cls}`}
+            >
+              {it.name}
+            </span>
+            <span data-track-role={it.dataPt === 'start' ? 'origin' : it.dataPt === 'end' ? 'terminus' : 'waypoint'} className="text-meta text-mute dark:text-mute leading-none">
+              {it.role}
+            </span>
+          </span>
+        </span>
+      ))}
     </div>
   )
 }
