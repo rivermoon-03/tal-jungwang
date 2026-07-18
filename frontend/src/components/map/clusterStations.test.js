@@ -104,8 +104,8 @@ describe('clusterStationPoints', () => {
     expect(sizes).toEqual([2, 2])
   })
 
-  it('기본 threshold 상수(DEFAULT_CLUSTER_THRESHOLD_PX)는 44px이다', () => {
-    expect(DEFAULT_CLUSTER_THRESHOLD_PX).toBe(44)
+  it('기본 threshold 상수(DEFAULT_CLUSTER_THRESHOLD_PX)는 110px이다 (칩 평균 폭 기준 실측 조정값)', () => {
+    expect(DEFAULT_CLUSTER_THRESHOLD_PX).toBe(110)
   })
 
   it('3개 이상 station이 좁은 반경 안에 있으면 하나의 그룹(count>=2)으로 묶인다', () => {

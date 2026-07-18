@@ -64,8 +64,14 @@ export function clusterStationPoints(points, thresholdPx = 44) {
   return groups
 }
 
-/** 마커 최소 터치 타겟 크기(px)와 맞춘 기본 클러스터링 임계값. */
-export const DEFAULT_CLUSTER_THRESHOLD_PX = 44
+// 44px(최소 터치 타겟 크기)로 배포해 실측했더니 실기기 버그 리포트의 정확히 그 케이스
+// ("하교"/"제2 등교" 칩)가 anchor 거리 약 52.6px로 threshold를 살짝 넘겨 여전히 안 묶였다.
+// MarkerChip 칩은 xAnchor:0.5·yAnchor:1.0(칩+꼬리 wrapper 하단 중앙) 기준인데 칩 자체가
+// 정류장명 길이에 따라 110~160px 폭의 알약형이라, "겹쳐 보임"은 anchor 간 거리가 아니라
+// 칩 폭의 절반 두 개(≈ 칩 평균 폭)만큼 떨어져 있어도 이미 발생한다. 이 실측값을 반영해
+// 최소 터치 타겟보다 칩 평균 폭에 가깝게 상향.
+/** 클러스터링 임계값(px) — 겹치는 칩 라벨을 실제로 잡아내는 값(위 설명 참고). */
+export const DEFAULT_CLUSTER_THRESHOLD_PX = 110
 
 /** 클러스터 배지 탭 시 줌인할 레벨 단계(카카오 level 기준, 클수록 더 확대). */
 export const CLUSTER_TAP_ZOOM_STEP = 2
