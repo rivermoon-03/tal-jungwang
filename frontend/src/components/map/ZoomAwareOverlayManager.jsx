@@ -45,7 +45,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { createMarkerChipElement, createSubwayMultiChipElement, createSeohaeSiheungChipElement, createClusterBadgeElement } from './MarkerChip'
+import { createMarkerChipElement, createSubwayMultiChipElement, createSeohaeSiheungChipElement, createClusterBadgeElement, resolveColor } from './MarkerChip'
 import { createMarkerDotElement } from './MarkerDot'
 import { clusterStationPoints, DEFAULT_CLUSTER_THRESHOLD_PX, CLUSTER_TAP_ZOOM_STEP } from './clusterStations'
 
@@ -58,7 +58,7 @@ const CLUSTER_THRESHOLD_PX = DEFAULT_CLUSTER_THRESHOLD_PX
 // chip 콘텐츠에 영향을 주는 라이브/표시 필드만 모은 시그니처.
 // 이 값이 같으면 mode/위치 변화가 없는 한 콘텐츠 재생성 불필요.
 function contentSignature(s) {
-  if (s.__cluster) return JSON.stringify(['cluster', s.__clusterCount])
+  if (s.__cluster) return JSON.stringify(['cluster', s.__clusterCount, s.__clusterColors])
   return JSON.stringify([
     s.chipVariant ?? null,
     s.routeCode ?? null,
@@ -138,6 +138,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
       if (item.__cluster) {
         return createClusterBadgeElement({
           count: item.__clusterCount,
+          colors: item.__clusterColors,
           onClick: () => handleClusterTap(item),
         })
       }
@@ -180,6 +181,14 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
           new window.kakao.maps.Point(group.x, group.y)
         )
         const sortedIds = [...group.ids].sort()
+        // 스택 카드에 보여줄 색(최대 3개) — 원 station 순서(정렬 전) 기준으로 뽑아
+        // 그룹이 커져도(4개 이상) 항상 앞쪽 3개 노선색이 안정적으로 표시되게 한다.
+        const clusterColors = group.ids
+          .slice(0, 3)
+          .map((id) => {
+            const s = byId.get(id)
+            return resolveColor(s?.routeCode, s?.routeColor)
+          })
         items.push({
           id: `cluster:${sortedIds.join('|')}`,
           lat: centerLatLng.getLat(),
@@ -187,6 +196,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
           __cluster: true,
           __clusterCount: group.ids.length,
           __clusterIds: sortedIds,
+          __clusterColors: clusterColors,
         })
       }
 
