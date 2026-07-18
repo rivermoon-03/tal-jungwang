@@ -3,7 +3,7 @@
  * 백엔드 API(/school/departments, /school/notices, /school/calendar)는
  * useMore 훅을 모킹해 실제 네트워크 호출 없이 검증한다.
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('../../hooks/useMore', () => ({
@@ -23,6 +23,15 @@ const NOTICE = {
   url: 'https://www.tukorea.ac.kr/bbs/ce/201/151703/artclView.do',
   published_at: '2026-07-16T00:00:00+09:00',
 }
+
+// 가로 스크롤 점진 렌더링 검증용 — useSchoolNotices가 이미 전체를 한 번에
+// 내려주는 것을 가정해 6건을 모킹하고, 화면에 처음 몇 개가 보이는지만 검증한다.
+const MANY_NOTICES = Array.from({ length: 6 }, (_, i) => ({
+  id: 200 + i,
+  title: `공지 제목 ${i + 1}`,
+  url: `https://www.tukorea.ac.kr/bbs/ce/201/${200 + i}/artclView.do`,
+  published_at: '2026-07-16T00:00:00+09:00',
+}))
 
 const CALENDAR = {
   next: { title: '기말고사', start_date: '2026-06-09', end_date: '2026-06-22' },
@@ -136,5 +145,54 @@ describe('AcademicNoticesTab — 공지 리스트', () => {
     setHooks({ notices: { data: [], loading: false, error: null } })
     render(<AcademicNoticesTab />)
     expect(screen.getByText('새 학과 공지가 없어요')).toBeInTheDocument()
+  })
+})
+
+describe('AcademicNoticesTab — 학과 공지 가로 스크롤 점진 렌더링', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setHooks({ notices: { data: MANY_NOTICES, loading: false, error: null } })
+  })
+
+  // 스크롤 컨테이너의 레이아웃 프로퍼티를 원하는 값으로 강제한다.
+  // jsdom은 실제 레이아웃을 계산하지 않으므로 scrollLeft/clientWidth/scrollWidth가
+  // 항상 0이라, defineProperty로 "끝 근처까지 스크롤한" 상태를 시뮬레이션한다.
+  function setScrollGeometry(el, { scrollLeft, clientWidth, scrollWidth }) {
+    Object.defineProperty(el, 'scrollLeft', { configurable: true, value: scrollLeft })
+    Object.defineProperty(el, 'clientWidth', { configurable: true, value: clientWidth })
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, value: scrollWidth })
+  }
+
+  it('처음에는 3개만 렌더링한다', () => {
+    render(<AcademicNoticesTab />)
+    expect(screen.getByText('공지 제목 1')).toBeInTheDocument()
+    expect(screen.getByText('공지 제목 3')).toBeInTheDocument()
+    expect(screen.queryByText('공지 제목 4')).not.toBeInTheDocument()
+  })
+
+  it('끝에서 먼 지점으로 스크롤하면 더 렌더링하지 않는다', () => {
+    render(<AcademicNoticesTab />)
+    const scrollEl = screen.getByTestId('notices-scroll')
+
+    setScrollGeometry(scrollEl, { scrollLeft: 50, clientWidth: 300, scrollWidth: 1000 })
+    fireEvent.scroll(scrollEl)
+
+    expect(screen.queryByText('공지 제목 4')).not.toBeInTheDocument()
+  })
+
+  it('스크롤이 끝 근처에 도달하면 3개씩 더 렌더링한다', () => {
+    render(<AcademicNoticesTab />)
+    const scrollEl = screen.getByTestId('notices-scroll')
+
+    // clientWidth(300) + scrollLeft(650) >= scrollWidth(1000) - threshold(80)
+    setScrollGeometry(scrollEl, { scrollLeft: 650, clientWidth: 300, scrollWidth: 1000 })
+    fireEvent.scroll(scrollEl)
+
+    expect(screen.getByText('공지 제목 4')).toBeInTheDocument()
+    expect(screen.getByText('공지 제목 6')).toBeInTheDocument()
+
+    // 이미 전체(6건)를 다 보여주고 있으므로 추가 스크롤해도 그대로 6건이다(초과 렌더링 없음).
+    fireEvent.scroll(scrollEl)
+    expect(screen.getAllByRole('link')).toHaveLength(6)
   })
 })

@@ -8,11 +8,17 @@
  * 원문 링크는 새 탭(`target="_blank"`)으로 열되 reverse tabnabbing 방지를 위해
  * `rel="noopener noreferrer"`를 항상 붙인다.
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarDays, ChevronDown, ExternalLink, Megaphone } from 'lucide-react'
 import { useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../../hooks/useMore'
 import { formatDday, formatDateOrRange } from '../../utils/academicCalendar'
 import { formatFullDate } from '../../utils/noticeDate'
+
+// 공지는 useSchoolNotices가 이미 전체(최대 50건)를 한 번에 내려주므로,
+// 추가 네트워크 호출 없이 "화면에 몇 개를 보여줄지"만 스크롤에 맞춰 늘린다.
+const NOTICES_INITIAL_COUNT = 3
+const NOTICES_STEP = 3
+const NOTICES_SCROLL_END_THRESHOLD_PX = 80
 
 export default function AcademicNoticesTab() {
   const { data: departmentsData, loading: deptLoading } = useSchoolDepartments()
@@ -33,6 +39,24 @@ export default function AcademicNoticesTab() {
   const notices = Array.isArray(noticesData) ? noticesData : []
 
   const selectedDeptLabel = departments.find((d) => d.code === selectedDept)?.label ?? ''
+
+  // 학과가 바뀌어 공지 목록 자체가 교체되면 보이는 개수도 처음 3개로 되돌린다.
+  const [visibleCount, setVisibleCount] = useState(NOTICES_INITIAL_COUNT)
+  const noticesScrollRef = useRef(null)
+  useEffect(() => {
+    setVisibleCount(NOTICES_INITIAL_COUNT)
+  }, [selectedDept])
+
+  const visibleNotices = notices.slice(0, visibleCount)
+
+  const handleNoticesScroll = () => {
+    const el = noticesScrollRef.current
+    if (!el) return
+    const nearEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - NOTICES_SCROLL_END_THRESHOLD_PX
+    if (nearEnd) {
+      setVisibleCount((c) => Math.min(c + NOTICES_STEP, notices.length))
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,29 +150,34 @@ export default function AcademicNoticesTab() {
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
-          {notices.map((n) => (
-            <a
-              key={n.id}
-              href={n.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pressable bg-surface dark:bg-surface rounded-card border border-line dark:border-line shadow-sh-card px-4 py-4 flex items-start gap-3"
-              aria-label={`${n.title} — 원문 보기 (새 탭)`}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
+        {notices.length > 0 && (
+          <div
+            ref={noticesScrollRef}
+            onScroll={handleNoticesScroll}
+            data-testid="notices-scroll"
+            className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4"
+          >
+            {visibleNotices.map((n) => (
+              <a
+                key={n.id}
+                href={n.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pressable shrink-0 w-64 bg-surface dark:bg-surface rounded-card border border-line dark:border-line shadow-sh-card px-4 py-4 flex flex-col gap-2"
+                aria-label={`${n.title} — 원문 보기 (새 탭)`}
+              >
+                <div className="flex items-center gap-2">
                   <span className="text-meta font-bold text-chip-blue-fg dark:text-chip-blue-fg bg-chip-blue-bg dark:bg-chip-blue-bg px-2 py-0.5 rounded-full flex-shrink-0">
                     {selectedDeptLabel || '학과'}
                   </span>
                   <span className="text-label font-semibold text-mute dark:text-mute">{formatFullDate(n.published_at)}</span>
                 </div>
-                <h3 className="text-body font-bold text-ink dark:text-ink leading-snug">{n.title}</h3>
-              </div>
-              <ExternalLink size={16} className="text-mute dark:text-mute flex-shrink-0 mt-1" aria-hidden="true" />
-            </a>
-          ))}
-        </div>
+                <h3 className="text-body font-bold text-ink dark:text-ink leading-snug line-clamp-3 flex-1">{n.title}</h3>
+                <ExternalLink size={16} className="text-mute dark:text-mute flex-shrink-0 self-end" aria-hidden="true" />
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
