@@ -1,0 +1,51 @@
+/* ScheduleSection — 시안 v3 "타임라인형" 카드 언어.
+   좌측 스파인 + 도트(라이브 링) + 시각 앵커. 카드가 세로로 쌓이면 도트와
+   스파인이 "다음 → 그다음" 흐름을 이루도록, 스파인을 카드 사이 간격까지
+   살짝 물려 이어지는 느낌을 준다. 카드 본문(우측)은 기존 내용 그대로 보존. */
+
+.tj-sched {
+  position: relative;
+}
+
+/* 좌측 레일 — 스파인 + 도트를 담는 절대배치 컬럼 */
+.tj-sched-rail {
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  pointer-events: none;
+}
+
+/* 스파인: 도트 아래부터 카드 하단(다음 카드 쪽으로 -10px 물림)까지 */
+.tj-sched-rail::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 22px;
+  bottom: -10px;
+  width: 2px;
+  background: var(--tj-line);
+}
+
+/* 도트: 상단 행(라우트 배지/시각)에 맞춰 상단 정렬 */
+.tj-sched-dot {
+  position: absolute;
+  left: 50%;
+  top: 13px;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--tj-line-strong);
+  border: 3px solid var(--tj-bg);
+  box-shadow: 0 0 0 1.5px var(--tj-line);
+  z-index: 1;
+}
+
+/* 실시간/임박 카드 — 액센트 링 */
+.tj-sched-dot.is-live {
+  background: var(--tj-accent);
+  box-shadow: 0 0 0 1.5px var(--tj-accent);
+}
