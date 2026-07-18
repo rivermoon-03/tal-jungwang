@@ -17,6 +17,7 @@ import { useMemo } from 'react'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
 import { crowdedLabel } from '../../utils/crowdingPalette'
 import { mergeToHourly, crowdedToneStyle, isWeekendNow } from '../../utils/crowdingHeatmap'
+import { getKstHour } from '../../utils/timeOfDay'
 import EmptyState from '../ui/EmptyState'
 
 const ROW_DEFS = [
@@ -44,9 +45,11 @@ export default function RouteCrowdingSection({ routeNumber }) {
 
   // "지금 이 시간대" 하이라이트 — 실제 오늘 요일/시각 기준(선택된 요일 탭과 무관하게
   // "지금"의 의미를 유지하기 위해 CrowdingCard 등 기존 통계 카드와 동일한 관례를 따른다).
+  // KST 기준(timezone-aware) — 로컬 브라우저 시각(new Date().getHours()/getDay())을
+  // 직접 쓰지 않는다(CLAUDE.md 철칙, mistakes.md 규칙1).
   const now = new Date()
   const liveDayType = isWeekendNow(now) ? 'weekend' : 'weekday'
-  const liveHour = now.getHours()
+  const liveHour = getKstHour(now)
   const liveRow = rows.find((r) => r.dayType === liveDayType)
   const liveBucket = liveRow?.hourly.find((b) => b.hour === liveHour) ?? null
 

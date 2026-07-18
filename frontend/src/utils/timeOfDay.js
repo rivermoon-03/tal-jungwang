@@ -37,3 +37,16 @@ export function getTimeOfDay(now = new Date()) {
   if (hour >= 17 && hour < 20) return 'evening'
   return 'night'
 }
+
+const DOW_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+
+/**
+ * 주어진 Date를 KST 기준 요일 인덱스(0=일요일 ~ 6=토요일, Date.getDay()와 동일 규약)로 변환한다.
+ * `Date.getDay()`를 직접 쓰면 브라우저 로컬 타임존 기준이라 자정 근처에서 날짜가 어긋난다.
+ * @param {Date} now
+ * @returns {number}
+ */
+export function getKstDayOfWeek(now = new Date()) {
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' })
+  return DOW_INDEX[fmt.format(now)]
+}

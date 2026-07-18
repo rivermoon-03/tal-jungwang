@@ -2,6 +2,8 @@
 // 반올림/색상 보간처럼 "표시 정책"에 해당하는 로직은 컴포넌트에 인라인하지 않고
 // 이 모듈에 모아 단위 테스트로 고정한다(mistakes.md §2 — 인라인 복붙이 회귀의 근원).
 
+import { getKstDayOfWeek } from './timeOfDay'
+
 // 30분 버킷(hour, minute:0|30, crowded, samples) → 시간(0~23) 단위 표본가중 평균.
 // 가중치 없이 단순 평균하면 표본이 적은 버킷이 많은 버킷과 동일하게 반영돼 왜곡되므로
 // samples를 가중치로 쓴다.
@@ -42,5 +44,6 @@ export function crowdedToneStyle(crowded) {
 }
 
 export function isWeekendNow(d = new Date()) {
-  return d.getDay() === 0 || d.getDay() === 6
+  const dow = getKstDayOfWeek(d)
+  return dow === 0 || dow === 6
 }
