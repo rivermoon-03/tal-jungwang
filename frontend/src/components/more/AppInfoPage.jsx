@@ -8,19 +8,21 @@ import { ChevronLeft, Heart, School } from 'lucide-react'
 
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
 
-export default function AppInfoPage({ onBack }) {
+export default function AppInfoPage({ onBack, embedded = false }) {
   return (
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
-      <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
-        <button
-          onClick={onBack}
-          aria-label="뒤로"
-          className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
-        >
-          <ChevronLeft size={22} className="text-ink dark:text-ink" />
-        </button>
-        <h1 className="text-panel-ttl text-ink dark:text-ink">앱 정보</h1>
-      </div>
+      {!embedded && (
+        <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
+          <button
+            onClick={onBack}
+            aria-label="뒤로"
+            className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
+          >
+            <ChevronLeft size={22} className="text-ink dark:text-ink" />
+          </button>
+          <h1 className="text-panel-ttl text-ink dark:text-ink">앱 정보</h1>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 py-3 pb-28 md:pb-6 flex flex-col gap-4">
         {/* 히어로 */}

@@ -135,7 +135,7 @@ function DemoSeg({ options, value, onChange }) {
   )
 }
 
-export default function SettingsPage({ onBack, onOpenAppInfo }) {
+export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }) {
   // F4: 글자 크기 — zustand persist(fontScale) + useFontScale이 --tj-font-scale로 반영.
   // tailwind.config.js의 명명된 fontSize 스케일(text-body/caption/label/head 등)에는
   // 실시간 반영되지만, 컴포넌트 인라인 style={{fontSize:N}}이나 text-[Npx] 임의값에는
@@ -221,16 +221,18 @@ export default function SettingsPage({ onBack, onOpenAppInfo }) {
 
   return (
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
-      <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
-        <button
-          onClick={onBack}
-          aria-label="뒤로"
-          className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
-        >
-          <ArrowLeft size={22} className="text-ink dark:text-ink" />
-        </button>
-        <h1 className="text-panel-ttl text-ink dark:text-ink">설정</h1>
-      </div>
+      {!embedded && (
+        <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
+          <button
+            onClick={onBack}
+            aria-label="뒤로"
+            className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
+          >
+            <ArrowLeft size={22} className="text-ink dark:text-ink" />
+          </button>
+          <h1 className="text-panel-ttl text-ink dark:text-ink">설정</h1>
+        </div>
+      )}
 
       {/*
         PC·설정 시안: 더 넓은 2열 카드 그리드. 모바일은 기존과 동일하게 세로 스택
