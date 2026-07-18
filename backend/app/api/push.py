@@ -26,9 +26,11 @@ router = APIRouter(prefix="/api/v1/push", tags=["push"])
 @router.get("/vapid-public-key")
 @limiter.limit("60/minute")
 async def vapid_public_key(request: Request):
-    """VAPID 공개키. 프론트가 이 응답 shape을 그대로 소비하므로 ApiResponse로
-    감싸지 않고 계약대로 {"public_key": ...}를 직접 반환한다."""
-    return {"public_key": settings.VAPID_PUBLIC_KEY}
+    """VAPID 공개키. 프로젝트 공용 apiFetch(frontend/src/hooks/useApi.js)는 모든
+    응답이 {success, data} shape이라고 가정하고 success가 없으면 예외를 던지므로,
+    다른 엔드포인트와 동일하게 ApiResponse로 감싼다(래핑하지 않으면 프론트 구독
+    플로우가 항상 실패한다)."""
+    return ApiResponse.ok({"public_key": settings.VAPID_PUBLIC_KEY})
 
 
 @router.post("/subscribe")

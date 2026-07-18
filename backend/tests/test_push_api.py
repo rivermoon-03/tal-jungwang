@@ -1,8 +1,9 @@
 """push 라우터 계약 테스트 — API 응답 shape이 프론트와 합의한 계약과 정확히 일치하는지.
 
-vapid-public-key는 ApiResponse로 감싸지 않고 {"public_key": ...}를 그대로 반환해야
-한다(계약 명시 사항). 나머지 엔드포인트는 서비스 함수를 mock으로 대체해 라우팅/상태
-코드만 검증한다.
+프론트 공용 apiFetch(frontend/src/hooks/useApi.js)는 모든 응답이 {success, data}
+shape이라고 가정하므로(success 없으면 예외), vapid-public-key를 포함한 모든
+엔드포인트가 ApiResponse로 감싼 응답을 반환해야 한다. 나머지 엔드포인트는 서비스
+함수를 mock으로 대체해 라우팅/상태 코드만 검증한다.
 """
 from __future__ import annotations
 
@@ -31,12 +32,14 @@ def client():
     app.dependency_overrides.clear()
 
 
-def test_vapid_public_key_shape_is_not_wrapped(client):
+def test_vapid_public_key_shape_is_wrapped_in_api_response(client):
     with patch.object(settings, "VAPID_PUBLIC_KEY", "test-public-key"):
         resp = client.get("/api/v1/push/vapid-public-key")
 
     assert resp.status_code == 200
-    assert resp.json() == {"public_key": "test-public-key"}
+    body = resp.json()
+    assert body["success"] is True
+    assert body["data"] == {"public_key": "test-public-key"}
 
 
 def test_subscribe_upserts_and_returns_ok(client):
