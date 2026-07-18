@@ -13,7 +13,10 @@ import StationChips from '../components/ui/StationChips'
 import EmptyState from '../components/ui/EmptyState'
 import ErrorState from '../components/ui/ErrorState'
 import CafeteriaVenues from '../components/cafeteria/CafeteriaVenues'
+import MealGridSection from '../components/cafeteria/MealGridSection'
+import CafeteriaPCLayout from '../components/cafeteria/CafeteriaPCLayout'
 import { useCafeteriaMenu } from '../hooks/useCafeteria'
+import { useIsDesktop } from '../hooks/useMediaQuery'
 import {
   buildDayLabelMap,
   getTodayDayKey,
@@ -23,6 +26,7 @@ import {
   hasDayMenu,
   getNearestMenuDayKey,
 } from '../utils/cafeteriaDays'
+import { formatUpdated } from '../utils/cafeteriaFormat'
 
 // 메인 탭 정의
 const MAIN_TABS = [
@@ -30,89 +34,9 @@ const MAIN_TABS = [
   { id: 'venues', label: '운영정보' },
 ]
 
-/**
- * fetched_at ISO → "HH:MM 갱신" 문자열
- */
-function formatUpdated(iso) {
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mi = String(d.getMinutes()).padStart(2, '0')
-  return `${hh}:${mi} 갱신`
-}
-
-/**
- * 빈 메뉴 여부 판정 — 빈 배열 또는 ["미운영"] 단독
- */
-function isEmptyMenu(items) {
-  if (!items || items.length === 0) return true
-  if (items.length === 1 && items[0] === '미운영') return true
-  return false
-}
-
-/**
- * 시안1: 카드 그리드 메뉴 섹션
- * 메인 메뉴(앞 2개)는 강조 타일, 나머지는 일반 타일
- */
-function MealGridSection({ meal, dayKey }) {
-  const rawItems = meal.by_day?.[dayKey] ?? []
-  const empty = isEmptyMenu(rawItems)
-  const menuItems = empty ? [] : rawItems
-
-  return (
-    <div className="mb-5">
-      {/* 섹션 헤더: type + time */}
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-[17px] font-semibold text-ink leading-tight">
-          {meal.type}
-        </span>
-        {meal.time && (
-          <span className="text-[13px] text-mute">{meal.time}</span>
-        )}
-      </div>
-
-      {/* 빈 상태 */}
-      {empty ? (
-        <p className="text-body text-mute py-2">오늘은 운영하지 않아요</p>
-      ) : (
-        <div
-          data-testid="menu-grid"
-          className="grid grid-cols-2 gap-[10px]"
-        >
-          {menuItems.map((item, i) => {
-            const isMain = i < 2
-            return (
-              <div
-                key={`${item}-${i}`}
-                className={[
-                  'rounded-card px-[14px] py-4 flex items-center min-h-[64px]',
-                  isMain
-                    ? 'bg-accent-bg border border-accent-bg'
-                    : 'bg-surface border border-line',
-                ].join(' ')}
-              >
-                <span
-                  className={[
-                    'text-[16px] leading-snug',
-                    isMain
-                      ? 'font-semibold text-accent'
-                      : 'font-semibold text-ink',
-                  ].join(' ')}
-                >
-                  {item}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function CafeteriaPage() {
   const { data, loading, error, refetch } = useCafeteriaMenu()
+  const isDesktop = useIsDesktop()
 
   // 메인 탭: 식단(diet) / 운영정보(venues)
   const [mainTab, setMainTab] = useState('venues')
@@ -170,6 +94,11 @@ export default function CafeteriaPage() {
       })),
     [dayKeys, dayLabelMap, cafeteriaForDays]
   )
+
+  // PC 레이아웃 분기
+  if (isDesktop) {
+    return <CafeteriaPCLayout data={data} loading={loading} error={error} refetch={refetch} />
+  }
 
   return (
     <div className="flex flex-col h-full bg-surface animate-fade-in-up">
