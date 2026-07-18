@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+실제 https://www.tukorea.ac.kr/bbs/ce/201/rssList.do?row=50 응답에서 발췌
+(2026-07-18 fetch, 4건으로 축약). robots.txt Allow(/bbs/ce/201/*) 대상.
+-->
+<rss version="2.0">
+	<channel>
+		<title>RSS 게시판 2.0</title>
+		<link>/user/k2cms/sites/ce/</link>
+		<description><![CDATA[This is RSS Board.]]></description>
+		<language>ko</language>
+		<item>
+			<title>2026학년도 2학기 수강신청 및 교과시간표 안내</title>
+			<link>/bbs/ce/201/151703/artclView.do</link>
+			<pubDate>2026-07-16 21:27:37.0</pubDate>
+			<author>권미영</author>
+			<description>컴퓨터공학부 수강신청 유의사항2026-2학기 수강신청 및 교과시간표 안내</description>
+		</item>
+		<item>
+			<title>임팩트 조직 x ICT개발자 매칭 밋업 참가자 모집</title>
+			<link>/bbs/ce/201/151687/artclView.do</link>
+			<pubDate>2026-07-16 11:31:51.0</pubDate>
+			<author>권미영</author>
+			<description>문의: (채널톡) https://sangsangplanet.channel.io/home/</description>
+		</item>
+		<item>
+			<title>[ICT콤플렉스]ICT 핵심 트렌드 특강-①개인정보·보안/②UX·UI/③AX 사례</title>
+			<link>/bbs/ce/201/151686/artclView.do</link>
+			<pubDate>2026-07-16 11:25:57.0</pubDate>
+			<author>권미영</author>
+			<description></description>
+		</item>
+		<item>
+			<title>2026년 2학기 컴퓨터응용설계 교과(전광일 교수) 수강신청 관련</title>
+			<link>/bbs/ce/201/151549/artclView.do</link>
+			<pubDate>2026-07-11 22:32:10.0</pubDate>
+			<author>전광일</author>
+			<description>2026년 2학기에 개설되는 컴퓨터응용설계 교과는 수강인원이 제한되어 있어</description>
+		</item>
+	</channel>
+</rss>

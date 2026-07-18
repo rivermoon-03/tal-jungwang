@@ -11,7 +11,7 @@ from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import admin, bus, cafeteria, dashboard, map, more, push, recommend, route, shuttle, subway, traffic, weather
+from app.api import admin, bus, cafeteria, dashboard, map, more, push, recommend, route, school, shuttle, subway, traffic, weather
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.cache import close_redis
@@ -145,6 +145,7 @@ app.include_router(dashboard.router)
 app.include_router(weather.router)
 app.include_router(cafeteria.router)
 app.include_router(push.router)
+app.include_router(school.router)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 

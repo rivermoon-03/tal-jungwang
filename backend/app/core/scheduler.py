@@ -237,6 +237,41 @@ async def _push_notification_job():
         logger.exception("푸시 알림 사이클 실패")
 
 
+async def _department_notices_refresh_job():
+    """컴공 학과 공지 RSS 갱신 (60분 주기).
+
+    요청 경로는 DB/Redis만 보고 학교 사이트를 직접 호출하지 않는다 — 스크레이핑은
+    이 크론에서만 실행된다. TTL(120분)이 이 주기(60분)의 2배라 cron 1회 누락도
+    다음 회차에서 자가회복된다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.school import refresh_department_notices
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await refresh_department_notices(session, "ce")
+            logger.info("학과 공지(ce) 갱신 완료: %s", summary)
+    except Exception:
+        logger.exception("학과 공지(ce) 갱신 실패")
+
+
+async def _academic_calendar_refresh_job():
+    """학사일정 갱신 (매일 1회, 03:50 KST).
+
+    로그 보존정책 정리(03:45) 다음 슬롯 — 02:00~03:59 GBIS 폴링 휴식 구간
+    안쪽이라 운영 트래픽/다른 나이틀리 job과 겹치지 않는다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.school import refresh_academic_calendar
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await refresh_academic_calendar(session)
+            logger.info("학사일정 갱신 완료: %s", summary)
+    except Exception:
+        logger.exception("학사일정 갱신 실패")
+
+
 def setup_scheduler():
     """스케줄러에 교통정보 수집 작업을 등록한다.
 
@@ -428,6 +463,33 @@ def setup_scheduler():
         misfire_grace_time=120,
     )
     logger.info("Push notification scheduler configured (every 5min)")
+
+    # ── 학과 공지 RSS 갱신 (60분 간격) ──
+    # TTL=120분(cron 주기의 2배)이라 cron 1회 누락도 다음 회차에서 자가회복.
+    scheduler.add_job(
+        _department_notices_refresh_job,
+        IntervalTrigger(minutes=60),
+        id="department_notices_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+    )
+    logger.info("Department notices (ce) refresh scheduler configured (every 60min)")
+
+    # ── 학사일정 갱신 (매일 03:50 KST) ──
+    # log_retention_purge(03:45) 다음 슬롯, 02:00~03:59 GBIS 폴링 휴식 구간 안쪽.
+    # 하루 주기 특성상 misfire_grace_time을 다른 나이틀리 job(600s)보다 널널하게 잡는다.
+    scheduler.add_job(
+        _academic_calendar_refresh_job,
+        CronTrigger(hour=3, minute=50, timezone="Asia/Seoul"),
+        id="academic_calendar_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
+    logger.info("Academic calendar refresh scheduler configured (daily 03:50 KST)")
 
 
 def start_scheduler():
