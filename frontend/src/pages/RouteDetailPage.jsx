@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Star, ChevronLeft, Bus } from 'lucide-react'
-import { useBusTimetableByRoute, useBusHistoryPreview, useBusRoutes } from '../hooks/useBus'
+import { Star, ChevronLeft, ChevronRight, Bus } from 'lucide-react'
+import { useBusTimetableByRoute, useBusHistoryPreview, useBusRoutes, useBusArrivalStats } from '../hooks/useBus'
 import useFavorites from '../hooks/useFavorites'
 import RouteBadge from '../components/ui/RouteBadge'
 import StatusChip from '../components/ui/StatusChip'
 import EmptyState from '../components/ui/EmptyState'
 import ArrivalHistory from '../components/bus/ArrivalHistory'
+import BusStatsHeader from '../components/bus/BusStatsHeader'
 import RouteCrowdingSection from '../components/stats/RouteCrowdingSection'
 import { toHistoryRows } from '../utils/historyAdapter'
 import { getGbisStationId, getGbisStationIdForRoute } from '../components/dashboard/busStationConfig'
@@ -63,8 +64,21 @@ function defaultDayTab() {
 // historyPreview의 realtime_eta 또는 arrivals 기반
 // stopName: histData.stop_name (내 정류장 = 도착 지점)
 // ──────────────────────────────────────────────────────────────────
-function RealtimeArrivalCard({ histData, histLoading }) {
+function RealtimeArrivalCard({ histData, histLoading, onHistory }) {
   const realtimeEta = histData?.realtime_eta ?? null
+
+  // 과거 도착 기록 진입 화살표 — 도착 카드 우측에 작게. 별도 탭이 아니라 이 › 로 들어간다.
+  const historyArrow = onHistory ? (
+    <button
+      type="button"
+      onClick={onHistory}
+      aria-label="과거 도착 기록 보기"
+      className="flex-none self-stretch flex flex-col items-center justify-center gap-0.5 pl-3 pr-1 border-l border-accent/20 dark:border-accent/25 text-accent-ink dark:text-accent pressable"
+    >
+      <ChevronRight size={20} strokeWidth={2.4} />
+      <span className="text-[9px] font-bold leading-none">도착 기록</span>
+    </button>
+  ) : null
 
   if (histLoading) {
     return (
@@ -129,6 +143,7 @@ function RealtimeArrivalCard({ histData, histLoading }) {
               )}
             </div>
           )}
+          {historyArrow}
         </div>
       </div>
     )
@@ -140,9 +155,10 @@ function RealtimeArrivalCard({ histData, histLoading }) {
       className="flex items-center gap-3 bg-accent-bg border border-accent/25 dark:border-accent/35 rounded-card px-4 py-3"
       role="status"
     >
-      <span className="text-[14px] font-semibold text-mute dark:text-mute">
+      <span className="flex-1 text-[14px] font-semibold text-mute dark:text-mute">
         실시간 도착 정보가 없어요
       </span>
+      {historyArrow}
     </div>
   )
 }
@@ -424,6 +440,23 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   // 시간표(schedule) 유무로 화면 전체를 가리면 실시간 도착이 통째로 숨는 버그가 있었다.
   const hasRealtimeGroup = isRealtime && showArrivalGroup
   const hasTimetable = showTimetableSection && schedule.length > 0
+  // 실시간 도착 + 출발 시간표가 둘 다 있으면 장소 중심 탭으로 분리한다.
+  const bothGroups = hasRealtimeGroup && hasTimetable
+
+  // 장소 중심 탭 상태 — [{도착 정류장} 도착 | {기점} 출발]. 과거 도착 기록은 별도 탭이
+  // 아니라 도착 카드 우측 › 화살표로 진입(showHistory). 방향/노선 바뀌면 초기화.
+  const [placeTab, setPlaceTab] = useState('arrive')
+  const [showHistory, setShowHistory] = useState(false)
+  useEffect(() => { setPlaceTab('arrive'); setShowHistory(false) }, [resolvedCategory, routeNumber])
+
+  // 과거 기록 통계 — 평소 배차 간격 + 도착 분포(p10/p50/p90) + 표본수(1주+ 데이터 판정).
+  // histData의 route_id/stop_id(카드와 동일 GBIS 정류장) 기준으로 조회.
+  const { data: statsRes } = useBusArrivalStats(histData?.route_id ?? null, histData?.stop_id ?? null)
+  const arrivalStats = statsRes?.stats ?? null
+  const statsDayLabel = statsRes
+    ? ({ weekday: '평일', saturday: '토요일', sunday: '일/공휴일' }[statsRes.day_type] ?? null)
+    : null
+  const statsHourLabel = statsRes?.hour_of_day != null ? `${statsRes.hour_of_day}시` : null
 
   // 다음 차 인덱스
   const nextIdx = useMemo(() => {
@@ -632,37 +665,56 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
 
             {!ttLoading && !ttError && (hasRealtimeGroup || hasTimetable) && (
               <>
-                {/* ── 그룹 A: 내 정류장 도착 정보
-                    표시 조건: (stop 없음 && is_realtime) 또는 (stop이 GBIS 실시간 정류장)
-                ── */}
-                {isRealtime && showArrivalGroup && (
-                  <section aria-label="내 정류장 도착 정보">
-                    {/* 그룹 A 헤더 */}
-                    <div className="mb-2">
-                      <h2 className="text-[13.5px] font-semibold text-ink dark:text-ink tracking-[-0.01em]">
-                        {histData?.stop_name
-                          ? `${histData.stop_name} 도착 정보`
-                          : '내 정류장 도착 정보'}
-                      </h2>
-                      <p className="text-[12px] font-semibold text-mute dark:text-mute mt-0.5">
-                        이 정류장에 버스가 도착하는 시각이에요
-                      </p>
-                    </div>
+                {/* ── 장소 중심 탭: [{도착 정류장} 도착 | {기점} 출발] — 실시간+시간표 둘 다 있을 때만.
+                    기록뷰(showHistory)에서는 탭을 숨겨 뒤로가기에 집중. ── */}
+                {bothGroups && !showHistory && (
+                  <div
+                    role="tablist"
+                    aria-label="정류장 선택"
+                    className="flex gap-[5px] bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-card p-1 mb-3"
+                  >
+                    {[
+                      { id: 'arrive', label: `${histData?.stop_name ?? '내 정류장'} 도착` },
+                      { id: 'depart', label: `${originStopName ?? '기점'} 출발` },
+                    ].map((t) => {
+                      const active = placeTab === t.id
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          onClick={() => setPlaceTab(t.id)}
+                          className={[
+                            'flex-1 min-w-0 flex items-center justify-center min-h-[40px] rounded-button px-2',
+                            'text-[13px] font-semibold select-none transition-all truncate',
+                            active
+                              ? 'bg-ink dark:bg-accent text-white dark:text-black'
+                              : 'text-mute dark:text-mute',
+                          ].join(' ')}
+                        >
+                          {t.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
 
-                    {/* 실시간 도착 카드 */}
-                    <RealtimeArrivalCard
-                      histData={histData}
-                      histLoading={histLoading}
-                      stopName={histData?.stop_name}
-                    />
-
-                    {/* 이전 도착 기록 */}
-                    <div className="mt-4">
-                      <h3 className="text-[12.5px] font-semibold text-ink-2 dark:text-ink-2-dark tracking-[-0.01em] mb-2">
-                        {histData?.stop_name
-                          ? `${histData.stop_name} 도착 기록`
-                          : '이전 도착 기록'}
-                      </h3>
+                {/* ── 도착 탭 (또는 단일 도착 그룹) ── */}
+                {((bothGroups && placeTab === 'arrive') || (!bothGroups && hasRealtimeGroup)) && (
+                  showHistory ? (
+                    <section aria-label="과거 도착 기록">
+                      <button
+                        type="button"
+                        onClick={() => setShowHistory(false)}
+                        className="flex items-center gap-1 mb-3 text-[13px] font-bold text-ink dark:text-ink pressable"
+                      >
+                        <ChevronLeft size={16} />
+                        {histData?.stop_name ? `${histData.stop_name} 도착 기록` : '도착 기록'}
+                      </button>
+                      {/* 1주+ 데이터가 있으면 평소 배차 간격 + 도착 분포(p10/p50/p90) 요약(BusStatsHeader).
+                          표본이 적으면 내부에서 '데이터 부족' 칩을 띄운다. */}
+                      <BusStatsHeader stats={arrivalStats} dayLabel={statsDayLabel} hourLabel={statsHourLabel} />
                       {histLoading ? (
                         <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card px-4 py-4 text-[13px] font-semibold text-mute text-center">
                           기록 불러오는 중...
@@ -674,21 +726,26 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                           columnLabels={historyColumnLabels}
                         />
                       )}
-                    </div>
-                  </section>
+                      <p className="mt-3 text-[11.5px] font-semibold text-mute dark:text-mute text-center">
+                        과거 도착 시각을 참고해 직접 가늠해보세요
+                      </p>
+                    </section>
+                  ) : (
+                    <section aria-label="내 정류장 도착 정보">
+                      <RealtimeArrivalCard
+                        histData={histData}
+                        histLoading={histLoading}
+                        onHistory={() => setShowHistory(true)}
+                      />
+                      <p className="mt-2 text-[11.5px] font-semibold text-mute dark:text-mute">
+                        오른쪽 <b className="text-accent-ink dark:text-accent">›</b> 를 누르면 과거 도착 기록·평소 배차를 볼 수 있어요
+                      </p>
+                    </section>
+                  )
                 )}
 
-                {/* ── 그룹 구분선 (실시간 그룹과 시간표 그룹이 모두 있을 때만) ── */}
-                {hasRealtimeGroup && hasTimetable && (
-                  <div className="my-6 border-t border-line dark:border-line" />
-                )}
-
-                {/* ── 그룹 B: 기점 출발 시간표
-                    표시 조건: (stop 없음) 또는 (stop이 시간표 전용 정류장)
-                              또는 (시간표 전용 노선 — GBIS 정류장이어도 표시)
-                    단, 해당 방향에 시간표 데이터가 있을 때만(hasTimetable).
-                ── */}
-                {hasTimetable && (
+                {/* ── 출발 탭 (또는 단일 시간표 그룹) ── */}
+                {((bothGroups && placeTab === 'depart') || (!bothGroups && hasTimetable)) && (
                 <section aria-label="기점 출발 시간표">
                   {/* 그룹 B 헤더 */}
                   <div className="mb-2">
@@ -747,15 +804,15 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                 )}
 
                 {/* 실시간 노선인데 이 방향은 정해진 출발 시간표가 없을 때 안내 (예: 시흥33 등교).
-                    시간표가 없다고 화면 전체를 빈 상태로 두지 않고, 위 실시간 도착 그룹은 그대로 노출. */}
-                {hasRealtimeGroup && showTimetableSection && schedule.length === 0 && (
+                    단일 도착 그룹(탭 없음)에서만, 기록뷰가 아닐 때 노출. */}
+                {!bothGroups && hasRealtimeGroup && showTimetableSection && schedule.length === 0 && !showHistory && (
                   <p className="mt-2 text-[12.5px] font-semibold text-mute dark:text-mute leading-relaxed">
                     이 방향은 정해진 출발 시간표가 없는 실시간 운행 노선이에요.
                   </p>
                 )}
 
-                {/* ── 그룹 C: 노선 혼잡도 (실시간 추적 노선에서만 GBIS 혼잡도 로그가 쌓임) ── */}
-                {isRealtime && (
+                {/* ── 그룹 C: 노선 혼잡도 (실시간 추적 노선에서만). 기록뷰에서는 숨겨 집중. ── */}
+                {isRealtime && !showHistory && (
                   <>
                     <div className="my-6 border-t border-line dark:border-line" />
                     <RouteCrowdingSection routeNumber={routeNumber} />

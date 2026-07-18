@@ -84,6 +84,11 @@ vi.mock('../hooks/useBus', () => ({
     loading: false,
     error: null,
   })),
+  useBusArrivalStats: vi.fn(() => ({
+    data: null,
+    loading: false,
+    error: null,
+  })),
 }))
 
 // API 응답 어댑터: times 배열 형태 응답도 처리하는지 검증용 헬퍼
@@ -140,14 +145,17 @@ describe('RouteDetailPage', () => {
     expect(screen.getByText('시흥33')).toBeInTheDocument()
   })
 
-  it('시간표 섹션이 렌더링됨', () => {
+  it('시간표 섹션이 렌더링됨 (출발 탭)', () => {
+    // 실시간+시간표 노선은 장소 탭으로 분리 — 출발 탭으로 전환해야 시간표가 보인다.
     render(<RouteDetailPage routeNumber="33" />)
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     expect(screen.getByText('07:10')).toBeInTheDocument()
     expect(screen.getByText('08:15')).toBeInTheDocument()
   })
 
-  it('막차 StatusChip이 렌더링됨', () => {
+  it('막차 StatusChip이 렌더링됨 (출발 탭)', () => {
     render(<RouteDetailPage routeNumber="33" />)
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     expect(screen.getByText('막차')).toBeInTheDocument()
   })
 
@@ -473,6 +481,8 @@ describe('RouteDetailPage', () => {
       error: null,
     })
     render(<RouteDetailPage routeNumber="33" />)
+    // InlineLiveRow는 출발 시간표(출발 탭) 안 다음 차 직전에 삽입된다.
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     if (new Date().getHours() < 23 || new Date().getMinutes() < 58) {
       const arrivalLabels = screen.getAllByText(/도착 예정/)
       expect(arrivalLabels.length).toBeGreaterThan(0)
@@ -614,8 +624,8 @@ describe('RouteDetailPage', () => {
       error: null,
     })
     render(<RouteDetailPage routeNumber="5602" />)
-    // 내 정류장 도착 정보 그룹 헤더에 "시흥시청역 도착 정보" 포함
-    expect(screen.getByText('시흥시청역 도착 정보')).toBeInTheDocument()
+    // 장소 탭 라벨에 "시흥시청역 도착" 포함(그룹 헤더 대신 탭이 장소를 표기)
+    expect(screen.getByRole('tab', { name: /시흥시청역 도착/ })).toBeInTheDocument()
   })
 
   it('[그룹B] 실시간 노선에서 기점 출발 시간표 그룹 헤더에 origin_stop_name이 포함됨', () => {
@@ -685,12 +695,13 @@ describe('RouteDetailPage', () => {
     })
     render(<RouteDetailPage routeNumber="5602" />)
 
-    // 그룹A: 내 정류장 도착 정보 헤더 (정확한 텍스트)
-    expect(screen.getByText('시흥시청역 도착 정보')).toBeInTheDocument()
-    // 그룹B: 기점 출발 시간표
+    // 장소 탭 2개 존재(도착/출발)
+    expect(screen.getByRole('tab', { name: /시흥시청역 도착/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /구로디지털단지역 출발/ })).toBeInTheDocument()
+    // 출발 탭 전환 시 기점 출발 시간표 + 시각 노출
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     const departureSectionHeaders = screen.getAllByText(/구로디지털단지역.*출발/)
     expect(departureSectionHeaders.length).toBeGreaterThan(0)
-    // 시간표 시각도 표시
     expect(screen.getByText('07:00')).toBeInTheDocument()
   })
 
@@ -856,9 +867,10 @@ describe('RouteDetailPage', () => {
     })
     render(<RouteDetailPage routeNumber="시흥33" />)
 
-    // stop 없으면 도착 정보 섹션도 표시
+    // 도착 정보 그룹은 기본(도착 탭) 노출
     expect(screen.getByRole('region', { name: /내 정류장 도착 정보/ })).toBeInTheDocument()
-    // 출발 시간표도 표시
+    // 출발 탭으로 전환하면 기점 출발 시간표 그룹 노출
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     expect(screen.getByRole('region', { name: /기점 출발 시간표/ })).toBeInTheDocument()
   })
 
@@ -968,8 +980,11 @@ describe('RouteDetailPage', () => {
     // RealtimeArrivalCard 영역: role="status" aria-live 또는 role="status" 엘리먼트
     const statusEls = container.querySelectorAll('[role="status"]')
     statusEls.forEach((el) => {
-      // el 내부에 svg가 있으면 안 됨 (Radio 아이콘 컨테이너 span 제거 확인)
-      expect(el.querySelector('svg')).toBeNull()
+      // 과거 도착 기록 진입 화살표(chevron)는 의도된 svg — 이를 제외하면 Radio 등 장식 아이콘이 없어야 한다.
+      const nonArrowSvgs = [...el.querySelectorAll('svg')].filter(
+        (s) => !s.closest('[aria-label="과거 도착 기록 보기"]')
+      )
+      expect(nonArrowSvgs.length).toBe(0)
     })
   })
 
@@ -991,7 +1006,11 @@ describe('RouteDetailPage', () => {
     const { container } = render(<RouteDetailPage routeNumber="33" />)
     const statusEls = container.querySelectorAll('[role="status"]')
     statusEls.forEach((el) => {
-      expect(el.querySelector('svg')).toBeNull()
+      // 과거 도착 기록 진입 화살표(chevron)는 의도된 svg — 이를 제외하면 상태 카드에 장식 아이콘이 없어야 한다.
+      const nonArrowSvgs = [...el.querySelectorAll('svg')].filter(
+        (s) => !s.closest('[aria-label="과거 도착 기록 보기"]')
+      )
+      expect(nonArrowSvgs.length).toBe(0)
     })
   })
 
