@@ -17,13 +17,36 @@ export default function SegmentTabs({ items = [], active, onChange }) {
   const btnRefs = useRef(new Map())
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
 
+  // 활성 버튼 위치/폭을 측정해 인디케이터를 맞춘다. 마운트 시 한 번만 측정하면
+  // 컨테이너 폭(flex-1)이나 웹폰트가 나중에 정착할 때 인디케이터가 stale해져
+  // 활성 탭과 어긋난다(다크 pill이 텍스트를 안 덮음). ResizeObserver + 폰트 로드
+  // 후 재측정으로 항상 정렬되게 한다.
   useLayoutEffect(() => {
     const container = containerRef.current
-    const btn = btnRefs.current.get(active)
-    if (!container || !btn) return
-    const cRect = container.getBoundingClientRect()
-    const bRect = btn.getBoundingClientRect()
-    setIndicator({ left: bRect.left - cRect.left, width: bRect.width, ready: true })
+    if (!container) return
+
+    const measure = () => {
+      const btn = btnRefs.current.get(active)
+      if (!container || !btn) return
+      const cRect = container.getBoundingClientRect()
+      const bRect = btn.getBoundingClientRect()
+      setIndicator({ left: bRect.left - cRect.left, width: bRect.width, ready: true })
+    }
+    measure()
+
+    let ro
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure)
+      ro.observe(container)
+    }
+    // 웹폰트 로드로 글자폭이 바뀌면 버튼 폭도 바뀌므로 로드 완료 후 한 번 더.
+    let cancelled = false
+    if (document.fonts?.ready) document.fonts.ready.then(() => { if (!cancelled) measure() })
+
+    return () => {
+      cancelled = true
+      if (ro) ro.disconnect()
+    }
   }, [active, items])
 
   return (
@@ -34,7 +57,9 @@ export default function SegmentTabs({ items = [], active, onChange }) {
     >
       <span
         aria-hidden="true"
-        className="absolute top-1 bottom-1 rounded-badge bg-ink dark:bg-accent transition-[transform,width] duration-base ease-out"
+        /* left-0 필수: 없으면 absolute 요소가 static 위치(패딩 4px)에서 시작해
+           translateX에 이미 포함된 패딩만큼(4px) 오른쪽으로 이중 이동한다. */
+        className="absolute top-1 bottom-1 left-0 rounded-badge bg-ink dark:bg-accent transition-[transform,width] duration-base ease-out"
         style={{
           width: indicator.width,
           transform: `translateX(${indicator.left}px)`,

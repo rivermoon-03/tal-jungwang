@@ -24,13 +24,33 @@ export default function SegmentTabs({ tabs, active, onChange, onDisabledClick, s
   const btnRefs = useRef(new Map());
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
 
+  // 컨테이너 폭/폰트가 나중에 정착해도 인디케이터가 stale해지지 않게 재측정한다
+  // (ui/SegmentTabs와 동일 — 마운트 1회 측정만 하면 활성 탭과 어긋난다).
   useLayoutEffect(() => {
     const container = containerRef.current;
-    const btn = btnRefs.current.get(active);
-    if (!container || !btn) return;
-    const cRect = container.getBoundingClientRect();
-    const bRect = btn.getBoundingClientRect();
-    setIndicator({ left: bRect.left - cRect.left, width: bRect.width, ready: true });
+    if (!container) return;
+
+    const measure = () => {
+      const btn = btnRefs.current.get(active);
+      if (!container || !btn) return;
+      const cRect = container.getBoundingClientRect();
+      const bRect = btn.getBoundingClientRect();
+      setIndicator({ left: bRect.left - cRect.left, width: bRect.width, ready: true });
+    };
+    measure();
+
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure);
+      ro.observe(container);
+    }
+    let cancelled = false;
+    if (document.fonts?.ready) document.fonts.ready.then(() => { if (!cancelled) measure(); });
+
+    return () => {
+      cancelled = true;
+      if (ro) ro.disconnect();
+    };
   }, [active, tabs]);
 
   return (
