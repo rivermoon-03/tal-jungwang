@@ -6,6 +6,7 @@ import RouteBadge from '../components/ui/RouteBadge'
 import StatusChip from '../components/ui/StatusChip'
 import EmptyState from '../components/ui/EmptyState'
 import ArrivalHistory from '../components/bus/ArrivalHistory'
+import RouteCrowdingSection from '../components/stats/RouteCrowdingSection'
 import { toHistoryRows } from '../utils/historyAdapter'
 import { getGbisStationId } from '../components/dashboard/busStationConfig'
 
@@ -733,6 +734,14 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                     )}
                   </div>
                 </section>
+                )}
+
+                {/* ── 그룹 C: 노선 혼잡도 (실시간 추적 노선에서만 GBIS 혼잡도 로그가 쌓임) ── */}
+                {isRealtime && (
+                  <>
+                    <div className="my-6 border-t border-line dark:border-line" />
+                    <RouteCrowdingSection routeNumber={routeNumber} />
+                  </>
                 )}
               </>
             )}

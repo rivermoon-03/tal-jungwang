@@ -2,6 +2,14 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import RouteDetailPage from './RouteDetailPage'
 import * as useBusModule from '../hooks/useBus'
+import * as useCrowdingFlowModule from '../hooks/useCrowdingFlow'
+
+// RouteCrowdingSection(F6)이 쓰는 훅 — 실제 fetch를 타지 않도록 목으로 고정.
+// 기본값은 데이터 없음(둘 다 null)이라 "평일"/"주말" 같은 텍스트를 추가로 렌더하지
+// 않아 기존 getByText 단일 매칭 단언들과 충돌하지 않는다.
+vi.mock('../hooks/useCrowdingFlow', () => ({
+  useCrowdingFlow: vi.fn(() => ({ data: null, loading: false, error: null })),
+}))
 
 // 기본 mock 데이터 — is_realtime=true (실시간 노선)
 const DEFAULT_MOCK_DATA = {
@@ -944,6 +952,46 @@ describe('RouteDetailPage', () => {
     const statusEls = container.querySelectorAll('[role="status"]')
     statusEls.forEach((el) => {
       expect(el.querySelector('svg')).toBeNull()
+    })
+  })
+
+  // ─── F6: 노선 혼잡도 섹션(RouteCrowdingSection) 마운트 조건 ───────────
+  describe('F6 노선 혼잡도 섹션', () => {
+    it('is_realtime=true 노선에서는 혼잡도 섹션이 마운트됨', () => {
+      render(<RouteDetailPage routeNumber="33" />)
+      expect(screen.getByRole('region', { name: '노선 혼잡도' })).toBeInTheDocument()
+    })
+
+    it('is_realtime=false 노선에서는 혼잡도 섹션이 마운트되지 않음 (GBIS 로그 없음)', () => {
+      vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
+        data: TIMETABLE_ONLY_MOCK_DATA,
+        loading: false,
+        error: null,
+      })
+      render(<RouteDetailPage routeNumber="3401" />)
+      expect(screen.queryByRole('region', { name: '노선 혼잡도' })).not.toBeInTheDocument()
+    })
+
+    it('혼잡도 데이터가 있으면 평일/주말 히트맵과 지금 하이라이트가 표시됨', () => {
+      vi.mocked(useCrowdingFlowModule.useCrowdingFlow).mockImplementation((_routeNo, dayType) => {
+        if (dayType === 'weekend') return { data: null, loading: false, error: null }
+        return {
+          data: {
+            route_no: '시흥33',
+            route_direction: '시흥시청방면',
+            stop_name: '한국공학대학교',
+            day_type: 'weekday',
+            sample_days: 30,
+            total_samples: 90,
+            points: [{ hour: 8, minute: 0, crowded: 3.1, samples: 20 }],
+          },
+          loading: false,
+          error: null,
+        }
+      })
+      render(<RouteDetailPage routeNumber="33" />)
+      expect(screen.getByText('노선 혼잡도')).toBeInTheDocument()
+      expect(screen.getByText(/지금\(/)).toBeInTheDocument()
     })
   })
 })
