@@ -10,19 +10,20 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const COMMON_DIR = path.resolve(__dirname)
+const COMPONENTS_DIR = path.resolve(__dirname, '..')
 
+// Phase B(2026-07): EmptyState/ErrorState는 ui/ vs common/ 중복 통합으로 ui/가 단일 소스가 됐다.
 const TARGET_FILES = [
-  'RouteRow.jsx',
-  'RoutePanel.jsx',
-  'NoticesPopover.jsx',
-  'Skeleton.jsx',
-  'ErrorState.jsx',
-  'EmptyState.jsx',
+  'common/RouteRow.jsx',
+  'common/RoutePanel.jsx',
+  'common/NoticesPopover.jsx',
+  'common/Skeleton.jsx',
+  'ui/ErrorState.jsx',
+  'ui/EmptyState.jsx',
 ]
 
 function readFile(name) {
-  return fs.readFileSync(path.join(COMMON_DIR, name), 'utf8')
+  return fs.readFileSync(path.join(COMPONENTS_DIR, name), 'utf8')
 }
 
 describe('common/ 토큰 준수 — text-gray-* 금지', () => {
@@ -57,12 +58,12 @@ describe('common/ 토큰 준수 — bg-gray-* 금지', () => {
 
 describe('ErrorState onRetry 버튼', () => {
   it('ErrorState.jsx: onRetry prop 사용 코드 존재', () => {
-    const src = readFile('ErrorState.jsx')
+    const src = readFile('ui/ErrorState.jsx')
     expect(src).toMatch(/onRetry/)
   })
 
   it('ErrorState.jsx: onRetry 버튼 렌더링 조건 존재', () => {
-    const src = readFile('ErrorState.jsx')
+    const src = readFile('ui/ErrorState.jsx')
     // onRetry && <button ... 또는 {onRetry && ( 패턴
     expect(src).toMatch(/onRetry\s*&&/)
   })

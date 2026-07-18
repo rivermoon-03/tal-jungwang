@@ -49,3 +49,6 @@ tmp_screenshot/
 
 # 로컬 docker override (prod DB 연결 등)
 docker-compose.override.yml
+
+# 테스트용 디렉토리
+test/

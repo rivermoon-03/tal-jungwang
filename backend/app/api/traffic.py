@@ -1,13 +1,12 @@
 import asyncio
-import json
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_token
-from app.core.cache import get_cached_json, get_redis, set_cached_json
+from app.core.cache import get_cached_json, get_or_fetch_with_lock, set_cached_json
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
@@ -22,14 +21,34 @@ _TRAFFIC_RUSH_TTL = 60    # 출퇴근 시간대 1분
 _TRAFFIC_NORMAL_TTL = 300  # 평시 5분
 
 
-def _traffic_ttl() -> int:
+# 러시아워/평시 판정이 바뀌는 시각(KST, 24h). 07~10시, 16~19시가 러시아워.
+_TTL_BOUNDARY_HOURS = (7, 10, 16, 19)
+
+
+def _seconds_until_next_boundary(now: datetime) -> int:
+    """now 이후 가장 가까운 러시아워/평시 경계 시각까지 남은 초(자정 넘김 포함)."""
+    candidates = []
+    for h in _TTL_BOUNDARY_HOURS:
+        candidate = datetime.combine(now.date(), time(hour=h), tzinfo=_KST)
+        if candidate <= now:
+            candidate += timedelta(days=1)
+        candidates.append(candidate)
+    return int((min(candidates) - now).total_seconds())
+
+
+def _traffic_ttl(now: datetime | None = None) -> int:
     """현재 KST 시각에 따른 교통 캐시 TTL 반환.
     출퇴근 (07~09, 16~18): 60초 / 그 외: 300초
+
+    캐시 저장 시점의 러시/평시 판정만으로 TTL을 고정하면, 예를 들어 08:59에
+    저장된 5분(300초) 평시 TTL 캐시가 09:00~09:04 러시아워 구간까지 그대로
+    남아 최대 5분간 stale해질 수 있다. 이를 막기 위해 "다음 경계까지 남은
+    시간"과 기존 TTL 중 더 짧은 쪽으로 clamp한다.
     """
-    hour = datetime.now(_KST).hour
-    if 7 <= hour < 10 or 16 <= hour < 19:
-        return _TRAFFIC_RUSH_TTL
-    return _TRAFFIC_NORMAL_TTL
+    now = now or datetime.now(_KST)
+    hour = now.hour
+    base_ttl = _TRAFFIC_RUSH_TTL if (7 <= hour < 10 or 16 <= hour < 19) else _TRAFFIC_NORMAL_TTL
+    return max(1, min(base_ttl, _seconds_until_next_boundary(now)))
 
 router = APIRouter(prefix="/api/v1/traffic", tags=["traffic"])
 
@@ -86,25 +105,13 @@ def _classify_speed(speed: float, road_name: str = "") -> tuple[int, str]:
     return 4, "정체"
 
 
-@router.get("")
-@limiter.limit("30/minute")
-async def get_traffic(request: Request):
-    """주요 도로 실시간 교통 정보 조회.
+async def _fetch_traffic_payload() -> dict:
+    """TMAP 왕복 경로 호출 → 도로별 구간 합산 → 응답 페이로드 생성.
 
-    한국공학대 ↔ 정왕역 경로를 TMAP으로 탐색하고,
-    경유하는 주요 도로별 소요시간·속도를 반환합니다.
-    출퇴근 시간대(07~09, 16~18) Redis 캐싱 60초, 평시 300초.
+    부수효과로 DB에 원시 구간을 백그라운드 저장한다(예측 데이터 축적용).
+    single-flight 락 하에서 1건만 호출되므로, 캐시 미스마다 이 부수효과가
+    중복 실행되지 않는다.
     """
-    # ── 캐시 조회 ────────────────────────────────────────────────
-    try:
-        redis = await get_redis()
-        cached = await redis.get(_TRAFFIC_LIVE_CACHE_KEY)
-        if cached:
-            return ApiResponse.ok(json.loads(cached))
-    except Exception:
-        pass
-
-    # ── TMAP API 호출 ─────────────────────────────────────────
     tasks = [
         fetch_driving_traffic(
             start_x=r["start"]["lng"], start_y=r["start"]["lat"],
@@ -152,21 +159,28 @@ async def get_traffic(request: Request):
     now = datetime.now(timezone.utc).astimezone()
     response_data = TrafficResponse(roads=roads, updated_at=now.isoformat())
 
-    # ── 캐시 저장 ────────────────────────────────────────────────
-    try:
-        redis = await get_redis()
-        await redis.set(
-            _TRAFFIC_LIVE_CACHE_KEY,
-            json.dumps(response_data.model_dump(), ensure_ascii=False, default=str),
-            ex=_traffic_ttl(),
-        )
-    except Exception:
-        pass
-
     # ── DB 저장 (백그라운드, 예측 데이터 축적용) ──────────────────
     asyncio.create_task(persist_traffic_segments(merged, datetime.now(timezone.utc)))
 
-    return ApiResponse[TrafficResponse].ok(response_data)
+    return response_data.model_dump()
+
+
+@router.get("")
+@limiter.limit("30/minute")
+async def get_traffic(request: Request):
+    """주요 도로 실시간 교통 정보 조회.
+
+    한국공학대 ↔ 정왕역 경로를 TMAP으로 탐색하고,
+    경유하는 주요 도로별 소요시간·속도를 반환합니다.
+    출퇴근 시간대(07~09, 16~18) Redis 캐싱 60초, 평시 300초.
+    캐시 미스 시 single-flight 락으로 동시 요청의 TMAP 중복 호출을 방지한다.
+    """
+    payload = await get_or_fetch_with_lock(
+        _TRAFFIC_LIVE_CACHE_KEY,
+        _traffic_ttl(),
+        _fetch_traffic_payload,
+    )
+    return ApiResponse[TrafficResponse].ok(payload)
 
 
 @router.get("/debug/segments")

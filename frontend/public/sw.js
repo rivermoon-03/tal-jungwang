@@ -117,3 +117,39 @@ self.addEventListener('fetch', (e) => {
     })
   )
 })
+
+// ── F5: 노선 알림(막차/첫차 시각 푸시) ────────────────────────────────────
+// 백엔드가 Web Push로 { title, body, url } 페이로드를 보낸다. 로그인이 없는
+// 앱이라 알림에 사용자 식별 정보는 담기지 않는다.
+self.addEventListener('push', (e) => {
+  let data = {}
+  try {
+    data = e.data ? e.data.json() : {}
+  } catch {
+    data = {}
+  }
+  e.waitUntil(
+    self.registration.showNotification(data.title ?? '탈것:정왕', {
+      body: data.body ?? '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url ?? '/' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const url = e.notification.data?.url ?? '/'
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clientsList) => {
+      const existing = clientsList.find((c) => c.url.includes(self.location.origin))
+      if (existing) {
+        existing.focus()
+        if ('navigate' in existing) existing.navigate(url)
+        return undefined
+      }
+      return self.clients.openWindow(url)
+    })
+  )
+})

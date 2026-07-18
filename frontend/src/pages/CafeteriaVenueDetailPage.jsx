@@ -13,12 +13,12 @@ import { ALL_VENUES } from '../data/cafeteriaVenues'
 import {
   isOpenNow,
   getCategoryIcon,
+  getCategoryStyle,
   getVenueLocation,
   getBuildingColor,
   getVenueBuilding,
 } from '../utils/venueOpen'
 import EmptyState from '../components/ui/EmptyState'
-import useAppStore from '../stores/useAppStore'
 
 // ── 요일 한국어 라벨 ─────────────────────────────────────────
 const PERIOD_LABELS = { semester: '학기', vacation: '방학' }
@@ -32,20 +32,6 @@ const CLOSED_DAY_KO = {
   thursday: '목요일',
   friday: '금요일',
   holiday: '공휴일',
-}
-
-// ── 카테고리 스타일 ─────────────────────────────────────────
-function getCategoryStyle(category, isDark) {
-  const map = {
-    '한식':      { color: isDark ? '#F4A460' : '#8B4513', bg: isDark ? '#2D1A0A' : '#FFF5E6' },
-    '분식':      { color: isDark ? '#FF8C69' : '#C0392B', bg: isDark ? '#2D0A0A' : '#FEF0F0' },
-    '중식':      { color: isDark ? '#FFD700' : '#B8860B', bg: isDark ? '#2D260A' : '#FEFAE6' },
-    '양식':      { color: isDark ? '#98D1B5' : '#2E7D5E', bg: isDark ? '#0A2118' : '#EAF6EF' },
-    '패스트푸드': { color: isDark ? '#FFB347' : '#D4530A', bg: isDark ? '#2D1800' : '#FFF1E6' },
-    '카페':      { color: isDark ? '#C4A882' : '#6B4F2A', bg: isDark ? '#1E1610' : '#F6F0E8' },
-    '편의점':    { color: isDark ? '#93B3D8' : '#4A6FA5', bg: isDark ? '#1A2535' : '#EEF2F9' },
-  }
-  return map[category] ?? { color: isDark ? '#9CA3AF' : '#6B7280', bg: isDark ? '#1F2937' : '#F3F4F6' }
 }
 
 // ── 영업 상태 색상 ────────────────────────────────────────────
@@ -234,8 +220,6 @@ function PeriodScheduleSection({ periodLabel, periodSchedule }) {
 // ── 메인 컴포넌트 ────────────────────────────────────────────
 
 export default function CafeteriaVenueDetailPage({ venueId }) {
-  const isDark = useAppStore((s) => s.darkMode)
-
   const venue = useMemo(
     () => ALL_VENUES.find((v) => v.id === venueId) ?? null,
     [venueId]
@@ -286,9 +270,9 @@ export default function CafeteriaVenueDetailPage({ venueId }) {
   const { status, primaryLabel, subLabel, currentPart } = statusInfo
 
   const Icon = getCategoryIcon(venue.category)
-  const { color: catColor, bg: catBg } = getCategoryStyle(venue.category, isDark)
+  const { color: catColor, bg: catBg } = getCategoryStyle(venue.category)
   const building = getVenueBuilding(venue.location ?? getVenueLocation(venue.building, venue.floor))
-  const { color: bldColor, bg: bldBg, darkColor: bldDarkColor, darkBg: bldDarkBg } = getBuildingColor(building)
+  const { color: bldColor, bg: bldBg } = getBuildingColor(building)
   const locationStr = venue.location ?? getVenueLocation(venue.building, venue.floor)
 
   // closedDays → 한국어 라벨
@@ -377,8 +361,8 @@ export default function CafeteriaVenueDetailPage({ venueId }) {
                 fontSize: 12,
                 fontWeight: 700,
                 letterSpacing: '-0.01em',
-                color: isDark ? bldDarkColor : bldColor,
-                background: isDark ? bldDarkBg : bldBg,
+                color: bldColor,
+                background: bldBg,
                 borderRadius: 6,
                 padding: '2px 7px',
                 lineHeight: 1.5,

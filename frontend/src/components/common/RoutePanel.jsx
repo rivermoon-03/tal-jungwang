@@ -15,12 +15,12 @@ export default function RoutePanel({
 }) {
   return (
     <section
-      className={`flex flex-col rounded-card-pc bg-surface shadow-card-md dark:bg-surface-dark dark:border dark:border-line-dark dark:shadow-none overflow-hidden ${className}`}
+      className={`flex flex-col rounded-card-pc bg-surface shadow-card-md dark:bg-surface dark:border dark:border-line dark:shadow-none overflow-hidden ${className}`}
     >
       <header className="flex items-start justify-between px-[14px] pt-3 pb-2">
         <div>
           {subtitle && (
-            <div className="text-ghdr uppercase font-bold text-mute dark:text-mute-dark">
+            <div className="text-ghdr uppercase font-bold text-mute dark:text-mute">
               {subtitle}
             </div>
           )}
@@ -29,7 +29,7 @@ export default function RoutePanel({
           )}
         </div>
         {meta && (
-          <div className="text-meta font-bold text-mute dark:text-mute-dark">{meta}</div>
+          <div className="text-meta font-bold text-mute dark:text-mute">{meta}</div>
         )}
       </header>
 
@@ -43,7 +43,7 @@ export default function RoutePanel({
               className={`text-label font-bold px-[10px] py-[4px] rounded-pill pressable ${
                 activeTab === t.id
                   ? 'bg-ink text-surface dark:bg-accent dark:text-black'
-                  : 'bg-surface-alt text-text dark:bg-surface-dark-alt dark:text-mute-dark'
+                  : 'bg-surface-2 text-ink-2 dark:bg-bg dark:text-mute'
               }`}
             >
               {t.label}

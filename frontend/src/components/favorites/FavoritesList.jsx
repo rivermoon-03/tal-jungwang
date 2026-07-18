@@ -62,7 +62,7 @@ function useLiveBusArrival(detail, routeNumber) {
 function RowMenu({ id, onRemove, onClose }) {
   return (
     <div
-      className="absolute right-0 top-8 z-30 bg-white dark:bg-surface-dark rounded-xl shadow-lg border border-slate-100 dark:border-border-dark overflow-hidden min-w-[140px]"
+      className="absolute right-0 top-8 z-30 bg-white dark:bg-surface rounded-xl shadow-lg border border-slate-100 dark:border-line overflow-hidden min-w-[140px]"
       onClick={(e) => e.stopPropagation()}
     >
       <button

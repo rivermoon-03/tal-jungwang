@@ -21,16 +21,16 @@ export default function RouteRow({
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`flex items-center gap-2 px-3 py-[9px] text-left border-t border-line dark:border-line-dark first:border-t-0 ${onClick ? 'pressable' : ''} ${className}`}
+      className={`flex items-center gap-2 px-3 py-[9px] text-left border-t border-line dark:border-line first:border-t-0 ${onClick ? 'pressable' : ''} ${className}`}
     >
       <RouteChip route={route} label={routeLabel ?? route} />
-      <span className="flex-1 min-w-0 truncate text-dest-mob md:text-dest text-text dark:text-text-dark">
+      <span className="flex-1 min-w-0 truncate text-dest-mob md:text-dest text-ink-2 dark:text-ink-2">
         {destination}
       </span>
       <span className="text-right whitespace-nowrap shrink-0">
         <Eta value={etaMin} imminent={imminent} />
         {etaSub && (
-          <span className="block mt-[1px] text-caption font-medium text-mute dark:text-mute-dark tabular-nums">
+          <span className="block mt-[1px] text-caption font-medium text-mute dark:text-mute tabular-nums">
             {etaSub}
           </span>
         )}
@@ -42,9 +42,9 @@ export default function RouteRow({
 function Eta({ value, imminent }) {
   // 문자열 ("곧") 또는 숫자
   const isText = typeof value === 'string' && !/^\d+$/.test(value)
-  const cls = `inline-flex items-baseline font-black leading-none tracking-[-0.03em] tabular-nums ${
+  const cls = `inline-flex items-baseline font-bold leading-none tracking-[-0.03em] tabular-nums ${
     imminent
-      ? 'text-imminent dark:text-imminent-dark relative'
+      ? 'text-imminent dark:text-imminent relative'
       : 'text-ink dark:text-white'
   }`
   if (isText) {
@@ -65,7 +65,7 @@ function Eta({ value, imminent }) {
   return (
     <span className={`${cls} text-eta-mob md:text-eta-pc`}>
       <SlotNumber value={value} />
-      <span className="ml-[1px] text-caption font-bold text-mute dark:text-mute-dark">분</span>
+      <span className="ml-[1px] text-caption font-bold text-mute dark:text-mute">분</span>
     </span>
   )
 }

@@ -6,6 +6,10 @@
    Phase A (2026-04-19): --ease-spring 제거. iOS ease 단일화.
    Phase A (2026-07): 모션 규율(DESIGN.md §4) e/dur-motion 토큰 추가. */
 :root {
+  /* F4 글자 크기 설정 — SettingsPage 슬라이더가 setFontScale로 갱신, tailwind.config.js
+     fontSize 스케일 전체가 이 값을 곱해 쓴다(useFontScale 훅 참고). */
+  --tj-font-scale: 1;
+
   --ease-ios:  cubic-bezier(0.16, 1, 0.3, 1);
   --ease-snap: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-press: 120ms;
@@ -46,6 +50,14 @@
   --tj-delayed:      #dc2626;
   --tj-delayed-bg:   #fee2e2;
   --tj-realtime:     #12a594;
+
+  /* 카테고리 칩 팔레트(DESIGN.md "카테고리 칩 팔레트") — sage/teal과 어울리는 최소 채도 5색 + 중립 */
+  --tj-chip-green-bg:  #eef5f0; --tj-chip-green-fg:  #3a7a52;
+  --tj-chip-blue-bg:   #e6efff; --tj-chip-blue-fg:   #2e5fb3;
+  --tj-chip-red-bg:    #f5e6e2; --tj-chip-red-fg:    #8a3a2c;
+  --tj-chip-purple-bg: #f0e8fc; --tj-chip-purple-fg: #5b3aa8;
+  --tj-chip-yellow-bg: #fef6e6; --tj-chip-yellow-fg: #a07517;
+  --tj-chip-gray-bg:   #f3f4f6; --tj-chip-gray-fg:   #6b7280;
 
   /* 레거시 상태 별칭(호환 유지) — 신규 semantic을 그대로 참조해 값 중복 제거 */
   --state-ok:   var(--tj-ease);
@@ -100,6 +112,14 @@
   --tj-delayed-bg:   #3b1219;
   --tj-realtime:     #12a594;
 
+  /* 카테고리 칩 팔레트(다크) */
+  --tj-chip-green-bg:  #1a2820; --tj-chip-green-fg:  #5fb085;
+  --tj-chip-blue-bg:   #1a2030; --tj-chip-blue-fg:   #7aa5e3;
+  --tj-chip-red-bg:    #2a1818; --tj-chip-red-fg:    #e07a6a;
+  --tj-chip-purple-bg: #1f1828; --tj-chip-purple-fg: #a78ce0;
+  --tj-chip-yellow-bg: #2a2410; --tj-chip-yellow-fg: #d4a14a;
+  --tj-chip-gray-bg:   #1f2937; --tj-chip-gray-fg:   #9ca3af;
+
   /* 활성 pill 다크: accent teal + 화이트 텍스트 */
   --tj-pill-active-bg: var(--tj-accent);
   --tj-pill-active-fg: #ffffff;
@@ -121,6 +141,52 @@
   animation: tj-pulse 1.6s ease-in-out infinite;
 }
 
+/* ── 모션 패턴 (Phase C, DESIGN.md §4) ──────────────────────
+   카드 진입: fade + 상승 + 미세 스케일. 리스트 항목은 utils/motion.js의
+   staggerDelay()로 60ms 간격 animation-delay를 부여해 순차 등장시킨다. */
+@keyframes tj-card-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+.tj-card-enter {
+  animation: tj-card-enter var(--dur-motion-enter) var(--e-out) both;
+}
+
+/* 도착 "n분" 숫자 변경 시 미세한 스케일 펄스(과한 애니메이션 금지).
+   소비 컴포넌트가 값이 바뀔 때 key를 갱신해 리마운트시키면 재생된다. */
+@keyframes tj-number-pulse {
+  from { opacity: 0.5; transform: scale(1.06); }
+  to   { opacity: 1;   transform: scale(1);    }
+}
+.tj-number-pulse {
+  animation: tj-number-pulse var(--dur-motion-base) var(--e-out) both;
+}
+
+/* 상위 탭(홈/시간표/학식/더보기) 전환 크로스페이드 */
+@keyframes tj-tab-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.tj-tab-fade {
+  animation: tj-tab-fade var(--dur-motion-base) var(--e-inout) both;
+}
+
+/* 스켈레톤 시머 — 기존 animate-pulse(불투명도만 변화)를 그라디언트 스윕으로 대체 */
+@keyframes tj-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.tj-skeleton {
+  background-image: linear-gradient(
+    100deg,
+    var(--tj-surface-2) 30%,
+    var(--tj-surface-3) 50%,
+    var(--tj-surface-2) 70%
+  );
+  background-size: 300% 100%;
+  animation: tj-shimmer 1.6s ease-in-out infinite;
+}
+
 /* ── 접근성: 모션 최소화 ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -128,6 +194,10 @@
     --dur-snap:  0ms;
     --dur-page:  0ms;
     --dur-sheet: 0ms;
+    --dur-motion-press: 0ms;
+    --dur-motion-base:  0ms;
+    --dur-motion-enter: 0ms;
+    --dur-motion-sheet: 0ms;
   }
   *,
   *::before,
@@ -151,7 +221,7 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.18s var(--ease-ios) both;
+  animation: fadeIn 0.18s var(--e-inout) both;
 }
 
 @keyframes fadeInUp {
@@ -160,21 +230,23 @@
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.22s var(--ease-ios) both;
+  animation: fadeInUp var(--dur-motion-enter) var(--e-out) both;
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.2s var(--ease-ios) both;
+  animation: slideInRight 0.2s var(--e-out) both;
 }
 
 /* ── 탭 / 카드 press 피드백 ─────────────────── */
+/* Phase C: press 패턴(DESIGN.md §4) — scale(0.94) + spring 이징, 120ms 즉각 반응 */
 .pressable {
-  transition: transform var(--dur-press) var(--ease-ios), opacity var(--dur-press) var(--ease-ios);
+  transition: transform var(--dur-motion-press) var(--e-spring), opacity var(--dur-motion-press) var(--e-spring);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .pressable:active {
-  transform: scale(0.98);
-  opacity: 0.9;
+  transform: scale(0.94);
+  opacity: 0.92;
 }
 
 /* ── 시간/숫자 모던 폰트 ────────────────────── */
@@ -210,13 +282,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   word-break: keep-all;
-  transition: background-color var(--dur-snap) var(--ease-ios), color var(--dur-snap) var(--ease-ios);
+  transition: background-color var(--dur-snap) var(--e-inout), color var(--dur-snap) var(--e-inout);
 }
 
 /* ── 카카오맵 다크모드 ──────────────────────────────────── */
 .dark #kakao-map-canvas {
   filter: invert(93%) hue-rotate(180deg) brightness(0.82) saturate(0.85) contrast(0.92);
-  transition: filter 0.3s var(--ease-ios);
+  transition: filter 0.3s var(--e-out);
 }
 
 /* 마커 이미지 역필터 — 원래 SVG 색상 유지 */
@@ -229,7 +301,7 @@ body {
   to   { transform: translateY(0); }
 }
 .animate-slide-up {
-  animation: slideUp var(--dur-sheet) var(--ease-ios);
+  animation: slideUp var(--dur-sheet) var(--e-out);
 }
 
 /* slide-in-left 애니메이션은 tailwind.config의 animation/keyframes에 등록됨.
@@ -242,7 +314,7 @@ body {
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 .animate-toast-slide-up {
-  animation: toastSlideUp var(--dur-sheet) var(--ease-ios) both;
+  animation: toastSlideUp var(--dur-sheet) var(--e-out) both;
 }
 
 /* ── 스크롤바 숨김 ───────────────────────────── */

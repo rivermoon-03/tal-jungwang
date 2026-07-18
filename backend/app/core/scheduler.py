@@ -26,18 +26,38 @@ async def _collect_job():
         logger.exception("Scheduled traffic collection failed")
 
 
-async def _weather_refresh_job():
-    """날씨 캐시를 갱신하는 스케줄 작업 (05:00~24:00 KST)."""
+async def _weather_live_refresh_job():
+    """초단기실황(현재 기온/체감/실황) 캐시를 매시간 갱신 (05:00~23:59 KST).
+
+    TTL=3600초(1시간), cron=60분 → TTL ≤ cron 간격 준수.
+    """
     hour = datetime.now(_KST).hour
     if not (5 <= hour <= 23):
         return  # 심야 제외
 
-    from app.services.weather import refresh_weather_cache
+    from app.services.weather import refresh_weather_live_cache
 
     try:
-        await refresh_weather_cache()
+        await refresh_weather_live_cache()
     except Exception:
-        logger.exception("날씨 캐시 갱신 실패")
+        logger.exception("초단기실황 캐시 갱신 실패")
+
+
+async def _weather_forecast_refresh_job():
+    """단기예보(12~72시간) 캐시를 3시간 주기로 갱신.
+
+    KMA 단기예보는 02·05·08·11·14·17·20·23시에 발표되고, 발표 후 ~10분부터
+    응답이 가능하다. 본 job은 발표 후 충분한 시간(발표+15분)에 실행되도록
+    CronTrigger(hour="2,5,8,11,14,17,20,23", minute=15)로 등록된다.
+
+    TTL=10800초(3시간), cron=3시간 주기 → TTL ≤ cron 간격 준수.
+    """
+    from app.services.weather import refresh_weather_forecast_cache
+
+    try:
+        await refresh_weather_forecast_cache()
+    except Exception:
+        logger.exception("단기예보 캐시 갱신 실패")
 
 
 async def _bus_report_job():
@@ -198,6 +218,60 @@ async def _purge_logs_job():
         logger.exception("로그 보존정책 정리 실패")
 
 
+async def _push_notification_job():
+    """막차/첫차 30분 전 Web Push 알림 (5분 주기).
+
+    구독 수만큼 시간표를 반복 조회하지 않도록 push_notifier.run_push_notification_cycle
+    내부에서 전체 구독의 favorite_codes를 모아 고유 favCode 집합에 대해서만
+    오늘의 막차/첫차를 계산한다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.push_notifier import run_push_notification_cycle
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await run_push_notification_cycle(session)
+            if summary.get("sent") or summary.get("removed"):
+                logger.info("푸시 알림 사이클 완료: %s", summary)
+    except Exception:
+        logger.exception("푸시 알림 사이클 실패")
+
+
+async def _department_notices_refresh_job():
+    """컴공 학과 공지 RSS 갱신 (60분 주기).
+
+    요청 경로는 DB/Redis만 보고 학교 사이트를 직접 호출하지 않는다 — 스크레이핑은
+    이 크론에서만 실행된다. TTL(120분)이 이 주기(60분)의 2배라 cron 1회 누락도
+    다음 회차에서 자가회복된다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.school import refresh_department_notices
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await refresh_department_notices(session, "ce")
+            logger.info("학과 공지(ce) 갱신 완료: %s", summary)
+    except Exception:
+        logger.exception("학과 공지(ce) 갱신 실패")
+
+
+async def _academic_calendar_refresh_job():
+    """학사일정 갱신 (매일 1회, 03:50 KST).
+
+    로그 보존정책 정리(03:45) 다음 슬롯 — 02:00~03:59 GBIS 폴링 휴식 구간
+    안쪽이라 운영 트래픽/다른 나이틀리 job과 겹치지 않는다.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.school import refresh_academic_calendar
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await refresh_academic_calendar(session)
+            logger.info("학사일정 갱신 완료: %s", summary)
+    except Exception:
+        logger.exception("학사일정 갱신 실패")
+
+
 def setup_scheduler():
     """스케줄러에 교통정보 수집 작업을 등록한다.
 
@@ -206,25 +280,31 @@ def setup_scheduler():
     심야 (23~05): 수집 안 함
     """
     # 러시아워: 매시 00, 20, 40분
+    # TTL 20분 수집 주기, misfire_grace_time 10분으로 Railway 재시작 등
+    # 일시적 밀림도 다음 사이클에서 자가복구 가능하도록.
     scheduler.add_job(
         _collect_job,
         CronTrigger(hour="7-9", minute="*/20"),
         id="traffic_rush_morning",
         replace_existing=True,
+        misfire_grace_time=600,
     )
     scheduler.add_job(
         _collect_job,
         CronTrigger(hour="16-18", minute="*/20"),
         id="traffic_rush_evening",
         replace_existing=True,
+        misfire_grace_time=600,
     )
 
     # 비러시아워: 매시 정각
+    # TTL 60분 수집 주기, misfire_grace_time 10분으로 다른 잡들과 일관성 유지.
     scheduler.add_job(
         _collect_job,
         CronTrigger(hour="5-6,10-15,19-22", minute="0"),
         id="traffic_offpeak",
         replace_existing=True,
+        misfire_grace_time=600,
     )
 
     logger.info("Traffic collection scheduler configured")
@@ -244,17 +324,35 @@ def setup_scheduler():
         "Bus arrival polling scheduler configured (every 45s, skip 02:00-03:59 KST)"
     )
 
-    # ── 날씨 캐시 선갱신 (10분 간격, 05:00~23:59 KST 시간 체크는 job 내부) ──
+    # ── 초단기실황 캐시 갱신 (매시간 60분 간격, 05:00~23:59 KST) ──
+    # TTL=1h(3600s), cron=60분 → TTL ≤ cron 간격 준수, cron 1회 누락도 자가회복
     scheduler.add_job(
-        _weather_refresh_job,
+        _weather_live_refresh_job,
         IntervalTrigger(minutes=60),
-        id="weather_refresh",
+        id="weather_live_refresh",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
     )
     logger.info(
-        "Weather cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)"
+        "Weather live (current temp) cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)"
+    )
+
+    # ── 단기예보 캐시 갱신 (3시간 주기: 02:15, 05:15, 08:15, 11:15, 14:15, 17:15, 20:15, 23:15 KST) ──
+    # KMA 발표: 02·05·08·11·14·17·20·23시, 발표 후 ~10분부터 응답 가능
+    # → 발표 후 15분에 조회해 충분한 데이터 확보
+    # TTL=3h(10800s), cron=3시간 주기 → TTL ≤ cron 간격 준수
+    scheduler.add_job(
+        _weather_forecast_refresh_job,
+        CronTrigger(hour="2,5,8,11,14,17,20,23", minute=15, timezone="Asia/Seoul"),
+        id="weather_forecast_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300,  # 5분 허용
+    )
+    logger.info(
+        "Weather forecast cache refresh scheduler configured (every 3h at :15 KST)"
     )
 
     # ── 버스 도착 수집 리포트 (Discord 웹훅, 3시간마다 00/03/06/09/12/15/18/21 KST) ──
@@ -351,6 +449,47 @@ def setup_scheduler():
         misfire_grace_time=600,
     )
     logger.info("Log retention purge scheduler configured (daily 03:45 KST)")
+
+    # ── 막차/첫차 Web Push 알림 (5분 간격) ──
+    # 알림 판정 윈도우가 30분이라 5분 간격이면 놓쳐도 다음 사이클(최대 5분 후)에
+    # 자가회복 가능. misfire_grace_time=120으로 짧은 지연은 발화 보장.
+    scheduler.add_job(
+        _push_notification_job,
+        IntervalTrigger(minutes=5),
+        id="push_notification_cycle",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=120,
+    )
+    logger.info("Push notification scheduler configured (every 5min)")
+
+    # ── 학과 공지 RSS 갱신 (60분 간격) ──
+    # TTL=120분(cron 주기의 2배)이라 cron 1회 누락도 다음 회차에서 자가회복.
+    scheduler.add_job(
+        _department_notices_refresh_job,
+        IntervalTrigger(minutes=60),
+        id="department_notices_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+    )
+    logger.info("Department notices (ce) refresh scheduler configured (every 60min)")
+
+    # ── 학사일정 갱신 (매일 03:50 KST) ──
+    # log_retention_purge(03:45) 다음 슬롯, 02:00~03:59 GBIS 폴링 휴식 구간 안쪽.
+    # 하루 주기 특성상 misfire_grace_time을 다른 나이틀리 job(600s)보다 널널하게 잡는다.
+    scheduler.add_job(
+        _academic_calendar_refresh_job,
+        CronTrigger(hour=3, minute=50, timezone="Asia/Seoul"),
+        id="academic_calendar_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
+    logger.info("Academic calendar refresh scheduler configured (daily 03:50 KST)")
 
 
 def start_scheduler():

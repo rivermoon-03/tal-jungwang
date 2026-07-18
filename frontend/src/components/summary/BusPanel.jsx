@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { useBusArrivals, useBusRoutesByCategory, useBusTimetable } from '../../hooks/useBus'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import Skeleton from '../common/Skeleton'
-import ErrorState from '../common/ErrorState'
+import ErrorState from '../ui/ErrorState'
 import ArrivalRow from '../dashboard/ArrivalRow'
 import {
   getGbisStationId, getViaLabel,

@@ -1,0 +1,44 @@
+name: 보안 스캔 (OSV + Socket.dev)
+
+# F7(라이브러리 도입) — npm audit 보완용. 런타임 번들에는 영향 없는 CI 전용 도구.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scan-pr:
+    if: ${{ github.event_name == 'pull_request' }}
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8"
+
+  osv-scan-push:
+    if: ${{ github.event_name != 'pull_request' }}
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8"
+
+  socket-firewall:
+    name: Socket.dev Firewall (공급망 위험 스캔, 무료 모드)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # firewall-free 모드는 API 키/계정 없이 바로 동작 — 설치 중 악성/타이포스쿼팅
+      # 패키지를 실시간 차단한다. 더 상세한 리포트가 필요하면
+      # https://github.com/apps/socket-security 에서 Socket GitHub App을 별도 설치해도 됨
+      # (계정 연동이 필요해 이 워크플로만으로는 대신할 수 없음 — 둘 중 하나면 충분).
+      - uses: SocketDev/action@v1.3.1
+        with:
+          mode: firewall-free
+      - name: frontend npm install (Socket Firewall로 감시)
+        working-directory: frontend
+        run: sfw npm install

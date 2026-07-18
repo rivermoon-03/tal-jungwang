@@ -1,6 +1,7 @@
 """통합 대시보드 API — 셔틀·버스·지하철 정보를 한 번에 반환."""
 
 import asyncio
+import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -15,6 +16,7 @@ from app.services.bus import get_arrivals
 from app.services.shuttle import get_next as shuttle_get_next
 from app.services.subway import get_next as subway_get_next
 
+logger = logging.getLogger(__name__)
 KST = ZoneInfo("Asia/Seoul")
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
@@ -47,6 +49,14 @@ async def dashboard(
     shuttle_result, bus_result, subway_result = await asyncio.gather(
         shuttle_task, bus_task, subway_task, return_exceptions=True
     )
+
+    # 개별 실패 로깅
+    if isinstance(shuttle_result, Exception):
+        logger.warning("dashboard: shuttle 조회 실패: %s", shuttle_result)
+    if isinstance(bus_result, Exception):
+        logger.warning("dashboard: bus 조회 실패: %s", bus_result)
+    if isinstance(subway_result, Exception):
+        logger.warning("dashboard: subway 조회 실패: %s", subway_result)
 
     return ApiResponse[DashboardResponse].ok(
         DashboardResponse(

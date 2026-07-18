@@ -24,6 +24,9 @@ DROP TABLE IF EXISTS traffic_history             CASCADE;
 DROP TABLE IF EXISTS notices                     CASCADE;
 DROP TABLE IF EXISTS app_links                   CASCADE;
 DROP TABLE IF EXISTS app_info                    CASCADE;
+DROP TABLE IF EXISTS push_subscriptions          CASCADE;
+DROP TABLE IF EXISTS department_notices          CASCADE;
+DROP TABLE IF EXISTS academic_calendar           CASCADE;
 
 
 -- ────────────────────────────────────────────────────────────
@@ -103,6 +106,12 @@ CREATE TABLE bus_arrival_history (
 CREATE INDEX idx_bus_arrival_route_stop_day
     ON bus_arrival_history (route_id, stop_id, day_type, arrived_at);
 
+-- retention.py 나이틀리 정리(90일 보존)는 arrived_at 단독 조건(< now() - interval)
+-- 으로 삭제 대상 5000행을 찾는다. 위 복합 인덱스는 arrived_at이 선두가 아니라
+-- 이 조회에 못 쓰인다 → 단독 인덱스 추가.
+CREATE INDEX idx_bus_arrival_arrived_at
+    ON bus_arrival_history (arrived_at);
+
 -- ────────────────────────────────────────────────────────────
 -- 6. bus_arrival_stats — 분포 사전 집계 (p10/p50/p90/mean)
 -- ────────────────────────────────────────────────────────────
@@ -138,6 +147,12 @@ CREATE TABLE bus_crowding_logs (
 
 CREATE INDEX idx_crowding_route_stop_at
     ON bus_crowding_logs (route_id, stop_id, recorded_at);
+
+-- retention.py 나이틀리 정리(90일 보존)는 recorded_at 단독 조건으로 삭제 대상
+-- 5000행을 찾는다. 위 복합 인덱스는 recorded_at이 선두가 아니라 이 조회에
+-- 못 쓰인다 → 단독 인덱스 추가(traffic_history의 idx_traffic_collected_at과 동일 패턴).
+CREATE INDEX idx_crowding_recorded_at
+    ON bus_crowding_logs (recorded_at);
 
 -- ────────────────────────────────────────────────────────────
 -- 7b. bus_crowding_stats — 혼잡도 곡선 사전 집계 (30분 버킷 평균)
@@ -320,6 +335,67 @@ CREATE TABLE app_info (
     subway_last_refreshed_at  TIMESTAMPTZ,
     updated_at                TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- ────────────────────────────────────────────────────────────
+-- 18. push_subscriptions — Web Push 구독 (F5 노선 알림)
+-- 사용자 계정이 없으므로 브라우저 PushManager가 발급하는 endpoint를 기본 키로 쓴다.
+-- favorite_codes: 프론트 zustand favorites.routes와 동일한 favCode 문자열 배열
+--   (예: "등교:5602", "shuttle:등교", "subway:정왕:up").
+-- last_notified: 당일 중복 발송 방지. {"<favCode>:last": "YYYY-MM-DD",
+--   "<favCode>:first": "YYYY-MM-DD"} 형태로 (favCode, edge)별 마지막 발송 날짜(KST) 기록.
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE push_subscriptions (
+    id              SERIAL       PRIMARY KEY,
+    endpoint        TEXT         UNIQUE NOT NULL,
+    p256dh_key      TEXT         NOT NULL,
+    auth_key        TEXT         NOT NULL,
+    favorite_codes  JSONB        NOT NULL DEFAULT '[]',
+    last_notified   JSONB        NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER trg_push_subscriptions_updated_at
+BEFORE UPDATE ON push_subscriptions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ────────────────────────────────────────────────────────────
+-- 19. department_notices — 학과별 공지사항(RSS 수집)
+-- 본문은 저장하지 않는다(제목+게시일+원문링크만) — 저작권 리스크 최소화 +
+-- 원 사이트로 트래픽 유도. (department, external_id) UNIQUE로 재수집 시
+-- 중복 삽입 방지. external_id는 원문 게시글 번호(RSS link의 숫자, 예: 151703).
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE department_notices (
+    id              SERIAL       PRIMARY KEY,
+    department      VARCHAR(20)  NOT NULL,
+    external_id     INTEGER      NOT NULL,
+    title           VARCHAR(300) NOT NULL,
+    url             VARCHAR(500) NOT NULL,
+    published_at    TIMESTAMPTZ  NOT NULL,
+    fetched_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (department, external_id)
+);
+
+CREATE INDEX idx_department_notices_dept_published
+    ON department_notices (department, published_at DESC);
+
+-- ────────────────────────────────────────────────────────────
+-- 20. academic_calendar — 학사일정
+-- 학교 사이트가 스크레이핑마다 현재 시점 기준 전체 목록을 권위 있는 스냅샷으로
+-- 제공하므로 (title, start_date, end_date) UNIQUE + ON CONFLICT DO NOTHING으로
+-- append-only 누적한다(삭제 로직 없음 — 그래스풀 디그레이데이션 유지).
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE academic_calendar (
+    id              SERIAL       PRIMARY KEY,
+    title           VARCHAR(200) NOT NULL,
+    start_date      DATE         NOT NULL,
+    end_date        DATE,
+    fetched_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (title, start_date, end_date)
+);
+
+CREATE INDEX idx_academic_calendar_start_date
+    ON academic_calendar (start_date);
 
 
 -- ============================================================

@@ -1,7 +1,15 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import RouteDetailPage from './RouteDetailPage'
 import * as useBusModule from '../hooks/useBus'
+import * as useCrowdingFlowModule from '../hooks/useCrowdingFlow'
+
+// RouteCrowdingSection(F6)이 쓰는 훅 — 실제 fetch를 타지 않도록 목으로 고정.
+// 기본값은 데이터 없음(둘 다 null)이라 "평일"/"주말" 같은 텍스트를 추가로 렌더하지
+// 않아 기존 getByText 단일 매칭 단언들과 충돌하지 않는다.
+vi.mock('../hooks/useCrowdingFlow', () => ({
+  useCrowdingFlow: vi.fn(() => ({ data: null, loading: false, error: null })),
+}))
 
 // 기본 mock 데이터 — is_realtime=true (실시간 노선)
 const DEFAULT_MOCK_DATA = {
@@ -76,6 +84,11 @@ vi.mock('../hooks/useBus', () => ({
     loading: false,
     error: null,
   })),
+  useBusArrivalStats: vi.fn(() => ({
+    data: null,
+    loading: false,
+    error: null,
+  })),
 }))
 
 // API 응답 어댑터: times 배열 형태 응답도 처리하는지 검증용 헬퍼
@@ -100,6 +113,11 @@ vi.mock('../hooks/useFavorites', () => ({
 
 describe('RouteDetailPage', () => {
   beforeEach(() => {
+    // 요일 탭 판정이 실제 시각(new Date())에 의존하므로, 주말에 테스트가 깨지지
+    // 않도록 평일(2026-01-06 화요일 정오 KST)로 Date만 고정한다
+    // (setTimeout/setInterval/rAF는 실타이머 유지 — RTL 비동기 effect 영향 방지).
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-01-06T12:00:00+09:00'))
     vi.clearAllMocks()
     vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
       data: DEFAULT_MOCK_DATA,
@@ -118,19 +136,26 @@ describe('RouteDetailPage', () => {
     })
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('노선 번호 뱃지가 렌더링됨 (route_no 또는 routeNumber)', () => {
     render(<RouteDetailPage routeNumber="33" />)
     expect(screen.getByText('시흥33')).toBeInTheDocument()
   })
 
-  it('시간표 섹션이 렌더링됨', () => {
+  it('시간표 섹션이 렌더링됨 (출발 탭)', () => {
+    // 실시간+시간표 노선은 장소 탭으로 분리 — 출발 탭으로 전환해야 시간표가 보인다.
     render(<RouteDetailPage routeNumber="33" />)
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     expect(screen.getByText('07:10')).toBeInTheDocument()
     expect(screen.getByText('08:15')).toBeInTheDocument()
   })
 
-  it('막차 StatusChip이 렌더링됨', () => {
+  it('막차 StatusChip이 렌더링됨 (출발 탭)', () => {
     render(<RouteDetailPage routeNumber="33" />)
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     expect(screen.getByText('막차')).toBeInTheDocument()
   })
 
@@ -143,11 +168,37 @@ describe('RouteDetailPage', () => {
     backSpy.mockRestore()
   })
 
-  it('평일/토/일 세그먼트 탭이 표시됨', () => {
+  it('요일 전환 버튼 하나로 평일→토요일→일/공휴일 순환됨 (pill 3개 아님, 도착 탭엔 없음)', () => {
+    // 요일은 출발 시간표에만 의미가 있어 도착 탭에는 버튼 자체가 렌더되지 않는다.
     render(<RouteDetailPage routeNumber="33" />)
-    expect(screen.getByText('평일')).toBeInTheDocument()
-    expect(screen.getByText('토요일')).toBeInTheDocument()
-    expect(screen.getByText('일요일')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/요일 전환/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
+    // 고정된 테스트 시각(2026-01-06, 화요일)의 기본값은 평일 — 버튼 하나만 보이고
+    // 나머지 두 요일 라벨은 동시에 렌더되지 않는다(3개 pill이 아님을 확인).
+    const dayBtn = screen.getByLabelText(/요일 전환, 현재 평일/)
+    expect(dayBtn).toBeInTheDocument()
+    expect(screen.queryByText('토요일')).not.toBeInTheDocument()
+    expect(screen.queryByText('일/공휴일')).not.toBeInTheDocument()
+
+    fireEvent.click(dayBtn)
+    expect(screen.getByLabelText(/요일 전환, 현재 토요일/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText(/요일 전환, 현재 토요일/))
+    expect(screen.getByLabelText(/요일 전환, 현재 일\/공휴일/)).toBeInTheDocument()
+
+    // 한 바퀴 더 돌면 평일로 순환
+    fireEvent.click(screen.getByLabelText(/요일 전환, 현재 일\/공휴일/))
+    expect(screen.getByLabelText(/요일 전환, 현재 평일/)).toBeInTheDocument()
+  })
+
+  it('요일 전환 버튼이 스크롤 영역이 아닌 고정 헤더에 있어 시간표 목록과 함께 스크롤되지 않음', () => {
+    render(<RouteDetailPage routeNumber="33" />)
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
+    const dayBtn = screen.getByLabelText(/요일 전환/)
+    // 시간표 리스트를 담은 스크롤 컨테이너(overflow-y-auto) 바깥에 있어야 한다.
+    const scrollContainer = document.querySelector('.overflow-y-auto')
+    expect(scrollContainer.contains(dayBtn)).toBe(false)
   })
 
   it('정류장 칩이 렌더링됨', () => {
@@ -230,6 +281,46 @@ describe('RouteDetailPage', () => {
     // 실시간 도착 카드 관련 텍스트가 없어야 함
     expect(screen.queryByText(/실시간 도착/)).not.toBeInTheDocument()
     expect(screen.queryByText(/실시간 도착 정보를 가져오는 중이에요/)).not.toBeInTheDocument()
+  })
+
+  it('[실시간+빈시간표] 시간표 없는 실시간 방향(시흥33 등교)도 실시간 도착 카드가 표시됨 (버그: 자세히보기 미표시)', () => {
+    // 시흥33 등교는 GBIS 실시간 추적 노선이지만 정해진 출발 시간표가 없다(times 0건).
+    // 과거엔 schedule.length>0 일 때만 전체 콘텐츠를 렌더해, 실시간 도착이 있어도
+    // "운행 정보 없음"만 뜨고 실시간 카드가 통째로 숨었다.
+    vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
+      data: {
+        route_no: '시흥33',
+        direction_name: '한국공학대학교 방면',
+        is_realtime: true,
+        gbis_route_id: '224000062',
+        stops: [],
+        timetable: { weekday: [], saturday: [], sunday: [] }, // 시간표 없음
+      },
+      loading: false,
+      error: null,
+    })
+    vi.mocked(useBusModule.useBusHistoryPreview).mockReturnValue({
+      data: {
+        stop_name: '시흥시청역',
+        realtime_eta: {
+          primary: { arrive_in_seconds: 300, arrive_at_hhmm: '12:05' },
+          secondary: null,
+        },
+        columns: [],
+        arrivals: [],
+      },
+      loading: false,
+      error: null,
+    })
+    render(<RouteDetailPage routeNumber="시흥33" />)
+
+    // 실시간 도착 카드가 표시되어야 함 (버그 수정 핵심)
+    expect(screen.getByText(/실시간 도착/)).toBeInTheDocument()
+    expect(screen.getByText('5분')).toBeInTheDocument()
+    // "운행 정보 없음" 통짜 빈 화면이 뜨면 안 됨
+    expect(screen.queryByText('운행 정보 없음')).not.toBeInTheDocument()
+    // 시간표 없음 안내 문구가 대신 표시됨
+    expect(screen.getByText(/정해진 출발 시간표가 없는 실시간 운행 노선/)).toBeInTheDocument()
   })
 
   it('방향 탭: 노선에 등교/하교 두 방향이 있으면 탭이 표시됨', () => {
@@ -416,6 +507,8 @@ describe('RouteDetailPage', () => {
       error: null,
     })
     render(<RouteDetailPage routeNumber="33" />)
+    // InlineLiveRow는 출발 시간표(출발 탭) 안 다음 차 직전에 삽입된다.
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     if (new Date().getHours() < 23 || new Date().getMinutes() < 58) {
       const arrivalLabels = screen.getAllByText(/도착 예정/)
       expect(arrivalLabels.length).toBeGreaterThan(0)
@@ -557,8 +650,8 @@ describe('RouteDetailPage', () => {
       error: null,
     })
     render(<RouteDetailPage routeNumber="5602" />)
-    // 내 정류장 도착 정보 그룹 헤더에 "시흥시청역 도착 정보" 포함
-    expect(screen.getByText('시흥시청역 도착 정보')).toBeInTheDocument()
+    // 장소 탭 라벨에 "시흥시청역 도착" 포함(그룹 헤더 대신 탭이 장소를 표기)
+    expect(screen.getByRole('tab', { name: /시흥시청역 도착/ })).toBeInTheDocument()
   })
 
   it('[그룹B] 실시간 노선에서 기점 출발 시간표 그룹 헤더에 origin_stop_name이 포함됨', () => {
@@ -628,12 +721,13 @@ describe('RouteDetailPage', () => {
     })
     render(<RouteDetailPage routeNumber="5602" />)
 
-    // 그룹A: 내 정류장 도착 정보 헤더 (정확한 텍스트)
-    expect(screen.getByText('시흥시청역 도착 정보')).toBeInTheDocument()
-    // 그룹B: 기점 출발 시간표
+    // 장소 탭 2개 존재(도착/출발)
+    expect(screen.getByRole('tab', { name: /시흥시청역 도착/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /구로디지털단지역 출발/ })).toBeInTheDocument()
+    // 출발 탭 전환 시 기점 출발 시간표 + 시각 노출
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     const departureSectionHeaders = screen.getAllByText(/구로디지털단지역.*출발/)
     expect(departureSectionHeaders.length).toBeGreaterThan(0)
-    // 시간표 시각도 표시
     expect(screen.getByText('07:00')).toBeInTheDocument()
   })
 
@@ -799,9 +893,10 @@ describe('RouteDetailPage', () => {
     })
     render(<RouteDetailPage routeNumber="시흥33" />)
 
-    // stop 없으면 도착 정보 섹션도 표시
+    // 도착 정보 그룹은 기본(도착 탭) 노출
     expect(screen.getByRole('region', { name: /내 정류장 도착 정보/ })).toBeInTheDocument()
-    // 출발 시간표도 표시
+    // 출발 탭으로 전환하면 기점 출발 시간표 그룹 노출
+    fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
     expect(screen.getByRole('region', { name: /기점 출발 시간표/ })).toBeInTheDocument()
   })
 
@@ -911,8 +1006,11 @@ describe('RouteDetailPage', () => {
     // RealtimeArrivalCard 영역: role="status" aria-live 또는 role="status" 엘리먼트
     const statusEls = container.querySelectorAll('[role="status"]')
     statusEls.forEach((el) => {
-      // el 내부에 svg가 있으면 안 됨 (Radio 아이콘 컨테이너 span 제거 확인)
-      expect(el.querySelector('svg')).toBeNull()
+      // 과거 도착 기록 진입 화살표(chevron)는 의도된 svg — 이를 제외하면 Radio 등 장식 아이콘이 없어야 한다.
+      const nonArrowSvgs = [...el.querySelectorAll('svg')].filter(
+        (s) => !s.closest('[aria-label="과거 도착 기록 보기"]')
+      )
+      expect(nonArrowSvgs.length).toBe(0)
     })
   })
 
@@ -934,7 +1032,51 @@ describe('RouteDetailPage', () => {
     const { container } = render(<RouteDetailPage routeNumber="33" />)
     const statusEls = container.querySelectorAll('[role="status"]')
     statusEls.forEach((el) => {
-      expect(el.querySelector('svg')).toBeNull()
+      // 과거 도착 기록 진입 화살표(chevron)는 의도된 svg — 이를 제외하면 상태 카드에 장식 아이콘이 없어야 한다.
+      const nonArrowSvgs = [...el.querySelectorAll('svg')].filter(
+        (s) => !s.closest('[aria-label="과거 도착 기록 보기"]')
+      )
+      expect(nonArrowSvgs.length).toBe(0)
+    })
+  })
+
+  // ─── F6: 노선 혼잡도 섹션(RouteCrowdingSection) 마운트 조건 ───────────
+  describe('F6 노선 혼잡도 섹션', () => {
+    it('is_realtime=true 노선에서는 혼잡도 섹션이 마운트됨', () => {
+      render(<RouteDetailPage routeNumber="33" />)
+      expect(screen.getByRole('region', { name: '노선 혼잡도' })).toBeInTheDocument()
+    })
+
+    it('is_realtime=false 노선에서는 혼잡도 섹션이 마운트되지 않음 (GBIS 로그 없음)', () => {
+      vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
+        data: TIMETABLE_ONLY_MOCK_DATA,
+        loading: false,
+        error: null,
+      })
+      render(<RouteDetailPage routeNumber="3401" />)
+      expect(screen.queryByRole('region', { name: '노선 혼잡도' })).not.toBeInTheDocument()
+    })
+
+    it('혼잡도 데이터가 있으면 평일/주말 히트맵과 지금 하이라이트가 표시됨', () => {
+      vi.mocked(useCrowdingFlowModule.useCrowdingFlow).mockImplementation((_routeNo, dayType) => {
+        if (dayType === 'weekend') return { data: null, loading: false, error: null }
+        return {
+          data: {
+            route_no: '시흥33',
+            route_direction: '시흥시청방면',
+            stop_name: '한국공학대학교',
+            day_type: 'weekday',
+            sample_days: 30,
+            total_samples: 90,
+            points: [{ hour: 8, minute: 0, crowded: 3.1, samples: 20 }],
+          },
+          loading: false,
+          error: null,
+        }
+      })
+      render(<RouteDetailPage routeNumber="33" />)
+      expect(screen.getByText('노선 혼잡도')).toBeInTheDocument()
+      expect(screen.getByText(/지금\(/)).toBeInTheDocument()
     })
   })
 })

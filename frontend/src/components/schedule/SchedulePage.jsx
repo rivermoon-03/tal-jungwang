@@ -6,13 +6,16 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNow } from '../../hooks/useNow'
 import ScheduleSection from './ScheduleSection'
+import SubwayStationChips from './SubwayStationChips'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
-import SegmentTabs from '../common/SegmentTabs'
+import SegmentTabs from '../ui/SegmentTabs'
+import StationChips from '../ui/StationChips'
 import RouteBadge from '../common/RouteBadge'
 import Skeleton from '../common/Skeleton'
 import BusArrivalCard, { CrowdedBadge } from '../bus/BusArrivalCard'
 import useAppStore from '../../stores/useAppStore'
+import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
@@ -20,10 +23,24 @@ import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute, getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, CalendarClock } from 'lucide-react'
 import StatsSheet from './StatsSheet'
-import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
 import HolidayBanner from '../common/HolidayBanner'
+
+// PC · 시간표 2열 레이아웃(좌: 노선 리스트 / 우: 상세)에서 아직 아무 노선도
+// 선택하지 않았을 때 우측 컬럼에 보이는 빈 상태.
+function ScheduleDetailEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+      <CalendarClock size={32} className="text-mute dark:text-mute" aria-hidden="true" />
+      <p className="text-label font-semibold text-mute dark:text-mute">
+        왼쪽에서 노선을 선택하면
+        <br />
+        상세 시간표가 여기 표시돼요
+      </p>
+    </div>
+  )
+}
 
 // ─── map marker lookup ──────────────────────────────────────────────────────
 function distanceMeters(lat1, lng1, lat2, lng2) {
@@ -427,6 +444,9 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
               loading={loading}
               lineColor={dir.color}
               lastBus={isLastTrain}
+              footer={!loading && (
+                <SubwayStationChips line={dir.subtitle} direction={label} viewStation={stationGroup} />
+              )}
             />
           )
         }),
@@ -677,7 +697,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
     return (
       <>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-surface-2 dark:bg-surface-dark rounded-xl animate-pulse" />
+          <div key={i} className="h-20 bg-surface-2 dark:bg-surface rounded-xl animate-pulse" />
         ))}
       </>
     )
@@ -771,6 +791,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
 
 // ─── main component ──────────────────────────────────────────────────────────
 export default function SchedulePage() {
+  const isDesktop = useIsDesktop()
   const [query, setQuery] = useState(readQuery)
 
   useEffect(() => {
@@ -796,11 +817,9 @@ export default function SchedulePage() {
   const [mode, setMode] = useState(initialMode)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
-  const [subwayDataMode, setSubwayDataMode] = useState('timetable')
   const favCodes = favorites.routes ?? []
   const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
-  useEffect(() => { setSubwayDataMode('timetable') }, [subwayGroup])
   const [selectedDetail, setSelectedDetail] = useState(null)
 
   useEffect(() => {
@@ -855,58 +874,75 @@ export default function SchedulePage() {
     : mode === 'shuttle' ? setShuttleCampus
     : () => {}
 
+  const detailModalProps = {
+    open: selectedDetail != null,
+    onClose: handleModalClose,
+    type: selectedDetail?.type,
+    routeCode: selectedDetail?.routeCode,
+    routeId: selectedDetail?.routeId ?? null,
+    stopId: selectedDetail?.stopId ?? null,
+    category: selectedDetail?.category ?? null,
+    direction: selectedDetail?.direction,
+    subwayKey: selectedDetail?.subwayKey,
+    accentColor: selectedDetail?.accentColor,
+    isRealtime: selectedDetail?.isRealtime ?? false,
+    title: selectedDetail?.title ?? '',
+    isFavorite: selectedDetail?.favCode ? isFav(selectedDetail.favCode) : false,
+    onToggleFav: selectedDetail?.favCode ? () => handleToggleFav(selectedDetail.favCode) : null,
+    onShowMap:
+      selectedDetail?.mapLat != null && selectedDetail?.mapLng != null
+        ? () => {
+            setMapPanTarget({ lat: selectedDetail.mapLat, lng: selectedDetail.mapLng })
+            handleModalClose()
+            if (window.location.pathname !== '/') {
+              window.history.pushState({}, '', '/')
+              window.dispatchEvent(new PopStateEvent('popstate'))
+            }
+          }
+        : null,
+  }
+
+  const sectionViewProps = {
+    mode,
+    handleModeChange,
+    favoritesOnly,
+    setFavoritesOnly,
+    groups,
+    activeGroupId,
+    setActiveGroup,
+    busGroup,
+    subwayGroup,
+    shuttleCampus,
+    handleCardClick,
+    favCodes,
+    onOpenStats: () => setStatsOpen(true),
+  }
+
   return (
-    <div className="flex flex-col h-full bg-surface dark:bg-bg-dark animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
+    <div className="flex flex-col h-full bg-surface dark:bg-bg animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
       <PageHeader title="시간표" />
 
-      <ScheduleSectionView
-        mode={mode}
-        handleModeChange={handleModeChange}
-        favoritesOnly={favoritesOnly}
-        setFavoritesOnly={setFavoritesOnly}
-        groups={groups}
-        activeGroupId={activeGroupId}
-        setActiveGroup={setActiveGroup}
-        busGroup={busGroup}
-        subwayGroup={subwayGroup}
-        shuttleCampus={shuttleCampus}
-        handleCardClick={handleCardClick}
-        favCodes={favCodes}
-        onOpenStats={() => setStatsOpen(true)}
-        subwayDataMode={subwayDataMode}
-        setSubwayDataMode={setSubwayDataMode}
-      />
+      {isDesktop ? (
+        // PC · 시간표 시안: 좌(노선 리스트+요일) / 우(선택한 노선의 그리드+통계).
+        // 데이터 훅은 그대로 재사용 — 모바일의 리스트/모달 컴포넌트를 레이아웃만 갈아끼운다.
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <div className="w-[380px] flex-shrink-0 h-full flex flex-col overflow-hidden border-r border-line dark:border-line">
+            <ScheduleSectionView {...sectionViewProps} />
+          </div>
+          <div className="flex-1 min-w-0 h-full overflow-hidden bg-bg dark:bg-bg">
+            {selectedDetail != null
+              ? <ScheduleDetailModal {...detailModalProps} pcMode="inline" />
+              : <ScheduleDetailEmptyState />}
+          </div>
+        </div>
+      ) : (
+        <ScheduleSectionView {...sectionViewProps} />
+      )}
 
       <StatsSheet open={statsOpen} onClose={() => setStatsOpen(false)} />
 
-      <ScheduleDetailModal
-        open={selectedDetail != null}
-        onClose={handleModalClose}
-        type={selectedDetail?.type}
-        routeCode={selectedDetail?.routeCode}
-        routeId={selectedDetail?.routeId ?? null}
-        stopId={selectedDetail?.stopId ?? null}
-        category={selectedDetail?.category ?? null}
-        direction={selectedDetail?.direction}
-        subwayKey={selectedDetail?.subwayKey}
-        accentColor={selectedDetail?.accentColor}
-        isRealtime={selectedDetail?.isRealtime ?? false}
-        title={selectedDetail?.title ?? ''}
-        isFavorite={selectedDetail?.favCode ? isFav(selectedDetail.favCode) : false}
-        onToggleFav={selectedDetail?.favCode ? () => handleToggleFav(selectedDetail.favCode) : null}
-        onShowMap={
-          selectedDetail?.mapLat != null && selectedDetail?.mapLng != null
-            ? () => {
-                setMapPanTarget({ lat: selectedDetail.mapLat, lng: selectedDetail.mapLng })
-                handleModalClose()
-                if (window.location.pathname !== '/') {
-                  window.history.pushState({}, '', '/')
-                  window.dispatchEvent(new PopStateEvent('popstate'))
-                }
-              }
-            : null
-        }
-      />
+      {/* 데스크톱은 위 우측 컬럼에 pcMode="inline"으로 이미 렌더 — 모바일 바텀시트만 추가로 마운트 */}
+      {!isDesktop && <ScheduleDetailModal {...detailModalProps} />}
     </div>
   )
 }
@@ -926,19 +962,20 @@ function ScheduleSectionView({
   handleCardClick,
   favCodes,
   onOpenStats,
-  subwayDataMode,
-  setSubwayDataMode,
 }) {
   return (
     <>
-      {/* top mode tabs + 통계 / 즐겨찾기 필터 */}
-      <div className="px-4 pb-2 flex items-center justify-between gap-2 flex-shrink-0">
-        <SegmentTabs
-          tabs={MODES}
-          active={mode}
-          onChange={handleModeChange}
-        />
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+      {/* 모드 탭(홈 ModeTabs와 동일 ui/SegmentTabs) + 통계·즐겨찾기 유틸.
+          탭은 flex-1로 행을 채우고 유틸 버튼은 우측에 고정. */}
+      <div className="px-4 pt-2 pb-1.5 flex items-center gap-2 flex-shrink-0">
+        <div className="flex-1 min-w-0">
+          <SegmentTabs
+            items={MODES}
+            active={mode}
+            onChange={handleModeChange}
+          />
+        </div>
+        <div className="shrink-0 flex items-center gap-1.5">
           <button
             type="button"
             onClick={onOpenStats}
@@ -956,7 +993,7 @@ function ScheduleSectionView({
               justifyContent: 'center',
               cursor: 'pointer',
               transition:
-                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+                'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
             }}
           >
             <BarChart3 size={14} strokeWidth={2.2} aria-hidden="true" />
@@ -967,7 +1004,7 @@ function ScheduleSectionView({
             aria-pressed={favoritesOnly}
             className="pressable"
             style={{
-              padding: '5px 11px',
+              padding: '6px 11px',
               borderRadius: 999,
               border: favoritesOnly
                 ? '1.5px solid var(--tj-pill-active-bg)'
@@ -979,7 +1016,7 @@ function ScheduleSectionView({
               whiteSpace: 'nowrap',
               cursor: 'pointer',
               transition:
-                'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
+                'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
             }}
           >
             ★ 즐겨찾기
@@ -987,43 +1024,17 @@ function ScheduleSectionView({
         </div>
       </div>
 
-      {/* group secondary pills (+ subway 데이터 모드 토글) */}
+      {/* 그룹 칩 — 홈 StationPills 구조 그대로 미러링(홈과 동일한 StationChips). */}
       {groups.length > 0 && (
-        <div className="px-4 pb-2 flex items-center gap-2 flex-shrink-0">
-          <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
-            {groups.map((g) => {
-              const isActive = activeGroupId === g.id
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => setActiveGroup(g.id)}
-                  aria-pressed={isActive}
-                  className="pressable whitespace-nowrap flex-shrink-0"
-                  style={{
-                    padding: '5px 11px',
-                    borderRadius: 999,
-                    border: isActive
-                      ? '1.5px solid var(--tj-pill-active-bg)'
-                      : '1.5px solid var(--tj-line)',
-                    background: isActive ? 'var(--tj-pill-active-bg)' : 'transparent',
-                    color: isActive ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition:
-                      'background var(--dur-press) var(--ease-ios), color var(--dur-press) var(--ease-ios), border-color var(--dur-press) var(--ease-ios)',
-                  }}
-                >
-                  {g.label}
-                </button>
-              )
-            })}
+        <div className="px-4 pb-1.5 flex items-center gap-2 flex-shrink-0">
+          <div role="group" aria-label="그룹 선택" className="flex-1 min-w-0">
+            <StationChips
+              variant="station"
+              items={groups}
+              active={activeGroupId}
+              onChange={setActiveGroup}
+            />
           </div>
-          {mode === 'subway' && (
-            <div className="shrink-0">
-              <SubwayDataModeToggle value={subwayDataMode} onChange={setSubwayDataMode} />
-            </div>
-          )}
         </div>
       )}
 
@@ -1047,8 +1058,7 @@ function ScheduleSectionView({
               onCardClick={handleCardClick}
               favoritesOnly={favoritesOnly}
               favCodes={favCodes}
-              dataMode={subwayDataMode}
-              setDataMode={setSubwayDataMode}
+              dataMode="timetable"
             />
           )}
           {mode === 'shuttle' && (SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main).map((g) => (

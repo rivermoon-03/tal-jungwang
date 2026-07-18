@@ -18,7 +18,7 @@ export default function PCMapDashboard() {
         <BusPanel />
       </section>
 
-      <section className="shrink-0 grid grid-cols-2 gap-2 px-3 pb-3 border-t border-line dark:border-line-dark pt-2 h-[36%] overflow-hidden">
+      <section className="shrink-0 grid grid-cols-2 gap-2 px-3 pb-3 border-t border-line dark:border-line pt-2 h-[36%] overflow-hidden">
         <div className="overflow-y-auto">
           <ShuttlePanel />
         </div>
