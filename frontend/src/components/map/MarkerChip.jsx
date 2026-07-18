@@ -451,6 +451,38 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// createClusterBadgeElement — 겹치는 마커 그룹을 대체하는 클러스터 배지.
+// 화면 픽셀 거리가 가까운 station 2개 이상을 개별 칩/닷 대신 이 배지 하나로
+// 표시한다(ZoomAwareOverlayManager.jsx의 clusterStations 그룹화 결과 소비).
+// 탭 시 MarkerSheet를 열지 않고 해당 위치로 줌인해 겹침을 해소한다.
+// 색/크기는 placeholder — 시안 확정 전까지 data-role 훅으로 교체 용이하게 유지.
+// ─────────────────────────────────────────────────────────────
+
+export function createClusterBadgeElement({ count, onClick }) {
+  const badge = document.createElement('div')
+  badge.setAttribute('data-role', 'cluster-badge')
+  badge.style.cssText = [
+    'width:34px',
+    'height:34px',
+    'border-radius:50%',
+    'background:var(--tj-accent)',
+    'color:#fff',
+    'display:flex',
+    'align-items:center',
+    'justify-content:center',
+    'font-size:13px',
+    'font-weight:700',
+    'box-shadow:0 3px 10px rgba(0,0,0,.2)',
+    'border:2px solid var(--tj-surface)',
+    'cursor:pointer',
+  ].join(';')
+  badge.textContent = `+${count}`
+
+  if (onClick) badge.addEventListener('click', onClick)
+  return badge
+}
+
+// ─────────────────────────────────────────────────────────────
 // createSeohaeSiheungChipElement — 시흥시청역 서해선 시안1
 // pill · [dot "철" 서해선색 | name | live 상행N분]
 // ─────────────────────────────────────────────────────────────
