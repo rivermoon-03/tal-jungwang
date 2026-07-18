@@ -13,7 +13,7 @@ function NextTrainBadge({ train, color, darkColor }) {
   const darkMode = useAppStore((s) => s.darkMode)
 
   if (!train) {
-    return <p className="text-label font-medium text-mute dark:text-mute-dark">운행 종료</p>
+    return <p className="text-label font-medium text-mute dark:text-mute">운행 종료</p>
   }
 
   const baseColor = darkMode ? (darkColor ?? color) : color
@@ -22,12 +22,12 @@ function NextTrainBadge({ train, color, darkColor }) {
   return (
     <div className="flex items-end gap-3">
       <span
-        className="text-countdown font-black tabular-nums leading-none tracking-tight"
+        className="text-countdown font-bold tabular-nums leading-none tracking-tight"
         style={{ color: timerColor }}
       >
         {isExpired ? '곧 출발' : `${mm}:${ss}`}
       </span>
-      <span className="text-label font-semibold text-text dark:text-text-dark mb-1 leading-none">
+      <span className="text-label font-semibold text-ink-2 dark:text-ink-2 mb-1 leading-none">
         {train.depart_at} · {train.destination}행
       </span>
     </div>
@@ -59,17 +59,17 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
     >
       {/* 컬러 헤더 */}
       <div className="px-4 py-3 flex items-center gap-2.5" style={{ backgroundColor: color }}>
-        <span className="text-white font-black text-[15px] tracking-tight">{lineName}</span>
+        <span className="text-white font-semibold text-[15px] tracking-tight">{lineName}</span>
         <span className="text-white/85 text-label font-semibold">{dirLabel}</span>
       </div>
 
-      {/* 다음 열차 — lightColor는 라이트 모드용, 다크에선 surface-dark */}
+      {/* 다음 열차 — lightColor는 라이트 모드용, 다크에선 surface */}
       <div
-        className="px-4 py-3.5 dark:bg-surface-dark"
+        className="px-4 py-3.5 dark:bg-surface"
         style={{ backgroundColor: darkMode ? undefined : lightColor }}
       >
         <div className="flex items-center gap-2 mb-1.5">
-          <p className="text-label font-bold text-mute dark:text-mute-dark tracking-wide">다음 열차</p>
+          <p className="text-label font-bold text-mute dark:text-mute tracking-wide">다음 열차</p>
           {nextTrain && isLast && (
             <StatusChip kind="last">막차</StatusChip>
           )}
@@ -80,7 +80,7 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
         <div className="flex items-center justify-between gap-3">
           <NextTrainBadge train={nextTrain} color={color} darkColor={darkColor} />
           {missWaitMin != null && (
-            <span className="text-label font-semibold text-text dark:text-text-dark bg-surface dark:bg-surface-dark shadow-pill px-2.5 py-1 rounded-full whitespace-nowrap">
+            <span className="text-label font-semibold text-ink-2 dark:text-ink-2 bg-surface dark:bg-surface shadow-pill px-2.5 py-1 rounded-full whitespace-nowrap">
               놓치면 {missWaitMin}분 더 기다림
             </span>
           )}
@@ -89,13 +89,13 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
 
       {/* 이후 열차 목록 */}
       {preview.length > 0 && (
-        <ul className="divide-y divide-line dark:divide-line-dark bg-surface dark:bg-surface-dark">
+        <ul className="divide-y divide-line dark:divide-line bg-surface dark:bg-surface">
           {preview.map((t, i) => (
             <li key={i} className="flex items-center px-4 py-2.5 gap-3">
-              <span className="text-label font-bold tabular-nums text-ink dark:text-ink-dark min-w-[46px]">
+              <span className="text-label font-bold tabular-nums text-ink dark:text-ink min-w-[46px]">
                 {t.depart_at}
               </span>
-              <span className="text-label font-medium text-mute dark:text-mute-dark">{t.destination}행</span>
+              <span className="text-label font-medium text-mute dark:text-mute">{t.destination}행</span>
             </li>
           ))}
         </ul>

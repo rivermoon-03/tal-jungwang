@@ -3,7 +3,7 @@ import { Sun, Cloud, CloudSun, CloudRain, CloudSnow } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import { useApi } from '../../hooks/useApi'
 
-const SKY_ICON = {
+export const SKY_ICON = {
   sunny:         Sun,
   partly_cloudy: CloudSun,
   cloudy:        Cloud,
@@ -11,7 +11,7 @@ const SKY_ICON = {
   snowy:         CloudSnow,
 }
 
-const SKY_TEXT = {
+export const SKY_TEXT = {
   sunny:         '맑음',
   partly_cloudy: '구름많음',
   cloudy:        '흐림',
@@ -185,7 +185,7 @@ export default function WeatherCard() {
         {/* 헤더 — 온도 + 아이콘 가로 배치 */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-end gap-3.5">
-            <span className="text-eta-xl font-black text-ink tabular-nums tracking-[-0.04em] leading-none">
+            <span className="text-eta-xl font-bold text-ink tabular-nums tracking-[-0.04em] leading-none">
               {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
             </span>
             <div className="mb-1">
@@ -195,18 +195,18 @@ export default function WeatherCard() {
               <div className="mt-2 flex gap-2.5 text-caption font-semibold text-mute">
                 {todayHigh != null && (
                   <span>
-                    <span className="text-imminent font-extrabold">↑</span>{' '}
-                    <span className="text-ink-2 font-extrabold tabular-nums">{todayHigh}°</span>
+                    <span className="text-imminent font-semibold">↑</span>{' '}
+                    <span className="text-ink-2 font-semibold tabular-nums">{todayHigh}°</span>
                   </span>
                 )}
                 {todayLow  != null && (
                   <span>
-                    <span className="text-ease font-extrabold">↓</span>{' '}
-                    <span className="text-ink-2 font-extrabold tabular-nums">{todayLow}°</span>
+                    <span className="text-ease font-semibold">↓</span>{' '}
+                    <span className="text-ink-2 font-semibold tabular-nums">{todayLow}°</span>
                   </span>
                 )}
                 {weather?.rainProb != null && weather.rainProb > 0 && (
-                  <span>강수 <span className="text-ink-2 font-extrabold tabular-nums">{weather.rainProb}%</span></span>
+                  <span>강수 <span className="text-ink-2 font-semibold tabular-nums">{weather.rainProb}%</span></span>
                 )}
               </div>
             </div>
@@ -226,7 +226,7 @@ export default function WeatherCard() {
               <span className="text-label font-semibold text-ink-2">
                 {SKY_TEXT[tomorrowSummary.icon] ?? ''}
               </span>
-              <span className="text-body font-extrabold tabular-nums text-ink tracking-tight">
+              <span className="text-body font-semibold tabular-nums text-ink tracking-tight">
                 {tomorrowSummary.high}° / {tomorrowSummary.low}°
               </span>
             </div>

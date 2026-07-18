@@ -14,15 +14,18 @@
  *   - 다크모드 정상 지원
  */
 import { useMemo, useState } from 'react'
+import { Star, StarOff } from 'lucide-react'
 import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
 import { ALL_VENUES, RESTAURANTS, VENUE_GROUPS, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
-import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryIcon } from '../../utils/venueOpen'
+import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryStyle, getCategoryIcon } from '../../utils/venueOpen'
 import SegmentTabs from '../ui/SegmentTabs'
+import { staggerStyle } from '../../utils/motion'
+import './CafeteriaVenues.css'
 
 // ── 탭 정의 ────────────────────────────────────────────────
 const TABS = [
-  { id: 'now',      label: '지금 영업중' },
+  { id: 'now',      label: '지금' },
   { id: 'schedule', label: '운영시간' },
 ]
 
@@ -52,24 +55,9 @@ function kstWeekday(nowMs) {
   return KST_FMT_WEEKDAY.format(new Date(nowMs))
 }
 
-// ── 카테고리 아이콘 칩 색상 매핑 ────────────────────────────
-function getCategoryStyle(category, isDark) {
-  const map = {
-    '한식':     { color: isDark ? '#F4A460' : '#8B4513', bg: isDark ? '#2D1A0A' : '#FFF5E6' },
-    '분식':     { color: isDark ? '#FF8C69' : '#C0392B', bg: isDark ? '#2D0A0A' : '#FEF0F0' },
-    '중식':     { color: isDark ? '#FFD700' : '#B8860B', bg: isDark ? '#2D260A' : '#FEFAE6' },
-    '양식':     { color: isDark ? '#98D1B5' : '#2E7D5E', bg: isDark ? '#0A2118' : '#EAF6EF' },
-    '패스트푸드': { color: isDark ? '#FFB347' : '#D4530A', bg: isDark ? '#2D1800' : '#FFF1E6' },
-    '카페':     { color: isDark ? '#C4A882' : '#6B4F2A', bg: isDark ? '#1E1610' : '#F6F0E8' },
-    '편의점':   { color: isDark ? '#93B3D8' : '#4A6FA5', bg: isDark ? '#1A2535' : '#EEF2F9' },
-  }
-  return map[category] ?? { color: isDark ? '#9CA3AF' : '#6B7280', bg: isDark ? '#1F2937' : '#F3F4F6' }
-}
-
 // ── 카테고리 아이콘 원형 칩 ──────────────────────────────────
 function CategoryIconChip({ category }) {
-  const isDark = useAppStore((s) => s.darkMode)
-  const { color, bg } = getCategoryStyle(category, isDark)
+  const { color, bg } = getCategoryStyle(category)
   const Icon = getCategoryIcon(category)
   return (
     <div
@@ -92,17 +80,19 @@ function CategoryIconChip({ category }) {
 // ── 건물별 위치 칩 ────────────────────────────────────────
 function LocationChip({ location }) {
   const building = getVenueBuilding(location)
-  const { color, bg, darkColor, darkBg } = getBuildingColor(building)
-  const isDark = useAppStore((s) => s.darkMode)
+  const { color, bg } = getBuildingColor(building)
   return (
     <span
       style={{
         display: 'inline-block',
+        flexShrink: 0,
+        // "TIP 1F"가 "TIP / 1F"로 줄바꿈되던 문제 — 위치 라벨은 항상 한 줄.
+        whiteSpace: 'nowrap',
         fontSize: 12,
         fontWeight: 700,
         letterSpacing: '-0.01em',
-        color: isDark ? darkColor : color,
-        background: isDark ? darkBg : bg,
+        color,
+        background: bg,
         borderRadius: 6,
         padding: '2px 7px',
         lineHeight: 1.5,
@@ -113,21 +103,63 @@ function LocationChip({ location }) {
   )
 }
 
-// ── 상태 텍스트 스타일 ────────────────────────────────────
-function StatusText({ primaryLabel, status }) {
-  const isOpen = status === 'open' || status === 'closing' || status === 'always'
-  const isClosing = status === 'closing'
-
-  const color = isClosing
-    ? 'var(--tj-imminent)'
-    : isOpen
-      ? 'var(--tj-ease)'
-      : 'var(--tj-mute)'
-
+// ── 상태 배지 (시안 TO-BE) ─────────────────────────────────
+// 종료/휴무를 회색 텍스트가 아니라 톤다운 적색 배지로 보여 "운영 중"(초록)과
+// 시각 대비를 준다. 색/다크대응은 CafeteriaVenues.css.
+function StatusPill({ primaryLabel, status }) {
+  const cls =
+    status === 'open' || status === 'always'
+      ? 'is-open'
+      : status === 'closing'
+        ? 'is-closing'
+        : 'is-closed' // closed_day / after_close / before_open
   return (
-    <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+    <span className={`cafe-status-pill ${cls}`}>
+      <span className="dot" />
       {primaryLabel}
     </span>
+  )
+}
+
+// ── F2: 매점/식당 즐겨찾기 별 버튼 (카드 변형 3종 공통) ────────────
+function FavoriteStarButton({ venueId, size = 15 }) {
+  const isFav = useAppStore(
+    (s) => Array.isArray(s.favorites?.venues) && s.favorites.venues.includes(venueId)
+  )
+  const toggleFavoriteVenue = useAppStore((s) => s.toggleFavoriteVenue)
+
+  return (
+    <button
+      type="button"
+      aria-label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+      aria-pressed={isFav}
+      className="pressable"
+      onClick={(e) => {
+        // 카드 자체도 클릭 가능(role=button)하므로 버블링으로 상세 이동이
+        // 함께 트리거되지 않도록 막는다.
+        e.stopPropagation()
+        if (typeof toggleFavoriteVenue === 'function') toggleFavoriteVenue(venueId)
+      }}
+      style={{
+        flex: 'none',
+        width: 36,
+        height: 36,
+        borderRadius: '50%',
+        border: '1px solid var(--tj-line)',
+        background: isFav ? '#FBF4E5' : 'var(--tj-surface)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        color: isFav ? '#C2902E' : 'var(--tj-mute)',
+        touchAction: 'manipulation',
+      }}
+    >
+      {isFav
+        ? <Star size={size} strokeWidth={2} fill="currentColor" />
+        : <StarOff size={size} strokeWidth={2} />
+      }
+    </button>
   )
 }
 
@@ -168,13 +200,16 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
             </div>
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <StatusText primaryLabel={primaryLabel} status={status} />
-          {subLabel && (
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
-              {subLabel}
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <StatusPill primaryLabel={primaryLabel} status={status} />
+            {subLabel && (
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
+                {subLabel}
+              </div>
+            )}
+          </div>
+          <FavoriteStarButton venueId={venue.id} />
         </div>
       </div>
 
@@ -215,6 +250,22 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
           )
         })}
       </div>
+
+      {/* 대표 메뉴 (시안 TO-BE) — 있을 때만, 본문 글자 크기로 강조 */}
+      {Array.isArray(venue.menu) && venue.menu.length > 0 && (
+        <div
+          style={{
+            marginTop: 11,
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--tj-ink)',
+            lineHeight: 1.6,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {venue.menu.join(' · ')}
+        </div>
+      )}
 
       {/* 풋터: note + 휴무 */}
       {(venue.note || venue.closedNote || venue.closedDays?.length > 0) && (
@@ -305,21 +356,23 @@ function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
 
       {/* 상태 */}
       <div style={{ flex: 'none', textAlign: 'right' }}>
-        <StatusText primaryLabel={primaryLabel} status={status} />
+        <StatusPill primaryLabel={primaryLabel} status={status} />
         {subLabel && (
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
             {subLabel}
           </div>
         )}
       </div>
+
+      {/* 즐겨찾기 */}
+      <FavoriteStarButton venueId={venue.id} />
     </div>
   )
 }
 
 // ── 그룹 헤더 — 건물별 ──────────────────────────────────────
 function BuildingGroupHeader({ building }) {
-  const isDark = useAppStore((s) => s.darkMode)
-  const { color, bg, darkColor, darkBg } = getBuildingColor(building)
+  const { color, bg } = getBuildingColor(building)
   return (
     <div
       style={{
@@ -334,8 +387,8 @@ function BuildingGroupHeader({ building }) {
           fontSize: 14,
           fontWeight: 800,
           letterSpacing: '-0.02em',
-          color: isDark ? darkColor : color,
-          background: isDark ? darkBg : bg,
+          color,
+          background: bg,
           borderRadius: 8,
           padding: '3px 10px',
         }}
@@ -349,9 +402,8 @@ function BuildingGroupHeader({ building }) {
 
 // ── 그룹 헤더 — 카테고리별 ──────────────────────────────────
 function CategoryGroupHeader({ category }) {
-  const isDark = useAppStore((s) => s.darkMode)
   const Icon = getCategoryIcon(category)
-  const { color, bg } = getCategoryStyle(category, isDark)
+  const { color, bg } = getCategoryStyle(category)
   return (
     <div
       style={{
@@ -395,8 +447,10 @@ function VenueSlimList({ venues, nowDate, onVenueClick }) {
       {venues.map((venue, i) => (
         <div
           key={venue.id}
+          className="tj-card-enter"
           style={{
             borderBottom: i < venues.length - 1 ? '1px solid var(--tj-line)' : 'none',
+            ...staggerStyle(i),
           }}
         >
           <SimpleVenueCard venue={venue} nowDate={nowDate} onVenueClick={onVenueClick} />
@@ -492,10 +546,10 @@ function OpenRow({ venue, statusInfo, onVenueClick }) {
         <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--tj-ink)' }}>
           {venue.name}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, minWidth: 0 }}>
           <LocationChip location={venue.location} />
           {(venue.alwaysOpen || venue.is24h) && (
-            <span style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               언제든 열려 있어요
             </span>
           )}
@@ -523,6 +577,9 @@ function OpenRow({ venue, statusInfo, onVenueClick }) {
           </span>
         )}
       </div>
+
+      {/* 즐겨찾기 */}
+      <FavoriteStarButton venueId={venue.id} />
     </div>
   )
 }
@@ -658,6 +715,68 @@ function NowOpenTab({ sortBy, nowDate, onVenueClick }) {
   )
 }
 
+// ── F2: 즐겨찾기 · 지금 영업 중 섹션 ───────────────────────────
+/** 즐겨찾기한 매점/식당 중 지금 영업 중인 곳만 상단에 노출.
+ * 즐겨찾기가 없거나 전부 닫혀 있으면 섹션 자체를 숨긴다(빈 섹션 금지). */
+function FavoriteOpenSection({ nowDate, onVenueClick }) {
+  const favoriteVenueIds = useAppStore((s) =>
+    Array.isArray(s.favorites?.venues) ? s.favorites.venues : []
+  )
+
+  const favoriteOpenItems = useMemo(() => {
+    if (!favoriteVenueIds.length) return []
+    return ALL_VENUES
+      .filter((v) => favoriteVenueIds.includes(v.id))
+      .map((venue) => ({ venue, statusInfo: isOpenNow(venue, nowDate) }))
+      .filter(({ statusInfo }) => statusInfo.open)
+  }, [favoriteVenueIds, nowDate])
+
+  if (favoriteOpenItems.length === 0) return null
+
+  return (
+    <div data-testid="favorite-open-section" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 14,
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            color: '#C2902E',
+            background: '#FBF4E5',
+            borderRadius: 8,
+            padding: '3px 10px',
+          }}
+        >
+          <Star size={13} strokeWidth={2} fill="currentColor" />
+          즐겨찾기 · 지금 영업 중
+        </span>
+        <span style={{ flex: 1, height: 1, background: 'var(--tj-line)' }} />
+      </div>
+      <div
+        style={{
+          background: 'var(--tj-surface)',
+          border: '1px solid var(--tj-line)',
+          borderRadius: 18,
+          padding: '0 14px',
+          overflow: 'hidden',
+        }}
+      >
+        {favoriteOpenItems.map(({ venue, statusInfo }, i) => (
+          <div
+            key={venue.id}
+            style={{ borderBottom: i < favoriteOpenItems.length - 1 ? '1px solid var(--tj-line)' : 'none' }}
+          >
+            <OpenRow venue={venue} statusInfo={statusInfo} onVenueClick={onVenueClick} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── 메인 컴포넌트 ────────────────────────────────────────────
 
 export default function CafeteriaVenues({ onVenueClick = () => {} }) {
@@ -696,6 +815,9 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
           지금 <b style={{ color: 'var(--tj-accent-ink)', fontWeight: 800 }}>{timeStr}</b> · {weekdayStr}
         </span>
       </div>
+
+      {/* 즐겨찾기 · 지금 영업 중 (즐겨찾기가 없거나 전부 닫혀 있으면 자동 숨김) */}
+      <FavoriteOpenSection nowDate={nowDate} onVenueClick={onVenueClick} />
 
       {/* 탭 + 정렬 스위치 */}
       <div style={{ marginBottom: 14 }}>

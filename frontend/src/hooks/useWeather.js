@@ -8,7 +8,7 @@ import { useApi } from './useApi'
  * 백엔드는 snake_case를 반환하므로 여기서 camelCase로 변환한다.
  * 반환: { weather, loading, error, refetch }
  * weather 스키마 (§12.3):
- *   currentTemp, currentSky, icon, rainProb, pm10Grade,
+ *   currentTemp, currentSky, icon, rainProb, windSpeed, pm10Grade,
  *   warning: { type, startHour, copy } | null,
  *   nextTemps: [{ hour, temp }],
  *   timeBucket: { label, nextLabel, nextTemp }
@@ -30,6 +30,7 @@ export function useWeather() {
       currentSky:  raw.current_sky   ?? raw.currentSky   ?? null,
       icon:        raw.icon          ?? null,
       rainProb:    raw.rain_prob     ?? raw.rainProb      ?? null,
+      windSpeed:   raw.wind_speed    ?? raw.windSpeed     ?? null,
       pm10Grade:   raw.pm10_grade    ?? raw.pm10Grade     ?? null,
       warning: w ? {
         type:      w.type      ?? null,

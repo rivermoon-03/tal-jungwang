@@ -55,6 +55,10 @@ const useAppStore = create(
       themeMode: 'system',          // 'light' | 'dark' | 'system'
       setThemeMode: (mode) => set({ themeMode: mode }),
 
+      // F4 글자 크기: 0(작게)·1(보통)·2(크게). useFontScale이 --tj-font-scale로 변환.
+      fontScale: 1,
+      setFontScale: (v) => set({ fontScale: v }),
+
       selectedMode: 'bus',          // 'bus' | 'subway' | 'shuttle' | 'taxi'
       setSelectedMode: (mode) => set({ selectedMode: mode }),
 
@@ -105,7 +109,8 @@ const useAppStore = create(
       setMapExpanded: (v) => set({ mapExpanded: v }),
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
-      favorites: { routes: [], stations: [] },
+      // venues: F2 매점/식당(cafeteriaVenues) 즐겨찾기 id 배열.
+      favorites: { routes: [], stations: [], venues: [] },
       toggleFavoriteRoute: (id) =>
         set((s) => {
           const routes = s.favorites.routes.includes(id)
@@ -119,6 +124,14 @@ const useAppStore = create(
             ? s.favorites.stations.filter((st) => st !== id)
             : [...s.favorites.stations, id]
           return { favorites: { ...s.favorites, stations } }
+        }),
+      // F2: 매점/식당 즐겨찾기 토글. routes/stations와 동일한 불변 배열 갱신 패턴.
+      toggleFavoriteVenue: (id) =>
+        set((s) => {
+          const venues = (s.favorites.venues ?? []).includes(id)
+            ? s.favorites.venues.filter((v) => v !== id)
+            : [...(s.favorites.venues ?? []), id]
+          return { favorites: { ...s.favorites, venues } }
         }),
 
       // ── PWA / 알림 ───────────────────────────────────────────────────
@@ -136,6 +149,21 @@ const useAppStore = create(
         set((s) => ({
           themeMode: s.darkMode ? 'light' : 'dark',
         })),
+
+      // ── F1: 등하교 자동/수동 판정 (persist 대상) ─────────────────────
+      // commuteAutoMode=true면 useEffectiveDirection이 KST 시간대(+위치 보강)로
+      // 자동 판정한다. false면 아래 commuteManualDirection 고정값을 그대로 쓴다.
+      // (참고: directionOverride는 별개의 in-memory 세션 전용 퀵토글이며 항상 최우선.)
+      commuteAutoMode: true,
+      setCommuteAutoMode: (v) => set({ commuteAutoMode: v }),
+      commuteManualDirection: '등교', // '등교' | '하교' — 수동 모드일 때만 사용
+      setCommuteManualDirection: (dir) => set({ commuteManualDirection: dir }),
+
+      // ── F3: 시간표 기본 보기(그리드/리스트) persist ───────────────────
+      // ScheduleDetailModal의 viewMode 초기값 + SettingsPage "시간표 기본 보기"가
+      // 이 필드를 공유한다.
+      scheduleViewMode: 'grid', // 'grid' | 'list'
+      setScheduleViewMode: (mode) => set({ scheduleViewMode: mode }),
 
     }),
     {
@@ -203,8 +231,20 @@ const useAppStore = create(
           }
         }
       }),
+      // zustand persist 기본 merge는 최상위 키를 얕게(shallow) 덮어쓴다.
+      // favorites처럼 중첩 객체에 새 필드(venues)를 추가하면, 구버전 persisted
+      // state(venues 없음)가 favorites 전체를 통째로 덮어써 새 필드가 사라진다.
+      // → favorites만 얕은 병합을 한 번 더 해 새 필드 기본값을 보존한다.
+      merge: (persistedState, currentState) => {
+        const merged = { ...currentState, ...persistedState }
+        if (persistedState && typeof persistedState === 'object' && persistedState.favorites) {
+          merged.favorites = { ...currentState.favorites, ...persistedState.favorites }
+        }
+        return merged
+      },
       partialize: (state) => ({
         themeMode: state.themeMode,
+        fontScale: state.fontScale,
         favorites: state.favorites,
         selectedMode: state.selectedMode,
         selectedSubwayStation: state.selectedSubwayStation,
@@ -214,6 +254,10 @@ const useAppStore = create(
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
         notifPrefs: state.notifPrefs,
         busStationAutoMode: state.busStationAutoMode,
+        // F1/F3 신규 persist 필드
+        commuteAutoMode: state.commuteAutoMode,
+        commuteManualDirection: state.commuteManualDirection,
+        scheduleViewMode: state.scheduleViewMode,
       }),
     }
   )

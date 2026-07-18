@@ -1,0 +1,137 @@
+/* HomeWeatherHero — 홈 상단 A. 날씨 상태에 따라 배경/이펙트가 바뀐다.
+   맑음=푸른 글로우, 흐림=회색, 비=빗줄기, 눈=눈송이. */
+
+.whero {
+  position: relative;
+  overflow: hidden;
+  /* 홈 세로 공간의 약 40%를 차지(사용자 요청) — 반응형으로 flex-basis 사용.
+     작은 폰(667px)에서 너무 얕지 않게, 큰 화면에서 과하게 크지 않게 clamp. */
+  flex: 0 0 40%;
+  min-height: 176px;
+  max-height: 320px;
+  /* 자식(상단바 / 메인블록)을 세로로 흘려 40% 공간을 활용 */
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  transition: background 400ms ease;
+}
+
+/* 하단 seam — 히어로(mood 색)를 대시보드 배경(var(--tj-bg))으로 얇게 블렌드.
+   콘텐츠는 z-10, seam은 z-5라 콘텐츠가 seam 위에 그려진다(콘텐츠는 pb로 seam을 피함). */
+.whero-seam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34px;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--tj-bg));
+}
+
+/* mood 색이 히어로를 꽉 채운다(마지막 색 스톱이 100%까지 유지). 예전엔 그라데이션을
+   var(--tj-bg)로 끝냈는데, 히어로가 40% 높이로 커지면서 중앙~하단이 넓게 하얗게 떠
+   보였다(실사용 피드백) — 콘텐츠(온도/정왕풍)가 흰 밴드 위에 얹혀 대비가 죽었다.
+   이제 대시보드로 잇는 블렌드는 아래 .whero-seam(하단 ~34px)만 담당한다. */
+.whero[data-mood='sunny']  { background: linear-gradient(165deg, #dbeeff 0%, #f2faff 55%); }
+.whero[data-mood='cloudy'] { background: linear-gradient(165deg, #dee2e6 0%, #edeff1 60%); }
+.whero[data-mood='rainy']  { background: linear-gradient(165deg, #3c5468 0%, #57728a 65%); }
+.whero[data-mood='snowy']  { background: linear-gradient(165deg, #cfe6f5 0%, #e9f4fb 55%); }
+
+/* 시간대(낮/저녁/밤) 반영 — 맑음·흐림 무드만. 비/눈은 이미 어두운/파스텔 톤이라 생략(기존 유지).
+   낮(day)은 위 기본 규칙과 동일해 별도 셀렉터가 필요 없다. */
+.whero[data-mood='sunny'][data-time='evening']  { background: linear-gradient(165deg, #3d4f78 0%, #6b5a7d 35%, #a8707a 70%); }
+.whero[data-mood='sunny'][data-time='night']    { background: linear-gradient(165deg, #131c33 0%, #1b2b4a 65%); }
+.whero[data-mood='cloudy'][data-time='evening'] { background: linear-gradient(165deg, #a8a0ad 0%, #8f8a9c 55%); }
+.whero[data-mood='cloudy'][data-time='night']   { background: linear-gradient(165deg, #2a2d35 0%, #23262e 60%); }
+
+.dark .whero[data-mood='sunny']  { background: linear-gradient(165deg, #0d2038 0%, #142639 60%); }
+.dark .whero[data-mood='cloudy'] { background: linear-gradient(165deg, #202327 0%, #26292d 60%); }
+.dark .whero[data-mood='rainy']  { background: linear-gradient(165deg, #0e1c28 0%, #16293a 60%); }
+.dark .whero[data-mood='snowy']  { background: linear-gradient(165deg, #14212b 0%, #1a2a35 60%); }
+
+/* 다크모드 + 시간대 — 기존 다크 규칙보다 한층 더 어둡고 채도 낮은 톤(이 파일의 기존 패턴 준수) */
+.dark .whero[data-mood='sunny'][data-time='evening']  { background: linear-gradient(165deg, #262f47 0%, #3d3548 35%, #5c4550 70%); }
+.dark .whero[data-mood='sunny'][data-time='night']    { background: linear-gradient(165deg, #0c1120 0%, #111b2e 65%); }
+.dark .whero[data-mood='cloudy'][data-time='evening'] { background: linear-gradient(165deg, #4d4952 0%, #423f4a 55%); }
+.dark .whero[data-mood='cloudy'][data-time='night']   { background: linear-gradient(165deg, #1c1e24 0%, #17181d 60%); }
+
+/* 맑음: 정적인 햇살 글로우 (모션 없음 — 비/눈과의 대비로 "고요함"을 표현) */
+.whero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(160px 130px at 84% -8%, rgba(255, 255, 255, 0.9), transparent 70%);
+}
+.dark .whero-glow {
+  background: radial-gradient(160px 130px at 84% -8%, rgba(120, 170, 255, 0.28), transparent 70%);
+}
+
+/* 맑음·밤: 해 글로우 대신 별 도트 — .whero-glow를 재사용해 별자리처럼 흩뿌린다.
+   specificity(class+attr+attr+class)가 위 기본/다크 규칙보다 높아 라이트/다크 모두 우선 적용된다. */
+.whero[data-mood='sunny'][data-time='night'] .whero-glow {
+  background:
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1.5px 1.5px at 45% 15%, rgba(255, 255, 255, 0.8), transparent 60%),
+    radial-gradient(1px 1px at 65% 42%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 80% 20%, rgba(255, 255, 255, 0.85), transparent 60%),
+    radial-gradient(1px 1px at 90% 46%, rgba(255, 255, 255, 0.6), transparent 60%);
+}
+
+/* 비: 미니멀 물방울 (시안 v4, 사용자 확정) — 개별 위치/속도는 JS(RAINDROPS)에서 부여.
+   눈 이펙트(.whero-snow)와 같은 개별 span 패턴이라 실기기에서 지적된 "날카로운
+   대각선 스트라이프"(구 버전) 대신 옅고 짧은 물방울이 자연스럽게 떨어진다. */
+.whero-rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.whero-rain span {
+  position: absolute;
+  top: -8%;
+  width: 3px;
+  height: 8px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 6px 8px -4px rgba(255, 255, 255, 0.3);
+  animation-name: whero-rain-fall;
+  animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  animation-iteration-count: infinite;
+}
+@keyframes whero-rain-fall {
+  0%   { transform: translateY(0); opacity: 0; }
+  15%  { opacity: 0.9; }
+  85%  { opacity: 0.45; }
+  100% { transform: translateY(150px); opacity: 0; }
+}
+
+/* 눈: 흩날리는 눈송이 (개별 위치/속도는 JS에서 부여) */
+.whero-snow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.whero-snow span {
+  position: absolute;
+  top: -10%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  animation-name: whero-snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes whero-snow-fall {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  12%  { opacity: 0.9; }
+  100% { transform: translate(16px, 160px); opacity: 0.1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whero-rain span,
+  .whero-snow span {
+    animation: none !important;
+    opacity: 0.22;
+  }
+}

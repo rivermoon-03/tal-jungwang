@@ -15,6 +15,9 @@
     "lucide-react": "^1.8.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "sonner": "^2.0.7",
+    "vaul": "^1.1.2",
+    "web-vitals": "^5.3.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -30,9 +33,15 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "jsdom": "^29.0.2",
-    "postcss": "^8.5.9",
+    "postcss": "^8.5.10",
+    "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "^3.4.19",
-    "vite": "^8.0.4",
+    "vite": "^8.0.16",
     "vitest": "^4.1.4"
+  },
+  "overrides": {
+    "undici": "^7.28.0",
+    "@babel/core": "^7.29.6",
+    "js-yaml": "^4.2.0"
   }
 }

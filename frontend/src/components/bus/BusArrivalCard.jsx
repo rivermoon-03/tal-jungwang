@@ -12,6 +12,7 @@ import { formatEta } from '../../utils/eta'
 import RouteBadge from '../ui/RouteBadge'
 import StatusChip from '../ui/StatusChip'
 import MiniTrack from './MiniTrack'
+import { staggerStyle } from '../../utils/motion'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CrowdedBadge / RouteProgressStrip — 외부 호환을 위해 유지
@@ -40,24 +41,24 @@ export function RouteProgressStrip({ routeNo, stationId, hasArrival }) {
   return (
     <div className="px-4 pb-3">
       <div className="flex items-start">
-        <div className="mt-[6px] w-3 shrink-0 h-px bg-line dark:bg-line-dark" />
+        <div className="mt-[6px] w-3 shrink-0 h-px bg-line dark:bg-line" />
         {waypoints.map((wp, i) => (
           <Fragment key={wp.id}>
             <div className="relative flex-1 flex items-center mt-[6px]">
-              <div className={`w-full h-px ${activeSegIdx === i ? 'bg-accent' : 'bg-line dark:bg-line-dark'}`} />
+              <div className={`w-full h-px ${activeSegIdx === i ? 'bg-accent' : 'bg-line dark:bg-line'}`} />
               {activeSegIdx === i && (
                 <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-accent shadow" />
               )}
             </div>
             <div className="flex flex-col items-center shrink-0">
-              <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-accent bg-surface dark:bg-surface-dark' : 'border-mute-2 dark:border-mute-2-dark bg-surface dark:bg-surface-dark-alt'}`} />
-              <span className={`text-[12px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute-dark'}`}>
+              <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-accent bg-surface dark:bg-surface' : 'border-line-strong dark:border-line-strong bg-surface dark:bg-bg'}`} />
+              <span className={`text-[12px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute'}`}>
                 {wp.label}
               </span>
             </div>
           </Fragment>
         ))}
-        <div className="flex-1 mt-[6px] h-px bg-line dark:bg-line-dark" />
+        <div className="flex-1 mt-[6px] h-px bg-line dark:bg-line" />
       </div>
     </div>
   )
@@ -144,7 +145,7 @@ function computeDisplay(arrivals) {
 // 카드
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation = null }) {
+function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation = null, index = null }) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
   const cfg = getRouteDisplayConfig(first.route_no)
@@ -164,70 +165,27 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
 
   const muted = etaText === '—'
 
-  // 출발지·경유 텍스트 — 한국어 자연스러운 형식
-  const originLine = (() => {
-    if (!origin && waypoints.length === 0) return null
-    const parts = []
-    if (origin) parts.push(`${origin} 출발`)
-    if (waypoints.length > 0) parts.push(`${waypoints.join(', ')} 경유`)
-    return parts.join(' · ')
-  })()
-
   const wrapperBase =
-    'relative rounded-card bg-surface shadow-card dark:bg-surface-dark dark:border dark:border-line-dark dark:shadow-none'
+    'relative rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none'
 
+  // 시안 B — 좌측 ETA 컬럼형. ETA를 왼쪽 세로 컬럼으로 빼 제목/트랙이 풀폭을
+  // 확보(폰에서 제목이 "구로…"로 잘리거나 트랙이 3줄로 wrap되던 문제 해소).
   const content = (
-    <div className="flex items-center gap-[14px] px-[18px] pt-[14px] pb-4">
-      {/* 노선 뱃지 */}
-      <RouteBadge route={first.route_no} className="shrink-0" />
-
-      {/* 본문 */}
-      <div className="flex-1 min-w-0">
-        {/* 출발지 · 경유 — 자연스러운 한국어 */}
-        {originLine && (
-          <p className={`text-label leading-none mb-[3px] truncate ${muted ? 'text-mute' : 'text-ink-2'}`}>
-            {originLine}
-          </p>
-        )}
-
-        {/* 행선지 */}
-        <div className="flex items-center gap-2 leading-tight">
-          <span className={`truncate text-head font-extrabold tracking-[-.01em] ${muted ? 'text-mute' : 'text-ink'}`}>
-            {headLabel}
-          </span>
-          {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
-          {!isTimetable && !muted && (
-            <StatusChip kind="realtime">실시간</StatusChip>
-          )}
-          {isTimetable && first.depart_at && (
-            <span className="text-label font-bold text-mute">
-              {first.depart_at}
-            </span>
-          )}
-        </div>
-
-        <MiniTrack
-          origin={origin}
-          waypoints={waypoints}
-          terminus={terminus}
-          category={category}
-          muted={muted}
-        />
-      </div>
-
-      {/* ETA */}
-      <span
+    <div className="flex items-stretch gap-3 px-[16px] py-4">
+      {/* 좌: ETA 컬럼 (큰 숫자 + "분 후") + 다음 차 시각 */}
+      <div
         data-eta
-        className={`text-right shrink-0 leading-none tabular-nums ${imminent ? 'imminent' : ''}`}
+        className={`shrink-0 w-[58px] flex flex-col items-center justify-center border-r border-line dark:border-line pr-3 tabular-nums ${imminent ? 'imminent' : ''}`}
       >
-        <span className="inline-flex items-baseline">
+        <span className="inline-flex items-baseline leading-none">
           <span
-            className={`font-black tracking-[-.05em] ${
+            key={etaText}
+            className={`tj-number-pulse font-bold tracking-[-.05em] ${
               imminent
-                ? 'text-imminent dark:text-imminent-dark text-[30px]'
+                ? 'text-imminent dark:text-imminent text-[26px]'
                 : muted
-                ? 'text-mute font-extrabold text-[24px]'
-                : 'text-ink dark:text-ink-dark text-[30px]'
+                ? 'text-mute font-semibold text-[22px]'
+                : 'text-ink dark:text-ink text-[26px]'
             }`}
           >
             {imminent ? (
@@ -239,35 +197,61 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
               etaText
             )}
           </span>
-          {isMinutes && !imminent && (
-            <span className={`ml-[2px] text-body font-extrabold ${muted ? 'text-mute' : 'text-mute'}`}>분</span>
-          )}
         </span>
+        {isMinutes && !imminent && (
+          <span className="text-caption font-semibold text-mute mt-0.5">분 후</span>
+        )}
         {etaSub && !muted && (
-          <span className="block mt-[5px] text-caption font-semibold text-mute tracking-[-.005em]">
+          <span className="block mt-1 text-micro font-semibold text-mute text-center leading-tight">
             {etaSub}
           </span>
         )}
-      </span>
-    </div>
-  )
+      </div>
 
-  const starButton = (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation()
-        toggleFav({ type: 'bus', label: first.route_no })
-      }}
-      aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-      className="absolute top-1.5 right-1.5 p-3 min-w-[44px] min-h-[44px] flex items-center justify-center z-10"
-    >
-      <Star
-        size={16}
-        fill={isFavorite ? 'currentColor' : 'none'}
-        className={isFavorite ? 'text-state-warn' : 'text-mute'}
-      />
-    </button>
+      {/* 우: 정보 (풀폭) — [badge · 행선지 · 상태 · 별] / 트랙 */}
+      <div className="flex-1 min-w-0 flex flex-col gap-[7px]">
+        <div className="flex items-center gap-2 leading-tight">
+          <RouteBadge route={first.route_no} className="shrink-0" />
+          <span className={`truncate text-head font-semibold tracking-[-.01em] min-w-0 ${muted ? 'text-mute' : 'text-ink'}`}>
+            {headLabel}
+          </span>
+          {isTimetable && first.depart_at && (
+            <span className="shrink-0 text-label font-bold text-mute">
+              {first.depart_at}
+            </span>
+          )}
+          {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
+          {!isTimetable && !muted && (
+            <StatusChip kind="realtime">실시간</StatusChip>
+          )}
+          {/* 즐겨찾기 — 원형 테두리 버튼, 제목 행 우측. 44px 탭영역(내부 패딩). */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleFav({ type: 'bus', label: first.route_no }) }}
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            className={`ml-auto shrink-0 flex items-center justify-center w-9 h-9 rounded-full border pressable ${
+              isFavorite
+                ? 'border-imminent/40 bg-imminent/10'
+                : 'border-line dark:border-line bg-surface dark:bg-surface'
+            }`}
+          >
+            <Star
+              size={18}
+              fill={isFavorite ? 'currentColor' : 'none'}
+              className={isFavorite ? 'text-imminent' : 'text-mute'}
+            />
+          </button>
+        </div>
+
+        <MiniTrack
+          origin={origin}
+          waypoints={waypoints}
+          terminus={terminus}
+          category={category}
+          muted={muted}
+        />
+      </div>
+    </div>
   )
 
   function handleCardClick() {
@@ -290,14 +274,18 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
   }
 
   return (
-    <div data-route={first.route_no} className="relative">
-      <button
-        className={`w-full text-left pressable ${wrapperBase}`}
-        onClick={handleCardClick}
-      >
-        {content}
-      </button>
-      {starButton}
+    <div
+      data-route={first.route_no}
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick() }
+      }}
+      className={`w-full text-left cursor-pointer pressable ${wrapperBase} ${index != null ? 'tj-card-enter' : ''}`}
+      style={index != null ? staggerStyle(index) : undefined}
+    >
+      {content}
     </div>
   )
 }

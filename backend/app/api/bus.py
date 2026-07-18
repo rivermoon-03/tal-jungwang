@@ -1,4 +1,3 @@
-import json
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -6,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.cache import get_redis
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.models.bus import BusArrivalHistory, BusRoute, BusStop, BusStopRoute
@@ -19,7 +17,7 @@ from app.schemas.bus import (
     BusTimetableResponse,
 )
 from app.schemas.traffic import CrowdingFlowResponse
-from app.core.cache import get_cached_json, set_cached_json
+from app.core.cache import get_cached_json, get_or_fetch_with_lock, set_cached_json
 from app.services.bus import get_arrivals, get_stations, get_timetable, get_timetable_by_route_number
 from app.services.crowding_flow import compute_crowding_flow
 from app.services.external.gbis import fetch_bus_locations
@@ -413,6 +411,10 @@ async def bus_arrival_stats_lookup(
 
     hour/day_type 미지정 시 현재 KST 시각·요일에서 도출.
     데이터 없으면 stats=None (200).
+
+    `get_arrival_stats`가 Redis single-flight 캐시(`bus:stats:*`, 사전집계 hit 시
+    6h TTL — 나이틀리 03:30 재계산 주기보다 짧아 자가회복, negative/저표본은 10min)를
+    내장하고 있어 이 엔드포인트에서 별도 캐싱은 하지 않는다(다층 캐시 중복 방지).
     """
     from app.services.bus_stats import get_arrival_stats
 
@@ -484,29 +486,14 @@ async def bus_locations(
         return ApiResponse.fail("NOT_REALTIME", "실시간 위치를 지원하지 않는 노선입니다.")
 
     cache_key = f"bus:locations:{route.gbis_route_id}"
+    gbis_route_id = route.gbis_route_id
 
-    # ── 캐시 조회 ────────────────────────────────────────────
-    try:
-        redis = await get_redis()
-        cached = await redis.get(cache_key)
-        if cached:
-            return ApiResponse.ok({
-                "route_id": route.id,
-                "route_no": route.route_number,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "buses": json.loads(cached),
-            })
-    except Exception:
-        pass
-
-    # ── 캐시 미스: GBIS API 호출 ─────────────────────────────
-    buses = await fetch_bus_locations(route.gbis_route_id)
-
-    try:
-        redis = await get_redis()
-        await redis.setex(cache_key, _LOCATIONS_CACHE_TTL, json.dumps(buses, ensure_ascii=False))
-    except Exception:
-        pass
+    # 캐시 히트 시 그대로 반환, 미스 시 single-flight 락으로 GBIS 중복 호출을 방지한다.
+    buses = await get_or_fetch_with_lock(
+        cache_key,
+        _LOCATIONS_CACHE_TTL,
+        lambda: fetch_bus_locations(gbis_route_id),
+    )
 
     return ApiResponse.ok({
         "route_id": route.id,

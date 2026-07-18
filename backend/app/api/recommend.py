@@ -1,9 +1,9 @@
 import asyncio
 import json
+import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import httpx
 from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,9 @@ from app.models.bus import BusStop
 from app.schemas.common import ApiResponse
 from app.schemas.recommend import RecommendResponse
 from app.services.bus import get_arrivals
-from app.services.external.kakao import fetch_driving_route
+from app.services.external.kakao import KakaoApiError, fetch_driving_route
+
+logger = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -79,8 +81,8 @@ async def _get_bus_ride_seconds(stop_lat: float, stop_lng: float) -> int:
             except Exception:
                 pass
             return ride
-    except httpx.HTTPError:
-        pass
+    except KakaoApiError as exc:
+        logger.warning("버스 탑승 시간 근사 실패, 기본값(%d초) 사용: %s", _BUS_RIDE_FALLBACK, exc)
 
     return _BUS_RIDE_FALLBACK
 

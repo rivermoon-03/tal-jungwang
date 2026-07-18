@@ -50,7 +50,7 @@ function DestRow({ dest, origin }) {
   return (
     <div className="flex items-center gap-3 py-3">
       <div className="flex-1 min-w-0">
-        <p className="text-label font-extrabold text-ink tracking-tight">{dest.name}</p>
+        <p className="text-label font-semibold text-ink tracking-tight">{dest.name}</p>
         {result && (
           <p className="text-caption font-semibold text-mute mt-0.5">
             {fmtKm(result.distance_meters)}
@@ -60,7 +60,7 @@ function DestRow({ dest, origin }) {
           </p>
         )}
       </div>
-      <span className="text-panel-ttl font-black tabular-nums text-ink whitespace-nowrap tracking-tight">
+      <span className="text-panel-ttl font-bold tabular-nums text-ink whitespace-nowrap tracking-tight">
         {loading
           ? <span className="text-caption text-mute font-medium">조회 중…</span>
           : fmtMin(result?.duration_seconds)}
@@ -71,10 +71,10 @@ function DestRow({ dest, origin }) {
         disabled={!hasRoute}
         className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors pressable flex-shrink-0
           ${isActive
-            ? 'bg-ink text-white dark:bg-accent-dark'
+            ? 'bg-ink text-white dark:bg-accent'
             : hasRoute
-              ? 'bg-line dark:bg-line-dark text-ink dark:text-ink-dark'
-              : 'bg-surface-alt dark:bg-surface-dark-alt text-mute dark:text-mute-dark cursor-not-allowed'}`}
+              ? 'bg-line dark:bg-line text-ink dark:text-ink'
+              : 'bg-surface-2 dark:bg-bg text-mute dark:text-mute cursor-not-allowed'}`}
       >
         <Navigation size={14} />
       </button>
@@ -94,7 +94,7 @@ export default function TaxiPanel() {
   }
 
   return (
-    <div className="divide-y divide-line dark:divide-line-dark">
+    <div className="divide-y divide-line dark:divide-line">
       {TAXI_DESTS.map((dest) => (
         <DestRow key={dest.id} dest={dest} origin={userLocation} />
       ))}

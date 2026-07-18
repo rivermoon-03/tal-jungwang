@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const pkg = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf-8')
@@ -8,7 +9,12 @@ const pkg = JSON.parse(
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // ANALYZE=1 npm run build 로만 켠다 — devDependency라 런타임 번들에는 영향 없음.
+    // manualChunks(vendor-react/vendor) 전략이 실제로 잘 나뉘는지 점검용.
+    process.env.ANALYZE && visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true }),
+  ].filter(Boolean),
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

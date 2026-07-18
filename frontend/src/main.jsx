@@ -1,8 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.jsx'
 import { maybeLoadWebAds } from './utils/ads'
+import { initWebVitals } from './utils/webVitals'
 
 // React 마운트 전에 동기적으로 dark 클래스 설정 — useEffect 지연으로 인한 플래시 방지
 if (localStorage.getItem('tal_dark') === '1') {
@@ -37,8 +39,13 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
+    {/* 즐겨찾기/알림 토글 등 피드백 없는 액션용 토스트(F7) — 다크모드는 앱 테마를 따라간다 */}
+    <Toaster richColors position="top-center" theme="system" />
   </StrictMode>,
 )
 
 // 웹(브라우저 탭)에서만 AdSense 자동광고 로드 — 설치형 PWA/TWA·앱 빌드 제외.
 maybeLoadWebAds()
+
+// 실사용자 CWV 측정(F7) — 개발 중엔 콘솔로만 확인(백엔드 리포팅은 범위 밖, 후속 작업).
+initWebVitals()

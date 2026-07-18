@@ -11,7 +11,7 @@ import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
 import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
-import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
+import { useShuttleNext, useShuttleSchedule, DEFAULT_CENTER } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
@@ -26,8 +26,9 @@ function getPrimaryStopId(marker) {
   return first.outbound_stop_gbis_id ?? first.outbound_stop_id ?? null
 }
 
-// 본캠 정문 좌표
-const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
+// 본캠 정문 좌표는 hooks/useShuttle.js에서 export(DEFAULT_CENTER) — 컴포넌트 파일에
+// 상수를 두면 react-refresh/only-export-components(Fast Refresh) 규칙을 어겨서
+// 훅 파일로 옮겼다. useEffectiveDirection(F1)도 같은 상수를 그 훅에서 가져다 쓴다.
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
 
 // 지도 마커는 분 단위 표시라 도착 훅을 60초 tick으로 받는다 (카드의 1초 tick과 분리).
@@ -492,6 +493,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
             mapLng:     sheetStation.lng ?? null,
             isRealtime: a.arrival_type !== 'timetable',
             title:      a.destination ? `${a.route_no} · ${a.destination}` : `${a.route_no}번 버스`,
+            accentColor: rCfg?.color ?? null,
           },
         })
 
@@ -895,7 +897,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
   if (!kakaoKey) {
     return (
-      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface-dark overflow-hidden select-none">
+      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-mute text-base font-medium">카카오맵 (API 키 설정 후 활성화)</p>
         </div>
@@ -905,7 +907,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
 
   if (!sdkReady) {
     return (
-      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface-dark overflow-hidden select-none">
+      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface overflow-hidden select-none">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-mute text-base font-medium">지도를 불러오는 중...</p>
         </div>
@@ -937,24 +939,25 @@ export default function MapView({ onMarkerClick, selectedId }) {
           style={{ touchAction: 'none' }}
         />
 
-        {/* 우상단 플로팅 버튼 */}
+        {/* 우하단 플로팅 버튼 — 내 위치 / 학교로. 닫기 버튼(MainShell) 위로 세로 스택.
+            닫기(bottom-5, 약 40px)와 겹치지 않게 bottom을 그 위로 띄운다. */}
         {mapInstance && (
           <div
             className="absolute right-4 flex flex-col gap-2 z-[50]"
-            style={{ top: 'calc(1rem + var(--banner-h, 0px))' }}
+            style={{ bottom: '4.75rem' }}
           >
             {/* 내 위치 FAB */}
             <button
-              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
+              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
               onClick={handleLocationFab}
               aria-label="내 위치"
               title="내 위치"
             >
-              <Navigation size={17} className="text-accent dark:text-accent-dark" />
+              <Navigation size={17} className="text-accent dark:text-accent" />
             </button>
             {/* 학교로 FAB */}
             <button
-              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-95 transition-transform"
+              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
               onClick={panToSchool}
               aria-label="학교로"
               title="학교로"
@@ -987,6 +990,9 @@ export default function MapView({ onMarkerClick, selectedId }) {
             station={sheetStation}
             arrivals={sheetArrivals}
             onArrivalClick={(detail) => {
+              // 상세 시트/모달을 새로 열기 전에 이 마커 시트부터 닫는다 — 안 닫으면
+              // MarkerSheet가 새로 열린 시트 뒤에 그대로 남아 두 시트가 겹쳐 보인다.
+              setSheetStation(null)
               if (detail.type === 'subway') {
                 // 지하철은 통합 상세 패널로 연결
                 useAppStore.getState().setSubwayDetailSheet({

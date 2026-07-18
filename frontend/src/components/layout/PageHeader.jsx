@@ -6,7 +6,7 @@ export default function PageHeader({ title, subtitle }) {
     <header className="px-4 pt-[14px] pb-[10px] bg-transparent">
       <h1
         className="text-ink dark:text-white"
-        style={{ fontSize: 24, fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.03em' }}
+        style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em' }}
       >
         {title}
       </h1>

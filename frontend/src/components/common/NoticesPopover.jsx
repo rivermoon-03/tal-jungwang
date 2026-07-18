@@ -48,17 +48,17 @@ export default function NoticesPopover({ open, onClose, anchorRef }) {
       ref={popRef}
       role="dialog"
       aria-label="공지사항"
-      className="fixed z-[200] right-5 bottom-[76px] w-[380px] max-w-[calc(100vw-40px)] max-h-[calc(100dvh-100px)] flex flex-col rounded-card overflow-hidden bg-dock-bg border border-line-dark shadow-dock animate-fade-in"
+      className="fixed z-[200] right-5 bottom-[76px] w-[380px] max-w-[calc(100vw-40px)] max-h-[calc(100dvh-100px)] flex flex-col rounded-card overflow-hidden bg-dock-bg border border-line shadow-dock animate-fade-in"
     >
       {/* 헤더 */}
-      <header className="flex items-center gap-2 px-4 py-3 border-b border-line-dark shrink-0">
+      <header className="flex items-center gap-2 px-4 py-3 border-b border-line shrink-0">
         <Megaphone size={16} className="text-accent" aria-hidden="true" />
-        <h2 className="flex-1 text-[14px] font-black text-white tracking-[-0.02em]">공지사항</h2>
+        <h2 className="flex-1 text-[14px] font-semibold text-white tracking-[-0.02em]">공지사항</h2>
         <button
           type="button"
           onClick={onClose}
           aria-label="닫기"
-          className="w-7 h-7 rounded-btn flex items-center justify-center text-dock-text-mute hover:text-white hover:bg-dock-active-bg transition-colors duration-snap ease-ios"
+          className="w-7 h-7 rounded-btn flex items-center justify-center text-dock-text-mute hover:text-white hover:bg-dock-active-bg transition-colors duration-snap ease-out"
         >
           <X size={16} aria-hidden="true" />
         </button>
@@ -70,7 +70,7 @@ export default function NoticesPopover({ open, onClose, anchorRef }) {
           <p className="text-[12px] text-dock-text-mute text-center py-10">불러오는 중…</p>
         )}
         {error && (
-          <p className="text-[12px] text-imminent-dark text-center py-10">
+          <p className="text-[12px] text-imminent text-center py-10">
             공지사항을 불러오지 못했어요
           </p>
         )}
@@ -84,10 +84,10 @@ export default function NoticesPopover({ open, onClose, anchorRef }) {
           {notices.map((n) => (
             <article
               key={n.id}
-              className="rounded-card bg-surface-dark border border-line-dark px-3.5 py-3"
+              className="rounded-card bg-surface border border-line px-3.5 py-3"
             >
               <div className="flex items-baseline gap-2 mb-1">
-                <h3 className="flex-1 text-[13px] font-black text-white tracking-[-0.01em] leading-tight">
+                <h3 className="flex-1 text-[13px] font-semibold text-white tracking-[-0.01em] leading-tight">
                   {n.title}
                 </h3>
                 <span className="text-caption text-dock-text-mute font-semibold shrink-0">

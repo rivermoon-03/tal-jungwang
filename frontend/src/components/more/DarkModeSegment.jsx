@@ -17,7 +17,7 @@ export default function DarkModeSegment() {
 
   return (
     <div
-      className="flex bg-surface-2 dark:bg-surface-dark rounded-full p-1 gap-1"
+      className="flex bg-surface-2 dark:bg-surface rounded-full p-1 gap-1"
       role="group"
       aria-label="다크모드 설정"
     >
@@ -31,7 +31,7 @@ export default function DarkModeSegment() {
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all pressable
               ${active
                 ? 'shadow-sm text-white'
-                : 'text-ink-2 dark:text-mute-dark hover:text-ink dark:hover:text-ink-dark'
+                : 'text-ink-2 dark:text-mute hover:text-ink dark:hover:text-ink'
               }`}
             style={{
               transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)',

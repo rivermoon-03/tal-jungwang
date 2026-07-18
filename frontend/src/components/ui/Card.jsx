@@ -18,7 +18,7 @@ export default function Card({
   className = '',
   children,
 }) {
-  const base = 'rounded-[16px] p-4'
+  const base = 'rounded-card p-4'
   const stateStyle = stateClasses[state] ?? stateClasses.default
   const interactiveStyle = interactive ? interactiveClasses : ''
 

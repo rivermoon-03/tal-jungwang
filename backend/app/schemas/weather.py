@@ -27,6 +27,7 @@ class CurrentWeatherResponse(BaseModel):
     current_sky: str          # 맑음 / 구름많음 / 흐림
     icon: str                 # sunny / partly_cloudy / cloudy / rainy / snowy
     rain_prob: int            # 강수확률 (%)
+    wind_speed: float | None = None  # 풍속 (m/s, WSD) — 정왕동 '정왕풍' 표시용. 미제공 시 None
     pm10_grade: str           # 좋음 / 보통 / 나쁨 / 매우나쁨 (API 미제공 시 "알수없음")
     warning: WeatherWarning | None = None
     next_temps: list[HourTemp] = []

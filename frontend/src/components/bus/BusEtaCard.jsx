@@ -56,36 +56,36 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
     const secondaryText = hasSecondary ? formatEtaLocal(secondary.arrive_in_seconds).text : null
 
     return (
-      <div className="rounded-card bg-surface dark:bg-surface-dark border border-line dark:border-line-dark shadow-card overflow-hidden mb-4">
+      <div className="rounded-card bg-surface dark:bg-surface border border-line dark:border-line shadow-card overflow-hidden mb-4">
         <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-2">
           <StatusChip kind="realtime">실시간</StatusChip>
-          <span className="text-label font-semibold text-mute dark:text-mute-dark ml-auto">
+          <span className="text-label font-semibold text-mute dark:text-mute ml-auto">
             GBIS 도착 정보 수신 중
           </span>
         </div>
         <div className="px-3.5 pb-3.5 pt-0.5">
           <div
-            className={`text-eta-mob font-black tabular-nums ${
+            className={`text-eta-mob font-bold tabular-nums ${
               imminent
-                ? 'text-imminent dark:text-imminent-dark'
-                : 'text-ink dark:text-ink-dark'
+                ? 'text-imminent dark:text-imminent'
+                : 'text-ink dark:text-ink'
             }`}
           >
             {primaryText}
           </div>
           {primary.arrive_at_hhmm && (
-            <div className="text-label font-semibold text-mute dark:text-mute-dark mt-1">
+            <div className="text-label font-semibold text-mute dark:text-mute mt-1">
               {primary.arrive_at_hhmm} 도착 예정
             </div>
           )}
           {hasSecondary && (
             <>
-              <div className="h-px bg-line dark:bg-line-dark -mx-3.5 my-2.5" />
+              <div className="h-px bg-line dark:bg-line -mx-3.5 my-2.5" />
               <div className="flex items-baseline gap-2">
-                <span className="text-label font-extrabold text-mute dark:text-mute-dark">
+                <span className="text-label font-semibold text-mute dark:text-mute">
                   다음 한 대
                 </span>
-                <span className="text-body font-black text-ink dark:text-ink-dark tabular-nums">
+                <span className="text-body font-semibold text-ink dark:text-ink tabular-nums">
                   {secondaryText}
                 </span>
               </div>
@@ -108,23 +108,24 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
         : `최근 도착 기록`
 
     return (
-      <div className="rounded-card bg-surface dark:bg-surface-dark border border-line dark:border-line-dark shadow-card overflow-hidden mb-4">
+      <div className="rounded-card bg-surface dark:bg-surface border border-line dark:border-line shadow-card overflow-hidden mb-4">
         <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-2">
           <StatusChip kind="ease">예상치</StatusChip>
-          <span className="text-label font-semibold text-mute dark:text-mute-dark ml-auto">
+          <span className="text-label font-semibold text-mute dark:text-mute ml-auto">
             현재 도착 정보 없음
           </span>
         </div>
         <div className="px-3.5 pb-3.5 pt-0.5">
-          <div className="text-eta-mob font-black text-ink dark:text-ink-dark">
-            보통{' '}
-            <span className="font-black tabular-nums">{predictedEta.hhmm}</span>
-            <span className="text-body font-extrabold text-mute dark:text-mute-dark ml-0.5">
-              쯤 도착
-            </span>
+          {/* 각 조각을 flex-wrap 아이템으로 분리 — 큰 숫자(text-eta-mob, lineHeight 1.0)와
+              작은 단어("보통"/"쯤 도착")를 한 인라인 블록에 섞으면 좁은 폭에서 줄바꿈될 때
+              줄간격이 없어 다음 줄과 겹쳐 보이는 문제가 있었다(실사용 리포트: 3400·99-2). */}
+          <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5">
+            <span className="text-body font-semibold text-ink dark:text-ink">보통</span>
+            <span className="text-eta-mob font-bold tabular-nums text-ink dark:text-ink">{predictedEta.hhmm}</span>
+            <span className="text-body font-semibold text-mute dark:text-mute">쯤 도착</span>
           </div>
-          <p className="mt-2 text-caption leading-relaxed font-medium text-text dark:text-text-dark">
-            <b className="font-extrabold text-ink dark:text-ink-dark">{emphasis}</b>
+          <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
+            <b className="font-semibold text-ink dark:text-ink">{emphasis}</b>
             의 중앙값이에요. 실시간 도착 정보가 일시적으로 들어오지 않고 있어요.
           </p>
         </div>
@@ -134,13 +135,13 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
 
   // ── 상태 3: 도착 정보 없음 ─────────────────────────────────────────
   return (
-    <div className="rounded-card bg-surface dark:bg-surface-dark border border-line dark:border-line-dark shadow-card overflow-hidden mb-4">
+    <div className="rounded-card bg-surface dark:bg-surface border border-line dark:border-line shadow-card overflow-hidden mb-4">
       <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-2">
         <StatusChip kind="last">도착 정보 없음</StatusChip>
       </div>
       <div className="px-3.5 pb-3.5 pt-0.5">
-        <div className="text-eta-mob font-black text-mute dark:text-mute-dark">—</div>
-        <p className="mt-2 text-caption leading-relaxed font-medium text-text dark:text-text-dark">
+        <div className="text-eta-mob font-bold text-mute dark:text-mute">—</div>
+        <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
           지금 실시간 도착 정보가 들어오지 않고, 같은 요일·시간대 과거 기록도 충분하지 않아 평소
           도착 시각을 알려드리기 어려워요.
         </p>

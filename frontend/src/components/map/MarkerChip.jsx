@@ -31,7 +31,7 @@ export const ROUTE_COLOR_MAP = {
 /** 기본 fallback 색 */
 const DEFAULT_COLOR = '#2563EB'
 
-function resolveColor(routeCode, routeColor) {
+export function resolveColor(routeCode, routeColor) {
   if (routeColor) return routeColor
   return ROUTE_COLOR_MAP[routeCode] ?? DEFAULT_COLOR
 }
@@ -445,6 +445,70 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
   chip.appendChild(liveEl)
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
+
+  if (onClick) wrapper.addEventListener('click', onClick)
+  return wrapper
+}
+
+// ─────────────────────────────────────────────────────────────
+// createClusterBadgeElement — 겹치는 마커 그룹을 대체하는 클러스터 배지 (시안 v3, 사용자 확정).
+// 화면 픽셀 거리가 가까운 station 2개 이상을 개별 칩/닷 대신 이 배지 하나로
+// 표시한다(ZoomAwareOverlayManager.jsx의 clusterStations 그룹화 결과 소비).
+// 탭 시 MarkerSheet를 열지 않고 해당 위치로 줌인해 겹침을 해소한다.
+// 스택형 카드 겹침: 그룹 멤버 노선색(최대 3개)을 살짝 겹친 원으로 쌓아
+// "정류장 여러 개가 여기 있다"를 색으로 직접 보여주고, 우하단 숫자 배지로 정확한 개수를 표시.
+// ─────────────────────────────────────────────────────────────
+
+const CLUSTER_CARD_POSITIONS = [
+  { left: 0,  top: 4 },
+  { left: 10, top: 0 },
+  { left: 20, top: 4 },
+]
+
+export function createClusterBadgeElement({ count, colors = [], onClick }) {
+  const wrapper = document.createElement('div')
+  wrapper.setAttribute('data-role', 'cluster-badge')
+  wrapper.style.cssText = ['position:relative', 'width:44px', 'height:34px', 'cursor:pointer'].join(';')
+
+  const shown = colors.length ? colors.slice(0, 3) : [DEFAULT_COLOR]
+  shown.forEach((color, i) => {
+    const pos = CLUSTER_CARD_POSITIONS[i] ?? CLUSTER_CARD_POSITIONS[CLUSTER_CARD_POSITIONS.length - 1]
+    const card = document.createElement('span')
+    card.style.cssText = [
+      'position:absolute',
+      `left:${pos.left}px`,
+      `top:${pos.top}px`,
+      'width:26px',
+      'height:26px',
+      'border-radius:50%',
+      `background:${color}`,
+      'border:2px solid var(--tj-surface)',
+      'box-shadow:0 2px 6px rgba(0,0,0,.18)',
+      `z-index:${i + 1}`,
+    ].join(';')
+    wrapper.appendChild(card)
+  })
+
+  const countBadge = document.createElement('span')
+  countBadge.style.cssText = [
+    'position:absolute',
+    'right:-4px',
+    'bottom:-4px',
+    'z-index:4',
+    'width:18px',
+    'height:18px',
+    'border-radius:50%',
+    'background:var(--tj-ink)',
+    'color:var(--tj-bg)',
+    'font-size:10px',
+    'font-weight:800',
+    'display:flex',
+    'align-items:center',
+    'justify-content:center',
+    'border:2px solid var(--tj-surface)',
+  ].join(';')
+  countBadge.textContent = String(count)
+  wrapper.appendChild(countBadge)
 
   if (onClick) wrapper.addEventListener('click', onClick)
   return wrapper
