@@ -182,6 +182,12 @@ export default function GlobalSubwayDetailSheet() {
   const nextTrain = nextIndex >= 0 ? trains[nextIndex] : null
   const { lastIdx, firstIdx } = getSpecialTrainIndices(trains)
 
+  // 헤더 압축 스탯용 "지금 오는 차 · 다음 오는 차" 시간표 시각 2개.
+  // 실시간이 늘 정확하진 않아 시간표 시각을 메인으로, 실시간은 아래 보조 텍스트로만 보여준다.
+  const upcomingScheduleTimes = nextIndex >= 0
+    ? [trains[nextIndex]?.depart_at, trains[nextIndex + 1]?.depart_at].filter(Boolean)
+    : []
+
   // 첫차/막차 시각
   const firstAt = firstIdx != null ? trains[firstIdx]?.depart_at : trains[0]?.depart_at
   const lastAt = lastIdx != null ? trains[lastIdx]?.depart_at : trains[trains.length - 1]?.depart_at
@@ -280,19 +286,24 @@ export default function GlobalSubwayDetailSheet() {
               </p>
             </div>
 
-            {/* 실시간 압축 스탯 (fresh일 때만) — 전체 폭을 차지하던 히어로를 헤더 우측 스탯으로 축소 */}
-            {nextRealtimeTrain && (
+            {/* 헤더 압축 스탯 — 시간표 시각(지금 차·다음 차)이 메인, 실시간은 보조 텍스트.
+                실시간이 늘 정확하진 않다는 피드백에 따라 시간표를 우선한다. */}
+            {upcomingScheduleTimes.length > 0 && (
               <div className="text-right flex-shrink-0 leading-none text-white">
-                {etaMinutes != null ? (
-                  <p className="leading-none">
-                    <span className="text-eta-mob">{etaMinutes}</span>
-                    <span className="text-caption font-bold ml-0.5">분</span>
-                  </p>
-                ) : (
-                  <p className="text-title leading-none">{getEtaLabel(nextRealtimeTrain)}</p>
-                )}
+                <p className="leading-none flex items-baseline justify-end gap-1.5">
+                  {upcomingScheduleTimes.map((t, i) => (
+                    <span
+                      key={t}
+                      className={i === 0 ? 'text-title font-bold' : 'text-label font-semibold text-white/70'}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </p>
                 <p className="text-meta font-semibold text-white/70 mt-0.5 whitespace-nowrap">
-                  실시간 · {nextRealtimeTrain.destination}행
+                  {nextRealtimeTrain
+                    ? `실시간 ${etaMinutes != null ? `${etaMinutes}분` : getEtaLabel(nextRealtimeTrain)}`
+                    : '시간표 기준'}
                 </p>
               </div>
             )}
