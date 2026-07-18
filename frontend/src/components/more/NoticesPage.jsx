@@ -5,23 +5,24 @@ import { ChevronLeft, Megaphone } from 'lucide-react'
 import { useNotices } from '../../hooks/useMore'
 import { formatFullDate as fmtDate } from '../../utils/noticeDate'
 
-export default function NoticesPage({ onBack }) {
+export default function NoticesPage({ onBack, embedded = false }) {
   const { data, loading, error } = useNotices()
   const notices = Array.isArray(data) ? data : []
 
   return (
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
-      {/* 헤더 */}
-      <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-surface dark:bg-surface border-b border-line dark:border-line flex-shrink-0">
-        <button
-          onClick={onBack}
-          aria-label="뒤로"
-          className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
-        >
-          <ChevronLeft size={22} className="text-ink dark:text-ink" />
-        </button>
-        <h1 className="text-panel-ttl text-ink dark:text-ink">공지사항</h1>
-      </div>
+      {!embedded && (
+        <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-surface dark:bg-surface border-b border-line dark:border-line flex-shrink-0">
+          <button
+            onClick={onBack}
+            aria-label="뒤로"
+            className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
+          >
+            <ChevronLeft size={22} className="text-ink dark:text-ink" />
+          </button>
+          <h1 className="text-panel-ttl text-ink dark:text-ink">공지사항</h1>
+        </div>
+      )}
 
       {/* 내용 */}
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 md:pb-4">
