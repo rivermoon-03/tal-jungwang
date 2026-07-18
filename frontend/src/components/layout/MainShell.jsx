@@ -46,7 +46,7 @@ export default function MainShell() {
             onClick={toggleMapExpanded}
             aria-label="지도 닫기"
             className="
-              absolute right-3 bottom-3 z-[60]
+              absolute right-4 bottom-5 z-[60]
               flex items-center gap-1.5
               bg-white/95 dark:bg-[#272a33]/95
               border border-line dark:border-line
