@@ -26,7 +26,9 @@ export default function MainShell() {
   return (
     <div
       className="h-dvh w-full flex flex-col md:hidden bg-bg dark:bg-bg overflow-hidden"
-      style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+      // mapExpanded일 땐 지도 자체 높이 계산이 이미 60px+safe-area를 뺀다 —
+      // 여기서도 같은 여백을 padding으로 또 빼면 지도 하단이 이중으로 잘려 보인다(#지도잘림).
+      style={{ paddingBottom: mapExpanded ? undefined : 'calc(60px + env(safe-area-inset-bottom))' }}
     >
       {/* 지도 전체화면 — 평소엔 height 0으로 마운트만 유지, 확장 시 전체 */}
       <div
