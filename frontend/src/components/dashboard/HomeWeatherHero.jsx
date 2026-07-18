@@ -85,6 +85,11 @@ export default function HomeWeatherHero({ onOpenMap }) {
     ? 'bg-black/35 border border-white/15 text-white'
     : 'bg-white/95 dark:bg-surface-3/95 border border-line dark:border-line text-ink dark:text-ink'
 
+  // 날씨/식당 토글 — 다른 pill(등교·자동/지도)과 같은 chip 시각언어로 통일.
+  // 활성 아이콘만 채워 세그먼트 느낌. 배경 밝기에 맞춰 대비 분기.
+  const toggleActiveCls = lightText ? 'bg-white text-[#1b3a6e]' : 'bg-accent-bg text-accent-ink'
+  const toggleIdleCls = lightText ? 'text-white/75' : 'text-ink-2 dark:text-mute'
+
   // 정왕풍(定王風) — 건물풍이 센 정왕동을 재치있게 표현. 풍속 없으면 null → 줄 미표시.
   const wind = describeJeongwangWind(weather?.windSpeed ?? null)
 
@@ -139,32 +144,40 @@ export default function HomeWeatherHero({ onOpenMap }) {
         </div>
       )}
 
-      {/* 우상단 아이콘 전용 토글 — 날씨 ↔ 식당. 라벨 없이 아이콘만(공간 절약). */}
-      <div className="whero-toggle" role="group" aria-label="히어로 보기 전환">
+      {/* 하단 seam — mood 색을 대시보드 배경으로 얇게 블렌드 */}
+      <div className="whero-seam" aria-hidden="true" />
+
+      {/* 우상단 날씨↔식당 토글 — 다른 pill과 같은 chip 시각언어(라운드 카드 + 그림자). */}
+      <div
+        className={`absolute top-2.5 right-2.5 z-20 inline-flex items-center gap-0.5 rounded-card p-0.5 shadow-pill ${chipCls}`}
+        role="group"
+        aria-label="히어로 보기 전환"
+        style={{ touchAction: 'manipulation' }}
+      >
         <button
           type="button"
           onClick={() => setView('weather')}
           aria-label="날씨 보기"
           aria-pressed={view === 'weather'}
-          className={`whero-toggle-btn ${view === 'weather' ? 'is-active' : ''}`}
+          className={`flex items-center justify-center w-7 h-7 rounded-[9px] transition-colors active:scale-[0.92] ${view === 'weather' ? toggleActiveCls : toggleIdleCls}`}
         >
-          <Sun size={13} aria-hidden="true" />
+          <Sun size={14} aria-hidden="true" />
         </button>
         <button
           type="button"
           onClick={() => setView('cafeteria')}
           aria-label="식당 보기"
           aria-pressed={view === 'cafeteria'}
-          className={`whero-toggle-btn ${view === 'cafeteria' ? 'is-active' : ''}`}
+          className={`flex items-center justify-center w-7 h-7 rounded-[9px] transition-colors active:scale-[0.92] ${view === 'cafeteria' ? toggleActiveCls : toggleIdleCls}`}
         >
-          <Utensils size={13} aria-hidden="true" />
+          <Utensils size={14} aria-hidden="true" />
         </button>
       </div>
 
       {view === 'weather' ? (
         <>
-          {/* 상단 바 — 등하교 pill + 지도 진입. 우측 padding으로 토글(.whero-toggle)과 겹침 방지. */}
-          <div className="relative z-10 flex items-center justify-between gap-2 px-4 pt-3" style={{ paddingRight: 74 }}>
+          {/* 상단 바 — 좌측 세로 스택: [등교·자동] 아래 [지도]. 우측 토글은 absolute(위). */}
+          <div className="relative z-10 flex flex-col items-start gap-2 px-4 pt-3">
             <span className={`inline-flex items-center gap-1.5 rounded-card px-3 py-1.5 text-caption font-bold shadow-pill ${chipCls}`}>
               <Navigation size={12} aria-hidden="true" />
               {direction} · 자동
@@ -173,15 +186,16 @@ export default function HomeWeatherHero({ onOpenMap }) {
               type="button"
               onClick={onOpenMap}
               aria-label="지도 보기"
-              className={`flex items-center gap-1.5 rounded-card px-3 py-2 text-caption font-bold shadow-pill min-h-[36px] active:scale-[0.94] transition-transform duration-press ease-spring ${chipCls}`}
+              className={`inline-flex items-center gap-1.5 rounded-card px-3 py-1.5 text-caption font-bold shadow-pill min-h-[34px] active:scale-[0.94] transition-transform duration-press ease-spring ${chipCls}`}
             >
-              <Map size={15} aria-hidden="true" />
+              <Map size={14} aria-hidden="true" />
               지도
             </button>
           </div>
 
-          {/* 메인 블록 — 40% 높이를 활용해 하단 정렬. 큰 온도 + 하늘 상태 + 정왕풍. */}
-          <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-4 pt-2">
+          {/* 메인 블록 — 40% 높이를 활용해 하단 정렬. 큰 온도 + 하늘 상태 + 정왕풍.
+              pb를 키워 콘텐츠가 하단 seam(34px, 배경 블렌드)에 얹히지 않게 한다. */}
+          <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-7 pt-2">
             <div className="min-w-0">
               <div className="flex items-end gap-2.5">
                 <span className={`text-hero-temp tabular-nums ${tempColor}`}>
@@ -219,7 +233,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
           </div>
         </>
       ) : (
-        <div className="relative z-10 flex-1 flex flex-col px-4 pb-3" style={{ paddingTop: 40 }}>
+        <div className="relative z-10 flex-1 flex flex-col px-4 pb-6" style={{ paddingTop: 40 }}>
           <p className={`text-caption font-bold tracking-wide ${metaColor}`}>지금 문 연 곳</p>
           {openVenues.length === 0 ? (
             <p className={`flex-1 flex items-center justify-center text-label font-semibold ${skyColor}`}>
