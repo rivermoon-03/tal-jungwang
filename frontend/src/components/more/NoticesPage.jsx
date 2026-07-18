@@ -3,13 +3,7 @@
  */
 import { ChevronLeft, Megaphone } from 'lucide-react'
 import { useNotices } from '../../hooks/useMore'
-
-function fmtDate(s) {
-  if (!s) return ''
-  const d = new Date(s)
-  if (isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
-}
+import { formatFullDate as fmtDate } from '../../utils/noticeDate'
 
 export default function NoticesPage({ onBack }) {
   const { data, loading, error } = useNotices()
