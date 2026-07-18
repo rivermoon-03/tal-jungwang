@@ -94,7 +94,8 @@ function MiniSwitch({ on, onToggle }) {
   )
 }
 
-// 2택 세그(자동/수동 등) — 데모 전용.
+// 2택 세그(자동/수동, 등교/하교 등). 이름은 데모 시절 그대로 남겨뒀지만
+// F1(등하교 자동/수동)·F3(시간표 보기) 등 실제 상태와도 연결돼 쓰인다.
 function DemoSeg({ options, value, onChange }) {
   return (
     <div className="flex bg-surface-2 dark:bg-bg rounded-button p-1 gap-1" role="group">
@@ -126,14 +127,17 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
   // 적용되지 않는다(알려진 범위 — 전수 적용은 별도 후속 작업).
   const fontScale = useAppStore((s) => s.fontScale)
   const setFontScale = useAppStore((s) => s.setFontScale)
-  // ── 데모 전용 로컬 state (persist/백엔드 없음) ──────────────────────
-  // TODO(F3): 시간표 기본 보기 — 선택값을 zustand persist로 이관해 ScheduleDetailModal
-  // (src/components/schedule/ScheduleDetailModal.jsx)의 초기 viewMode와 연동.
-  const [scheduleView, setScheduleView] = useState('grid')
-  // TODO(F1): 등하교 판정 자동/수동 — useEffectiveDirection(현재 시간대 자동 판정,
-  // KST 명시 필요)과 연동. directionOverride(useAppStore)가 수동 오버라이드의 원시값으로
-  // 이미 존재하지만, 이 화면의 자동/수동 스위치·시간대 범위 설정은 아직 연결돼 있지 않다.
-  const [commuteAuto, setCommuteAuto] = useState(true)
+  // F3: 시간표 기본 보기 — zustand persist(scheduleViewMode). ScheduleDetailModal의
+  // 초기 viewMode가 이 값을 읽고, 모달에서 바꾼 값도 이 필드에 다시 기록된다.
+  const scheduleViewMode = useAppStore((s) => s.scheduleViewMode)
+  const setScheduleViewMode = useAppStore((s) => s.setScheduleViewMode)
+  // F1: 등하교 판정 자동/수동 — useEffectiveDirection이 commuteAutoMode(persist)를 읽어
+  // false면 commuteManualDirection 고정값을, true면 KST 시간+위치 기반 자동 판정을 쓴다.
+  const commuteAutoMode = useAppStore((s) => s.commuteAutoMode)
+  const setCommuteAutoMode = useAppStore((s) => s.setCommuteAutoMode)
+  const commuteManualDirection = useAppStore((s) => s.commuteManualDirection)
+  const setCommuteManualDirection = useAppStore((s) => s.setCommuteManualDirection)
+  // ── 데모 전용 로컬 state (persist/백엔드 없음, 이 컴포넌트의 담당 범위 밖) ──────
   // TODO(F5): 알림 — 도착 임박 알림. 실제 구현은 SW Web Push + 백엔드 구독 저장 필요.
   const [imminentAlert, setImminentAlert] = useState(false)
   // TODO(F2): 학식 오픈 알림 — 북마크 × isOpenNow() 교집합 기능(F2)이 선행돼야 의미가 생김.
@@ -207,18 +211,18 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
               <LayoutGrid size={18} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
               <p className="text-label font-semibold text-ink dark:text-ink">시간표 기본 보기</p>
             </div>
-            {/* 데모 선택 카드 — 실제 초기값 반영 없음(TODO F3) */}
+            {/* useAppStore.scheduleViewMode(persist) — ScheduleDetailModal의 초기 viewMode와 공유 */}
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { id: 'grid', label: '그리드', Icon: LayoutGrid },
                 { id: 'list', label: '리스트', Icon: List },
               ].map(({ id, label, Icon }) => {
-                const active = scheduleView === id
+                const active = scheduleViewMode === id
                 return (
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setScheduleView(id)}
+                    onClick={() => setScheduleViewMode(id)}
                     aria-pressed={active}
                     className={`pressable flex flex-col items-center gap-2 rounded-card border-[1.5px] px-3 py-3 transition-colors ${
                       active ? 'border-accent bg-accent-bg' : 'border-line dark:border-line'
@@ -242,15 +246,27 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
                 <p className="text-caption text-mute dark:text-mute mt-0.5">자동(위치+시간) 또는 수동 시간대 지정</p>
               </div>
             </div>
-            {/* 데모 세그 — useEffectiveDirection/directionOverride와 미연동(TODO F1) */}
+            {/* useAppStore.commuteAutoMode(persist) — useEffectiveDirection이 그대로 읽는다 */}
             <DemoSeg
               options={[
                 { id: true, label: '자동', Icon: Zap },
                 { id: false, label: '수동' },
               ]}
-              value={commuteAuto}
-              onChange={setCommuteAuto}
+              value={commuteAutoMode}
+              onChange={setCommuteAutoMode}
             />
+            {!commuteAutoMode && (
+              <div className="mt-2.5">
+                <DemoSeg
+                  options={[
+                    { id: '등교', label: '등교' },
+                    { id: '하교', label: '하교' },
+                  ]}
+                  value={commuteManualDirection}
+                  onChange={setCommuteManualDirection}
+                />
+              </div>
+            )}
           </div>
 
           <Row icon={Home} title="시작 화면" desc="앱을 열었을 때 처음 보이는 화면" right={<ValueChevron value="홈" />} />
