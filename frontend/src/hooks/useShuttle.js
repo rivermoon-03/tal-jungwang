@@ -7,6 +7,19 @@ import { tickShuttleNext } from '../utils/tickArrivals'
 // 11곳에서 useShuttleSchedule을 호출해도 네트워크 요청은 1회로 합쳐진다.
 const SCHEDULE_TTL = 5 * 60 * 1000
 
+// 본캠 정문 좌표. MapView.jsx의 지도 중심점이자 useEffectiveDirection(F1)의
+// "캠퍼스 근접 여부" 판정 기준점. 컴포넌트 파일(MapView.jsx)이 아니라 이 훅 파일에
+// 두는 이유는 여기서도 export해야 react-refresh/only-export-components(Fast Refresh)
+// 규칙을 어기지 않기 때문이다 — 컴포넌트 파일은 컴포넌트만 export해야 한다.
+export const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
+
+// 제2캠퍼스 근사 좌표(F1: 등하교 자동 판정 위치 보강용). 실측 GPS 실사가 아니라
+// scripts/schema.sql의 map_markers 시드(id=14, marker_key='shuttle2_from_campus2',
+// display_name='제2 하교' — direction 3(2캠 → 본교) 셔틀의 승차 지점이므로 그 출발지가
+// 곧 2캠퍼스 위치)에서 가져온 근사치다. 정밀 지도 렌더링용이 아니라
+// useEffectiveDirection의 "캠퍼스 근접 여부" 판정 근사치로만 쓴다.
+export const SECOND_CAMPUS_CENTER = { lat: 37.327877, lng: 126.688509 }
+
 // direction: 0=등교, 1=하교 (int) | undefined=전체
 // dateStr: 'YYYY-MM-DD' | undefined=오늘
 export function useShuttleSchedule(direction, dateStr, opts = {}) {

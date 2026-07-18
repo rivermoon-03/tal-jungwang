@@ -141,6 +141,21 @@ const useAppStore = create(
           themeMode: s.darkMode ? 'light' : 'dark',
         })),
 
+      // ── F1: 등하교 자동/수동 판정 (persist 대상) ─────────────────────
+      // commuteAutoMode=true면 useEffectiveDirection이 KST 시간대(+위치 보강)로
+      // 자동 판정한다. false면 아래 commuteManualDirection 고정값을 그대로 쓴다.
+      // (참고: directionOverride는 별개의 in-memory 세션 전용 퀵토글이며 항상 최우선.)
+      commuteAutoMode: true,
+      setCommuteAutoMode: (v) => set({ commuteAutoMode: v }),
+      commuteManualDirection: '등교', // '등교' | '하교' — 수동 모드일 때만 사용
+      setCommuteManualDirection: (dir) => set({ commuteManualDirection: dir }),
+
+      // ── F3: 시간표 기본 보기(그리드/리스트) persist ───────────────────
+      // ScheduleDetailModal의 viewMode 초기값 + SettingsPage "시간표 기본 보기"가
+      // 이 필드를 공유한다.
+      scheduleViewMode: 'grid', // 'grid' | 'list'
+      setScheduleViewMode: (mode) => set({ scheduleViewMode: mode }),
+
     }),
     {
       name: 'tal-jungwang',
@@ -219,6 +234,10 @@ const useAppStore = create(
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
         notifPrefs: state.notifPrefs,
         busStationAutoMode: state.busStationAutoMode,
+        // F1/F3 신규 persist 필드
+        commuteAutoMode: state.commuteAutoMode,
+        commuteManualDirection: state.commuteManualDirection,
+        scheduleViewMode: state.scheduleViewMode,
       }),
     }
   )

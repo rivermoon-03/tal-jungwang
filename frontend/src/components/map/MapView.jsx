@@ -11,7 +11,7 @@ import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
 import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
-import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
+import { useShuttleNext, useShuttleSchedule, DEFAULT_CENTER } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
@@ -26,8 +26,9 @@ function getPrimaryStopId(marker) {
   return first.outbound_stop_gbis_id ?? first.outbound_stop_id ?? null
 }
 
-// 본캠 정문 좌표
-const DEFAULT_CENTER = { lat: 37.3400, lng: 126.7335 }
+// 본캠 정문 좌표는 hooks/useShuttle.js에서 export(DEFAULT_CENTER) — 컴포넌트 파일에
+// 상수를 두면 react-refresh/only-export-components(Fast Refresh) 규칙을 어겨서
+// 훅 파일로 옮겼다. useEffectiveDirection(F1)도 같은 상수를 그 훅에서 가져다 쓴다.
 const SDK_SCRIPT_ID = 'kakao-map-sdk'
 
 // 지도 마커는 분 단위 표시라 도착 훅을 60초 tick으로 받는다 (카드의 1초 tick과 분리).

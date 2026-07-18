@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Drawer } from 'vaul'
 import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
+import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
@@ -863,10 +864,24 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
   // 그리드/리스트 뷰 토글 — 셔틀(수시운행·회차편 등 특수 라벨이 많아 그리드에 맞지 않음)과
   // 실시간 버스(BusHistoryContent, 시간표 자체가 없음)는 항상 리스트/이력 뷰로 고정.
-  // TODO(F3): 뷰 선택을 zustand persist로 이관해 모달을 다시 열어도 유지되게 하고,
-  // 설정 화면의 "시간표 보기" 기본값(그리드/리스트)과 연동한다. 지금은 열 때마다 'list'로 리셋.
-  const [viewMode, setViewMode] = useState('list')
+  // F3: 뷰 선택을 zustand persist(scheduleViewMode)로 이관 — 모달을 다시 열어도,
+  // 설정 화면의 "시간표 보기" 기본값을 바꿔도 유지된다.
+  const scheduleViewMode = useAppStore((s) => s.scheduleViewMode)
+  const setScheduleViewMode = useAppStore((s) => s.setScheduleViewMode)
+  const [viewMode, setViewModeState] = useState(scheduleViewMode)
+  const setViewMode = (mode) => {
+    setViewModeState(mode)
+    setScheduleViewMode(mode)
+  }
   const supportsGridToggle = (type === 'bus' && !isRealtime) || type === 'subway'
+
+  // 이 컴포넌트는 GlobalDetailModal 등에서 앱 생명주기 내내 마운트된 채 `open`만
+  // 토글되는 경우가 있어(unmount/remount 아님), 설정 화면에서 기본값을 바꾼 뒤에도
+  // "다음에 열 때" 반영되도록 열릴 때마다 store 값으로 다시 동기화한다.
+  useEffect(() => {
+    if (open) setViewModeState(scheduleViewMode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   useEffect(() => {
     if (open) {
