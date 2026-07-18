@@ -25,7 +25,7 @@ import './CafeteriaVenues.css'
 
 // ── 탭 정의 ────────────────────────────────────────────────
 const TABS = [
-  { id: 'now',      label: '지금 영업중' },
+  { id: 'now',      label: '지금' },
   { id: 'schedule', label: '운영시간' },
 ]
 
@@ -85,6 +85,9 @@ function LocationChip({ location }) {
     <span
       style={{
         display: 'inline-block',
+        flexShrink: 0,
+        // "TIP 1F"가 "TIP / 1F"로 줄바꿈되던 문제 — 위치 라벨은 항상 한 줄.
+        whiteSpace: 'nowrap',
         fontSize: 12,
         fontWeight: 700,
         letterSpacing: '-0.01em',
@@ -543,10 +546,10 @@ function OpenRow({ venue, statusInfo, onVenueClick }) {
         <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--tj-ink)' }}>
           {venue.name}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, minWidth: 0 }}>
           <LocationChip location={venue.location} />
           {(venue.alwaysOpen || venue.is24h) && (
-            <span style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               언제든 열려 있어요
             </span>
           )}

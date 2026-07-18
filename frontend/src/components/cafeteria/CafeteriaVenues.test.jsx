@@ -51,9 +51,9 @@ describe('CafeteriaVenues', () => {
     expect(screen.getByText('학식 운영 정보')).toBeInTheDocument()
   })
 
-  it('탭(지금 영업중, 운영시간)이 렌더된다', () => {
+  it('탭(지금, 운영시간)이 렌더된다', () => {
     render(<CafeteriaVenues />)
-    expect(screen.getByText('지금 영업중')).toBeInTheDocument()
+    expect(screen.getByText('지금')).toBeInTheDocument()
     expect(screen.getByText('운영시간')).toBeInTheDocument()
   })
 
