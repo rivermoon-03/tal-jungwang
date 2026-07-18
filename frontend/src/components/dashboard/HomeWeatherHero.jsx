@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Sun, Map, Navigation, Utensils } from 'lucide-react'
+import { Sun, Map, Navigation, Utensils, Wind } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import { SKY_ICON, SKY_TEXT } from '../stats/WeatherCard'
 import { getTimeOfDay } from '../../utils/timeOfDay'
+import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import { ALL_VENUES } from '../../data/cafeteriaVenues'
 import { isOpenNow } from '../../utils/venueOpen'
 import './HomeWeatherHero.css'
@@ -84,16 +85,31 @@ export default function HomeWeatherHero({ onOpenMap }) {
     ? 'bg-black/35 border border-white/15 text-white'
     : 'bg-white/95 dark:bg-surface-3/95 border border-line dark:border-line text-ink dark:text-ink'
 
-  // 식당 뷰는 그라디언트 히어로 대신 카드형 배경(surface+line)으로 전환한다.
-  // 인라인 style로 덮어써 mood/time 조합 CSS 셀렉터의 명시도 경쟁을 피한다.
-  const cafeteriaStyle = view === 'cafeteria'
-    ? { background: 'var(--tj-surface)', border: '1px solid var(--tj-line)' }
-    : undefined
+  // 정왕풍(定王風) — 건물풍이 센 정왕동을 재치있게 표현. 풍속 없으면 null → 줄 미표시.
+  const wind = describeJeongwangWind(weather?.windSpeed ?? null)
+
+  // 배경 밝기(lightText)에 맞춘 전경색. 식당 뷰도 날씨 배경 위라 동일 규칙을 쓴다.
+  const tempColor = lightText ? 'text-white' : 'text-ink dark:text-ink'
+  const skyColor  = lightText ? 'text-white/90' : 'text-ink-2 dark:text-mute'
+  const metaColor = lightText ? 'text-white/80' : 'text-ink-2 dark:text-mute'
+
+  // 정왕풍 미니 pill — 배경 대비에 맞춰 톤 조정, strong(6m/s+)이면 살짝 강조.
+  const windPillCls = lightText
+    ? (wind?.strong ? 'bg-white/25 text-white' : 'bg-white/15 text-white/95')
+    : (wind?.strong ? 'bg-ink/10 text-ink dark:bg-white/10 dark:text-ink' : 'bg-ink/[0.06] text-ink-2 dark:bg-white/[0.07] dark:text-ink')
+
+  // 식당 카드 — 날씨 그라디언트 위에 얹히므로 대비를 lightText로 분기(반투명 유리감).
+  const venueCardCls = lightText
+    ? 'bg-white/[0.14] border border-white/20'
+    : 'bg-white/75 dark:bg-black/25 border border-white/50 dark:border-white/10'
+  const venueNameCls = lightText ? 'text-white' : 'text-ink dark:text-ink'
+  const venueMetaCls = lightText ? 'text-white/70' : 'text-ink-2 dark:text-mute'
 
   return (
-    <div className="whero" data-mood={mood} data-time={timeOfDay} style={cafeteriaStyle}>
-      {view === 'weather' && mood === 'sunny' && <div className="whero-glow" aria-hidden="true" />}
-      {view === 'weather' && mood === 'rainy' && (
+    <div className="whero" data-mood={mood} data-time={timeOfDay}>
+      {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다. */}
+      {mood === 'sunny' && <div className="whero-glow" aria-hidden="true" />}
+      {mood === 'rainy' && (
         <div className="whero-rain" aria-hidden="true">
           {raindrops.map((d, i) => (
             <span
@@ -107,7 +123,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
           ))}
         </div>
       )}
-      {view === 'weather' && mood === 'snowy' && (
+      {mood === 'snowy' && (
         <div className="whero-snow" aria-hidden="true">
           {snowflakes.map((f, i) => (
             <span
@@ -147,8 +163,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
 
       {view === 'weather' ? (
         <>
-          {/* 우측 padding으로 우상단 날씨/식당 토글(.whero-toggle, 약 54px+여백)과 겹치지
-              않게 여유를 둔다 — 토글이 이 행 위에 절대 위치로 얹혀서 겹쳤던 버그 수정. */}
+          {/* 상단 바 — 등하교 pill + 지도 진입. 우측 padding으로 토글(.whero-toggle)과 겹침 방지. */}
           <div className="relative z-10 flex items-center justify-between gap-2 px-4 pt-3" style={{ paddingRight: 74 }}>
             <span className={`inline-flex items-center gap-1.5 rounded-card px-3 py-1.5 text-caption font-bold shadow-pill ${chipCls}`}>
               <Navigation size={12} aria-hidden="true" />
@@ -158,57 +173,72 @@ export default function HomeWeatherHero({ onOpenMap }) {
               type="button"
               onClick={onOpenMap}
               aria-label="지도 보기"
-              className={`flex items-center gap-1.5 rounded-card px-3 py-2 text-[13px] font-bold shadow-pill min-h-[36px] active:scale-[0.94] transition-transform duration-press ease-spring ${chipCls}`}
+              className={`flex items-center gap-1.5 rounded-card px-3 py-2 text-caption font-bold shadow-pill min-h-[36px] active:scale-[0.94] transition-transform duration-press ease-spring ${chipCls}`}
             >
               <Map size={15} aria-hidden="true" />
               지도
             </button>
           </div>
 
-          <div className="relative z-10 flex items-end justify-between px-4 pb-4 pt-2">
-            <div className="flex items-end gap-2.5">
-              <span
-                className={`text-eta-xl font-bold tabular-nums leading-none tracking-[-0.04em] ${lightText ? 'text-white' : 'text-ink dark:text-ink'}`}
-              >
-                {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
-              </span>
-              <span className={`mb-0.5 text-label font-semibold ${lightText ? 'text-white/90' : 'text-ink-2 dark:text-mute'}`}>
-                {SKY_TEXT[icon] ?? ''}
-              </span>
+          {/* 메인 블록 — 40% 높이를 활용해 하단 정렬. 큰 온도 + 하늘 상태 + 정왕풍. */}
+          <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-4 pt-2">
+            <div className="min-w-0">
+              <div className="flex items-end gap-2.5">
+                <span className={`text-hero-temp tabular-nums ${tempColor}`}>
+                  {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
+                </span>
+                <span className={`mb-1.5 text-title font-bold ${skyColor}`}>
+                  {SKY_TEXT[icon] ?? ''}
+                </span>
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {wind && (
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-bold ${windPillCls}`}>
+                    <Wind size={12} strokeWidth={2.2} aria-hidden="true" />
+                    정왕풍 {wind.value}
+                    <span className="font-semibold opacity-80">· {wind.phrase}</span>
+                  </span>
+                )}
+                {weather?.rainProb != null && weather.rainProb > 0 && (
+                  <span className={`text-caption font-semibold ${metaColor}`}>
+                    강수 <span className="tabular-nums">{weather.rainProb}%</span>
+                  </span>
+                )}
+              </div>
             </div>
+
             <Icon
-              size={38}
-              strokeWidth={1.5}
-              className={lightText ? 'text-white/85' : 'text-ink/70 dark:text-white/80'}
+              size={64}
+              strokeWidth={1.4}
+              className={`shrink-0 ${lightText ? 'text-white/85' : 'text-ink/60 dark:text-white/80'}`}
               aria-hidden="true"
             />
           </div>
         </>
       ) : (
-        <div
-          className="relative z-10 flex h-full flex-col gap-2 px-4 pb-3"
-          style={{ paddingTop: 40 }}
-        >
+        <div className="relative z-10 flex-1 flex flex-col px-4 pb-3" style={{ paddingTop: 40 }}>
+          <p className={`text-caption font-bold tracking-wide ${metaColor}`}>지금 문 연 곳</p>
           {openVenues.length === 0 ? (
-            <p className="flex-1 flex items-center justify-center text-label font-semibold text-ink-2 dark:text-mute">
+            <p className={`flex-1 flex items-center justify-center text-label font-semibold ${skyColor}`}>
               지금 문 연 곳이 없어요
             </p>
           ) : (
-            <ul className="flex-1 flex flex-col justify-center gap-2">
+            <ul className="mt-1.5 flex-1 flex flex-col justify-center gap-1.5">
               {openVenues.map(({ venue, status }) => (
                 <li
                   key={venue.id}
-                  className="flex items-center gap-2 rounded-card border border-line bg-surface px-3 py-1.5"
+                  className={`flex items-center gap-2 rounded-card px-3 py-2 backdrop-blur-sm ${venueCardCls}`}
                 >
                   <span
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{ background: 'var(--tj-ease)' }}
                     aria-hidden="true"
                   />
-                  <span className="flex-1 truncate text-caption font-semibold text-ink">
+                  <span className={`flex-1 truncate text-caption font-semibold ${venueNameCls}`}>
                     {venue.name}
                   </span>
-                  <span className="shrink-0 text-caption font-medium text-ink-2 dark:text-mute">
+                  <span className={`shrink-0 text-caption font-medium ${venueMetaCls}`}>
                     {status.nextChange ? `~${status.nextChange}` : '24시간'}
                   </span>
                 </li>
@@ -218,7 +248,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
           <button
             type="button"
             onClick={goToCafeteria}
-            className="self-end text-caption font-bold text-accent active:scale-[0.96] transition-transform duration-press ease-spring"
+            className={`self-end text-caption font-bold active:scale-[0.96] transition-transform duration-press ease-spring ${lightText ? 'text-white' : 'text-accent'}`}
           >
             더보기
           </button>

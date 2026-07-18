@@ -149,6 +149,7 @@ export default {
         //    각각 98/43/67/11곳이라 값(특히 weight) 전수 교체는 화면별 회귀 위험 큼.
         //    Phase A에서는 굵기(weight)는 유지, 신규 DESIGN.md §3 크기/행간만 반영.
         //    폰트 굵기 강등은 IMPLEMENTATION-PLAN Phase B 항목.
+        'hero-temp': ['calc(60px * var(--tj-font-scale,1))', { lineHeight: '1', fontWeight: '800', letterSpacing: '-0.045em' }],
         'eta-xl': ['calc(38px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
         'eta':    ['calc(28px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
         'title':  ['calc(21px * var(--tj-font-scale,1))', { lineHeight: '1.15', fontWeight: '800' }],

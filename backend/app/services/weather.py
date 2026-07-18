@@ -154,6 +154,16 @@ def _build_current(
     current_sky = _sky_label(sky_code)
     icon = _sky_icon(sky_code, pty_code)
 
+    # 풍속(WSD, m/s): 실황(초단기실황) → 현재 시각 예보 슬롯 → None.
+    # 정왕동은 건물풍 영향으로 체감 바람이 세서 프론트에서 '정왕풍'으로 표시한다.
+    wsd_raw = ncst.get("WSD")
+    if wsd_raw in (None, ""):
+        wsd_raw = cur_slot.get("WSD")
+    try:
+        wind_speed = round(float(wsd_raw), 1) if wsd_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        wind_speed = None
+
     # 경고
     warning = _detect_warning(current_temp, rain_prob, pty_code, fcst, now)
 
@@ -185,6 +195,7 @@ def _build_current(
         current_sky=current_sky,
         icon=icon,
         rain_prob=rain_prob,
+        wind_speed=wind_speed,
         pm10_grade="알수없음",  # 기상청 단기예보 미제공 — 에어코리아 별도 연동 필요
         warning=warning,
         next_temps=next_temps,
