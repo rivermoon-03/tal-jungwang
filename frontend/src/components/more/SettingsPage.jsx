@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import DarkModeSegment from './DarkModeSegment'
+import useAppStore from '../../stores/useAppStore'
 
 // ── 공용 행/섹션 프리미티브 (DESIGN.md sc-set 대응) ──────────────────────
 function SectionLabel({ children }) {
@@ -119,9 +120,13 @@ function DemoSeg({ options, value, onChange }) {
 }
 
 export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInfo }) {
+  // F4: 글자 크기 — zustand persist(fontScale) + useFontScale이 --tj-font-scale로 반영.
+  // tailwind.config.js의 명명된 fontSize 스케일(text-body/caption/label/head 등)에는
+  // 실시간 반영되지만, 컴포넌트 인라인 style={{fontSize:N}}이나 text-[Npx] 임의값에는
+  // 적용되지 않는다(알려진 범위 — 전수 적용은 별도 후속 작업).
+  const fontScale = useAppStore((s) => s.fontScale)
+  const setFontScale = useAppStore((s) => s.setFontScale)
   // ── 데모 전용 로컬 state (persist/백엔드 없음) ──────────────────────
-  // TODO(F4): 글자 크기 — CSS 변수 배율(rem base) + zustand persist. 슬라이더 실시간 미리보기.
-  const [fontScale, setFontScale] = useState(1) // 0(작게) ~ 2(크게), 중앙값 1 = 보통
   // TODO(F3): 시간표 기본 보기 — 선택값을 zustand persist로 이관해 ScheduleDetailModal
   // (src/components/schedule/ScheduleDetailModal.jsx)의 초기 viewMode와 연동.
   const [scheduleView, setScheduleView] = useState('grid')
@@ -180,7 +185,7 @@ export default function SettingsPage({ onBack, onOpenNotifications, onOpenAppInf
                 </div>
               </div>
             </div>
-            {/* 데모 슬라이더 — 실제 배율 적용 없음(TODO F4) */}
+            {/* useFontScale이 --tj-font-scale에 실시간 반영 */}
             <input
               type="range"
               min={0}

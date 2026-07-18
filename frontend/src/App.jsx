@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import useAppStore from './stores/useAppStore'
 import { useTheme } from './hooks/useTheme'
+import { useFontScale } from './hooks/useFontScale'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
 import PCMainShell from './components/layout/PCMainShell'
@@ -94,6 +95,7 @@ export default function App() {
   const isDesktop = useIsDesktop()
 
   useTheme()
+  useFontScale()
 
   const { data: notices } = useNotices()
 
