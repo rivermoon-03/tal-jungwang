@@ -131,3 +131,46 @@ export function isDateInRange(dateStr, startDate, endDate) {
   if ([d, s, e].some(Number.isNaN)) return false
   return d >= s && d <= e
 }
+
+// ── 주간(week) 뷰용 순수 날짜 계산 ──────────────────────────────────
+// buildMonthGrid와 마찬가지로 시각이 전혀 관여하지 않는 순수 캘린더 산수라서
+// UTC epoch 왕복으로 계산해도 KST wraparound 문제가 없다.
+
+// "YYYY-MM-DD" → days만큼 이동한 날짜 문자열(음수로 과거 이동 가능).
+export function addDays(dateStr, days) {
+  const epoch = dateStringToUtcEpoch(dateStr) + days * MS_PER_DAY
+  const d = new Date(epoch)
+  return dateStringFrom(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate())
+}
+
+// dateStr이 속한 주(일~토)의 일요일 날짜.
+export function startOfWeekSunday(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay() // 0=일 ~ 6=토
+  return addDays(dateStr, -weekday)
+}
+
+/**
+ * dateStr이 속한 주(일~토) 7일의 { date, day } 배열. buildMonthGrid와 달리
+ * 항상 정확히 7칸이고 null로 채울 일이 없다(주 경계가 월 경계에 걸쳐도 그대로 표시).
+ */
+export function buildWeekGrid(dateStr) {
+  const sunday = startOfWeekSunday(dateStr)
+  const cells = []
+  for (let i = 0; i < 7; i++) {
+    const ds = addDays(sunday, i)
+    cells.push({ date: ds, day: Number(ds.slice(8, 10)) })
+  }
+  return cells
+}
+
+// dateStr이 속한 주에서 delta주 이동한 날짜(이동한 주의 일요일을 기준값으로 반환).
+export function shiftWeek(dateStr, delta) {
+  return addDays(startOfWeekSunday(dateStr), delta * 7)
+}
+
+// dateStr이 속한 주(일~토)의 "M월 D일 ~ M월 D일" 범위 라벨.
+export function weekRangeLabel(dateStr) {
+  const sunday = startOfWeekSunday(dateStr)
+  return formatDateOrRange(sunday, addDays(sunday, 6))
+}
