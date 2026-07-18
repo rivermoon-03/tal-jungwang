@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS traffic_history             CASCADE;
 DROP TABLE IF EXISTS notices                     CASCADE;
 DROP TABLE IF EXISTS app_links                   CASCADE;
 DROP TABLE IF EXISTS app_info                    CASCADE;
+DROP TABLE IF EXISTS push_subscriptions          CASCADE;
 
 
 -- ────────────────────────────────────────────────────────────
@@ -332,6 +333,29 @@ CREATE TABLE app_info (
     subway_last_refreshed_at  TIMESTAMPTZ,
     updated_at                TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- ────────────────────────────────────────────────────────────
+-- 18. push_subscriptions — Web Push 구독 (F5 노선 알림)
+-- 사용자 계정이 없으므로 브라우저 PushManager가 발급하는 endpoint를 기본 키로 쓴다.
+-- favorite_codes: 프론트 zustand favorites.routes와 동일한 favCode 문자열 배열
+--   (예: "등교:5602", "shuttle:등교", "subway:정왕:up").
+-- last_notified: 당일 중복 발송 방지. {"<favCode>:last": "YYYY-MM-DD",
+--   "<favCode>:first": "YYYY-MM-DD"} 형태로 (favCode, edge)별 마지막 발송 날짜(KST) 기록.
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE push_subscriptions (
+    id              SERIAL       PRIMARY KEY,
+    endpoint        TEXT         UNIQUE NOT NULL,
+    p256dh_key      TEXT         NOT NULL,
+    auth_key        TEXT         NOT NULL,
+    favorite_codes  JSONB        NOT NULL DEFAULT '[]',
+    last_notified   JSONB        NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER trg_push_subscriptions_updated_at
+BEFORE UPDATE ON push_subscriptions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 
 -- ============================================================
