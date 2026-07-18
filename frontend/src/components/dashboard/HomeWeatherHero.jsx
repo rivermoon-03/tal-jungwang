@@ -147,7 +147,9 @@ export default function HomeWeatherHero({ onOpenMap }) {
 
       {view === 'weather' ? (
         <>
-          <div className="relative z-10 flex items-center justify-between px-4 pt-3">
+          {/* 우측 padding으로 우상단 날씨/식당 토글(.whero-toggle, 약 54px+여백)과 겹치지
+              않게 여유를 둔다 — 토글이 이 행 위에 절대 위치로 얹혀서 겹쳤던 버그 수정. */}
+          <div className="relative z-10 flex items-center justify-between gap-2 px-4 pt-3" style={{ paddingRight: 74 }}>
             <span className={`inline-flex items-center gap-1.5 rounded-card px-3 py-1.5 text-caption font-bold shadow-pill ${chipCls}`}>
               <Navigation size={12} aria-hidden="true" />
               {direction} · 자동
