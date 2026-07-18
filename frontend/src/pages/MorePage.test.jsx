@@ -199,7 +199,7 @@ describe('MorePage — 세그먼트 탭 [학사공지] [설정 & 앱공지]', ()
     expect(screen.getByRole('tab', { name: '학사공지' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('combobox', { name: '학과 선택' })).toBeInTheDocument()
     expect(screen.getAllByText('컴퓨터공학부').length).toBeGreaterThan(0)
-    expect(screen.getByText(/기말고사/)).toBeInTheDocument()
+    expect(screen.getAllByText(/기말고사/).length).toBeGreaterThan(0)
     expect(screen.getByText('2026학년도 2학기 수강신청 및 교과시간표 안내')).toBeInTheDocument()
   })
 

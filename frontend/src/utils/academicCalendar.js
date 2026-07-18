@@ -67,3 +67,67 @@ export function formatDateOrRange(startDate, endDate) {
   if (!endDate || endDate === startDate) return formatMonthDay(startDate)
   return `${formatMonthDay(startDate)} ~ ${formatMonthDay(endDate)}`
 }
+
+// ── 월간 그리드 캘린더용 순수 날짜 계산 ──────────────────────────────
+// 이 아래 함수들은 시각(시:분:초)이 전혀 관여하지 않는 순수 캘린더 산수라서
+// UTC epoch로 계산해도 KST wraparound 문제가 생기지 않는다(연/월/일 정수 연산).
+
+// year(YYYY)/month(1~12)/day(1~31) → "YYYY-MM-DD".
+export function dateStringFrom(year, month, day) {
+  const mm = String(month).padStart(2, '0')
+  const dd = String(day).padStart(2, '0')
+  return `${year}-${mm}-${dd}`
+}
+
+// 해당 월(1~12)의 일수.
+export function daysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+}
+
+// 해당 월(1~12) 1일의 요일. 0=일 ~ 6=토.
+export function firstWeekdayOfMonth(year, month) {
+  return new Date(Date.UTC(year, month - 1, 1)).getUTCDay()
+}
+
+// {year, month}에서 delta개월 이동한 {year, month}(음수 delta 포함, month는 항상 1~12로 정규화).
+export function shiftMonth(year, month, delta) {
+  const totalMonths = year * 12 + (month - 1) + delta
+  const y = Math.floor(totalMonths / 12)
+  const m = totalMonths - y * 12 + 1
+  return { year: y, month: m }
+}
+
+// "2026년 7월" 형식.
+export function monthLabel(year, month) {
+  return `${year}년 ${month}월`
+}
+
+/**
+ * 월간 캘린더 그리드 셀 배열(7의 배수 길이). 1일 앞은 null로 채우고,
+ * 마지막 주도 7칸이 되도록 뒤를 null로 채운다. 각 날짜 셀은 { date, day }.
+ */
+export function buildMonthGrid(year, month) {
+  const firstWeekday = firstWeekdayOfMonth(year, month)
+  const total = daysInMonth(year, month)
+  const cells = []
+  for (let i = 0; i < firstWeekday; i++) cells.push(null)
+  for (let day = 1; day <= total; day++) {
+    cells.push({ date: dateStringFrom(year, month, day), day })
+  }
+  while (cells.length % 7 !== 0) cells.push(null)
+  return cells
+}
+
+/**
+ * dateStr이 [startDate, endDate] 범위(양끝 포함) 안에 있는지. endDate가 없으면
+ * startDate와 동일한 단일 날짜로 취급.
+ */
+export function isDateInRange(dateStr, startDate, endDate) {
+  if (!dateStr || !startDate) return false
+  const end = endDate || startDate
+  const d = dateStringToUtcEpoch(dateStr)
+  const s = dateStringToUtcEpoch(startDate)
+  const e = dateStringToUtcEpoch(end)
+  if ([d, s, e].some(Number.isNaN)) return false
+  return d >= s && d <= e
+}
