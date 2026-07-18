@@ -249,6 +249,46 @@ describe('RouteDetailPage', () => {
     expect(screen.queryByText(/실시간 도착 정보를 가져오는 중이에요/)).not.toBeInTheDocument()
   })
 
+  it('[실시간+빈시간표] 시간표 없는 실시간 방향(시흥33 등교)도 실시간 도착 카드가 표시됨 (버그: 자세히보기 미표시)', () => {
+    // 시흥33 등교는 GBIS 실시간 추적 노선이지만 정해진 출발 시간표가 없다(times 0건).
+    // 과거엔 schedule.length>0 일 때만 전체 콘텐츠를 렌더해, 실시간 도착이 있어도
+    // "운행 정보 없음"만 뜨고 실시간 카드가 통째로 숨었다.
+    vi.mocked(useBusModule.useBusTimetableByRoute).mockReturnValue({
+      data: {
+        route_no: '시흥33',
+        direction_name: '한국공학대학교 방면',
+        is_realtime: true,
+        gbis_route_id: '224000062',
+        stops: [],
+        timetable: { weekday: [], saturday: [], sunday: [] }, // 시간표 없음
+      },
+      loading: false,
+      error: null,
+    })
+    vi.mocked(useBusModule.useBusHistoryPreview).mockReturnValue({
+      data: {
+        stop_name: '시흥시청역',
+        realtime_eta: {
+          primary: { arrive_in_seconds: 300, arrive_at_hhmm: '12:05' },
+          secondary: null,
+        },
+        columns: [],
+        arrivals: [],
+      },
+      loading: false,
+      error: null,
+    })
+    render(<RouteDetailPage routeNumber="시흥33" />)
+
+    // 실시간 도착 카드가 표시되어야 함 (버그 수정 핵심)
+    expect(screen.getByText(/실시간 도착/)).toBeInTheDocument()
+    expect(screen.getByText('5분')).toBeInTheDocument()
+    // "운행 정보 없음" 통짜 빈 화면이 뜨면 안 됨
+    expect(screen.queryByText('운행 정보 없음')).not.toBeInTheDocument()
+    // 시간표 없음 안내 문구가 대신 표시됨
+    expect(screen.getByText(/정해진 출발 시간표가 없는 실시간 운행 노선/)).toBeInTheDocument()
+  })
+
   it('방향 탭: 노선에 등교/하교 두 방향이 있으면 탭이 표시됨', () => {
     render(<RouteDetailPage routeNumber="3401" />)
     // 3401은 ALL_ROUTES_MOCK에서 등교/하교 두 방향 → 탭 표시
