@@ -6,6 +6,10 @@
    Phase A (2026-04-19): --ease-spring 제거. iOS ease 단일화.
    Phase A (2026-07): 모션 규율(DESIGN.md §4) e/dur-motion 토큰 추가. */
 :root {
+  /* F4 글자 크기 설정 — SettingsPage 슬라이더가 setFontScale로 갱신, tailwind.config.js
+     fontSize 스케일 전체가 이 값을 곱해 쓴다(useFontScale 훅 참고). */
+  --tj-font-scale: 1;
+
   --ease-ios:  cubic-bezier(0.16, 1, 0.3, 1);
   --ease-snap: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-press: 120ms;

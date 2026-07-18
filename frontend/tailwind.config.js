@@ -115,52 +115,59 @@ export default {
         // ═══════════════════════════════════════════════════
         // 새 타이포 시스템 (BMW iDrive / Tesla OS 톤)
         // ═══════════════════════════════════════════════════
+        // 모든 크기가 calc(Npx * var(--tj-font-scale,1))인 이유(F4 글자 크기 설정):
+        // 이 스케일이 앱 텍스트의 절대다수(text-caption/body/label/head 등 200곳 이상)를
+        // 차지해, 설정 화면의 글자 크기 슬라이더가 --tj-font-scale(html)만 바꾸면
+        // 전수 반영된다. 단, 컴포넌트 인라인 style={{fontSize:N}}이나 text-[Npx] 임의값은
+        // 이 스케일 밖이라 적용되지 않는다(알려진 범위 — SettingsPage.jsx TODO(F4) 참고).
+        // lineHeight도 절대 px 값(예: '23px')인 항목은 같은 비율로 스케일해야 줄간격이
+        // 글자 크기와 어긋나지 않는다 — 단위 없는 비율(예: '1.1')은 그대로 둔다.
 
         // 큰 숫자 (시간 ETA · 카운트다운)
-        'countdown':  ['32px', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.05em' }],
-        'eta-pc':     ['22px', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.03em' }],
-        'eta-mob':    ['26px', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.03em' }],
+        'countdown':  ['calc(32px * var(--tj-font-scale,1))', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.05em' }],
+        'eta-pc':     ['calc(22px * var(--tj-font-scale,1))', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.03em' }],
+        'eta-mob':    ['calc(26px * var(--tj-font-scale,1))', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.03em' }],
 
         // 페이지 / 패널 헤더
-        'page-ttl':   ['26px', { lineHeight: '1.1',  fontWeight: '900', letterSpacing: '-0.03em' }],
-        'panel-ttl':  ['16px', { lineHeight: '1.1',  fontWeight: '900', letterSpacing: '-0.03em' }],
+        'page-ttl':   ['calc(26px * var(--tj-font-scale,1))', { lineHeight: '1.1',  fontWeight: '900', letterSpacing: '-0.03em' }],
+        'panel-ttl':  ['calc(16px * var(--tj-font-scale,1))', { lineHeight: '1.1',  fontWeight: '900', letterSpacing: '-0.03em' }],
 
         // 본문
-        'dest':       ['12px', { lineHeight: '1.3',  fontWeight: '600' }],
-        'dest-mob':   ['11px', { lineHeight: '1.3',  fontWeight: '600' }],
+        'dest':       ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
+        'dest-mob':   ['calc(11px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
 
         // 라벨 / 캡션
-        'ghdr':       ['10px', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.1em' }],
-        'sub':        ['10px', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.04em' }],
-        'meta':       ['11px', { lineHeight: '1.3',  fontWeight: '600' }],
+        'ghdr':       ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.1em' }],
+        'sub':        ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.04em' }],
+        'meta':       ['calc(11px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
 
         // 칩 (노선 번호)
-        'chip':       ['11px', { lineHeight: '1',    fontWeight: '800' }],
-        'chip-pc':    ['10px', { lineHeight: '1',    fontWeight: '800' }],
+        'chip':       ['calc(11px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
+        'chip-pc':    ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
 
         // ── Warm Daylight 타이포 스케일(2026-06) — text-caption/body/label/head 사용처가
         //    각각 98/43/67/11곳이라 값(특히 weight) 전수 교체는 화면별 회귀 위험 큼.
         //    Phase A에서는 굵기(weight)는 유지, 신규 DESIGN.md §3 크기/행간만 반영.
         //    폰트 굵기 강등은 IMPLEMENTATION-PLAN Phase B 항목.
-        'eta-xl': ['38px', { lineHeight: '1',    fontWeight: '800' }],
-        'eta':    ['28px', { lineHeight: '1',    fontWeight: '800' }],
-        'title':  ['21px', { lineHeight: '1.15', fontWeight: '800' }],
-        'head':   ['17px', { lineHeight: '23px', fontWeight: '700' }],
-        'body':   ['16px', { lineHeight: '23px', fontWeight: '600' }],
-        'label':  ['15px', { lineHeight: '21px', fontWeight: '600' }],
-        'caption':['13px', { lineHeight: '17px', fontWeight: '600' }],
+        'eta-xl': ['calc(38px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
+        'eta':    ['calc(28px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
+        'title':  ['calc(21px * var(--tj-font-scale,1))', { lineHeight: '1.15', fontWeight: '800' }],
+        'head':   ['calc(17px * var(--tj-font-scale,1))', { lineHeight: 'calc(23px * var(--tj-font-scale,1))', fontWeight: '700' }],
+        'body':   ['calc(16px * var(--tj-font-scale,1))', { lineHeight: 'calc(23px * var(--tj-font-scale,1))', fontWeight: '600' }],
+        'label':  ['calc(15px * var(--tj-font-scale,1))', { lineHeight: 'calc(21px * var(--tj-font-scale,1))', fontWeight: '600' }],
+        'caption':['calc(13px * var(--tj-font-scale,1))', { lineHeight: 'calc(17px * var(--tj-font-scale,1))', fontWeight: '600' }],
 
         // ── DESIGN.md §3 신규 스케일(무충돌 키) — Phase B/D에서 화면 적용 ──
-        'body-sm': ['14px', { lineHeight: '19px', fontWeight: '400' }],
-        'head-sm': ['17px', { lineHeight: '23px', fontWeight: '600' }],
-        'num-lg':  ['29px', { lineHeight: '33px', fontWeight: '600', letterSpacing: '-0.02em' }],
-        'num-xl':  ['37px', { lineHeight: '41px', fontWeight: '700', letterSpacing: '-0.02em' }],
+        'body-sm': ['calc(14px * var(--tj-font-scale,1))', { lineHeight: 'calc(19px * var(--tj-font-scale,1))', fontWeight: '400' }],
+        'head-sm': ['calc(17px * var(--tj-font-scale,1))', { lineHeight: 'calc(23px * var(--tj-font-scale,1))', fontWeight: '600' }],
+        'num-lg':  ['calc(29px * var(--tj-font-scale,1))', { lineHeight: 'calc(33px * var(--tj-font-scale,1))', fontWeight: '600', letterSpacing: '-0.02em' }],
+        'num-xl':  ['calc(37px * var(--tj-font-scale,1))', { lineHeight: 'calc(41px * var(--tj-font-scale,1))', fontWeight: '700', letterSpacing: '-0.02em' }],
 
         // ── 레거시 (호환 유지, 점진적 제거) ──
-        hero:    ['26px', { lineHeight: '1.1',  fontWeight: '900' }],
-        bigMin:  ['30px', { lineHeight: '1.05', fontWeight: '900' }],
-        display: ['18px', { lineHeight: '1.2',  fontWeight: '900' }],
-        micro:   ['10px', { lineHeight: '1.3',  fontWeight: '600' }],
+        hero:    ['calc(26px * var(--tj-font-scale,1))', { lineHeight: '1.1',  fontWeight: '900' }],
+        bigMin:  ['calc(30px * var(--tj-font-scale,1))', { lineHeight: '1.05', fontWeight: '900' }],
+        display: ['calc(18px * var(--tj-font-scale,1))', { lineHeight: '1.2',  fontWeight: '900' }],
+        micro:   ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
       },
       fontFamily: {
         sans: ['"SUIT Variable"', 'SUIT', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],

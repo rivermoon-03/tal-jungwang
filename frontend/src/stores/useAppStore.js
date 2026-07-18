@@ -55,6 +55,10 @@ const useAppStore = create(
       themeMode: 'system',          // 'light' | 'dark' | 'system'
       setThemeMode: (mode) => set({ themeMode: mode }),
 
+      // F4 글자 크기: 0(작게)·1(보통)·2(크게). useFontScale이 --tj-font-scale로 변환.
+      fontScale: 1,
+      setFontScale: (v) => set({ fontScale: v }),
+
       selectedMode: 'bus',          // 'bus' | 'subway' | 'shuttle' | 'taxi'
       setSelectedMode: (mode) => set({ selectedMode: mode }),
 
@@ -205,6 +209,7 @@ const useAppStore = create(
       }),
       partialize: (state) => ({
         themeMode: state.themeMode,
+        fontScale: state.fontScale,
         favorites: state.favorites,
         selectedMode: state.selectedMode,
         selectedSubwayStation: state.selectedSubwayStation,
