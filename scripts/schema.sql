@@ -25,6 +25,8 @@ DROP TABLE IF EXISTS notices                     CASCADE;
 DROP TABLE IF EXISTS app_links                   CASCADE;
 DROP TABLE IF EXISTS app_info                    CASCADE;
 DROP TABLE IF EXISTS push_subscriptions          CASCADE;
+DROP TABLE IF EXISTS department_notices          CASCADE;
+DROP TABLE IF EXISTS academic_calendar           CASCADE;
 
 
 -- ────────────────────────────────────────────────────────────
@@ -356,6 +358,44 @@ CREATE TABLE push_subscriptions (
 CREATE TRIGGER trg_push_subscriptions_updated_at
 BEFORE UPDATE ON push_subscriptions
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ────────────────────────────────────────────────────────────
+-- 19. department_notices — 학과별 공지사항(RSS 수집)
+-- 본문은 저장하지 않는다(제목+게시일+원문링크만) — 저작권 리스크 최소화 +
+-- 원 사이트로 트래픽 유도. (department, external_id) UNIQUE로 재수집 시
+-- 중복 삽입 방지. external_id는 원문 게시글 번호(RSS link의 숫자, 예: 151703).
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE department_notices (
+    id              SERIAL       PRIMARY KEY,
+    department      VARCHAR(20)  NOT NULL,
+    external_id     INTEGER      NOT NULL,
+    title           VARCHAR(300) NOT NULL,
+    url             VARCHAR(500) NOT NULL,
+    published_at    TIMESTAMPTZ  NOT NULL,
+    fetched_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (department, external_id)
+);
+
+CREATE INDEX idx_department_notices_dept_published
+    ON department_notices (department, published_at DESC);
+
+-- ────────────────────────────────────────────────────────────
+-- 20. academic_calendar — 학사일정
+-- 학교 사이트가 스크레이핑마다 현재 시점 기준 전체 목록을 권위 있는 스냅샷으로
+-- 제공하므로 (title, start_date, end_date) UNIQUE + ON CONFLICT DO NOTHING으로
+-- append-only 누적한다(삭제 로직 없음 — 그래스풀 디그레이데이션 유지).
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE academic_calendar (
+    id              SERIAL       PRIMARY KEY,
+    title           VARCHAR(200) NOT NULL,
+    start_date      DATE         NOT NULL,
+    end_date        DATE,
+    fetched_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (title, start_date, end_date)
+);
+
+CREATE INDEX idx_academic_calendar_start_date
+    ON academic_calendar (start_date);
 
 
 -- ============================================================
