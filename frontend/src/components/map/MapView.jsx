@@ -988,6 +988,9 @@ export default function MapView({ onMarkerClick, selectedId }) {
             station={sheetStation}
             arrivals={sheetArrivals}
             onArrivalClick={(detail) => {
+              // 상세 시트/모달을 새로 열기 전에 이 마커 시트부터 닫는다 — 안 닫으면
+              // MarkerSheet가 새로 열린 시트 뒤에 그대로 남아 두 시트가 겹쳐 보인다.
+              setSheetStation(null)
               if (detail.type === 'subway') {
                 // 지하철은 통합 상세 패널로 연결
                 useAppStore.getState().setSubwayDetailSheet({
