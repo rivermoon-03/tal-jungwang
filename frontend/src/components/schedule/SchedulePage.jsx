@@ -25,7 +25,6 @@ import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute, getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
 import { BarChart3, CalendarClock } from 'lucide-react'
 import StatsSheet from './StatsSheet'
-import SubwayDataModeToggle from '../subway/SubwayDataModeToggle'
 import HolidayBanner from '../common/HolidayBanner'
 
 // PC · 시간표 2열 레이아웃(좌: 노선 리스트 / 우: 상세)에서 아직 아무 노선도
@@ -818,11 +817,9 @@ export default function SchedulePage() {
   const [mode, setMode] = useState(initialMode)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
-  const [subwayDataMode, setSubwayDataMode] = useState('timetable')
   const favCodes = favorites.routes ?? []
   const [busGroup, setBusGroup] = useState('하교')
   const [subwayGroup, setSubwayGroup] = useState('정왕')
-  useEffect(() => { setSubwayDataMode('timetable') }, [subwayGroup])
   const [selectedDetail, setSelectedDetail] = useState(null)
 
   useEffect(() => {
@@ -919,8 +916,6 @@ export default function SchedulePage() {
     handleCardClick,
     favCodes,
     onOpenStats: () => setStatsOpen(true),
-    subwayDataMode,
-    setSubwayDataMode,
   }
 
   return (
@@ -967,8 +962,6 @@ function ScheduleSectionView({
   handleCardClick,
   favCodes,
   onOpenStats,
-  subwayDataMode,
-  setSubwayDataMode,
 }) {
   return (
     <>
@@ -1031,8 +1024,7 @@ function ScheduleSectionView({
         </div>
       </div>
 
-      {/* 그룹 칩 + rightAddon — 홈 StationPills 구조 그대로 미러링.
-          그룹칩은 홈과 동일한 StationChips로 통일. 지하철 데이터모드 토글만 우측 부가. */}
+      {/* 그룹 칩 — 홈 StationPills 구조 그대로 미러링(홈과 동일한 StationChips). */}
       {groups.length > 0 && (
         <div className="px-4 pb-1.5 flex items-center gap-2 flex-shrink-0">
           <div role="group" aria-label="그룹 선택" className="flex-1 min-w-0">
@@ -1043,11 +1035,6 @@ function ScheduleSectionView({
               onChange={setActiveGroup}
             />
           </div>
-          {mode === 'subway' && (
-            <div className="shrink-0">
-              <SubwayDataModeToggle value={subwayDataMode} onChange={setSubwayDataMode} />
-            </div>
-          )}
         </div>
       )}
 
@@ -1071,8 +1058,7 @@ function ScheduleSectionView({
               onCardClick={handleCardClick}
               favoritesOnly={favoritesOnly}
               favCodes={favCodes}
-              dataMode={subwayDataMode}
-              setDataMode={setSubwayDataMode}
+              dataMode="timetable"
             />
           )}
           {mode === 'shuttle' && (SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main).map((g) => (
