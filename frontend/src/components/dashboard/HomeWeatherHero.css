@@ -4,8 +4,14 @@
 .whero {
   position: relative;
   overflow: hidden;
-  flex-shrink: 0;
-  height: 136px;
+  /* 홈 세로 공간의 약 40%를 차지(사용자 요청) — 반응형으로 flex-basis 사용.
+     작은 폰(667px)에서 너무 얕지 않게, 큰 화면에서 과하게 크지 않게 clamp. */
+  flex: 0 0 40%;
+  min-height: 176px;
+  max-height: 320px;
+  /* 자식(상단바 / 메인블록)을 세로로 흘려 40% 공간을 활용 */
+  display: flex;
+  flex-direction: column;
   border-radius: 0;
   transition: background 400ms ease;
 }
