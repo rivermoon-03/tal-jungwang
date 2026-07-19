@@ -7,6 +7,14 @@ import { tickShuttleNext } from '../utils/tickArrivals'
 // 11곳에서 useShuttleSchedule을 호출해도 네트워크 요청은 1회로 합쳐진다.
 const SCHEDULE_TTL = 5 * 60 * 1000
 
+// 오늘자 시간표는 기간(학기 방학 계절학기) 전환과 자정 넘김에 맞춰 재검증해야 한다.
+// 지도 컴팩트 띠처럼 오래 마운트된(재마운트로 재fetch가 안 일어나는) 화면이
+// 옛 기간 시간표를 고착하던 회귀(지도는 학기, 홈 탭은 계절학기로 불일치)를 막는다.
+// useApi 스케줄러는 interval이 설정되면 포그라운드 복귀(visibilitychange) 시에도
+// 재fetch하므로, 백그라운드에 두었던 PWA가 다음에 켜질 때 즉시 자가회복된다.
+// (mistakes.md 4 오래 살아있는 컴포넌트 stale 상태, 5 캐시 갱신 주기는 변경 주기 이하)
+const SCHEDULE_REFRESH = 30 * 60 * 1000
+
 // 본캠 정문 좌표. MapView.jsx의 지도 중심점이자 useEffectiveDirection(F1)의
 // "캠퍼스 근접 여부" 판정 기준점. 컴포넌트 파일(MapView.jsx)이 아니라 이 훅 파일에
 // 두는 이유는 여기서도 export해야 react-refresh/only-export-components(Fast Refresh)
@@ -27,7 +35,9 @@ export function useShuttleSchedule(direction, dateStr, opts = {}) {
   if (direction !== undefined && direction !== null) params.push(`direction=${direction}`)
   if (dateStr) params.push(`date=${dateStr}`)
   const q = params.length ? `?${params.join('&')}` : ''
-  return useApi(`/shuttle/schedule${q}`, { ttl: SCHEDULE_TTL, ...opts })
+  // 특정 날짜를 고정 조회(dateStr)하는 폴백은 정적이라 폴링이 필요 없다. 오늘자만 재검증한다.
+  const interval = dateStr ? undefined : SCHEDULE_REFRESH
+  return useApi(`/shuttle/schedule${q}`, { ttl: SCHEDULE_TTL, interval, ...opts })
 }
 
 // 방학 중 학기 시간표 — /shuttle/semester-schedule 엔드포인트 (평일 시간표 고정 반환)
