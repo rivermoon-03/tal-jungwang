@@ -17,11 +17,13 @@ _KST = ZoneInfo("Asia/Seoul")
 
 async def _collect_job():
     """스케줄러에서 호출되는 교통정보 수집 작업."""
+    from app.core.freshness import mark_fresh
     from app.services.traffic import collect_traffic
 
     try:
         count = await collect_traffic()
         logger.info("Scheduled traffic collection: %d records", count)
+        await mark_fresh("traffic")
     except Exception:
         logger.exception("Scheduled traffic collection failed")
 
@@ -35,10 +37,12 @@ async def _weather_live_refresh_job():
     if not (5 <= hour <= 23):
         return  # 심야 제외
 
+    from app.core.freshness import mark_fresh
     from app.services.weather import refresh_weather_live_cache
 
     try:
         await refresh_weather_live_cache()
+        await mark_fresh("weather")
     except Exception:
         logger.exception("초단기실황 캐시 갱신 실패")
 
@@ -52,10 +56,12 @@ async def _weather_forecast_refresh_job():
 
     TTL=10800초(3시간), cron=3시간 주기 → TTL ≤ cron 간격 준수.
     """
+    from app.core.freshness import mark_fresh
     from app.services.weather import refresh_weather_forecast_cache
 
     try:
         await refresh_weather_forecast_cache()
+        await mark_fresh("weather")
     except Exception:
         logger.exception("단기예보 캐시 갱신 실패")
 
@@ -85,10 +91,12 @@ async def _bus_poll_job():
     if 2 <= hour < 4:
         return  # 02~03시 운행 없음
 
+    from app.core.freshness import mark_fresh
     from app.services.bus_collector import poll_and_collect
 
     try:
         await asyncio.wait_for(poll_and_collect(), timeout=40)
+        await mark_fresh("bus")
     except asyncio.TimeoutError:
         logger.warning("Bus arrival polling timed out (>40s) — skipping cycle")
     except Exception:
@@ -101,11 +109,13 @@ async def _cafeteria_refresh_job():
     메뉴 TTL이 1h라 점심 갱신만으로는 저녁 시간대에 만료되어 cold miss가 났다.
     개장 시간 내내 매시 재적재해 운영시간/메뉴 캐시를 계속 warm하게 유지한다.
     """
+    from app.core.freshness import mark_fresh
     from app.services.cafeteria import refresh_menu
 
     try:
         await refresh_menu()
         logger.info("학식 메뉴 캐시 갱신 완료")
+        await mark_fresh("cafeteria")
     except Exception:
         logger.exception("학식 메뉴 캐시 갱신 실패")
 
@@ -119,11 +129,16 @@ async def _cache_rewarm_job():
     """
     from app.core.cache_warmer import warm_static
     from app.core.database import AsyncSessionLocal
+    from app.core.freshness import mark_fresh
 
     try:
         async with AsyncSessionLocal() as session:
             summary = await warm_static(session)
             logger.info("캐시 재적재 완료: %s", summary)
+        # 셔틀은 전용 수집 잡이 없는 정적 시간표라, 재적재 성공을 그 신선도
+        # 신호로 삼는다(다른 도메인처럼 개별 폴링 잡이 있으면 그쪽에서 mark).
+        if summary.get("shuttle") == "ok":
+            await mark_fresh("shuttle")
     except Exception:
         logger.exception("캐시 재적재 실패")
 
@@ -178,6 +193,7 @@ async def _subway_realtime_poll_job():
     is_peak = (7 <= hour < 9) or (17 <= hour < 19)
 
     from app.core.cache import get_redis
+    from app.core.freshness import mark_fresh
     from app.services.subway_realtime import (
         STATIONS,
         _last_fetch_key,
@@ -185,6 +201,7 @@ async def _subway_realtime_poll_job():
     )
 
     redis = await get_redis()
+    any_success = False
     for station in STATIONS:
         last_raw = await redis.get(_last_fetch_key(station))
         if last_raw:
@@ -196,8 +213,12 @@ async def _subway_realtime_poll_job():
 
         try:
             await fetch_and_cache_realtime(station)
+            any_success = True
         except Exception:
             logger.exception("지하철 실시간 폴링 실패: %s", station)
+
+    if any_success:
+        await mark_fresh("subway")
 
 
 async def _purge_logs_job():
@@ -245,12 +266,14 @@ async def _department_notices_refresh_job():
     다음 회차에서 자가회복된다.
     """
     from app.core.database import AsyncSessionLocal
+    from app.core.freshness import mark_fresh
     from app.services.school import refresh_department_notices
 
     try:
         async with AsyncSessionLocal() as session:
             summary = await refresh_department_notices(session, "ce")
             logger.info("학과 공지(ce) 갱신 완료: %s", summary)
+        await mark_fresh("notices")
     except Exception:
         logger.exception("학과 공지(ce) 갱신 실패")
 

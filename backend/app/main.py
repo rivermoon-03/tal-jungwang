@@ -11,7 +11,7 @@ from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import admin, bus, cafeteria, dashboard, map, more, push, recommend, route, school, shuttle, subway, traffic, weather
+from app.api import admin, bus, cafeteria, dashboard, map, more, push, recommend, report, route, school, shuttle, subway, traffic, weather
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.cache import close_redis
@@ -145,6 +145,7 @@ app.include_router(dashboard.router)
 app.include_router(weather.router)
 app.include_router(cafeteria.router)
 app.include_router(push.router)
+app.include_router(report.router)
 app.include_router(school.router)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
@@ -178,6 +179,7 @@ async def restrict_metrics(request: Request, call_next):
 async def health():
     from app.core.cache import get_redis
     from app.core.database import AsyncSessionLocal
+    from app.core.freshness import get_freshness_report
     from sqlalchemy import text
 
     checks: dict[str, str] = {}
@@ -197,4 +199,8 @@ async def health():
         checks["db"] = "error"
 
     overall = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
-    return {"status": overall, **checks}
+
+    # 도메인별 마지막 성공 수집 시각 — 내부적으로 Redis mget 1회만 수행한다.
+    freshness = await get_freshness_report()
+
+    return {"status": overall, **checks, "freshness": freshness}
