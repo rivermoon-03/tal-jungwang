@@ -2,14 +2,15 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import App from './App'
 
-// 새 셸 구조에 맞춘 mock (PCMainShell·Dashboard·FloatingDock·PCDock).
+// 새 셸 구조에 맞춘 mock (PCMainShell·PCSidebar·Dashboard·FloatingDock).
+// 데스크톱 리디자인 이후 PCDock/PCMapDashboard는 App.jsx에서 더 이상 마운트하지 않는다.
 vi.mock('./components/layout/MainShell',       () => ({ default: () => <div>MainShell</div> }))
 vi.mock('./components/layout/PCMainShell',     () => ({ default: ({ children }) => <div data-testid="pc-main-shell">{children}</div> }))
+vi.mock('./components/layout/PCSidebar',       () => ({ default: () => <nav>PCSidebar</nav> }))
 vi.mock('./components/dashboard/Dashboard',    () => ({ default: () => <div>Dashboard</div> }))
-vi.mock('./components/dashboard/PCMapDashboard', () => ({ default: () => <div>PCMapDashboard</div> }))
 vi.mock('./components/common/FloatingDock',    () => ({ default: () => <nav>FloatingDock</nav> }))
-vi.mock('./components/common/PCDock',          () => ({ default: () => <nav>PCDock</nav> }))
 vi.mock('./components/layout/PWAInstallBanner', () => ({ default: () => null }))
+vi.mock('./components/search/SearchOverlay',   () => ({ default: () => null }))
 vi.mock('./pages/SchedulePage',  () => ({ default: () => <div>SchedulePage</div> }))
 vi.mock('./pages/CafeteriaPage', () => ({ default: () => <div>CafeteriaPage</div> }))
 vi.mock('./pages/MorePage',      () => ({ default: () => <div>MorePage</div> }))
@@ -52,26 +53,26 @@ describe('App', () => {
     expect(screen.queryByTestId('pc-main-shell')).not.toBeInTheDocument()
   })
 
-  it('지도(기본) 페이지 · PC: PCMainShell+PCMapDashboard만 마운트', () => {
+  it('지도(기본) 페이지 · PC: PCMainShell이 children=null로 마운트(풀사이즈 지도+플로팅)', () => {
     isDesktopMock = true
     render(<App />)
     expect(screen.queryByText('MainShell')).not.toBeInTheDocument()
     const pcShell = screen.getByTestId('pc-main-shell')
     expect(pcShell).toBeInTheDocument()
-    expect(pcShell).toHaveTextContent('PCMapDashboard')
+    expect(pcShell).toHaveTextContent('')
   })
 
-  it('모바일: FloatingDock만 마운트, PCDock 없음', () => {
+  it('모바일: FloatingDock만 마운트, PCSidebar 없음', () => {
     isDesktopMock = false
     render(<App />)
     expect(screen.getByText('FloatingDock')).toBeInTheDocument()
-    expect(screen.queryByText('PCDock')).not.toBeInTheDocument()
+    expect(screen.queryByText('PCSidebar')).not.toBeInTheDocument()
   })
 
-  it('PC: PCDock만 마운트, FloatingDock 없음', () => {
+  it('PC: PCSidebar만 마운트, FloatingDock 없음', () => {
     isDesktopMock = true
     render(<App />)
-    expect(screen.getByText('PCDock')).toBeInTheDocument()
+    expect(screen.getByText('PCSidebar')).toBeInTheDocument()
     expect(screen.queryByText('FloatingDock')).not.toBeInTheDocument()
   })
 

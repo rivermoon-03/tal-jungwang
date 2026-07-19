@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Map, CalendarDays, Utensils, MoreHorizontal,
   PanelLeftClose, PanelLeftOpen, Sun, Moon, Bell,
   Cloud, CloudSun, CloudRain, CloudSnow,
 } from 'lucide-react'
@@ -9,16 +8,14 @@ import { useWeather } from '../../hooks/useWeather'
 import { useNotices } from '../../hooks/useMore'
 import usePathname from '../../hooks/usePathname'
 import NoticesPopover from './NoticesPopover'
+import { PC_TABS, getActivePcTabId, navigateToPcTab } from './pcNavTabs'
 
 // PC 풀너비 검정 dock. 좌측 4탭 + 시각/요일/날씨 + 우측 빠른 액션.
 // 차량 인포테인먼트 톤 — 큼직한 아이콘, 넉넉한 spacing.
-
-const TABS = [
-  { id: 'map',       Icon: Map,            href: '/',          label: '지도'   },
-  { id: 'schedule',  Icon: CalendarDays,   href: '/schedule',  label: '시간표' },
-  { id: 'cafeteria', Icon: Utensils,       href: '/cafeteria', label: '학식'   },
-  { id: 'more',      Icon: MoreHorizontal, href: '/more',      label: '더보기' },
-]
+//
+// 데스크톱 리디자인(사이드바 도입) 이후로는 App.jsx가 이 컴포넌트를 더 이상
+// 마운트하지 않는다(PCSidebar가 탭 네비/다크토글/공지벨을 이관받음). 파일은
+// 회귀 대비로 남겨둔다.
 
 const WEATHER_ICONS = {
   sunny: Sun,
@@ -26,13 +23,6 @@ const WEATHER_ICONS = {
   cloudy: Cloud,
   rainy: CloudRain,
   snowy: CloudSnow,
-}
-
-function getActiveId(pathname) {
-  if (pathname.startsWith('/schedule'))  return 'schedule'
-  if (pathname.startsWith('/cafeteria')) return 'cafeteria'
-  if (pathname.startsWith('/more'))      return 'more'
-  return 'map'
 }
 
 function useClock() {
@@ -51,7 +41,7 @@ function dayTypeLabel(d) {
 
 export default function PCDock() {
   const pathname = usePathname()
-  const activeId = getActiveId(pathname)
+  const activeId = getActivePcTabId(pathname)
   const now = useClock()
   const hh = String(now.getHours()).padStart(2, '0')
   const mm = String(now.getMinutes()).padStart(2, '0')
@@ -71,13 +61,7 @@ export default function PCDock() {
   const [noticesOpen, setNoticesOpen] = useState(false)
   const bellRef = useRef(null)
 
-  const handleNav = (e, href) => {
-    e.preventDefault()
-    if (window.location.pathname !== href) {
-      window.history.pushState({}, '', href)
-      window.dispatchEvent(new PopStateEvent('popstate'))
-    }
-  }
+  const handleNav = navigateToPcTab
 
   return (
     <nav
@@ -87,7 +71,7 @@ export default function PCDock() {
     >
       {/* 탭들 */}
       <div className="flex items-center gap-2">
-        {TABS.map(({ id, Icon, href, label }) => {
+        {PC_TABS.map(({ id, Icon, href, label }) => {
           const active = activeId === id
           return (
             <a

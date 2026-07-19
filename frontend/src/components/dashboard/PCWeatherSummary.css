@@ -1,0 +1,67 @@
+/*
+ * PCWeatherSummary.css — PC 사이드바 날씨 위젯 전용 스코프 스타일.
+ * 모든 클래스는 .pcws 프리픽스로 스코프되어 다른 컴포넌트와 충돌하지 않는다.
+ * 색은 var(--tj-*) 토큰만 사용하고, 배경 그라데이션만 예외로 하드코딩 hex를 허용한다
+ * (연한 하늘색/차분한 다크 톤 — 모바일 Hero의 "글귀 카드" 감성 재현).
+ */
+
+.pcws {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: 14px; /* rounded-card 토큰과 동일 값 */
+  border: 1px solid var(--tj-line);
+  padding: 14px;
+  background: linear-gradient(160deg, #eaf3fb, #f7fbff);
+  overflow: hidden;
+}
+
+.dark .pcws {
+  border-color: var(--tj-line);
+  background: linear-gradient(160deg, #16242e, var(--tj-surface-2));
+}
+
+.pcws-quote {
+  margin: 0 0 10px;
+  overflow-wrap: break-word;
+}
+
+.pcws-main {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pcws-temp-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pcws-temp {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.pcws-sky {
+  white-space: nowrap;
+}
+
+.pcws-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.pcws-meta {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
