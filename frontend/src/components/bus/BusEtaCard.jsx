@@ -14,6 +14,7 @@
 import { memo, useMemo, useRef, useEffect } from 'react'
 import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
+import DataBadge from '../ui/DataBadge'
 
 // arrive_in_seconds → 표시 문자열 + imminent 여부
 function formatEtaLocal(sec) {
@@ -58,7 +59,7 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
     return (
       <div className="rounded-card bg-surface dark:bg-surface border border-line dark:border-line shadow-card overflow-hidden mb-4">
         <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-2">
-          <StatusChip kind="realtime">실시간</StatusChip>
+          <DataBadge state="live" />
           <span className="text-label font-semibold text-mute dark:text-mute ml-auto">
             GBIS 도착 정보 수신 중
           </span>

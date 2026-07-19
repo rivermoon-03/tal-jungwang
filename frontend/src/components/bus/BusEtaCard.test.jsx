@@ -3,9 +3,11 @@ import { describe, it, expect } from 'vitest'
 import BusEtaCard from './BusEtaCard'
 
 // AI티 금지: 9~11px 클래스, 인라인 색칩(bg-chip-*), 생색(text-slate-*, text-gray-*)
+// text-micro는 밴 목록에서 제외 — DataBadge(ui/DataBadge.jsx)가 다른 화면의 배지
+// (ShuttlePanel 계절학기 칩, ScheduleDetailModal 등)와 동일하게 쓰는 스케일 토큰이다.
 const BANNED_CLASSES = [
   'text-[9px]', 'text-[10px]', 'text-[11px]',
-  'text-micro', 'text-meta',
+  'text-meta',
   'bg-chip-green-bg', 'bg-chip-yellow-bg', 'bg-chip-red-bg',
   'text-slate-', 'text-gray-',
   'bg-amber-100',

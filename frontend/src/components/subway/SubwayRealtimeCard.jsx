@@ -2,6 +2,7 @@ import React, { memo, useState, useEffect, useRef } from 'react';
 import { Star } from 'lucide-react';
 import useFavorites from '../../hooks/useFavorites';
 import StatusChip from '../ui/StatusChip';
+import DataBadge from '../ui/DataBadge';
 import { formatEta } from '../../utils/eta';
 
 // 실시간 데이터가 N분 전 수신된 값임을 알리는 배지 + 탭/호버 시 안내 툴팁.
@@ -35,7 +36,7 @@ function StaleHintBadge({ ageMin, stale }) {
         aria-expanded={open}
         className="inline-flex items-center min-h-[44px] min-w-[44px] justify-center px-1"
       >
-        <StatusChip kind="beta">{label}</StatusChip>
+        <DataBadge state="stale" staleAgeText={label} />
       </button>
       {open && (
         <div

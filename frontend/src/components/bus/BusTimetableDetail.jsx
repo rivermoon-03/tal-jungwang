@@ -4,6 +4,7 @@ import { useBusTimetable, useBusHistoryPreview, useBusArrivalStats } from '../..
 import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStationConfig'
 import { RouteProgressStrip } from './BusArrivalCard'
 import BusStatsHeader from './BusStatsHeader'
+import DataBadge from '../ui/DataBadge'
 
 const BOARDING_INFO = {
   '6502': { stop: '이마트', desc: '육교 건너 이마트 정류장에서 탑승하세요' },
@@ -116,9 +117,7 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-page-ttl text-ink dark:text-ink">{routeNo}번</h2>
-            <span className="text-meta font-semibold text-ink-2 dark:text-ink-2 bg-line dark:bg-line px-2.5 py-1 rounded-full tracking-tight">
-              {isWaypoint ? '실시간' : '시간표'}
-            </span>
+            <DataBadge state={isWaypoint ? 'live' : 'timetable'} />
             {!isWaypoint && data && (
               <span className="text-meta font-semibold text-ink-2 dark:text-ink-2 bg-line dark:bg-line px-2.5 py-1 rounded-full tracking-tight">
                 {{ weekday: '평일', saturday: '토요일', sunday: '일요일' }[data.schedule_type] ?? data.schedule_type}
