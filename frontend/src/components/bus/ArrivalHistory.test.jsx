@@ -1,22 +1,33 @@
 import { render, screen } from '@testing-library/react'
 import ArrivalHistory from './ArrivalHistory'
 
-// 변경 후: today=null(예정 미표시) / delta 없음 / 오늘 컬럼 제거 / 어제·이틀전·7일전 3컬럼
+// rows shape: [{ key, items: [{ time, position }] }] — utils/historyAdapter.toHistoryRows 반환값
 
 const sampleRows = [
   {
-    slot: '07:43',
-    yesterday: '07:45',
-    dayBefore: '07:42',
-    lastWeek: '07:44',
-    delta: null,
+    key: 'yesterday',
+    items: [
+      { time: '07:15', position: 'past' },
+      { time: '07:30', position: 'past' },
+      { time: '07:45', position: 'closest' },
+      { time: '08:00', position: 'after' },
+      { time: '08:15', position: 'after' },
+      { time: '08:30', position: 'after' },
+    ],
   },
   {
-    slot: '07:58',
-    yesterday: '07:58',
-    dayBefore: '07:55',
-    lastWeek: '07:59',
-    delta: null,
+    key: 'dayBefore',
+    items: [
+      { time: '07:16', position: 'past' },
+      { time: '07:32', position: 'closest' },
+      { time: '07:48', position: 'after' },
+    ],
+  },
+  {
+    key: 'lastWeek',
+    items: [
+      { time: '07:44', position: 'closest' },
+    ],
   },
 ]
 
@@ -43,21 +54,50 @@ describe('ArrivalHistory', () => {
     })
   })
 
-  describe('rows 렌더 (어제 / 이틀 전 / 7일 전 비교)', () => {
-    it('어제/이틀 전/7일 전 도착 시각을 렌더한다', () => {
+  describe('rows 렌더 (컬럼별 최대 6건 윈도우)', () => {
+    it('각 컬럼의 도착 시각을 모두 렌더한다', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      expect(screen.getByText('07:45')).toBeInTheDocument()
-      expect(screen.getByText('07:42')).toBeInTheDocument()
+      expect(screen.getByText('07:15')).toBeInTheDocument()
+      expect(screen.getByText('08:30')).toBeInTheDocument()
+      expect(screen.getByText('07:16')).toBeInTheDocument()
       expect(screen.getByText('07:44')).toBeInTheDocument()
-      expect(screen.getByText('07:58')).toBeInTheDocument()
-      expect(screen.getByText('07:55')).toBeInTheDocument()
-      expect(screen.getByText('07:59')).toBeInTheDocument()
     })
 
-    it('각 셀에 "도착함" 라벨을 렌더한다 (3컬럼 × N행)', () => {
+    it('yesterday 컬럼처럼 6건까지도 렌더할 수 있다', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      const labels = screen.getAllByText('도착함')
-      expect(labels.length).toBe(sampleRows.length * 3)
+      // yesterday 컬럼의 6개 시각이 모두 존재
+      ;['07:15', '07:30', '07:45', '08:00', '08:15', '08:30'].forEach((t) => {
+        expect(screen.getByText(t)).toBeInTheDocument()
+      })
+    })
+
+    it('closest position은 "지금과 비슷" 라벨을 렌더한다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const closestLabels = screen.getAllByText('지금과 비슷')
+      // sampleRows에는 컬럼마다 closest 1개씩 총 3개
+      expect(closestLabels.length).toBe(3)
+    })
+
+    it('past/after position은 "도착함" 라벨을 렌더한다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const arrivedLabels = screen.getAllByText('도착함')
+      // 전체 items 10개 중 closest 3개를 제외한 7개
+      expect(arrivedLabels.length).toBe(7)
+    })
+  })
+
+  describe('closest 강조 스타일', () => {
+    it('closest 셀은 accent 배지 클래스를 갖는다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const closestCell = screen.getByText('07:45').parentElement
+      expect(closestCell.className).toMatch(/bg-accent-bg/)
+      expect(closestCell.className).toMatch(/text-accent-ink/)
+    })
+
+    it('past 셀은 opacity 클래스를 갖는다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const pastCell = screen.getByText('07:15').parentElement
+      expect(pastCell.className).toMatch(/opacity-35/)
     })
   })
 
@@ -79,9 +119,16 @@ describe('ArrivalHistory', () => {
   })
 
   describe('하단 안내문', () => {
-    it('과거 도착 시각을 참고해 직접 가늠 안내문이 렌더된다', () => {
+    it('과거 도착 시각을 참고해 직접 가늠 안내문이 정확히 1회만 렌더된다', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      expect(screen.getByText(/과거 도착 시각을 참고해 직접 가늠/)).toBeInTheDocument()
+      const matches = screen.getAllByText(/과거 도착 시각을 참고해 직접 가늠/)
+      expect(matches.length).toBe(1)
+    })
+
+    it('안내문에 현재 시각이 병기된다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const el = screen.getByText(/과거 도착 시각을 참고해 직접 가늠/)
+      expect(el.textContent).toMatch(/현재 \d{2}:\d{2}/)
     })
 
     it('"이전 시간을 기반으로 한 예정치" 문구가 없다', () => {
@@ -136,6 +183,12 @@ describe('ArrivalHistory', () => {
       const { container } = render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
       const text = container.textContent
       expect(text).not.toMatch(/[\u{1F300}-\u{1FFFF}]/u)
+    })
+
+    it('임의 hex 색상(#hex) 클래스/스타일이 없어야 한다', () => {
+      const { container } = render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const html = container.innerHTML
+      expect(html).not.toMatch(/#[0-9a-fA-F]{3,6}/)
     })
   })
 

@@ -22,6 +22,7 @@ import { RouteProgressStrip } from '../bus/BusArrivalCard'
 import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStationConfig'
 import BusStatsHeader from '../bus/BusStatsHeader'
 import BusEtaCard from '../bus/BusEtaCard'
+import { scrollToCenter } from '../../utils/scrollToCenter'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -211,7 +212,7 @@ function ViewModeToggle({ value, onChange }) {
 
 // ─── per-type content ───────────────────────────────────────────────────
 
-function BusContent({ routeCode, routeId = null, stopId = null, accentColor, viewMode = 'list' }) {
+function BusContent({ routeCode, routeId = null, stopId = null, accentColor, viewMode = 'list', scrollContainerRef }) {
   // routeId가 있으면 방향 정확한 /bus/timetable/{route_id} 사용 (등교/하교 분리 route에 필수)
   const byId    = useBusTimetable(routeId)
   const byRoute = useBusTimetableByRoute(routeId == null ? routeCode : null, stopId != null ? { stopId } : undefined)
@@ -232,10 +233,8 @@ function BusContent({ routeCode, routeId = null, stopId = null, accentColor, vie
   const futureCount = firstFutureIdx === -1 ? 0 : allTimes.length - firstFutureIdx
 
   useEffect(() => {
-    if (nextRef.current) {
-      nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
-    }
-  }, [data])
+    scrollToCenter(scrollContainerRef?.current, nextRef.current)
+  }, [data, scrollContainerRef])
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
@@ -298,7 +297,7 @@ const SUBWAY_KEY_META = {
   siheung_dn: { dataKey: 'siheung_dn', label: '하행 (원시 방면)' },
 }
 
-function SubwayContent({ accentColor, subwayKey, viewMode = 'list' }) {
+function SubwayContent({ accentColor, subwayKey, viewMode = 'list', scrollContainerRef }) {
   const { data, loading, error } = useSubwayTimetable()
   const now = new Date()
   const nowStr = toHHMM(now)
@@ -320,6 +319,7 @@ function SubwayContent({ accentColor, subwayKey, viewMode = 'list' }) {
         accentColor={accentColor}
         viewMode={viewMode}
         nowStr={nowStr}
+        scrollContainerRef={scrollContainerRef}
       />
     )
   }
@@ -339,6 +339,7 @@ function SubwayContent({ accentColor, subwayKey, viewMode = 'list' }) {
         accentColor={accentColor}
         viewMode={viewMode}
         nowStr={nowStr}
+        scrollContainerRef={scrollContainerRef}
       />
       <DirectionBlock
         label="하행 (인천 방면)"
@@ -347,19 +348,18 @@ function SubwayContent({ accentColor, subwayKey, viewMode = 'list' }) {
         accentColor={accentColor}
         viewMode={viewMode}
         nowStr={nowStr}
+        scrollContainerRef={scrollContainerRef}
       />
     </div>
   )
 }
 
-function DirectionBlock({ label, allItems = [], items, accentColor, viewMode = 'list', nowStr }) {
+function DirectionBlock({ label, allItems = [], items, accentColor, viewMode = 'list', nowStr, scrollContainerRef }) {
   const nextRef = useRef(null)
   const allDone = items.length === 0
   useEffect(() => {
-    if (nextRef.current) {
-      nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
-    }
-  }, [items.length])
+    scrollToCenter(scrollContainerRef?.current, nextRef.current)
+  }, [items.length, scrollContainerRef])
 
   // 그리드 뷰용 전체(과거+다음+이후) 항목 — allDone(금일 종료)일 땐 기존 TimeGrid(과거 전용) 그대로 사용.
   const firstFutureIdx = allItems.findIndex((t) => (t.depart_at ?? '') >= nowStr)
@@ -435,7 +435,7 @@ function lastSaturdayDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function ShuttleContent({ direction, accentColor }) {
+function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   const isSecondCampus = direction >= 2
   // 등교 회차편의 하교 출발 시각 판정을 위해 양 방향을 한 번에 조회.
   // (direction 쿼리를 생략하면 백엔드가 양 방향을 함께 반환 — 로딩 경합 제거)
@@ -565,10 +565,8 @@ function ShuttleContent({ direction, accentColor }) {
   }
 
   useEffect(() => {
-    if (nextRef.current) {
-      nextRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
-    }
-  }, [data])
+    scrollToCenter(scrollContainerRef?.current, nextRef.current)
+  }, [data, scrollContainerRef])
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
@@ -738,7 +736,7 @@ function EmptyMsg({ text }) {
 
 // ─── realtime bus history ────────────────────────────────────────────────
 
-function BusHistoryContent({ routeNumber, category }) {
+function BusHistoryContent({ routeNumber, category, scrollContainerRef }) {
   // 카드(SchedulePage → useBusArrivals)가 보는 GBIS 추적 정류장과 동일한 stop을
   // backend에도 명시해 realtime_eta 응답이 카드와 같은 정류장 기준이 되게 한다.
   // 시흥33처럼 양방향 실시간 추적이 있는 노선은 카테고리에 따라 stop이 갈린다.
@@ -758,10 +756,8 @@ function BusHistoryContent({ routeNumber, category }) {
   const nowStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
   useEffect(() => {
-    if (anchorRef.current) {
-      anchorRef.current.scrollIntoView({ block: 'center', behavior: 'instant' })
-    }
-  }, [data])
+    scrollToCenter(scrollContainerRef?.current, anchorRef.current)
+  }, [data, scrollContainerRef])
 
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
@@ -862,6 +858,10 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   const isPC =
     typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
+  // "다음 차" 자동 센터링이 스크롤할 유일한 대상 — scrollToCenter는 이 컨테이너만
+  // 스크롤하므로 시트/문서 레벨이 함께 밀려 헤더가 잘리는 일이 없다.
+  const scrollContainerRef = useRef(null)
+
   // 그리드/리스트 뷰 토글 — 셔틀(수시운행·회차편 등 특수 라벨이 많아 그리드에 맞지 않음)과
   // 실시간 버스(BusHistoryContent, 시간표 자체가 없음)는 항상 리스트/이력 뷰로 고정.
   // F3: 뷰 선택을 zustand persist(scheduleViewMode)로 이관 — 모달을 다시 열어도,
@@ -912,6 +912,9 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   const fallbackColor = TYPE_COLOR[type] ?? '#64748B'
   const color = accentColor ?? fallbackColor
   const typeLabel = TYPE_LABEL[type] ?? ''
+  // 마커 진입 등 title이 아직 없는 경로에서도 헤더가 빈 줄로 찌그러지지 않도록
+  // routeCode → typeLabel 순으로 폴백한다(제목 잘림 버그와 함께 확인된 방어 로직).
+  const displayTitle = title || routeCode || typeLabel || '시간표'
 
   const header = (
     <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-line">
@@ -921,7 +924,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
       />
       <div className="flex-1 min-w-0">
         <p className="text-display text-ink dark:text-ink truncate" style={{ letterSpacing: '-0.03em' }}>
-          {title}
+          {displayTitle}
         </p>
         <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
       </div>
@@ -973,6 +976,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
       {/* scrollable content — bottom padding 확보해 FloatingDock 위로 */}
       <div
+        ref={scrollContainerRef}
         className="flex-1 overflow-y-auto px-4 pt-2"
         style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))' }}
       >
@@ -982,10 +986,10 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
             <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
           </div>
         )}
-        {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} />}
-        {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} viewMode={viewMode} />}
-        {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} />}
-        {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} />}
+        {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} scrollContainerRef={scrollContainerRef} />}
+        {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
+        {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
+        {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} scrollContainerRef={scrollContainerRef} />}
       </div>
     </>
   )
@@ -1010,7 +1014,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
         className="fixed inset-0 z-[100] left-0 right-auto w-[38%] bottom-[68px] flex items-stretch justify-stretch pointer-events-none"
         aria-modal="true"
         role="dialog"
-        aria-label={`${title} 시간표`}
+        aria-label={`${displayTitle} 시간표`}
       >
         <div
           className="relative z-10 w-full bg-surface dark:bg-surface flex flex-col pointer-events-auto h-full animate-panel-swap"
@@ -1040,7 +1044,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           className="fixed bottom-0 left-0 right-0 z-[100] bg-surface dark:bg-surface rounded-t-sheet shadow-2xl flex flex-col overflow-hidden outline-none"
           style={{ maxHeight: '88dvh' }}
         >
-          <Drawer.Title className="sr-only">{title} 시간표</Drawer.Title>
+          <Drawer.Title className="sr-only">{displayTitle} 시간표</Drawer.Title>
           {/* 드래그 핸들 — vaul이 전체 시트 드래그를 처리하므로 시각적 표시만 담당 */}
           <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
             <span className="w-12 h-1.5 rounded-full bg-line dark:bg-line" />
