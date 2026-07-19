@@ -216,15 +216,17 @@ export const ROUTE_WAYPOINTS = {
 
 // 노선 번호로 실시간 도착정보를 조회해야 할 GBIS 정류장 ID를 반환.
 // 값이 string이면 카테고리 무관 단일 정류장, object면 카테고리별 정류장.
-// 시흥33은 등교(시흥시청역)·하교(한국공대) 양방향 모두 실시간 추적 대상.
+// 시흥33·3401·5602는 등교(시흥시청역)·하교(이마트/한국공대) 정류장이 서로 달라
+// 반드시 카테고리별로 나눠야 한다. 3400 등교(서울측 승차)는 추적 정류장이 없어
+// 키 자체를 비워 null로 떨어지게 한다(하교용 시화터미널 ID를 잘못 빌려오면 안 됨).
 const _ROUTE_TO_GBIS = {
   '시흥33': { 하교: '224000639', 등교: '224000586' },
   '20-1':  '224000639',
   '11-A':  '224000639',
   '시흥1':  '224000513',
-  '3400':  '224000861',
-  '3401':  '224000586',
-  '5602':  '224000586',
+  '3400':  { 하교: '224000861' },
+  '3401':  { 하교: '224000513', 등교: '224000586' },
+  '5602':  { 하교: '224000513', 등교: '224000586' },
   '99-2':  '224000861',
   '5200':  '224000861',
 }
@@ -233,7 +235,7 @@ export function getGbisStationIdForRoute(routeNumber, category) {
   const entry = _ROUTE_TO_GBIS[routeNumber]
   if (entry == null) return null
   if (typeof entry === 'string') return entry
-  if (category && entry[category] != null) return entry[category]
-  // 카테고리 미지정/매칭 실패 시 첫 값으로 폴백 — 기존 호출처 호환.
+  if (category) return entry[category] ?? null
+  // 카테고리 미지정 시(레거시 호출부 호환) 첫 값으로 폴백.
   return Object.values(entry)[0] ?? null
 }
