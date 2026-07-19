@@ -2,9 +2,10 @@ import useAppStore from '../../stores/useAppStore'
 import { useMemo } from 'react'
 import { useBusArrivals, useBusRoutesByCategory, useBusTimetable } from '../../hooks/useBus'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
-import Skeleton from '../common/Skeleton'
+import { SkeletonArrivalCard } from '../common/Skeleton'
 import ErrorState from '../ui/ErrorState'
 import ArrivalRow from '../dashboard/ArrivalRow'
+import DataBadge from '../ui/DataBadge'
 import {
   getGbisStationId, getViaLabel,
   getPerRouteDisplay, getRoutesFor,
@@ -38,7 +39,7 @@ export default function BusPanel() {
   if (isSeoulStation) {
     return (
       <div className="space-y-2">
-        {routesQuery.loading && <Skeleton height="3rem" rounded="rounded-xl" />}
+        {routesQuery.loading && <SkeletonArrivalCard />}
         {routesQuery.error && !routesQuery.loading && (
           <ErrorState message="노선 정보 오류" onRetry={routesQuery.refetch} className="py-4" />
         )}
@@ -58,7 +59,7 @@ export default function BusPanel() {
   }
 
   // gbis 정류장: arrivals 통합 렌더링
-  if (arrivalsQuery.loading) return <Skeleton height="3rem" rounded="rounded-xl" />
+  if (arrivalsQuery.loading) return <SkeletonArrivalCard />
   if (arrivalsQuery.error && !arrivalsQuery.data) {
     return <ErrorState message="버스 정보 오류" onRetry={arrivalsQuery.refetch} className="py-4" />
   }
@@ -154,11 +155,7 @@ export default function BusPanel() {
           : ''
         const routeColor = cfg?.color ?? DEFAULT_ROUTE_COLOR
 
-        const rightAddon = a.arrival_type === 'realtime' ? (
-          <span className="text-micro font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
-            실시간
-          </span>
-        ) : null
+        const rightAddon = a.arrival_type === 'realtime' ? <DataBadge state="live" /> : null
 
         return (
           <ArrivalRow
@@ -186,7 +183,7 @@ function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection }) {
   const { route_id, route_number, stops = [] } = route
   const timetable = useBusTimetable(route_id)
 
-  if (timetable.loading) return <Skeleton height="3rem" rounded="rounded-xl" />
+  if (timetable.loading) return <SkeletonArrivalCard />
   if (timetable.error && !timetable.data) {
     return <ErrorState message={`${route_number} 정보 오류`} onRetry={timetable.refetch} className="py-4" />
   }

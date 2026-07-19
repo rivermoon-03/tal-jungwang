@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { CalendarOff, MoonStar } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
-import Skeleton from '../common/Skeleton'
+import { SkeletonPanelRow } from '../common/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import ErrorState from '../ui/ErrorState'
 import DualDirectionCard from '../common/DualDirectionCard'
@@ -108,7 +108,7 @@ export default function ShuttlePanel() {
   if (anyLoading && !goQuery.data && !backQuery.data) {
     return (
       <div className="space-y-2">
-        <Skeleton height="5.5rem" rounded="rounded-xl" />
+        <SkeletonPanelRow />
       </div>
     )
   }

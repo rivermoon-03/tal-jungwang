@@ -3,6 +3,7 @@ import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import useAppStore from '../../stores/useAppStore'
 import { nextTimetableSeconds } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
+import DataBadge from '../ui/DataBadge'
 
 // arvlCd 0,1,3,4,5 → 임박 (빨간색)
 function isImminent(statusCode) {
@@ -31,6 +32,8 @@ export function isRealtimeStale(reference) {
 
 /**
  * 시간표 모드 / 실시간 모드 양쪽에서 재사용하는 공통 stale 배지.
+ * 공용 DataBadge(ui/DataBadge.jsx)의 stale 상태를 그대로 사용해
+ * 다른 화면의 stale 표기와 시각 문법을 통일한다.
  */
 export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
   if (!reference) return null
@@ -38,12 +41,7 @@ export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
   if (Number.isNaN(ms)) return null
   const ageMin = Math.floor((Date.now() - ms) / 60000)
   if (ageMin < 3) return null
-  return (
-    <span className={`inline-flex items-center gap-1 text-caption font-bold text-ease ${className}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-ease" />
-      {prefix}데이터 {ageMin}분 지연
-    </span>
-  )
+  return <DataBadge state="stale" staleAgeText={`${prefix}데이터 ${ageMin}분 지연`} className={className} />
 }
 
 // arvlCd에 따른 한국어 상태 레이블 (fallback용)
