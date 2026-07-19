@@ -10,6 +10,8 @@ import EmptyState from '../ui/EmptyState'
 import ErrorState from '../ui/ErrorState'
 import MealGridSection from './MealGridSection'
 import CafeteriaVenueRail from './CafeteriaVenueRail'
+import CafeteriaVenues from './CafeteriaVenues'
+import SegmentTabs from '../common/SegmentTabs'
 import { useNow } from '../../hooks/useNow'
 import { formatUpdated } from '../../utils/cafeteriaFormat'
 import { isMealTypeOpenNow } from '../../utils/cafeteriaMenuVenue'
@@ -22,6 +24,19 @@ import {
   hasDayMenu,
   getNearestMenuDayKey,
 } from '../../utils/cafeteriaDays'
+
+// 상단 메인 탭: 식단(diet) / 운영정보(venues) — 모바일 CafeteriaPage.jsx와 동일 구성.
+// 메뉴 API가 NO_MENU 등으로 실패해도(주말·방학) 운영정보는 정적 데이터 기반이라
+// 항상 접근 가능해야 한다 — 이게 이 탭을 data/error와 무관하게 항상 렌더하는 이유.
+const MAIN_TABS = [
+  { id: 'diet', label: '식단' },
+  { id: 'venues', label: '운영정보' },
+]
+
+function navigateToVenueDetail(venueId) {
+  window.history.pushState(null, '', `/cafeteria/${encodeURIComponent(venueId)}`)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
 
 /** 끼니 카드가 "지금" 운영 중일 때 헤더에 붙는 작은 pill */
 function NowBadge() {
@@ -37,6 +52,7 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
   const nowMs = useNow(60_000)
   const nowDate = useMemo(() => new Date(nowMs), [nowMs])
 
+  const [mainTab, setMainTab] = useState('diet')
   const [selectedVenueIdx, setSelectedVenueIdx] = useState(0)
   const [selectedDay, setSelectedDay] = useState(null)
 
@@ -79,7 +95,22 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
   }
 
   return (
-    <div className="h-full min-h-0 flex overflow-hidden bg-surface">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden bg-surface">
+      {/* 메인 탭 — 식단/운영정보. 메뉴 데이터 로딩·에러와 무관하게 항상 표시한다. */}
+      <div className="flex-shrink-0 border-b border-line px-8 py-3">
+        <div className="w-[220px]">
+          <SegmentTabs tabs={MAIN_TABS} active={mainTab} onChange={setMainTab} />
+        </div>
+      </div>
+
+      {mainTab === 'venues' ? (
+        <div className="flex-1 min-h-0 overflow-y-auto bg-bg px-8 py-6">
+          <div className="max-w-[900px] mx-auto">
+            <CafeteriaVenues onVenueClick={navigateToVenueDetail} />
+          </div>
+        </div>
+      ) : (
+      <div className="flex-1 min-h-0 flex overflow-hidden">
       <div className="w-[300px] xl:w-[340px] flex-shrink-0 h-full border-r border-line">
         <CafeteriaVenueRail
           cafeterias={data?.cafeterias ?? []}
@@ -187,6 +218,8 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
           </div>
         )}
       </div>
+      </div>
+      )}
     </div>
   )
 }

@@ -289,6 +289,10 @@ const SUBWAY_DIRECTIONS = {
 
 // ─── subway section ──────────────────────────────────────────────────────────
 function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCodes = [], dataMode = 'timetable', setDataMode }) {
+  // PC 2열 레이아웃에서는 버스/셔틀처럼 우측 인라인 패널(ScheduleDetailModal
+  // pcMode="inline")에 떠야 한다. 모바일은 기존 zustand 전역 시트(GlobalSubwayDetailSheet,
+  // 열차 위치 지도 등 subway 전용 UI)를 그대로 유지한다.
+  const isDesktop = useIsDesktop()
   const { data, loading } = useSubwayNext()
   const { data: timetable } = useSubwayTimetable()
   const { data: realtimeAll, loading: realtimeLoading } = useSubwayRealtime()
@@ -420,16 +424,28 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
           const afterNextVal = secondDepart ? { minutes: validSecondMins, hhmm: secondDepart } : null
           const favCode = `subway:${stationGroup}:${key}`
           if (favoritesOnly && !favCodes.includes(favCode)) return null
-          const handleClick = () => setSubwayDetailSheet({
-            station: stationGroup,
-            lineName: dir.subtitle,
-            timetableKey: key,
-            direction: label,
-            color: dir.color,
-            darkColor: dir.darkColor,
-            lightColor: dir.lightColor,
-            symbol: dir.symbol,
-          })
+          const handleClick = () => {
+            if (isDesktop) {
+              onCardClick({
+                type: 'subway',
+                subwayKey: key,
+                favCode,
+                title: `${stationGroup} ${label}`,
+                accentColor: dir.color,
+              })
+              return
+            }
+            setSubwayDetailSheet({
+              station: stationGroup,
+              lineName: dir.subtitle,
+              timetableKey: key,
+              direction: label,
+              color: dir.color,
+              darkColor: dir.darkColor,
+              lightColor: dir.lightColor,
+              symbol: dir.symbol,
+            })
+          }
           return (
             <ScheduleSection
               key={`${stationGroup}:${key}`}
