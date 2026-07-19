@@ -1,6 +1,7 @@
 import Card from '../ui/Card.jsx'
 import RouteBadge from '../ui/RouteBadge.jsx'
 import StatusChip from '../ui/StatusChip.jsx'
+import LastBusBanner from '../bus/LastBusBanner.jsx'
 import { formatEta } from '../../utils/eta.js'
 
 const CROWDED_KIND = {
@@ -27,6 +28,9 @@ export default function ArrivalRow({
   crowded = 0,
   isRealtime = false,
   selectedStation = null,
+  // 오늘 시간표(있으면) — 막차 30분 이내일 때만 행 위에 컴팩트 배너를 얹는다.
+  // 없으면(null) 아무것도 렌더하지 않는다. LastBusBanner가 자체 30분 판정을 한다.
+  lastBusEntries = null,
   // routeColor prop 수신은 하지만 사용하지 않음 (RouteBadge가 내부에서 색 결정)
   // eslint-disable-next-line no-unused-vars
   routeColor,
@@ -84,102 +88,112 @@ export default function ArrivalRow({
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      data-urgent={urgent ? 'true' : 'false'}
-      className="w-full text-left min-h-[44px]"
-      style={{ display: 'block', background: 'none', border: 'none', padding: 0 }}
-    >
-      <Card
-        state={urgent ? 'imminent' : 'default'}
-        interactive
-        as="div"
+    <>
+      {lastBusEntries && (
+        <LastBusBanner
+          entries={lastBusEntries}
+          routeLabel={badgeRoute}
+          compact
+          className="mb-1.5"
+        />
+      )}
+      <button
+        type="button"
+        onClick={handleClick}
+        data-urgent={urgent ? 'true' : 'false'}
+        className="w-full text-left min-h-[44px]"
+        style={{ display: 'block', background: 'none', border: 'none', padding: 0 }}
       >
-        <div className="flex items-center gap-3">
-          {/* 좌상단: 노선번호 뱃지 */}
-          <RouteBadge route={badgeRoute} variant="solid" />
+        <Card
+          state={urgent ? 'imminent' : 'default'}
+          interactive
+          as="div"
+        >
+          <div className="flex items-center gap-3">
+            {/* 좌상단: 노선번호 뱃지 */}
+            <RouteBadge route={badgeRoute} variant="solid" />
 
-          {/* 중앙: 방향/출발지 정보 */}
-          <div className="flex-1 min-w-0">
-            {mainText && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-body text-ink font-bold truncate">
-                  {mainText}
-                </span>
-                {lastTrain && (
-                  <StatusChip kind="last">막차</StatusChip>
-                )}
-                {returnTrip && (
-                  <StatusChip kind="last">회차탑승</StatusChip>
-                )}
-                {status === 'ok' && (
-                  <span
-                    aria-hidden="true"
-                    className="inline-block w-1.5 h-1.5 rounded-full"
-                    style={{ background: 'var(--state-ok)' }}
-                  />
-                )}
-                {status === 'warn' && (
-                  <span
-                    aria-hidden="true"
-                    className="inline-block w-1.5 h-1.5 rounded-full"
-                    style={{ background: 'var(--state-warn)' }}
-                  />
-                )}
-                {status === 'bad' && (
-                  <span
-                    aria-hidden="true"
-                    className="inline-block w-1.5 h-1.5 rounded-full"
-                    style={{ background: 'var(--state-bad)' }}
-                  />
-                )}
-                {rightAddon}
-                {crowdedMeta && (
-                  <StatusChip kind={crowdedMeta.kind}>{crowdedMeta.label}</StatusChip>
-                )}
-              </div>
-            )}
-            {!mainText && (lastTrain || returnTrip || rightAddon || crowdedMeta) && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {lastTrain && <StatusChip kind="last">막차</StatusChip>}
-                {returnTrip && <StatusChip kind="last">회차탑승</StatusChip>}
-                {rightAddon}
-                {crowdedMeta && (
-                  <StatusChip kind={crowdedMeta.kind}>{crowdedMeta.label}</StatusChip>
-                )}
-              </div>
-            )}
-            {subText && (
-              <div className="text-label text-mute truncate mt-0.5">
-                {subText}
-              </div>
-            )}
-          </div>
-
-          {/* 우측: ETA */}
-          <div
-            className="flex-shrink-0 text-right tabular-nums"
-          >
-            <div
-              className={
-                etaResult.tone === 'none'
-                  ? 'text-body text-mute font-bold whitespace-nowrap'
-                  : urgent || etaResult.tone === 'imminent'
-                    ? 'text-eta text-imminent font-bold leading-none'
-                    : 'text-eta text-ink font-bold leading-none'
-              }
-            >
-              {etaResult.text}
+            {/* 중앙: 방향/출발지 정보 */}
+            <div className="flex-1 min-w-0">
+              {mainText && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-body text-ink font-bold truncate">
+                    {mainText}
+                  </span>
+                  {lastTrain && (
+                    <StatusChip kind="last">막차</StatusChip>
+                  )}
+                  {returnTrip && (
+                    <StatusChip kind="last">회차탑승</StatusChip>
+                  )}
+                  {status === 'ok' && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-1.5 h-1.5 rounded-full"
+                      style={{ background: 'var(--state-ok)' }}
+                    />
+                  )}
+                  {status === 'warn' && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-1.5 h-1.5 rounded-full"
+                      style={{ background: 'var(--state-warn)' }}
+                    />
+                  )}
+                  {status === 'bad' && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-1.5 h-1.5 rounded-full"
+                      style={{ background: 'var(--state-bad)' }}
+                    />
+                  )}
+                  {rightAddon}
+                  {crowdedMeta && (
+                    <StatusChip kind={crowdedMeta.kind}>{crowdedMeta.label}</StatusChip>
+                  )}
+                </div>
+              )}
+              {!mainText && (lastTrain || returnTrip || rightAddon || crowdedMeta) && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {lastTrain && <StatusChip kind="last">막차</StatusChip>}
+                  {returnTrip && <StatusChip kind="last">회차탑승</StatusChip>}
+                  {rightAddon}
+                  {crowdedMeta && (
+                    <StatusChip kind={crowdedMeta.kind}>{crowdedMeta.label}</StatusChip>
+                  )}
+                </div>
+              )}
+              {subText && (
+                <div className="text-label text-mute truncate mt-0.5">
+                  {subText}
+                </div>
+              )}
             </div>
-            {secondEtaText && (
-              <div className="text-caption text-mute mt-0.5 whitespace-nowrap">
-                {secondEtaText}
+
+            {/* 우측: ETA */}
+            <div
+              className="flex-shrink-0 text-right tabular-nums"
+            >
+              <div
+                className={
+                  etaResult.tone === 'none'
+                    ? 'text-body text-mute font-bold whitespace-nowrap'
+                    : urgent || etaResult.tone === 'imminent'
+                      ? 'text-eta text-imminent font-bold leading-none'
+                      : 'text-eta text-ink font-bold leading-none'
+                }
+              >
+                {etaResult.text}
               </div>
-            )}
+              {secondEtaText && (
+                <div className="text-caption text-mute mt-0.5 whitespace-nowrap">
+                  {secondEtaText}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </Card>
-    </button>
+        </Card>
+      </button>
+    </>
   )
 }

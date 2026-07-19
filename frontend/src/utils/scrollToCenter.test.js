@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scrollToCenter } from './scrollToCenter'
+import { scrollToCenter, scrollToCenterX } from './scrollToCenter'
 
 // jsdom은 실제 레이아웃을 계산하지 않으므로 getBoundingClientRect/scrollHeight/clientHeight를
 // 직접 스텁해 container 내부 상대 위치 계산을 검증한다.
@@ -108,5 +108,78 @@ describe('scrollToCenter', () => {
   it('둘 다 null/undefined이면 no-op', () => {
     expect(() => scrollToCenter(null, null)).not.toThrow()
     expect(() => scrollToCenter(undefined, undefined)).not.toThrow()
+  })
+})
+
+// ── scrollToCenterX (가로축) ────────────────────────────────────────────
+function stubRectX(el, left) {
+  el.getBoundingClientRect = () => ({ top: 0, left, right: 0, bottom: 0, width: 0, height: 0 })
+}
+
+function makeContainerX({ left = 0, clientWidth = 400, scrollWidth = 1000, scrollLeft = 0 } = {}) {
+  const el = document.createElement('div')
+  stubRectX(el, left)
+  Object.defineProperty(el, 'clientWidth', { value: clientWidth, configurable: true })
+  Object.defineProperty(el, 'scrollWidth', { value: scrollWidth, configurable: true })
+  el.scrollLeft = scrollLeft
+  return el
+}
+
+function makeTargetX({ left, clientWidth = 50 } = {}) {
+  const el = document.createElement('div')
+  stubRectX(el, left)
+  Object.defineProperty(el, 'clientWidth', { value: clientWidth, configurable: true })
+  return el
+}
+
+describe('scrollToCenterX', () => {
+  it('el을 container 가로 중앙에 맞추도록 scrollLeft를 계산한다', () => {
+    const container = makeContainerX({ left: 0, clientWidth: 400, scrollWidth: 1000 })
+    const el = makeTargetX({ left: 300, clientWidth: 50 })
+    // relLeft = 300 - 0 + 0 = 300, target = 300 - 200 + 25 = 125
+    scrollToCenterX(container, el)
+    expect(container.scrollLeft).toBe(125)
+  })
+
+  it('목표 위치가 음수면 0으로 clamp한다', () => {
+    const container = makeContainerX({ left: 0, clientWidth: 400, scrollWidth: 1000 })
+    const el = makeTargetX({ left: 10, clientWidth: 50 })
+    scrollToCenterX(container, el)
+    expect(container.scrollLeft).toBe(0)
+  })
+
+  it('목표 위치가 최대 스크롤을 넘으면 scrollWidth-clientWidth로 clamp한다', () => {
+    const container = makeContainerX({ left: 0, clientWidth: 400, scrollWidth: 1000 })
+    const el = makeTargetX({ left: 950, clientWidth: 50 })
+    scrollToCenterX(container, el)
+    expect(container.scrollLeft).toBe(600)
+  })
+
+  it('부모(조상) 요소의 scrollLeft는 건드리지 않는다 — container 하나만 스크롤', () => {
+    const parent = document.createElement('div')
+    Object.defineProperty(parent, 'clientWidth', { value: 800, configurable: true })
+    Object.defineProperty(parent, 'scrollWidth', { value: 2000, configurable: true })
+    parent.scrollLeft = 0
+
+    const container = makeContainerX({ left: 0, clientWidth: 400, scrollWidth: 1000 })
+    parent.appendChild(container)
+    document.body.appendChild(parent)
+
+    const el = makeTargetX({ left: 300, clientWidth: 50 })
+    container.appendChild(el)
+
+    scrollToCenterX(container, el)
+
+    expect(container.scrollLeft).toBe(125)
+    expect(parent.scrollLeft).toBe(0)
+
+    document.body.removeChild(parent)
+  })
+
+  it('container/el이 null/undefined이면 no-op', () => {
+    const el = makeTargetX({ left: 300 })
+    expect(() => scrollToCenterX(null, el)).not.toThrow()
+    expect(() => scrollToCenterX(undefined, el)).not.toThrow()
+    expect(() => scrollToCenterX(null, null)).not.toThrow()
   })
 })

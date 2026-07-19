@@ -76,6 +76,23 @@ export function getNotificationPermission() {
   return Notification.permission // 'default' | 'granted' | 'denied'
 }
 
+/**
+ * 알림 권한만 요청한다(푸시 구독/백엔드 등록 없음). 셔틀 알림 예약처럼 서버 발송이
+ * 필요 없는 로컬 setTimeout 기반 Notification 기능이 subscribeToPush()의 VAPID
+ * 구독 절차 없이 권한 흐름만 재사용하려는 용도.
+ * 이미 granted면 재요청 없이 즉시 반환하고, denied면 브라우저가 재요청을 막으므로
+ * 그대로 'denied'를 반환한다.
+ * @returns {Promise<'granted'|'denied'|'dismissed'|'unsupported'>}
+ */
+export async function requestNotificationPermission() {
+  if (typeof Notification === 'undefined') return 'unsupported'
+  if (Notification.permission === 'granted') return 'granted'
+  if (Notification.permission === 'denied') return 'denied'
+  const result = await Notification.requestPermission()
+  if (result === 'granted') return 'granted'
+  return result === 'denied' ? 'denied' : 'dismissed'
+}
+
 // 설정 화면 mount 시 초기 스위치 상태 판정에 쓴다. SW .ready를 기다리지 않아
 // SW 미등록 환경(dev)에서도 즉시 resolve된다.
 export async function hasActivePushSubscription() {

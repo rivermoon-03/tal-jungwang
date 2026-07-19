@@ -93,6 +93,31 @@ describe('ShuttlePanel — NO_SCHEDULE/NO_SHUTTLE 빈 상태 카피', () => {
     expect(screen.getByText(/오늘 셔틀 운행이 끝났어요/)).toBeInTheDocument()
   })
 
+  it('NO_SHUTTLE 에러 + 내일 첫차 정보가 있으면 "답이 있는 빈 상태" nextInfo 카드를 표시한다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SHUTTLE_ERR, refetch: vi.fn() })
+    useShuttleSchedule.mockImplementation((direction) => {
+      if (direction === 0) {
+        return { data: { directions: [{ direction: 0, times: [{ depart_at: '07:40' }] }] }, loading: false, error: null }
+      }
+      if (direction === 1) {
+        return { data: { directions: [{ direction: 1, times: [{ depart_at: '15:20' }] }] }, loading: false, error: null }
+      }
+      return { data: null, loading: false, error: null }
+    })
+    render(<ShuttlePanel />)
+    expect(screen.getByText('내일 첫차')).toBeInTheDocument()
+    expect(screen.getByText('07:40')).toBeInTheDocument()
+    expect(screen.getByText('등교 07:40 · 하교 15:20')).toBeInTheDocument()
+  })
+
+  it('NO_SHUTTLE 에러 + 내일 첫차 정보가 전혀 없으면 안내 문구로 폴백한다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SHUTTLE_ERR, refetch: vi.fn() })
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
+    render(<ShuttlePanel />)
+    expect(screen.getByText('내일 첫차 시간을 확인해 주세요')).toBeInTheDocument()
+    expect(screen.queryByText('내일 첫차')).not.toBeInTheDocument()
+  })
+
   it('일반 에러 시 ErrorState를 표시하고 재시도 버튼이 있다', () => {
     const err = Object.assign(new Error('NETWORK_ERR'), { code: 'NETWORK_ERR' })
     useShuttleNext.mockReturnValue({ data: null, loading: false, error: err, refetch: vi.fn() })
