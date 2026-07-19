@@ -342,6 +342,99 @@
   50%      { opacity: 0.9;  transform: scale(1.08); }
 }
 
+/* greeting 진입 시퀀스 — 글귀(quote) → 온도 행(weather) 승계.
+   reduced-motion은 이 파일이 아니라 index.css의 전역 규칙(*,*::before,*::after에
+   transition/animation-duration ≈0ms)이 처리한다 — 별도 media 분기를 두지 않는다. */
+
+/* 글귀 래퍼 — grid-template-rows 1fr→0fr 트랜지션으로 접혀, 아래 온도 행이
+   자연스럽게 그 자리를 채운다(내부 whero-quote-grid-inner가 overflow:hidden). */
+.whero-quote-grid {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 700ms var(--e-out);
+}
+.whero-quote-grid.is-collapsed {
+  grid-template-rows: 0fr;
+}
+.whero-quote-grid-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 글귀 블록 본체 — 마운트 시 blur(10px)+translateY(10px)+opacity 0에서 시작해
+   900ms 만에 제자리로 진입(is-visible). 6초 뒤 phase='weather'가 되면 is-leaving으로
+   바뀌어 700ms에 걸쳐 반대 방향(-8px)으로 살짝 떠오르며 사라진다. */
+.whero-quote-content {
+  position: relative;
+  opacity: 0;
+  filter: blur(10px);
+  transform: translateY(10px);
+  transition: opacity 900ms var(--e-out), filter 900ms var(--e-out), transform 900ms var(--e-out);
+}
+.whero-quote-content.is-visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+.whero-quote-content.is-leaving {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(-8px);
+  transition: opacity 700ms var(--e-out), filter 700ms var(--e-out), transform 700ms var(--e-out);
+}
+
+/* 출처/부제 툴팁 — 글귀 클릭 시 바로 아래(좌측 정렬)에 뜬다. 등장은 opacity+translateY+blur
+   220ms, 퇴장은 opacity만 160ms(HomeWeatherHero.jsx가 tooltipMounted로 DOM 유지 시간을 맞춘다). */
+.whero-quote-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  margin-top: 6px;
+  max-width: 220px;
+  font-weight: 600;
+}
+@keyframes whero-tooltip-enter {
+  from { opacity: 0; transform: translateY(4px); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
+}
+.whero-quote-tooltip.is-entering {
+  animation: whero-tooltip-enter 220ms var(--e-out) both;
+}
+.whero-quote-tooltip.is-leaving {
+  animation: none;
+  opacity: 0;
+  transition: opacity 160ms var(--e-out);
+}
+
+/* 온도/하늘 텍스트 확대 — phase='weather'에서 34px→56px, 14px→18px로 커진다.
+   font-size는 CSS 트랜지션으로 자연스럽게 보간된다(키프레임 불필요). */
+.whero-quote-temp {
+  font-size: 34px;
+  transition: font-size 700ms var(--e-out);
+}
+.whero-quote-temp.is-grown {
+  font-size: 56px;
+}
+.whero-quote-sky {
+  font-size: 14px;
+  transition: font-size 700ms var(--e-out);
+}
+.whero-quote-sky.is-grown {
+  font-size: 18px;
+}
+
+/* 아이콘 확대 — lucide size prop(HTML width/height 속성)은 CSS 트랜지션 대상이 아니라서
+   32px 고정 아이콘을 감싼 wrapper에 transform:scale(52/32)를 트랜지션한다. */
+.whero-quote-icon-wrap {
+  display: inline-flex;
+  transform-origin: bottom right;
+  transition: transform 700ms var(--e-out);
+}
+.whero-quote-icon-wrap.is-grown {
+  transform: scale(1.625);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .whero-rain-far span,
   .whero-rain-mid span,
