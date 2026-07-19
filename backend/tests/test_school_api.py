@@ -32,7 +32,24 @@ def test_departments_returns_registry(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["success"] is True
-    assert body["data"] == [{"code": "ce", "label": "컴퓨터공학부"}]
+    data = body["data"]
+
+    by_code = {d["code"]: d for d in data}
+    assert by_code["ce"] == {"code": "ce", "label": "컴퓨터공학부", "supported": True}
+
+    others = [d for code, d in by_code.items() if code != "ce"]
+    assert len(others) > 0
+    for d in others:
+        assert d["supported"] is False
+        assert isinstance(d["unsupported_reason"], str) and d["unsupported_reason"]
+
+
+def test_notices_unsupported_but_known_department_returns_400(client):
+    """ce 외 학과는 드롭다운엔 노출되지만 아직 미지원 — notices는 400이어야 한다."""
+    resp = client.get("/api/v1/school/notices", params={"department": "ee"})
+
+    assert resp.status_code == 400
+    assert isinstance(resp.json().get("detail"), str)
 
 
 def test_notices_valid_department_returns_ok(client):

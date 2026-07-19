@@ -23,12 +23,34 @@ from app.models.school import AcademicCalendarEvent, DepartmentNotice
 logger = logging.getLogger(__name__)
 
 # ── 학과 레지스트리 ──────────────────────────────────────────────────────
-# 코드 레벨 registry — robots.txt로 Allow 확인된 학과만 추가할 것
+# 한국공학대학교 robots.txt(www.tukorea.ac.kr 및 각 학과 서브도메인 공통)는
+# /bbs/ 전체를 Disallow하고 /bbs/ce/201/*, /bbs/ce/203/*(컴퓨터공학부 게시판)만
+# 예외로 Allow한다. 그래서 RSS 수집은 컴퓨터공학부(ce)만 가능하다
 # (app.services.external.tukorea_notices.DEPARTMENT_RSS_URLS와 1:1 대응).
-DEPARTMENTS: list[dict[str, str]] = [
-    {"code": "ce", "label": "컴퓨터공학부"},
+# 나머지 학과는 드롭다운에는 노출하되 supported=False로 표시해 프론트가
+# "왜 미지원인지"를 안내할 수 있게 하고, notices 조회는 막는다.
+_UNSUPPORTED_REASON = (
+    "학교 웹사이트 정책(robots.txt)상 컴퓨터공학부 게시판만 공지 수집이 허용되어 있어요. "
+    "이 학과는 아직 지원하지 않아요."
+)
+
+DEPARTMENTS: list[dict[str, Any]] = [
+    {"code": "ce", "label": "컴퓨터공학부", "supported": True},
+    {"code": "game", "label": "게임공학과", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "ai", "label": "인공지능학과", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "ee", "label": "전자공학부", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "semi", "label": "반도체공학부", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "me", "label": "기계공학과", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "mde", "label": "기계설계공학부", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "mecha", "label": "메카트로닉스공학부", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "ame", "label": "신소재공학과", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "chembio", "label": "생명화학공학과", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "energy", "label": "에너지·전기공학부", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "biz", "label": "경영학부", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
+    {"code": "design", "label": "디자인공학부", "supported": False, "unsupported_reason": _UNSUPPORTED_REASON},
 ]
 _DEPARTMENT_CODES = {d["code"] for d in DEPARTMENTS}
+_SUPPORTED_DEPARTMENT_CODES = {d["code"] for d in DEPARTMENTS if d["supported"]}
 
 # ── 캐시 키 / TTL ────────────────────────────────────────────────────────
 _TTL_NOTICES = 120 * 60  # 120분 — 컴공 공지 갱신 크론(60분)보다 길게 두되,
@@ -50,7 +72,7 @@ def list_departments() -> list[dict[str, str]]:
 
 
 def is_valid_department(code: str) -> bool:
-    return code in _DEPARTMENT_CODES
+    return code in _SUPPORTED_DEPARTMENT_CODES
 
 
 # ── 조회 (cache-aside, fetch_fn은 DB 쿼리) ──────────────────────────────
