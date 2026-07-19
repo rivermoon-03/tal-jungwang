@@ -601,7 +601,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
       {/* ── 바디 ── */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* 정류장 칩 & 탭 (고정 영역) */}
-        <div className="flex-none px-4 pt-3 pb-0">
+        <div className="flex-none px-4 pt-3 pb-3">
           {stops.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-3">
               <span className="text-[11.5px] font-semibold tracking-[.04em] text-mute flex-none mr-0.5">
@@ -641,7 +641,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
               항상 탭 가능하게 한다. pill 3개 대신 눌러서 평일→토요일→일/공휴일로
               순환하는 버튼 하나로 압축(공간 절약). 출발 시간표가 보이는 중일 때만 노출. */}
           {showDepartContent && (
-            <div className="flex justify-end mt-2 -mb-1">
+            <div className="flex justify-end pt-2">
               <button
                 type="button"
                 onClick={() => setDayTab((d) => nextDayTab(d))}
