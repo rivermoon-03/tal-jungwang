@@ -1,4 +1,3 @@
-import { Map } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import MapView from '../map/MapView'
 import Dashboard from '../dashboard/Dashboard'
@@ -16,6 +15,12 @@ import HomeWeatherHero from '../dashboard/HomeWeatherHero'
  * 회피) — 기존에도 같은 이유로 always-mount였고, MapView 내부
  * ResizeObserver가 컨테이너 리사이즈마다 relayout()을 호출하므로
  * 0↔전체 전환도 기존 110px↔전체 전환과 같은 경로로 안전하게 처리된다.
+ *
+ * 지도 닫기 버튼(M-1 이후)은 MapView 내부의 우측 상단 컨트롤 스택으로
+ * 옮겨졌다 — MainShell은 mapExpanded/onClose만 넘기고, 검색 pill·GPS/학교
+ * FAB·닫기 버튼을 하나의 세로 스택으로 배치하는 책임은 MapView가 진다
+ * (닫기 버튼 자체는 height:0 컨테이너의 overflow-hidden에 의해 축소 상태에서
+ * 자연히 가려지므로 여기서 mapExpanded로 다시 감쌀 필요가 없다).
  *
  * md:hidden — 모바일 전용. PC는 PCMainShell에서 별도 처리.
  */
@@ -38,29 +43,7 @@ export default function MainShell() {
           transition: 'height 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        <MapView />
-
-        {/* 지도 닫기 버튼 — 확장 상태에서만 노출(축소 상태의 진입점은 HomeWeatherHero의 [지도] 버튼) */}
-        {mapExpanded && (
-          <button
-            onClick={toggleMapExpanded}
-            aria-label="지도 닫기"
-            className="
-              absolute right-4 bottom-5 z-[60]
-              flex items-center gap-1.5
-              bg-white/95 dark:bg-[#272a33]/95
-              border border-line dark:border-line
-              rounded-card px-3 py-2
-              text-[13px] font-bold text-accent dark:text-accent
-              shadow-pill
-              min-h-[40px]
-              active:scale-[0.94] transition-transform duration-press ease-spring
-            "
-          >
-            <Map size={16} aria-hidden="true" />
-            닫기
-          </button>
-        )}
+        <MapView mapExpanded={mapExpanded} onClose={toggleMapExpanded} />
       </div>
 
       {/* 상단 A + 하단 B — 지도 확장 시 숨김(언마운트: 기존에도 동일 동작) */}
