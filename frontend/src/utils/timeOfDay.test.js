@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getKstHour, getTimeOfDay, getKstDayOfWeek } from './timeOfDay'
+import { getKstHour, getTimeOfDay, getKstDayOfWeek, getKstHourMinuteLabel } from './timeOfDay'
 
 // UTC 시각을 넣으면 KST(UTC+9)로 변환되어야 한다.
 // 예) UTC 09:00 == KST 18:00
@@ -57,5 +57,17 @@ describe('getKstDayOfWeek', () => {
   it('평일(KST 기준 화요일)은 2를 반환한다', () => {
     // KST 2026-07-21(화) 12:00 == UTC 03:00
     expect(getKstDayOfWeek(new Date('2026-07-21T03:00:00Z'))).toBe(2)
+  })
+})
+
+describe('getKstHourMinuteLabel', () => {
+  it('KST HH:MM 형식으로 포맷한다', () => {
+    // UTC 09:00 == KST 18:00
+    expect(getKstHourMinuteLabel(new Date('2026-07-17T09:00:00Z'))).toBe('18:00')
+  })
+
+  it('자정을 24:00이 아닌 00:00으로 표기한다', () => {
+    // UTC 15:00 == KST 익일 00:00
+    expect(getKstHourMinuteLabel(new Date('2026-07-17T15:00:00Z'))).toBe('00:00')
   })
 })
