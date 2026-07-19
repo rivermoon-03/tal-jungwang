@@ -7,12 +7,13 @@ import ErrorState from '../ui/ErrorState'
 import ArrivalRow from '../dashboard/ArrivalRow'
 import DataBadge from '../ui/DataBadge'
 import {
-  getGbisStationId, getViaLabel,
+  getGbisStationId,
   getPerRouteDisplay, getRoutesFor,
   getRouteDisplayConfig, getOriginLabel,
   getAllowedDirections,
 } from '../dashboard/busStationConfig'
 import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
+import { groupArrivalsByRoute, buildBusArrivalRow } from '../../utils/busArrivalRows'
 
 const DEFAULT_ROUTE_COLOR = '#64748B'
 
@@ -81,96 +82,32 @@ export default function BusPanel() {
     )
   }
 
-  // route_no 기준으로 그룹핑 — 같은 노선의 여러 버스를 1행으로 표시
-  const routeGroups = []
-  const seenRoutes = new Map()
-  for (const a of filteredArrivals) {
-    if (seenRoutes.has(a.route_no)) {
-      seenRoutes.get(a.route_no).push(a)
-    } else {
-      const group = [a]
-      seenRoutes.set(a.route_no, group)
-      routeGroups.push(group)
-    }
-  }
-
-  // 운행 정보가 있는 노선을 먼저, 없는 노선을 뒤로; 동일 그룹 내 도착이 임박한 순
-  const groupHasLive = (g) =>
-    g.some((a) => a.minutes != null || a.predict_sec != null || a.arrive_in_seconds != null)
-  const groupEarliest = (g) => {
-    let min = Infinity
-    for (const a of g) {
-      const m =
-        a.minutes != null
-          ? a.minutes
-          : a.predict_sec != null
-          ? Math.floor(a.predict_sec / 60)
-          : a.arrive_in_seconds != null
-          ? Math.floor(a.arrive_in_seconds / 60)
-          : null
-      if (m != null && m < min) min = m
-    }
-    return min === Infinity ? 9999 : min
-  }
-  routeGroups.sort((a, b) => {
-    const aHas = groupHasLive(a)
-    const bHas = groupHasLive(b)
-    if (aHas !== bHas) return aHas ? -1 : 1
-    return groupEarliest(a) - groupEarliest(b)
-  })
+  const routeGroups = groupArrivalsByRoute(filteredArrivals)
 
   return (
     <div className="space-y-2">
       {routeGroups.map((group) => {
-        const a = group[0]
-        const a2 = group[1] ?? null
-
-        const toSeconds = (entry) => {
-          if (!entry) return null
-          if (entry.arrival_type === 'timetable') {
-            if (!entry.is_tomorrow && entry.depart_at) {
-              const [h, m] = entry.depart_at.split(':').map(Number)
-              const t = new Date(now); t.setHours(h, m, 0, 0)
-              const diffSec = Math.floor((t - now) / 1000)
-              return diffSec < 0 ? null : diffSec
-            }
-            return null
-          }
-          return entry.arrive_in_seconds ?? null
-        }
-        const toMinutes = (sec) => (sec == null ? null : Math.max(0, Math.ceil(sec / 60)))
-
-        const sec = toSeconds(a)
-        const sec2 = toSeconds(a2)
-        const minutes = toMinutes(sec)
-        const minutes2 = toMinutes(sec2)
-        const imminent = sec != null && sec < IMMINENT_THRESHOLD_SEC
-
-        const perRoute = getPerRouteDisplay(selectedBusStation)?.[a.route_no]
-        const cfg = getRouteDisplayConfig(a.route_no)
-        const viaLabel = getViaLabel(selectedBusStation, selectedBusDirection)
-        const destText = perRoute?.dest ?? cfg?.direction ?? viaLabel ?? (a.destination ?? '')
-        const originText = perRoute
-          ? getOriginLabel(selectedBusStation, selectedBusDirection, perRoute.origin)
-          : ''
-        const routeColor = cfg?.color ?? DEFAULT_ROUTE_COLOR
-
-        const rightAddon = a.arrival_type === 'realtime' ? <DataBadge state="live" /> : null
+        const row = buildBusArrivalRow(group, {
+          station: selectedBusStation,
+          direction: selectedBusDirection,
+          now,
+        })
+        const rightAddon = row.isRealtime ? <DataBadge state="live" /> : null
 
         return (
           <ArrivalRow
-            key={a.route_no}
-            routeColor={routeColor}
-            routeNumber={a.route_no}
-            direction={originText || destText}
-            subdirection={originText && destText ? destText : ''}
-            minutes={a.is_tomorrow ? '내일 첫차' : minutes}
-            extraMinutes={minutes2 != null ? [minutes2] : []}
-            imminentLabel={imminent ? '곧 도착' : null}
-            isUrgent={imminent || (typeof minutes === 'number' && minutes <= 3)}
-            isRealtime={a.arrival_type === 'realtime'}
+            key={row.routeNo}
+            routeColor={row.routeColor}
+            routeNumber={row.routeNo}
+            direction={row.direction}
+            subdirection={row.subdirection}
+            minutes={row.minutes}
+            extraMinutes={row.minutes2 != null ? [row.minutes2] : []}
+            imminentLabel={row.imminent ? '곧 도착' : null}
+            isUrgent={row.imminent || (typeof row.minutes === 'number' && row.minutes <= 3)}
+            isRealtime={row.isRealtime}
             rightAddon={rightAddon}
-            crowded={a.arrival_type === 'realtime' ? (a.crowded ?? 0) : 0}
+            crowded={row.crowded}
             selectedStation={selectedBusStation}
           />
         )

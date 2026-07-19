@@ -6,11 +6,10 @@ import { useFontScale } from './hooks/useFontScale'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import MainShell from './components/layout/MainShell'
 import PCMainShell from './components/layout/PCMainShell'
+import PCSidebar from './components/layout/PCSidebar'
 import Dashboard from './components/dashboard/Dashboard'
-import PCMapDashboard from './components/dashboard/PCMapDashboard'
 import { useIsDesktop } from './hooks/useMediaQuery'
 import FloatingDock from './components/common/FloatingDock'
-import PCDock from './components/common/PCDock'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
 import GlobalSubwayLineSheet from './components/subway/GlobalSubwayLineSheet'
 import GlobalSubwayDetailSheet from './components/subway/GlobalSubwayDetailSheet'
@@ -209,39 +208,46 @@ export default function App() {
     pageContent = <CafeteriaVenueDetailPage venueId={venueId} />
     mobileContent = <CafeteriaVenueDetailPage venueId={venueId} />
   } else {
-    // 지도(기본) 페이지 — PC 좌측에는 PCMapDashboard (2-row 분할: 버스 + 셔틀/지하철),
+    // 지도(기본) 페이지 — PC는 PCMainShell이 children=null을 받아 풀사이즈 지도 +
+    // 플로팅 검색/도착 카드로 직접 그린다(PCMapDashboard는 더 이상 쓰지 않음).
     // 모바일에는 MainShell (2단 스냅 + 모드 탭 Dashboard)
-    pageContent = <PCMapDashboard />
+    pageContent = null
     mobileContent = <MainShell />
   }
 
   return (
     <>
-      <div className="flex flex-col h-dvh bg-bg dark:bg-bg transition-colors duration-snap ease-inout">
-        <PWAInstallBanner />
+      <div className={`h-dvh bg-bg dark:bg-bg transition-colors duration-snap ease-inout ${isDesktop ? 'flex' : 'flex flex-col'}`}>
+        {/* 데스크톱: 좌측 반투명 사이드바(탭 네비/다크토글/공지벨을 이관받음, PCDock은
+            더 이상 마운트하지 않는다) + 우측 지도/콘텐츠. 모바일: 기존 세로 스택. */}
+        {isDesktop && <PCSidebar />}
 
-        <main className="flex-1 overflow-hidden min-h-0 relative">
-          {/* 모바일 ↔ PC 레이아웃을 JS 미디어쿼리로 분기.
-              CSS hidden만 쓰면 양쪽이 동시에 마운트되어, 숨겨진 쪽의 useEffect가
-              계속 돌면서 store를 덮어쓰는 부작용이 발생함 (PCStationPicker auto-sync 등). */}
-          <Suspense fallback={<div className="h-full" />}>
-            {isDesktop ? (
-              <div key={currentPage ?? 'home'} className="h-full tj-tab-fade">
-                {/* 지도 홈(currentPage=null)만 38%/62% 분할 + 영구 지도.
-                    시간표·학식·더보기 등은 지도 없이 전체 폭(PC·시간표/설정 시안). */}
-                <PCMainShell showMap={!currentPage}>{pageContent}</PCMainShell>
-              </div>
-            ) : (
-              <div key={currentPage ?? 'home'} className="h-full overflow-auto tj-tab-fade">
-                {mobileContent}
-              </div>
-            )}
-          </Suspense>
-        </main>
+        <div className="flex flex-1 min-w-0 flex-col">
+          <PWAInstallBanner />
 
-        {/* 모바일/PC 중 하나만 조건부 마운트 — CSS hidden만 쓰면 숨겨진 쪽의
-            useWeather·useClock 등 훅이 계속 돌아 불필요한 부작용이 생긴다. */}
-        {isDesktop ? <PCDock /> : <FloatingDock />}
+          <main className="flex-1 overflow-hidden min-h-0 relative">
+            {/* 모바일 ↔ PC 레이아웃을 JS 미디어쿼리로 분기.
+                CSS hidden만 쓰면 양쪽이 동시에 마운트되어, 숨겨진 쪽의 useEffect가
+                계속 돌면서 store를 덮어쓰는 부작용이 발생함 (PCStationPicker auto-sync 등). */}
+            <Suspense fallback={<div className="h-full" />}>
+              {isDesktop ? (
+                <div key={currentPage ?? 'home'} className="h-full tj-tab-fade">
+                  {/* 지도 홈(currentPage=null)에서는 children=null → PCMainShell이
+                      풀사이즈 지도 + 플로팅 오버레이를 직접 그린다. 그 외 페이지는
+                      children으로 받은 pageContent가 지도 위 불투명 패널을 채운다. */}
+                  <PCMainShell>{pageContent}</PCMainShell>
+                </div>
+              ) : (
+                <div key={currentPage ?? 'home'} className="h-full overflow-auto tj-tab-fade">
+                  {mobileContent}
+                </div>
+              )}
+            </Suspense>
+          </main>
+
+          {/* 모바일만 하단 FloatingDock. 데스크톱 네비는 PCSidebar가 담당한다. */}
+          {!isDesktop && <FloatingDock />}
+        </div>
       </div>
       <GlobalDetailModal />
       <GlobalSubwayLineSheet />
