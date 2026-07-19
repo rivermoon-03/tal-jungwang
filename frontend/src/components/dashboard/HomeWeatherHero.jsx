@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Sun, Map, Navigation, Utensils, Wind } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
+import useAppStore from '../../stores/useAppStore'
 import { SKY_ICON, SKY_TEXT } from '../stats/WeatherCard'
 import { getTimeOfDay } from '../../utils/timeOfDay'
 import { describeJeongwangWind } from '../../utils/jeongwangWind'
+import { pickGreeting } from '../../utils/heroGreeting'
 import { ALL_VENUES } from '../../data/cafeteriaVenues'
 import { isOpenNow } from '../../utils/venueOpen'
 import './HomeWeatherHero.css'
@@ -18,18 +20,53 @@ const SKY_MOOD = {
   snowy: 'snowy',
 }
 
-const SNOWFLAKES = Array.from({ length: 14 }, (_, i) => ({
-  left: (i * 37) % 100,
-  delay: (i * 0.6) % 6,
-  duration: 6 + (i % 5),
-  size: 3 + (i % 3),
-}))
+// 눈: 14개 중 1/3(인덱스 3의 배수)은 원경(far) — 더 작고 흐릿하게(HomeWeatherHero.css .far).
+const SNOWFLAKES = Array.from({ length: 14 }, (_, i) => {
+  const far = i % 3 === 0
+  return {
+    left: (i * 37) % 100,
+    delay: (i * 0.6) % 6,
+    duration: 6 + (i % 5),
+    size: far ? 2 + (i % 2) : 3 + (i % 3),
+    far,
+  }
+})
 
-// 시안 v4(미니멀 물방울, 사용자 확정) — 눈 이펙트와 동일한 개별 span 패턴.
-const RAINDROPS = Array.from({ length: 18 }, (_, i) => ({
-  left: (i * 21.1) % 100,
-  delay: (i * 0.17) % 1.6,
-  duration: 0.7 + (i % 4) * 0.1,
+// 비 3겹 원근(far/mid/near) — 세로 그라데이션 스트릭. far일수록 옅고 느리게(HomeWeatherHero.css).
+const RAIN_FAR = Array.from({ length: 14 }, (_, i) => ({
+  left: (i * 27.3) % 100,
+  delay: (i * 0.23) % 1.9,
+  duration: 1.7 + (i % 5) * 0.14,
+}))
+const RAIN_MID = Array.from({ length: 12 }, (_, i) => ({
+  left: (i * 31.7) % 100,
+  delay: (i * 0.19) % 1.6,
+  duration: 1.15 + (i % 4) * 0.12,
+}))
+const RAIN_NEAR = Array.from({ length: 9 }, (_, i) => ({
+  left: (i * 41.1) % 100,
+  delay: (i * 0.15) % 1.3,
+  duration: 0.75 + (i % 3) * 0.09,
+}))
+// 빗방울이 바닥에 닿는 지점의 스플래시 링 — 화면 폭에 고르게 분산.
+const SPLASHES = Array.from({ length: 6 }, (_, i) => ({
+  left: (i * 16.4 + 6) % 100,
+  delay: (i * 0.23) % 1.4,
+}))
+// 흐림: 서로 다른 속도로 좌→우 드리프트하는 구름 덩어리 4개(폭 56~110px, 속도 38~78s).
+const CLOUDS = Array.from({ length: 4 }, (_, i) => ({
+  top: (i * 19) % 60,
+  width: 56 + (i * 79) % 55,
+  duration: 38 + (i * 137) % 41,
+  delay: -((i * 17) % 60),
+}))
+// 맑음·밤: 별 12개, 각자 다른 트윈클 주기(2~5s). 우상단은 달 자리라 비켜 둔다.
+const STARS = Array.from({ length: 12 }, (_, i) => ({
+  left: (i * 53 + 7) % 78,
+  top: (i * 31 + 5) % 55,
+  size: 1 + (i % 4) * 0.4,
+  duration: 2 + (i % 4),
+  delay: (i * 0.37) % 4,
 }))
 
 /** 지금 영업 중인 매점/식당을 최대 count개까지 뽑는다 (isOpenNow 헬퍼 재사용). */
@@ -50,8 +87,13 @@ function goToCafeteria() {
 
 /**
  * HomeWeatherHero — 모바일 홈 상단 A. 날씨 상태 + 시간대(낮/저녁/밤)에 따라
- * 배경/이펙트가 변한다(맑음=푸른 글로우 · 흐림=회색 · 비=빗줄기 · 눈=눈송이,
+ * 배경/이펙트가 변한다(맑음=낮 햇살 광선·밤 별/달/유성 · 흐림=드리프트 구름 ·
+ * 비=3겹 원근 빗줄기+스플래시(+밤엔 번개) · 눈=원근 눈송이,
  * 맑음·흐림은 저녁엔 노을/보랏빛, 밤엔 남색/청회색으로 톤이 어두워진다).
+ * useAppStore.heroStyle에 따라 메인 블록이 두 가지로 갈린다:
+ *  - 'classic': 큰 온도(60px) 중심 레이아웃(기존).
+ *  - 'greeting'(기본): 온도 위에 pickGreeting()이 고른 감성 글귀를 얹고,
+ *    온도는 34px로 축소. 필름 그레인 + 호흡 글로우 배경 레이어가 함께 붙는다.
  * 등하교 방향 pill과 지도 전환 버튼을 함께 노출해 하단 B(Dashboard)로 이어지는
  * 진입점 역할을 한다. 우상단 아이콘 토글로 같은 자리에서 "지금 영업 중인
  * 매점/식당" 미니 뷰로 전환할 수 있다(세션 동안만 유지되는 로컬 state).
@@ -59,6 +101,7 @@ function goToCafeteria() {
 export default function HomeWeatherHero({ onOpenMap }) {
   const { weather } = useWeather()
   const { direction } = useEffectiveDirection()
+  const heroStyle = useAppStore((s) => s.heroStyle) // 'greeting'(기본) | 'classic'
   const [view, setView] = useState('weather') // 'weather' | 'cafeteria' — persist 불필요, 새로고침 시 날씨로 리셋
 
   const icon = weather?.icon ?? 'sunny'
@@ -74,7 +117,12 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const lightText = mood === 'rainy' || timeShifted
 
   const snowflakes = useMemo(() => SNOWFLAKES, [])
-  const raindrops = useMemo(() => RAINDROPS, [])
+  const rainFar = useMemo(() => RAIN_FAR, [])
+  const rainMid = useMemo(() => RAIN_MID, [])
+  const rainNear = useMemo(() => RAIN_NEAR, [])
+  const splashes = useMemo(() => SPLASHES, [])
+  const clouds = useMemo(() => CLOUDS, [])
+  const stars = useMemo(() => STARS, [])
   // view==='cafeteria'일 때만 계산 — 날씨 뷰에서는 불필요한 필터링을 하지 않는다.
   const openVenues = useMemo(
     () => (view === 'cafeteria' ? pickOpenVenues(3) : []),
@@ -92,6 +140,16 @@ export default function HomeWeatherHero({ onOpenMap }) {
 
   // 정왕풍(定王風) — 건물풍이 센 정왕동을 재치있게 표현. 풍속 없으면 null → 줄 미표시.
   const wind = describeJeongwangWind(weather?.windSpeed ?? null)
+  // wind.strong은 describeJeongwangWind가 이미 windSpeed>=6 기준으로 판정한 값(헬퍼 재사용,
+  // 임계값을 이 파일에서 다시 인라인하지 않는다) — 강풍이면 빗줄기가 기울고(--skew) 더 빠르게(0.7배) 떨어진다.
+  const rainSkewStyle = wind?.strong ? { '--skew': '14deg' } : undefined
+  const rainSpeedFactor = wind?.strong ? 0.7 : 1
+
+  // greeting 스타일 글귀 — mood·풍속·기온이 바뀔 때만 다시 고른다(하루 단위로 안정적으로 고정됨).
+  const greeting = useMemo(
+    () => pickGreeting({ mood, rainProb: weather?.rainProb, windSpeed: weather?.windSpeed, temp: weather?.currentTemp }),
+    [mood, weather?.rainProb, weather?.windSpeed, weather?.currentTemp],
+  )
 
   // 배경 밝기(lightText)에 맞춘 전경색. 식당 뷰도 날씨 배경 위라 동일 규칙을 쓴다.
   const tempColor = lightText ? 'text-white' : 'text-ink dark:text-ink'
@@ -110,29 +168,115 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const venueNameCls = lightText ? 'text-white' : 'text-ink dark:text-ink'
   const venueMetaCls = lightText ? 'text-white/70' : 'text-ink-2 dark:text-mute'
 
+  // 정왕풍 pill + 강수확률 — classic/greeting 두 레이아웃이 동일하게 재사용(인라인 중복 방지).
+  const windMeta = (
+    <>
+      {wind && (
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-bold ${windPillCls}`}>
+          <Wind size={12} strokeWidth={2.2} aria-hidden="true" />
+          정왕풍 {wind.value}
+          <span className="font-semibold opacity-80">· {wind.phrase}</span>
+        </span>
+      )}
+      {weather?.rainProb != null && weather.rainProb > 0 && (
+        <span className={`text-caption font-semibold ${metaColor}`}>
+          강수 <span className="tabular-nums">{weather.rainProb}%</span>
+        </span>
+      )}
+    </>
+  )
+
   return (
     <div className="whero" data-mood={mood} data-time={timeOfDay}>
       {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다. */}
-      {mood === 'sunny' && <div className="whero-glow" aria-hidden="true" />}
-      {mood === 'rainy' && (
-        <div className="whero-rain" aria-hidden="true">
-          {raindrops.map((d, i) => (
+      {mood === 'sunny' && timeOfDay !== 'night' && <div className="whero-glow" aria-hidden="true" />}
+      {mood === 'sunny' && timeOfDay === 'day' && <div className="whero-rays" aria-hidden="true" />}
+      {mood === 'sunny' && timeOfDay === 'night' && (
+        <div className="whero-night-sky" aria-hidden="true">
+          {stars.map((s, i) => (
+            <span
+              key={i}
+              className="whero-star"
+              style={{
+                left: `${s.left}%`,
+                top: `${s.top}%`,
+                width: s.size, height: s.size,
+                animationDuration: `${s.duration}s`,
+                animationDelay: `${s.delay}s`,
+              }}
+            />
+          ))}
+          <span className="whero-moon" />
+          <span className="whero-meteor" />
+        </div>
+      )}
+      {mood === 'cloudy' && (
+        <div className="whero-clouds" aria-hidden="true">
+          {clouds.map((c, i) => (
             <span
               key={i}
               style={{
-                left: `${d.left}%`,
-                animationDelay: `${d.delay}s`,
-                animationDuration: `${d.duration}s`,
+                top: `${c.top}%`,
+                width: `${c.width}px`,
+                animationDuration: `${c.duration}s`,
+                animationDelay: `${c.delay}s`,
               }}
             />
           ))}
         </div>
       )}
+      {mood === 'rainy' && (
+        <div className="whero-rain" aria-hidden="true" style={rainSkewStyle}>
+          <div className="whero-rain-far">
+            {rainFar.map((d, i) => (
+              <span
+                key={i}
+                style={{
+                  left: `${d.left}%`,
+                  animationDelay: `${d.delay}s`,
+                  animationDuration: `${d.duration * rainSpeedFactor}s`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="whero-rain-mid">
+            {rainMid.map((d, i) => (
+              <span
+                key={i}
+                style={{
+                  left: `${d.left}%`,
+                  animationDelay: `${d.delay}s`,
+                  animationDuration: `${d.duration * rainSpeedFactor}s`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="whero-rain-near">
+            {rainNear.map((d, i) => (
+              <span
+                key={i}
+                style={{
+                  left: `${d.left}%`,
+                  animationDelay: `${d.delay}s`,
+                  animationDuration: `${d.duration * rainSpeedFactor}s`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="whero-splash">
+            {splashes.map((s, i) => (
+              <span key={i} style={{ left: `${s.left}%`, animationDelay: `${s.delay}s` }} />
+            ))}
+          </div>
+        </div>
+      )}
+      {mood === 'rainy' && timeOfDay === 'night' && <div className="whero-lightning" aria-hidden="true" />}
       {mood === 'snowy' && (
         <div className="whero-snow" aria-hidden="true">
           {snowflakes.map((f, i) => (
             <span
               key={i}
+              className={f.far ? 'far' : undefined}
               style={{
                 left: `${f.left}%`,
                 width: f.size, height: f.size,
@@ -142,6 +286,12 @@ export default function HomeWeatherHero({ onOpenMap }) {
             />
           ))}
         </div>
+      )}
+      {heroStyle === 'greeting' && (
+        <>
+          <div className="whero-grain" aria-hidden="true" />
+          <div className="whero-breath" aria-hidden="true" />
+        </>
       )}
 
       {/* 하단 seam — mood 색을 대시보드 배경으로 얇게 블렌드 */}
@@ -193,44 +343,82 @@ export default function HomeWeatherHero({ onOpenMap }) {
             </button>
           </div>
 
-          {/* 메인 블록 — 40% 높이를 활용해 하단 정렬. 큰 온도 + 하늘 상태 + 정왕풍.
+          {/* 메인 블록 — 45% 높이를 활용해 하단 정렬. heroStyle에 따라 두 레이아웃으로 갈린다.
               pb를 키워 콘텐츠가 하단 seam(34px, 배경 블렌드)에 얹히지 않게 한다. */}
-          <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-7 pt-2">
-            <div className="min-w-0">
-              <div className="flex items-end gap-2.5">
-                <span className={`text-hero-temp tabular-nums ${tempColor}`}>
-                  {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
-                </span>
-                <span className={`mb-1.5 text-title font-bold ${skyColor}`}>
-                  {SKY_TEXT[icon] ?? ''}
-                </span>
+          {heroStyle === 'classic' ? (
+            <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-7 pt-2">
+              <div className="min-w-0">
+                <div className="flex items-end gap-2.5">
+                  <span className={`text-hero-temp tabular-nums ${tempColor}`}>
+                    {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
+                  </span>
+                  <span className={`mb-1.5 text-title font-bold ${skyColor}`}>
+                    {SKY_TEXT[icon] ?? ''}
+                  </span>
+                </div>
+
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {windMeta}
+                </div>
               </div>
 
-              <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                {wind && (
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-bold ${windPillCls}`}>
-                    <Wind size={12} strokeWidth={2.2} aria-hidden="true" />
-                    정왕풍 {wind.value}
-                    <span className="font-semibold opacity-80">· {wind.phrase}</span>
-                  </span>
+              <Icon
+                size={64}
+                strokeWidth={1.6}
+                className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
+                // 그라디언트 배경(특히 비/저녁 톤)에 아이콘이 묻히지 않게 살짝 그림자로 띄운다.
+                style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
+                aria-hidden="true"
+              />
+            </div>
+          ) : (
+            <div className="relative z-10 flex-1 flex flex-col justify-end gap-3 px-4 pb-7 pt-1">
+              {/* 인사 글귀 — 온도 위, 하루 단위로 안정적으로 고정된다(heroGreeting.pickGreeting). */}
+              <div className="min-w-0 animate-fade-in-up">
+                <p
+                  data-testid="hero-greeting-text"
+                  className={`text-title leading-[1.35] tracking-[-0.02em] [text-wrap:balance] ${tempColor}`}
+                >
+                  {greeting.text.split('\n').map((line, i, arr) => (
+                    <Fragment key={i}>
+                      {line}
+                      {i < arr.length - 1 && <br />}
+                    </Fragment>
+                  ))}
+                </p>
+                {(greeting.source || greeting.sub) && (
+                  <p className={`mt-1 text-[12.5px] font-semibold ${lightText ? 'text-white/70' : 'text-ink-2 dark:text-mute'}`}>
+                    {greeting.source ? `— ${greeting.source}` : greeting.sub}
+                  </p>
                 )}
-                {weather?.rainProb != null && weather.rainProb > 0 && (
-                  <span className={`text-caption font-semibold ${metaColor}`}>
-                    강수 <span className="tabular-nums">{weather.rainProb}%</span>
-                  </span>
-                )}
+              </div>
+
+              {/* 하단 행 — 축소된 온도 + 하늘 텍스트 + 정왕풍 pill + 작은 날씨 아이콘. */}
+              <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-end gap-2">
+                    <span className={`text-[34px] font-extrabold leading-none tabular-nums ${tempColor}`}>
+                      {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
+                    </span>
+                    <span className={`mb-0.5 text-[14px] font-bold ${skyColor}`}>
+                      {SKY_TEXT[icon] ?? ''}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {windMeta}
+                  </div>
+                </div>
+
+                <Icon
+                  size={32}
+                  strokeWidth={1.6}
+                  className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
+                  style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
+                  aria-hidden="true"
+                />
               </div>
             </div>
-
-            <Icon
-              size={64}
-              strokeWidth={1.6}
-              className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
-              // 그라디언트 배경(특히 비/저녁 톤)에 아이콘이 묻히지 않게 살짝 그림자로 띄운다.
-              style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
-              aria-hidden="true"
-            />
-          </div>
+          )}
         </>
       ) : (
         <div className="relative z-10 flex-1 flex flex-col px-4 pb-6" style={{ paddingTop: 40 }}>

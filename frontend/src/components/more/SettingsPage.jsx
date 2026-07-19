@@ -19,7 +19,7 @@ import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Palette, Type, LayoutGrid, List, Navigation, Home,
   Bell, Zap, Utensils, Moon, RefreshCw, MapPin, Globe, Trash2, Info,
-  ChevronRight,
+  ChevronRight, Sparkles, CloudSun,
 } from 'lucide-react'
 import DarkModeSegment from './DarkModeSegment'
 import useAppStore from '../../stores/useAppStore'
@@ -103,7 +103,7 @@ function MiniSwitch({ on, onToggle }) {
       className={`relative flex-shrink-0 w-[42px] h-[25px] rounded-pill transition-colors duration-base ease-out ${on ? 'bg-accent' : 'bg-line dark:bg-line-strong'} ${disabled ? 'opacity-50' : ''}`}
     >
       <span
-        className={`absolute top-[3px] w-[19px] h-[19px] rounded-full bg-white shadow-sh-card transition-transform duration-base ease-spring ${on ? 'translate-x-[20px]' : 'translate-x-[3px]'}`}
+        className={`absolute left-0 top-[3px] w-[19px] h-[19px] rounded-full bg-white shadow-sh-card transition-transform duration-base ease-spring ${on ? 'translate-x-[20px]' : 'translate-x-[3px]'}`}
       />
     </button>
   )
@@ -146,6 +146,10 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
   // 초기 viewMode가 이 값을 읽고, 모달에서 바꾼 값도 이 필드에 다시 기록된다.
   const scheduleViewMode = useAppStore((s) => s.scheduleViewMode)
   const setScheduleViewMode = useAppStore((s) => s.setScheduleViewMode)
+  // 홈 히어로 스타일 — zustand persist(heroStyle). HomeWeatherHero가 이 값을 읽어
+  // 감성 인사 / 날씨 위주 레이아웃을 고른다.
+  const heroStyle = useAppStore((s) => s.heroStyle)
+  const setHeroStyle = useAppStore((s) => s.setHeroStyle)
   // F1: 등하교 판정 자동/수동 — useEffectiveDirection이 commuteAutoMode(persist)를 읽어
   // false면 commuteManualDirection 고정값을, true면 KST 시간+위치 기반 자동 판정을 쓴다.
   const commuteAutoMode = useAppStore((s) => s.commuteAutoMode)
@@ -297,6 +301,41 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
                     key={id}
                     type="button"
                     onClick={() => setScheduleViewMode(id)}
+                    aria-pressed={active}
+                    className={`pressable flex flex-col items-center gap-2 rounded-card border-[1.5px] px-3 py-3 transition-colors ${
+                      active ? 'border-accent bg-accent-bg' : 'border-line dark:border-line'
+                    }`}
+                  >
+                    <span className={`w-full h-[46px] rounded-mini flex items-center justify-center ${active ? 'text-accent-ink dark:text-accent' : 'text-mute dark:text-mute bg-surface-2 dark:bg-bg'}`}>
+                      <Icon size={20} aria-hidden="true" />
+                    </span>
+                    <span className="text-label font-semibold text-ink dark:text-ink">{label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="px-4 py-3.5">
+            <div className="flex items-center gap-3 mb-3">
+              <Sparkles size={18} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-label font-semibold text-ink dark:text-ink">홈 상단</p>
+                <p className="text-caption text-mute dark:text-mute mt-0.5">히어로 영역에 보여줄 내용</p>
+              </div>
+            </div>
+            {/* useAppStore.heroStyle(persist) — HomeWeatherHero의 표시 스타일과 공유 */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { id: 'greeting', label: '감성 인사', Icon: Sparkles },
+                { id: 'classic', label: '날씨 위주', Icon: CloudSun },
+              ].map(({ id, label, Icon }) => {
+                const active = heroStyle === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setHeroStyle(id)}
                     aria-pressed={active}
                     className={`pressable flex flex-col items-center gap-2 rounded-card border-[1.5px] px-3 py-3 transition-colors ${
                       active ? 'border-accent bg-accent-bg' : 'border-line dark:border-line'

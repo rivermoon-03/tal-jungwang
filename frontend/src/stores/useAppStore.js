@@ -165,6 +165,12 @@ const useAppStore = create(
       scheduleViewMode: 'grid', // 'grid' | 'list'
       setScheduleViewMode: (mode) => set({ scheduleViewMode: mode }),
 
+      // ── 홈 히어로 스타일 persist ───────────────────────────────────
+      // 'greeting'(감성 인사) | 'classic'(날씨 위주). HomeWeatherHero가 읽고,
+      // SettingsPage "홈 상단" 세그먼트가 이 필드를 그대로 쓴다.
+      heroStyle: 'greeting',
+      setHeroStyle: (style) => set({ heroStyle: style }),
+
     }),
     {
       name: 'tal-jungwang',
@@ -258,6 +264,7 @@ const useAppStore = create(
         commuteAutoMode: state.commuteAutoMode,
         commuteManualDirection: state.commuteManualDirection,
         scheduleViewMode: state.scheduleViewMode,
+        heroStyle: state.heroStyle,
       }),
     }
   )
