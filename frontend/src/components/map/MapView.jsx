@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { Navigation, School } from 'lucide-react'
+import { Navigation, School, Search, Map as MapIcon } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
 import DriveRoutePolyline from './DriveRoutePolyline'
 import WalkRoutePolyline from './WalkRoutePolyline'
 import WalkRouteCard from './WalkRouteCard'
+import NearestStopCard from './NearestStopCard'
 import { apiFetch } from '../../hooks/useApi'
 import RestaurantOverlay from './RestaurantOverlay'
 import TrafficRoadOverlay from './TrafficRoadOverlay'
@@ -15,6 +16,8 @@ import { useShuttleNext, useShuttleSchedule, DEFAULT_CENTER } from '../../hooks/
 import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
+import useUserLocation from '../../hooks/useUserLocation'
+import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getRouteDisplayConfig } from '../dashboard/busStationConfig'
 
@@ -35,7 +38,11 @@ const SDK_SCRIPT_ID = 'kakao-map-sdk'
 const MARKER_TICK = { tickMs: 60_000 }
 
 
-export default function MapView({ onMarkerClick, selectedId }) {
+// mapExpanded=false(기본값)일 땐 기존 우하단 FAB 배치를 그대로 쓴다(PCMainShell 등
+// mapExpanded 개념이 없는 호출부와 100% 호환). MainShell이 지도를 전체화면으로
+// 펼칠 때만 mapExpanded=true를 넘겨 상단 검색바 · 우측 상단 컨트롤 스택 ·
+// 최근접 정류장 카드(M-1)로 전환한다.
+export default function MapView({ onMarkerClick, selectedId, mapExpanded = false, onClose }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
@@ -47,6 +54,13 @@ export default function MapView({ onMarkerClick, selectedId }) {
   const setMapPanTarget     = useAppStore((s) => s.setMapPanTarget)
   const activeTab           = useAppStore((s) => s.activeTab)
   const selectedMode        = useAppStore((s) => s.selectedMode)
+  const setSearchOpen       = useAppStore((s) => s.setSearchOpen)
+  const { direction: effectiveDirection } = useEffectiveDirection()
+
+  // 지도 확장 중에만 GPS를 요청한다(mistakes.md §3 — 숨김 상태에서 GPS가 백그라운드로
+  // 도는 것 방지). 진입 시 권한이 있으면 좌표가 도착하는 대로 아래 effect가 1회 센터링한다.
+  const gpsCoords = useUserLocation(mapExpanded)
+  const centeredOnExpandRef = useRef(false)
 
   // 실시간 데이터 훅
   // 지도 마커는 분 단위 표시라 60초 tick으로 충분 — 매초 마커 재계산을 피한다.
@@ -815,6 +829,19 @@ export default function MapView({ onMarkerClick, selectedId }) {
     setMapPanTarget(null)
   }, [mapPanTarget, mapInstance, setMapPanTarget])
 
+  // 지도 확장(mapExpanded) 진입 시 내 위치로 1회 센터링 (M-1).
+  // GPS 권한이 없거나 아직 좌표가 오지 않았으면 기존 기본 센터(DEFAULT_CENTER)를 그대로 둔다.
+  // 확장 세션당 1회만 동작하도록 ref로 막고, 축소되면 다음 확장에 다시 센터링하도록 리셋한다.
+  useEffect(() => {
+    if (!mapExpanded) {
+      centeredOnExpandRef.current = false
+      return
+    }
+    if (centeredOnExpandRef.current || !mapInstance || !gpsCoords) return
+    mapInstance.panTo(new window.kakao.maps.LatLng(gpsCoords[0], gpsCoords[1]))
+    centeredOnExpandRef.current = true
+  }, [mapExpanded, mapInstance, gpsCoords])
+
   // SDK 로드 effect
   useEffect(() => {
     if (!kakaoKey) return
@@ -915,6 +942,18 @@ export default function MapView({ onMarkerClick, selectedId }) {
     )
   }
 
+  // NearestStopCard(M-1)용 위치·도착 데이터 — 둘 다 이미 이 컴포넌트가 들고 있는
+  // 값을 그대로 넘긴다(새 fetch 없음). gpsCoords(방금 받은 좌표)를 store의
+  // userLocation보다 우선한다 — 지도를 막 확장한 시점엔 이 값이 더 최신이다.
+  const nearestUserLocation = gpsCoords
+    ? { lat: gpsCoords[0], lng: gpsCoords[1] }
+    : userLocation
+  const arrivalsByStation = {
+    '한국공학대': busArrivalsData,
+    '이마트': busArrivalsEmart,
+    '시흥시청': busArrivalsSiheung,
+  }
+
   return (
     <>
       {/*
@@ -939,16 +978,15 @@ export default function MapView({ onMarkerClick, selectedId }) {
           style={{ touchAction: 'none' }}
         />
 
-        {/* 우하단 플로팅 버튼 — 내 위치 / 학교로. 닫기 버튼(MainShell) 위로 세로 스택.
-            닫기(bottom-5, 약 40px)와 겹치지 않게 bottom을 그 위로 띄운다. */}
-        {mapInstance && (
+        {/* mapExpanded=false(기본) — 기존 우하단 FAB 배치(PC 등 mapExpanded 미사용 호출부 호환) */}
+        {mapInstance && !mapExpanded && (
           <div
             className="absolute right-4 flex flex-col gap-2 z-[50]"
             style={{ bottom: '4.75rem' }}
           >
             {/* 내 위치 FAB */}
             <button
-              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
+              className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
               onClick={handleLocationFab}
               aria-label="내 위치"
               title="내 위치"
@@ -957,7 +995,7 @@ export default function MapView({ onMarkerClick, selectedId }) {
             </button>
             {/* 학교로 FAB */}
             <button
-              className="w-9 h-9 rounded-full bg-white dark:bg-[#272a33] shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
+              className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
               onClick={panToSchool}
               aria-label="학교로"
               title="학교로"
@@ -965,6 +1003,72 @@ export default function MapView({ onMarkerClick, selectedId }) {
               <School size={17} className="text-navy" />
             </button>
           </div>
+        )}
+
+        {/* mapExpanded=true(M-1) — 검색 pill(상단 전폭) + 우측 상단 세로 컨트롤 스택
+            (닫기 · 내 위치 · 학교로, 검색바 아래) + 하단 최근접 정류장 카드.
+            top/bottom 모두 safe-area-inset을 더해 노치·홈 인디케이터를 피한다. */}
+        {mapInstance && mapExpanded && (
+          <>
+            <button
+              type="button"
+              onClick={() => setSearchOpen?.(true)}
+              aria-label="노선 · 정류장 검색"
+              className="absolute left-3 right-3 z-[55] flex items-center gap-2 h-11 px-4
+                         bg-surface dark:bg-surface border border-line dark:border-line
+                         rounded-pill shadow-pill text-caption text-mute dark:text-mute
+                         active:scale-[0.98] transition-transform duration-press ease-spring"
+              style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
+            >
+              <Search size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
+              <span className="truncate">노선 · 정류장 검색</span>
+            </button>
+
+            <div
+              className="absolute right-4 flex flex-col gap-2 z-[55]"
+              style={{ top: 'calc(env(safe-area-inset-top) + 64px)' }}
+            >
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  aria-label="지도 닫기"
+                  className="flex items-center gap-1.5 bg-surface/95 dark:bg-surface/95
+                             border border-line dark:border-line rounded-card px-3 py-2
+                             text-[13px] font-bold text-accent dark:text-accent shadow-pill
+                             min-h-[40px] active:scale-[0.94] transition-transform duration-press ease-spring"
+                >
+                  <MapIcon size={16} aria-hidden="true" />
+                  닫기
+                </button>
+              )}
+              {/* 내 위치 FAB */}
+              <button
+                className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
+                onClick={handleLocationFab}
+                aria-label="내 위치"
+                title="내 위치"
+              >
+                <Navigation size={17} className="text-accent dark:text-accent" />
+              </button>
+              {/* 학교로 FAB */}
+              <button
+                className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
+                onClick={panToSchool}
+                aria-label="학교로"
+                title="학교로"
+              >
+                <School size={17} className="text-navy" />
+              </button>
+            </div>
+
+            <NearestStopCard
+              userLocation={nearestUserLocation}
+              direction={effectiveDirection}
+              arrivalsByStation={arrivalsByStation}
+              onSelectStation={handleMarkerTap}
+              onRequestGps={handleLocationFab}
+            />
+          </>
         )}
 
         {/* GPS 소프트 프롬프트 */}

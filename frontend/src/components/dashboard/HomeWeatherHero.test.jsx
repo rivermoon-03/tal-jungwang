@@ -13,12 +13,13 @@ vi.mock('../../hooks/useWeather', () => ({
 }))
 
 // ── 방향 훅 모킹 (BusPanel.test.jsx와 동일 패턴) ──
+const mockUseEffectiveDirection = vi.fn()
 vi.mock('../../hooks/useEffectiveDirection', () => ({
-  default: vi.fn(() => ({ direction: '등교' })),
+  default: (...args) => mockUseEffectiveDirection(...args),
 }))
 
 // ── 스토어 모킹 — storeState를 테스트별로 재할당해 heroStyle을 바꾼다 ──
-let storeState = { heroStyle: 'greeting' }
+let storeState = { heroStyle: 'greeting', setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
 vi.mock('../../stores/useAppStore', () => ({
   default: (selector) => selector(storeState),
 }))
@@ -32,9 +33,27 @@ vi.mock('../../utils/heroGreeting', () => ({
   })),
 }))
 
+// ── 자동 전환 토스트 문구 헬퍼 모킹 ──
+vi.mock('../../utils/directionAutoChangeToast', () => ({
+  getDirectionAutoChangeMessage: vi.fn((direction) => `${direction}로 전환했어요`),
+}))
+
+// ── DirectionAutoToast 컴포넌트 모킹 — visible 상태에서만 렌더 ──
+vi.mock('../../components/common/DirectionAutoToast', () => ({
+  default: vi.fn(({ message, visible, previousDirection, onClose }) =>
+    visible ? (
+      <div data-testid="direction-auto-toast">
+        {message}
+        <button onClick={onClose}>닫기</button>
+      </div>
+    ) : null,
+  ),
+}))
+
 beforeEach(() => {
   vi.useFakeTimers()
-  storeState = { heroStyle: 'greeting' }
+  storeState = { heroStyle: 'greeting', setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
+  mockUseEffectiveDirection.mockReturnValue({ direction: '등교', isOverride: false })
   mockUseWeather.mockReturnValue({
     weather: {
       currentTemp: 21,
@@ -56,6 +75,23 @@ describe('HomeWeatherHero — greeting 스타일(기본)', () => {
     expect(screen.getByTestId('hero-greeting-text')).toHaveTextContent('테스트 글귀')
     expect(screen.queryByText('— 테스트 출처')).not.toBeInTheDocument()
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('검색 버튼이 있고, 클릭 시 setSearchOpen(true)을 호출한다', () => {
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    const searchButton = screen.getByLabelText('검색')
+    expect(searchButton).toBeInTheDocument()
+
+    fireEvent.click(searchButton)
+    expect(storeState.setSearchOpen).toHaveBeenCalledWith(true)
+  })
+
+  it('[등교·자동] pill이 없고, 지도 버튼만 좌측에 있다', () => {
+    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    expect(screen.queryByText(/등교.*자동/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('지도 보기')).toBeInTheDocument()
   })
 
   it('큰 온도 토큰(text-hero-temp)은 렌더하지 않는다(온도는 축소된 whero-quote-temp)', () => {
@@ -140,5 +176,36 @@ describe('HomeWeatherHero — 비 mood', () => {
     expect(container.querySelector('.whero-rain-mid')).toBeTruthy()
     expect(container.querySelector('.whero-rain-near')).toBeTruthy()
     expect(container.querySelector('.whero-splash')).toBeTruthy()
+  })
+})
+
+describe('HomeWeatherHero — 자동 방향 전환 토스트', () => {
+  it('초기 렌더에 토스트는 보이지 않는다', () => {
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    expect(screen.queryByTestId('direction-auto-toast')).not.toBeInTheDocument()
+  })
+
+  it('direction이 변하고 isOverride가 false면 토스트가 나타난다', () => {
+    const { rerender } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    // 초기: '등교', isOverride=false
+    expect(screen.queryByTestId('direction-auto-toast')).not.toBeInTheDocument()
+
+    // direction이 '하교'로 변경
+    mockUseEffectiveDirection.mockReturnValue({ direction: '하교', isOverride: false })
+    rerender(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    expect(screen.getByTestId('direction-auto-toast')).toHaveTextContent('하교로 전환했어요')
+  })
+
+  it('direction이 변하지만 isOverride가 true면 토스트가 나타나지 않는다', () => {
+    const { rerender } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    // direction이 '하교'로 변경되지만 isOverride=true (사용자 오버라이드)
+    mockUseEffectiveDirection.mockReturnValue({ direction: '하교', isOverride: true })
+    rerender(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    expect(screen.queryByTestId('direction-auto-toast')).not.toBeInTheDocument()
   })
 })

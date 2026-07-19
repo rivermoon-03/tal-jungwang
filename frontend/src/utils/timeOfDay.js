@@ -38,6 +38,25 @@ export function getTimeOfDay(now = new Date()) {
   return 'night'
 }
 
+/**
+ * 주어진 Date를 KST 기준 "HH:MM" 라벨로 변환한다.
+ * 여러 화면이 브라우저 로컬 `getHours()/getMinutes()`로 같은 포맷을 각자
+ * 만들어 왔는데(SchedulePage, FavoritesList 등) 그 값은 tz-aware하지 않다
+ * (CLAUDE.md 철칙: 시각은 항상 timezone-aware하게 비교). 신규 코드는
+ * 이 헬퍼로 KST를 명시한다.
+ * @param {Date} now
+ * @returns {string} 예: "14:32"
+ */
+export function getKstHourMinuteLabel(now = new Date()) {
+  const fmt = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  return fmt.format(now)
+}
+
 const DOW_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
 
 /**
