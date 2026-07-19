@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
-import { CalendarOff, MoonStar } from 'lucide-react'
+import { CalendarOff } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useShuttleNext, useShuttleSchedule } from '../../hooks/useShuttle'
 import { SkeletonPanelRow } from '../common/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import ErrorState from '../ui/ErrorState'
+import MascotDot from '../ui/MascotDot'
 import DualDirectionCard from '../common/DualDirectionCard'
+import { getNextShuttleBusInfo } from '../../utils/nextShuttleBus.js'
 
 /**
  * ShuttlePanel — 셔틀 모드 패널.
@@ -147,19 +149,19 @@ export default function ShuttlePanel() {
     )
   }
 
-  // NO_SHUTTLE: 운행일이지만 오늘 운행 종료
+  // NO_SHUTTLE: 운행일이지만 오늘 운행 종료 — "답이 있는 빈 상태": 그냥 끝났다고
+  // 알리지 않고, 이미 갖고 있는 내일 시간표(goTom/backTom)에서 다음 첫차를 계산해 보여준다.
   const goNoShuttle = goQuery.error?.code === 'NO_SHUTTLE'
   const backNoShuttle = backQuery.error?.code === 'NO_SHUTTLE'
   if (goNoShuttle && backNoShuttle) {
+    const nextBus = getNextShuttleBusInfo(goFirstTomorrow, backFirstTomorrow)
     return (
       <EmptyState
-        icon={<MoonStar size={28} strokeWidth={1.5} />}
+        icon={<MascotDot />}
+        altText="운행을 마치고 잠든 셔틀버스"
         title="오늘 셔틀 운행이 끝났어요"
-        desc={
-          (goFirstTomorrow || backFirstTomorrow)
-            ? `내일 첫차: 등교 ${goFirstTomorrow ?? '-'} · 하교 ${backFirstTomorrow ?? '-'}`
-            : '내일 첫차 시간을 확인해 주세요'
-        }
+        nextInfo={nextBus ? { label: '내일 첫차', time: nextBus.time, sub: nextBus.sub } : null}
+        desc={nextBus ? null : '내일 첫차 시간을 확인해 주세요'}
       />
     )
   }

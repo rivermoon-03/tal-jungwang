@@ -1079,4 +1079,31 @@ describe('RouteDetailPage', () => {
       expect(screen.getByText(/지금\(/)).toBeInTheDocument()
     })
   })
+
+  // ─── 막차 임박 배너(LastBusBanner) ───────────────────────────────────
+  describe('막차 임박 배너', () => {
+    it('막차 30분 이내면 상단에 배너가 렌더된다', () => {
+      // DEFAULT_MOCK_DATA weekday 막차는 22:50(is_last:true) — 22:40으로 시각 고정(10분 남음)
+      vi.setSystemTime(new Date('2026-01-06T22:40:00+09:00'))
+      render(<RouteDetailPage routeNumber="33" />)
+      expect(screen.getByText('시흥33 오늘 막차')).toBeInTheDocument()
+      expect(screen.getByText('22:50 출발 · 10분 남음')).toBeInTheDocument()
+    })
+
+    it('막차까지 30분보다 여유 있으면(정오) 배너가 렌더되지 않는다', () => {
+      // beforeEach가 이미 정오(2026-01-06T12:00:00+09:00)로 고정
+      render(<RouteDetailPage routeNumber="33" />)
+      expect(screen.queryByText(/오늘 막차/)).not.toBeInTheDocument()
+    })
+
+    it('요일 탭을 토요일로 바꿔도 배너는 "오늘"(평일) 기준으로만 판단한다', () => {
+      vi.setSystemTime(new Date('2026-01-06T22:40:00+09:00'))
+      render(<RouteDetailPage routeNumber="33" />)
+      fireEvent.click(screen.getByRole('tab', { name: /출발/ }))
+      fireEvent.click(screen.getByLabelText(/요일 전환/))
+      // 토요일 탭(09:00 단일)으로 바뀌어도 배너는 여전히 평일 막차(22:50) 기준
+      expect(screen.getByText('시흥33 오늘 막차')).toBeInTheDocument()
+      expect(screen.getByText('22:50 출발 · 10분 남음')).toBeInTheDocument()
+    })
+  })
 })

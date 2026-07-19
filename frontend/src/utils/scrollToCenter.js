@@ -25,6 +25,28 @@ export function scrollToCenter(container, el) {
   container.scrollTop = clamp(target, 0, maxScroll)
 }
 
+/**
+ * scrollToCenterX — scrollToCenter의 가로축 버전. 가로 스크롤 스냅 리스트(좁은 폰
+ * 시간표 등)에서 대상 셀을 container 가로 중앙에 맞춘다. 세로 버전과 동일하게
+ * container 하나만 스크롤하고(scrollIntoView처럼 조상까지 밀어올리지 않음),
+ * getBoundingClientRect 차이로 상대 위치를 계산한다.
+ *
+ * @param {HTMLElement|null|undefined} container - overflow-x-auto인 스크롤 컨테이너
+ * @param {HTMLElement|null|undefined} el - container 안에서 중앙에 위치시킬 대상
+ */
+export function scrollToCenterX(container, el) {
+  if (!container || !el) return
+
+  const containerRect = container.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  const left = elRect.left - containerRect.left + container.scrollLeft
+
+  const target = left - container.clientWidth / 2 + el.clientWidth / 2
+  const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth)
+
+  container.scrollLeft = clamp(target, 0, maxScroll)
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
 }

@@ -227,6 +227,45 @@ describe('ArrivalRow', () => {
     pushSpy.mockRestore()
   })
 
+  it('lastBusEntries가 없으면 막차 배너를 렌더하지 않는다', () => {
+    render(
+      <ArrivalRow
+        routeNumber="시흥33"
+        minutes={5}
+      />
+    )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('lastBusEntries가 있고 막차가 30분 이내면(now 고정) 컴팩트 배너가 행 위에 렌더된다', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-19T22:40:00+09:00'))
+    render(
+      <ArrivalRow
+        routeNumber="시흥33"
+        minutes={5}
+        lastBusEntries={[{ depart_at: '22:50', is_last: true }]}
+      />
+    )
+    expect(screen.getByText('시흥33 오늘 막차')).toBeInTheDocument()
+    expect(screen.getByText('22:50 출발 · 10분 남음')).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('lastBusEntries가 있어도 막차가 30분보다 여유 있으면 배너를 렌더하지 않는다', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-19T10:00:00+09:00'))
+    render(
+      <ArrivalRow
+        routeNumber="시흥33"
+        minutes={5}
+        lastBusEntries={[{ depart_at: '22:50', is_last: true }]}
+      />
+    )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
   it('selectedStation이 없으면 stop 쿼리 없이 pushState한다 (T_stop_fallback)', () => {
     const pushSpy = vi.spyOn(window.history, 'pushState').mockImplementation(() => {})
     render(
