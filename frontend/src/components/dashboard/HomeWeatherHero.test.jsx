@@ -1,6 +1,6 @@
 /**
  * HomeWeatherHero — heroStyle(greeting/classic) 레이아웃 분기 + greeting 진입
- * 시퀀스(phase: quote→weather)·출처 툴팁 + 비 이펙트 렌더 테스트
+ * 시퀀스(phase: quote→weather, 글귀 강등)·출처 툴팁 + 비 이펙트 렌더 테스트
  */
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -85,19 +85,36 @@ describe('HomeWeatherHero — greeting 스타일(기본)', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })
 
-  it('6초가 지나면 글귀 블록이 접히고(phase=weather) 온도·아이콘이 확대 클래스를 받는다', () => {
+  it('2초가 지나면 글귀는 사라지지 않고 강등되며(phase=weather) 온도·아이콘이 확대 클래스를 받는다', () => {
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
 
-    expect(container.querySelector('.whero-quote-grid.is-collapsed')).toBeNull()
+    expect(container.querySelector('.whero-quote-text.is-demoted')).toBeNull()
     expect(container.querySelector('.whero-quote-temp.is-grown')).toBeNull()
 
     act(() => {
-      vi.advanceTimersByTime(6000)
+      vi.advanceTimersByTime(2000)
     })
 
-    expect(container.querySelector('.whero-quote-grid.is-collapsed')).toBeTruthy()
+    // 강등 후에도 글귀는 DOM에 그대로 남아 있다(접히거나 제거되지 않는다).
+    expect(screen.getByTestId('hero-greeting-text')).toHaveTextContent('테스트 글귀')
+    expect(container.querySelector('.whero-quote-text.is-demoted')).toBeTruthy()
     expect(container.querySelector('.whero-quote-temp.is-grown')).toBeTruthy()
     expect(container.querySelector('.whero-quote-icon-wrap.is-grown')).toBeTruthy()
+  })
+
+  it('강등 후에도 글귀를 클릭하면 출처 툴팁이 열린다', () => {
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    const quoteButton = screen.getByTestId('hero-greeting-text')
+    expect(quoteButton).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(quoteButton)
+    expect(quoteButton).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('— 테스트 출처')
   })
 })
 
