@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import useAppStore from '../../stores/useAppStore'
 import { useSubwayNext, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
 import { useApi } from '../../hooks/useApi'
-import Skeleton from '../common/Skeleton'
+import { SkeletonPanelRow } from '../common/Skeleton'
 import ErrorState from '../ui/ErrorState'
 import EmptyState from '../ui/EmptyState'
 import DualDirectionCard from '../common/DualDirectionCard'
@@ -49,8 +49,8 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
   if (loading) {
     return (
       <div className="space-y-2">
-        <Skeleton height="5.5rem" rounded="rounded-xl" />
-        {lines.length > 1 && <Skeleton height="5.5rem" rounded="rounded-xl" />}
+        <SkeletonPanelRow />
+        {lines.length > 1 && <SkeletonPanelRow />}
       </div>
     )
   }
@@ -93,7 +93,8 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
       {dataMode === 'realtime' && (
         realtimeLoading ? (
           <div className="space-y-2">
-            <Skeleton height="5.5rem" rounded="rounded-xl" /><Skeleton height="5.5rem" rounded="rounded-xl" />
+            <SkeletonPanelRow />
+            {lines.length > 1 && <SkeletonPanelRow />}
           </div>
         ) : (
           <div className="space-y-2">

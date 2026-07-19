@@ -422,12 +422,12 @@ INSERT INTO app_info (id, version, description, feedback_url, updated_at) VALUES
 
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (3, '20-1', '시흥20-1번', '아이파크아파트방면', '224000011', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (2, '시흥33', '시흥33번', '시흥시청방면', '224000062', '하교');
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (1, '3400', NULL, '시화터미널 출발 사당 경유 강남행', NULL, '하교');
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (6, '6502', NULL, '사당행', NULL, '하교');
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (7, '3401', NULL, '시흥시청 경유 석수행', NULL, '하교');
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (8, '3400', NULL, '학교행', NULL, '등교');
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (9, '6502', NULL, '학교행', NULL, '등교');
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (11, '5602', '5602번', '구로디지털단지역방면', NULL, '하교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (1, '3400', NULL, '시화터미널 출발 사당 경유 강남행', '224000050', '하교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (6, '6502', NULL, '사당행', '224000061', '하교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (7, '3401', NULL, '시흥시청 경유 석수행', '224000071', '하교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (8, '3400', NULL, '학교행', '224000050', '등교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (9, '6502', NULL, '학교행', '224000061', '등교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (11, '5602', '5602번', '구로디지털단지역방면', '216000047', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (4, '시흥1', '시흥1번', '신천역방면', '213000006', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (13, '11-A', '시흥11-A번', '정왕역 방면', '224000036', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (12, '5602', '5602번', '이마트(학교)', '216000047', '등교');

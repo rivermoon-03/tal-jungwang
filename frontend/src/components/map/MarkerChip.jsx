@@ -86,10 +86,16 @@ function makeDot({ color, text }) {
   return dot
 }
 
-/** blip 펄스 도트 (라이브 표시용) */
+/**
+ * blip 펄스 도트 (라이브 표시용).
+ * ui/DataBadge.jsx의 live 상태 점과 동일한 tailwind 애니메이션(animate-dot-blink)을
+ * 재사용해, 지도 마커 칩과 카드형 배지의 "실시간" 펄스 문법을 통일한다.
+ * 클래스 기반 애니메이션이라 index.css의 전역 prefers-reduced-motion 규칙을 그대로 따른다.
+ */
 function makeBlip(imminentEta) {
   const blip = document.createElement('span')
   blip.setAttribute('data-role', 'blip')
+  blip.className = 'animate-dot-blink'
   blip.style.cssText = [
     'width:6px',
     'height:6px',
@@ -175,6 +181,7 @@ export default function MarkerChip({ routeCode, routeColor, stationName, liveMin
           >
             <span
               data-role="blip"
+              className="animate-dot-blink"
               style={{
                 width: '6px',
                 height: '6px',

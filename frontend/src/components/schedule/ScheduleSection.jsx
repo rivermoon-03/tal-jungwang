@@ -8,6 +8,7 @@ import RouteBadge from '../common/RouteBadge'
 import { CrowdedBadge } from '../bus/BusArrivalCard'
 import { formatRelAbs } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
+import DataBadge from '../ui/DataBadge'
 
 /**
  * next/afterNext 프롭은 아래 두 가지 형태를 모두 허용한다.
@@ -145,7 +146,7 @@ export default function ScheduleSection({
             ) : endOfDay ? (
               <span style={{ color: 'var(--tj-line-strong)', fontWeight: 600 }}>오늘 버스가 끊겼어요</span>
             ) : realtimeOnly ? (
-              <StatusChip kind="realtime">실시간</StatusChip>
+              <DataBadge state="live" />
             ) : loading ? (
               <Skeleton width="9rem" height="0.95rem" rounded="rounded-md" />
             ) : (
