@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react'
 import MapView from '../map/MapView'
 import MapLegendOnboarding from '../map/MapLegendOnboarding'
-import MapSearchOverlay from '../map/MapSearchOverlay'
-import MapBottomCard from '../map/MapBottomCard'
-import PCStationPicker from '../dashboard/PCStationPicker'
+import PCMapDockPanel from '../map/PCMapDockPanel'
 import useAppStore from '../../stores/useAppStore'
 import useMapBottomCardData from '../../hooks/useMapBottomCardData'
 
@@ -18,14 +16,16 @@ const MODE_FILTERS = [
 
 // PC 전용 메인 셸.
 //
-// 지도(children=null, 홈)에서는 MapView를 풀사이즈로 깔고 그 위에 검색+정류장
-// 선택 오버레이(좌상단)와 도착 카드(하단)를 플로팅으로 얹는다. 그 외 페이지
+// 지도(children=null, 홈)에서는 좌측에 도킹 패널(PCMapDockPanel — 검색+필터,
+// 정류장 선택, 도착 목록을 하나의 카드 컬럼으로 합친 것)을 두고, 그 오른쪽
+// 나머지 전체를 MapView가 채운다(Google Maps식 레이아웃). 그 외 페이지
 // (시간표·학식·더보기 등, children!=null)는 지도 위에 불투명 패널을 씌워
 // 페이지 콘텐츠가 전체 폭을 차지하게 한다.
 //
-// 지도(MapView)는 어떤 탭에서도 절대 unmount 하지 않는다(GPS watch·타일
-// 캐시가 죽지 않게) — position:absolute + inset-0 으로 항상 마운트해두고,
-// 페이지 탭에서는 그 위에 다른 레이어를 덮어씌우는 방식으로 유지한다.
+// 지도(MapView)는 어떤 탭에서도, 도킹 패널을 접거나 펼쳐도 절대 unmount 하지
+// 않는다(GPS watch·타일 캐시가 죽지 않게) — MapView를 담는 flex-1 래퍼는 항상
+// 같은 트리 위치에 마운트되어 있고, 도킹 패널/페이지 오버레이는 그 옆/위에서만
+// 조건부로 나타났다 사라진다.
 export default function PCMainShell({ children }) {
   const selectedId = useAppStore((s) => s.selectedMarkerId)
   const setSelectedIdStore = useAppStore((s) => s.setSelectedMarkerId)
@@ -35,6 +35,7 @@ export default function PCMainShell({ children }) {
 
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('bus')
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
 
   const bottomCardData = useMapBottomCardData()
 
@@ -62,46 +63,36 @@ export default function PCMainShell({ children }) {
   }
 
   return (
-    <div className="relative hidden h-full w-full overflow-hidden md:block">
-      <div className="absolute inset-0">
-        <MapView onMarkerClick={handleMarkerClick} selectedId={selectedId} />
-      </div>
-
+    <div className="relative hidden h-full w-full overflow-hidden md:flex">
       {showFloating && (
-        <>
-          <MapLegendOnboarding />
-
-          <div className="absolute left-4 top-4 z-20 flex w-[min(320px,60%)] flex-col gap-[9px]">
-            <MapSearchOverlay
-              value={search}
-              onChange={setSearch}
-              filters={filters}
-              onToggleFilter={setActiveFilter}
-            />
-            <div className="overflow-hidden rounded-card border border-line bg-surface/92 shadow-pill backdrop-blur-md">
-              <PCStationPicker />
-            </div>
-          </div>
-
-          <div className="absolute bottom-4 left-4 right-4 z-20">
-            <MapBottomCard
-              stationName={bottomCardData.stationLabel}
-              live={bottomCardData.live}
-              statusLabel={bottomCardData.statusLabel}
-              statusTone={bottomCardData.statusTone}
-              primary={bottomCardData.primary ?? {}}
-              routes={filteredRoutes}
-              onSelectRoute={handleSelectRoute}
-            />
-          </div>
-        </>
+        <PCMapDockPanel
+          collapsed={panelCollapsed}
+          onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
+          search={search}
+          onChangeSearch={setSearch}
+          filters={filters}
+          onToggleFilter={setActiveFilter}
+          stationLabel={bottomCardData.stationLabel}
+          live={bottomCardData.live}
+          statusLabel={bottomCardData.statusLabel}
+          statusTone={bottomCardData.statusTone}
+          primary={bottomCardData.primary ?? {}}
+          routes={filteredRoutes}
+          onSelectRoute={handleSelectRoute}
+        />
       )}
 
-      {!showFloating && (
-        <div className="absolute inset-0 z-30 overflow-y-auto bg-bg dark:bg-bg">
-          {children}
-        </div>
-      )}
+      <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+        <MapView onMarkerClick={handleMarkerClick} selectedId={selectedId} />
+
+        {showFloating && <MapLegendOnboarding />}
+
+        {!showFloating && (
+          <div className="absolute inset-0 z-30 overflow-y-auto bg-bg dark:bg-bg">
+            {children}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
