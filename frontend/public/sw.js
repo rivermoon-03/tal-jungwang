@@ -1,4 +1,4 @@
-const CACHE = 'transit-hub-v6'
+const CACHE = 'transit-hub-v7'
 const PRECACHE = ['/', '/index.html']
 
 // 해시되지 않은 루트 정적 파일 — 배포할 때마다 내용이 바뀔 수 있으므로
@@ -102,13 +102,17 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // 해시된 정적 에셋(/assets/*) — 캐시 우선, 없으면 네트워크 후 캐시 저장
+  // 해시된 정적 에셋(/assets/*) — 캐시 우선, 없으면 네트워크 후 캐시 저장.
+  // 배포 후 사라진 청크는 rewrite가 index.html(HTML)을 돌려줄 수 있으므로,
+  // 실패 응답이거나 Content-Type이 text/html이면 캐싱하지 않고 그대로 반환한다
+  // (HTML을 JS로 캐싱해 고착시키면 "disallowed MIME type" 에러가 반복됨).
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached
 
       return fetch(e.request).then((res) => {
-        if (res.status === 200) {
+        const contentType = res.headers.get('Content-Type') || ''
+        if (res.ok && !contentType.includes('text/html')) {
           const clone = res.clone()
           caches.open(CACHE).then((c) => c.put(e.request, clone))
         }
