@@ -14,6 +14,7 @@ import PCDock from './components/common/PCDock'
 import GlobalDetailModal from './components/schedule/GlobalDetailModal'
 import GlobalSubwayLineSheet from './components/subway/GlobalSubwayLineSheet'
 import GlobalSubwayDetailSheet from './components/subway/GlobalSubwayDetailSheet'
+import SearchOverlay from './components/search/SearchOverlay'
 import { useNotices } from './hooks/useMore'
 
 // 배포 직후 스테일 청크(옛 해시 파일이 서버에서 사라진 경우) 복구용 가드.
@@ -245,6 +246,7 @@ export default function App() {
       <GlobalDetailModal />
       <GlobalSubwayLineSheet />
       <GlobalSubwayDetailSheet />
+      <SearchOverlay />
     </>
   )
 }

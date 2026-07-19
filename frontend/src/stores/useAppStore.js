@@ -171,6 +171,27 @@ const useAppStore = create(
       heroStyle: 'greeting',
       setHeroStyle: (style) => set({ heroStyle: style }),
 
+      // ── M-2: 노선·정류장 검색 오버레이 ───────────────────────────────
+      // searchOpen은 세션 전용(persist 제외) — 새로고침 시 항상 닫힌 상태로 시작.
+      searchOpen: false,
+      setSearchOpen: (v) => set({ searchOpen: v }),
+
+      // 최근 검색: { type, id, label, sub } 최대 5건, 최신이 앞. persist 대상.
+      recentSearches: [],
+      addRecentSearch: (entry) =>
+        set((s) => {
+          const filtered = s.recentSearches.filter(
+            (r) => !(r.type === entry.type && r.id === entry.id)
+          )
+          return { recentSearches: [entry, ...filtered].slice(0, 5) }
+        }),
+      removeRecentSearch: (entry) =>
+        set((s) => ({
+          recentSearches: s.recentSearches.filter(
+            (r) => !(r.type === entry.type && r.id === entry.id)
+          ),
+        })),
+
     }),
     {
       name: 'tal-jungwang',
@@ -265,6 +286,7 @@ const useAppStore = create(
         commuteManualDirection: state.commuteManualDirection,
         scheduleViewMode: state.scheduleViewMode,
         heroStyle: state.heroStyle,
+        recentSearches: state.recentSearches,
       }),
     }
   )
