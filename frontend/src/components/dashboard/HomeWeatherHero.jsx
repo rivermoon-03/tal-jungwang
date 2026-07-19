@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Sun, Map, Navigation, Utensils, Wind } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
@@ -150,6 +150,91 @@ export default function HomeWeatherHero({ onOpenMap }) {
     () => pickGreeting({ mood, rainProb: weather?.rainProb, windSpeed: weather?.windSpeed, temp: weather?.currentTemp }),
     [mood, weather?.rainProb, weather?.windSpeed, weather?.currentTemp],
   )
+
+  // ── greeting 진입 시퀀스(phase) + 출처 툴팁 ──────────────────────────────
+  // phase: 'quote'(글귀 표시) → 'weather'(온도 행으로 자리를 승계). heroStyle==='classic'이면 미사용.
+  const [phase, setPhase] = useState('quote')
+  const [quoteEntered, setQuoteEntered] = useState(false)
+  const [tooltipOpen, setTooltipOpen] = useState(false)
+  const [tooltipMounted, setTooltipMounted] = useState(false) // 퇴장 모션(160ms) 동안 DOM 유지용
+  const tooltipOpenRef = useRef(false) // phase 타이머 콜백이 최신 tooltipOpen을 읽기 위한 ref(클로저 stale 방지)
+  const quoteWrapRef = useRef(null) // 바깥 클릭 판정 대상
+  const tooltipId = useId()
+
+  const tooltipContent = greeting.source ? `— ${greeting.source}` : (greeting.sub || null)
+  const hasTooltip = Boolean(tooltipContent)
+
+  // 열기는 이벤트 핸들러에서 즉시 동기 처리(effect의 setState 남용을 피한다).
+  // 닫기(퇴장 모션 유지)는 아래 effect가 타이머 콜백에서 비동기로 처리한다.
+  const toggleTooltip = () => {
+    if (!hasTooltip) return
+    const next = !tooltipOpen
+    setTooltipOpen(next)
+    if (next) setTooltipMounted(true)
+  }
+
+  // 진입 모션 트리거 — 마운트 직후 한 틱 뒤 'is-visible'로 바꿔야 opacity/blur/translateY
+  // 트랜지션이 실제로 재생된다(초기 렌더 값 그대로 두면 트랜지션이 발화하지 않는다).
+  useEffect(() => {
+    if (heroStyle !== 'greeting') return
+    const id = setTimeout(() => setQuoteEntered(true), 0)
+    return () => clearTimeout(id)
+  }, [heroStyle])
+
+  // ref는 effect 밖(render)에서 직접 못 건드리므로(react-hooks/refs), effect에서 동기화한다.
+  useEffect(() => {
+    tooltipOpenRef.current = tooltipOpen
+  }, [tooltipOpen])
+
+  // 6초 후 글귀 → 온도 승계. 툴팁을 읽는 중(열려 있음)이면 그 시점부터 6초씩 다시 연장한다.
+  useEffect(() => {
+    if (heroStyle !== 'greeting') return
+    let id
+    const schedule = () => {
+      id = setTimeout(() => {
+        if (tooltipOpenRef.current) {
+          schedule()
+        } else {
+          setPhase('weather')
+        }
+      }, 6000)
+    }
+    schedule()
+    return () => clearTimeout(id)
+  }, [heroStyle])
+
+  // 툴팁 3.5초 자동 닫힘.
+  useEffect(() => {
+    if (!tooltipOpen) return
+    const id = setTimeout(() => setTooltipOpen(false), 3500)
+    return () => clearTimeout(id)
+  }, [tooltipOpen])
+
+  // 바깥 클릭으로 닫기.
+  useEffect(() => {
+    if (!tooltipOpen) return
+    const handlePointerDown = (e) => {
+      if (quoteWrapRef.current && !quoteWrapRef.current.contains(e.target)) {
+        setTooltipOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [tooltipOpen])
+
+  // 툴팁 DOM은 퇴장 모션(160ms) 동안 유지했다가 언마운트한다(여는 쪽은 toggleTooltip이 즉시 처리).
+  useEffect(() => {
+    if (tooltipOpen || !tooltipMounted) return
+    const id = setTimeout(() => setTooltipMounted(false), 160)
+    return () => clearTimeout(id)
+  }, [tooltipOpen, tooltipMounted])
+
+  const greetingLines = greeting.text.split('\n').map((line, i, arr) => (
+    <Fragment key={i}>
+      {line}
+      {i < arr.length - 1 && <br />}
+    </Fragment>
+  ))
 
   // 배경 밝기(lightText)에 맞춘 전경색. 식당 뷰도 날씨 배경 위라 동일 규칙을 쓴다.
   const tempColor = lightText ? 'text-white' : 'text-ink dark:text-ink'
@@ -373,34 +458,69 @@ export default function HomeWeatherHero({ onOpenMap }) {
             </div>
           ) : (
             <div className="relative z-10 flex-1 flex flex-col justify-end gap-3 px-4 pb-7 pt-1">
-              {/* 인사 글귀 — 온도 위, 하루 단위로 안정적으로 고정된다(heroGreeting.pickGreeting). */}
-              <div className="min-w-0 animate-fade-in-up">
-                <p
-                  data-testid="hero-greeting-text"
-                  className={`text-title leading-[1.35] tracking-[-0.02em] [text-wrap:balance] ${tempColor}`}
-                >
-                  {greeting.text.split('\n').map((line, i, arr) => (
-                    <Fragment key={i}>
-                      {line}
-                      {i < arr.length - 1 && <br />}
-                    </Fragment>
-                  ))}
-                </p>
-                {(greeting.source || greeting.sub) && (
-                  <p className={`mt-1 text-[12.5px] font-semibold ${lightText ? 'text-white/70' : 'text-ink-2 dark:text-mute'}`}>
-                    {greeting.source ? `— ${greeting.source}` : greeting.sub}
-                  </p>
-                )}
+              {/* 인사 글귀 — 하루 단위로 안정적으로 고정된다(heroGreeting.pickGreeting).
+                  마운트 900ms 진입 모션 → 6초 뒤 아래 온도 행으로 자리를 넘기며 접힌다(phase).
+                  prefers-reduced-motion은 index.css 전역 규칙(transition/animation ≈0ms)이
+                  이미 처리하므로 여기서 별도 분기를 두지 않는다. */}
+              <div className={`whero-quote-grid ${phase === 'weather' ? 'is-collapsed' : ''}`}>
+                <div className="whero-quote-grid-inner">
+                  <div
+                    ref={quoteWrapRef}
+                    className={`min-w-0 whero-quote-content ${
+                      phase === 'weather'
+                        ? 'is-leaving pointer-events-none'
+                        : quoteEntered ? 'is-visible' : ''
+                    }`}
+                  >
+                    {hasTooltip ? (
+                      <button
+                        type="button"
+                        data-testid="hero-greeting-text"
+                        onClick={toggleTooltip}
+                        aria-expanded={tooltipOpen}
+                        aria-describedby={tooltipOpen ? tooltipId : undefined}
+                        className={`block w-full cursor-pointer border-0 bg-transparent p-0 text-left text-title leading-[1.35] tracking-[-0.02em] [text-wrap:balance] ${tempColor}`}
+                      >
+                        {greetingLines}
+                      </button>
+                    ) : (
+                      <p
+                        data-testid="hero-greeting-text"
+                        className={`text-title leading-[1.35] tracking-[-0.02em] [text-wrap:balance] ${tempColor}`}
+                      >
+                        {greetingLines}
+                      </p>
+                    )}
+                    {tooltipMounted && (
+                      <div
+                        id={tooltipId}
+                        role="tooltip"
+                        className={`whero-quote-tooltip rounded-button px-3 py-1.5 text-caption shadow-sh-card ${
+                          tooltipOpen ? 'is-entering' : 'is-leaving'
+                        } ${lightText ? 'bg-black/55 text-white backdrop-blur-md' : 'bg-surface-3 text-ink-2'}`}
+                      >
+                        {tooltipContent}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* 하단 행 — 축소된 온도 + 하늘 텍스트 + 정왕풍 pill + 작은 날씨 아이콘. */}
+              {/* 하단 행 — 온도 + 하늘 텍스트 + 정왕풍 pill + 아이콘. phase='weather'로 넘어가면
+                  글귀가 접히며 온도(34→56px)·하늘 텍스트(14→18px)·아이콘(scale)이 확대된다. */}
               <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-end gap-2">
-                    <span className={`text-[34px] font-extrabold leading-none tabular-nums ${tempColor}`}>
+                    <span
+                      className={`whero-quote-temp font-extrabold leading-none tabular-nums ${
+                        phase === 'weather' ? 'is-grown' : ''
+                      } ${tempColor}`}
+                    >
                       {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
                     </span>
-                    <span className={`mb-0.5 text-[14px] font-bold ${skyColor}`}>
+                    <span
+                      className={`whero-quote-sky mb-0.5 font-bold ${phase === 'weather' ? 'is-grown' : ''} ${skyColor}`}
+                    >
                       {SKY_TEXT[icon] ?? ''}
                     </span>
                   </div>
@@ -409,13 +529,15 @@ export default function HomeWeatherHero({ onOpenMap }) {
                   </div>
                 </div>
 
-                <Icon
-                  size={32}
-                  strokeWidth={1.6}
-                  className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
-                  style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
-                  aria-hidden="true"
-                />
+                <span className={`whero-quote-icon-wrap ${phase === 'weather' ? 'is-grown' : ''}`}>
+                  <Icon
+                    size={32}
+                    strokeWidth={1.6}
+                    className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
+                    style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
+                    aria-hidden="true"
+                  />
+                </span>
               </div>
             </div>
           )}
