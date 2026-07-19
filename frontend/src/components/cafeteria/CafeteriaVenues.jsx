@@ -216,7 +216,7 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
       {/* 끼니별 시간표 — meals 없으면 schedule.semester.weekday 폴백 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {(venue.meals ?? venue.schedule?.semester?.weekday ?? []).map((meal) => {
-          const mealOpen = isOpenNow({ meals: [meal], closedDays: [] }, nowDate)
+          const mealOpen = isOpenNow({ meals: [meal], closedDays: venue.closedDays ?? [] }, nowDate)
           const isLive = mealOpen.open
           return (
             <div
