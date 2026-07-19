@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.jsx'
 import { maybeLoadWebAds } from './utils/ads'
 import { initWebVitals } from './utils/webVitals'
+import { hasReloadedForChunkError, markReloadedForChunkError } from './utils/chunkReload'
 
 // React 마운트 전에 동기적으로 dark 클래스 설정 — useEffect 지연으로 인한 플래시 방지
 if (localStorage.getItem('tal_dark') === '1') {
@@ -35,6 +36,15 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     }
   })
 }
+
+// Vite의 <link rel="modulepreload"> 프리로드가 실패하는 경우(배포 직후 스테일 청크)도
+// lazyWithReload와 같은 가드를 공유해 세션당 1회만 새로고침한다.
+window.addEventListener('vite:preloadError', (event) => {
+  if (hasReloadedForChunkError()) return
+  event.preventDefault()
+  markReloadedForChunkError()
+  window.location.reload()
+})
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

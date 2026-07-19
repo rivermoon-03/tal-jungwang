@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import useAppStore from './stores/useAppStore'
+import { hasReloadedForChunkError, markReloadedForChunkError, clearReloadGuard } from './utils/chunkReload'
 import { useTheme } from './hooks/useTheme'
 import { useFontScale } from './hooks/useFontScale'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
@@ -15,13 +16,33 @@ import GlobalSubwayLineSheet from './components/subway/GlobalSubwayLineSheet'
 import GlobalSubwayDetailSheet from './components/subway/GlobalSubwayDetailSheet'
 import { useNotices } from './hooks/useMore'
 
+// 배포 직후 스테일 청크(옛 해시 파일이 서버에서 사라진 경우) 복구용 가드.
+// import 실패 시 세션당 1회만 새로고침하고, 그래도 실패하면 에러를 그대로 던진다(무한 루프 방지).
+function lazyWithReload(importer) {
+  return lazy(() =>
+    importer()
+      .then((mod) => {
+        clearReloadGuard()
+        return mod
+      })
+      .catch((err) => {
+        if (!hasReloadedForChunkError()) {
+          markReloadedForChunkError()
+          window.location.reload()
+          return new Promise(() => {}) // 리로드가 일어날 때까지 렌더를 보류한다
+        }
+        throw err
+      })
+  )
+}
+
 // 지도 외 페이지는 진입 시에만 로드 — 초기 번들에서 분리한다.
-const SchedulePage = lazy(() => import('./pages/SchedulePage'))
-const CafeteriaPage = lazy(() => import('./pages/CafeteriaPage'))
-const MorePage = lazy(() => import('./pages/MorePage'))
-const RouteDetailPage = lazy(() => import('./pages/RouteDetailPage'))
-const CafeteriaVenueDetailPage = lazy(() => import('./pages/CafeteriaVenueDetailPage'))
-const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
+const SchedulePage = lazyWithReload(() => import('./pages/SchedulePage'))
+const CafeteriaPage = lazyWithReload(() => import('./pages/CafeteriaPage'))
+const MorePage = lazyWithReload(() => import('./pages/MorePage'))
+const RouteDetailPage = lazyWithReload(() => import('./pages/RouteDetailPage'))
+const CafeteriaVenueDetailPage = lazyWithReload(() => import('./pages/CafeteriaVenueDetailPage'))
+const PrivacyPage = lazyWithReload(() => import('./pages/PrivacyPage'))
 
 const VALID_HASH_TABS = ['main', 'map', 'transit', 'subway', 'more']
 
