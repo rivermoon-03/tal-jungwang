@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { Navigation } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { apiFetch } from '../../hooks/useApi'
+import { splitFare, formatWon } from '../../utils/taxiSplit'
+
+const PICKUP_POINT = '정문 앞 로터리'
 
 const TAXI_DESTS = [
-  { id: 'jeongwang',       name: '정왕역',       lat: 37.351618,  lng: 126.742747 },
-  { id: 'siheung_station', name: '시흥시청역',   lat: 37.37970,   lng: 126.80260  },
-  { id: 'sadang',          name: '사당역',        lat: 37.47624,   lng: 126.98175  },
-  { id: 'baegot',          name: '배곧(라온초)', lat: 37.37258,   lng: 126.73493  },
+  { id: 'jeongwang',       name: '정왕역',       lat: 37.351618,  lng: 126.742747, pickup: PICKUP_POINT },
+  { id: 'siheung_station', name: '시흥시청역',   lat: 37.37970,   lng: 126.80260,  pickup: PICKUP_POINT },
+  { id: 'sadang',          name: '사당역',        lat: 37.47624,   lng: 126.98175,  pickup: PICKUP_POINT },
+  { id: 'baegot',          name: '배곧(라온초)', lat: 37.37258,   lng: 126.73493,  pickup: PICKUP_POINT },
 ]
 
 function fmtMin(sec) {
@@ -52,12 +55,24 @@ function DestRow({ dest, origin }) {
       <div className="flex-1 min-w-0">
         <p className="text-label font-semibold text-ink tracking-tight">{dest.name}</p>
         {result && (
-          <p className="text-caption font-semibold text-mute mt-0.5">
-            {fmtKm(result.distance_meters)}
+          <>
+            <p className="text-caption font-semibold text-mute mt-0.5">
+              {fmtKm(result.distance_meters)}
+              {result.taxi_fee > 0 && (
+                <span className="ml-2">약 {result.taxi_fee.toLocaleString()}원</span>
+              )}
+            </p>
             {result.taxi_fee > 0 && (
-              <span className="ml-2">약 {result.taxi_fee.toLocaleString()}원</span>
+              <div className="border-t border-dashed border-line dark:border-line pt-1.5 mt-1.5">
+                <p className="text-caption font-semibold text-mute tabular-nums">
+                  2명이 나누면 {formatWon(splitFare(result.taxi_fee, 2))}
+                </p>
+                <p className="text-caption font-semibold text-mute tabular-nums">
+                  4명이 나누면 {formatWon(splitFare(result.taxi_fee, 4))}
+                </p>
+              </div>
             )}
-          </p>
+          </>
         )}
       </div>
       <span className="text-panel-ttl font-bold tabular-nums text-ink whitespace-nowrap tracking-tight">
@@ -98,9 +113,14 @@ export default function TaxiPanel() {
       {TAXI_DESTS.map((dest) => (
         <DestRow key={dest.id} dest={dest} origin={userLocation} />
       ))}
-      <p className="pt-2.5 text-caption font-semibold text-mute text-center">
-        실제 요금·시간과 다를 수 있습니다
-      </p>
+      <div className="pt-2.5 text-center">
+        <p className="text-caption font-semibold text-mute">
+          실제 요금·시간과 다를 수 있습니다
+        </p>
+        <p className="text-caption font-semibold text-mute mt-1">
+          승차 포인트: {PICKUP_POINT}
+        </p>
+      </div>
     </div>
   )
 }
