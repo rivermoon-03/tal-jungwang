@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Sun, Map, Navigation, Utensils, Wind } from 'lucide-react'
+import { Sun, Map, Navigation, Utensils, Wind, Search } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useAppStore from '../../stores/useAppStore'
@@ -7,8 +7,10 @@ import { SKY_ICON, SKY_TEXT } from '../stats/WeatherCard'
 import { getTimeOfDay } from '../../utils/timeOfDay'
 import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import { pickGreeting } from '../../utils/heroGreeting'
+import { getDirectionAutoChangeMessage } from '../../utils/directionAutoChangeToast'
 import { ALL_VENUES } from '../../data/cafeteriaVenues'
 import { isOpenNow } from '../../utils/venueOpen'
+import DirectionAutoToast from '../common/DirectionAutoToast'
 import './HomeWeatherHero.css'
 
 // icon(5종) → mood(4종): partly_cloudy는 sunny 무드(밝은 톤)에 편입.
@@ -100,9 +102,23 @@ function goToCafeteria() {
  */
 export default function HomeWeatherHero({ onOpenMap }) {
   const { weather } = useWeather()
-  const { direction } = useEffectiveDirection()
+  const { direction, isOverride } = useEffectiveDirection()
   const heroStyle = useAppStore((s) => s.heroStyle) // 'greeting'(기본) | 'classic'
+  const setSearchOpen = useAppStore((s) => s.setSearchOpen)
   const [view, setView] = useState('weather') // 'weather' | 'cafeteria' — persist 불필요, 새로고침 시 날씨로 리셋
+
+  // 자동 방향 전환 감지 — 이전 direction을 추적하고, 자동 전환 시(isOverride=false) 토스트 표시
+  const prevDirectionRef = useRef(direction)
+  const [toastVisible, setToastVisible] = useState(false)
+  const [previousDirection, setPreviousDirection] = useState(null)
+
+  useEffect(() => {
+    if (direction !== prevDirectionRef.current && !isOverride) {
+      setPreviousDirection(prevDirectionRef.current)
+      setToastVisible(true)
+    }
+    prevDirectionRef.current = direction
+  }, [direction, isOverride])
 
   const icon = weather?.icon ?? 'sunny'
   const mood = SKY_MOOD[icon] ?? 'sunny'
@@ -285,6 +301,15 @@ export default function HomeWeatherHero({ onOpenMap }) {
 
   return (
     <div className="whero" data-mood={mood} data-time={timeOfDay}>
+      {/* 자동 방향 전환 토스트 */}
+      {previousDirection && (
+        <DirectionAutoToast
+          message={getDirectionAutoChangeMessage(direction)}
+          previousDirection={previousDirection}
+          visible={toastVisible}
+          onClose={() => setToastVisible(false)}
+        />
+      )}
       {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다. */}
       {mood === 'sunny' && timeOfDay !== 'night' && <div className="whero-glow" aria-hidden="true" />}
       {mood === 'sunny' && timeOfDay === 'day' && <div className="whero-rays" aria-hidden="true" />}
@@ -394,11 +419,12 @@ export default function HomeWeatherHero({ onOpenMap }) {
       {/* 하단 seam — mood 색을 대시보드 배경으로 얇게 블렌드 */}
       <div className="whero-seam" aria-hidden="true" />
 
-      {/* 우상단 날씨↔식당 토글 — 다른 pill과 같은 chip 시각언어(라운드 카드 + 그림자). */}
+      {/* 우상단 아이콘 클러스터 — 날씨↔식당 토글 + 검색 버튼.
+          다른 pill과 같은 chip 시각언어(라운드 카드 + 그림자). */}
       <div
         className={`absolute top-2.5 right-2.5 z-20 inline-flex items-center gap-0.5 rounded-card p-0.5 shadow-pill ${chipCls}`}
         role="group"
-        aria-label="히어로 보기 전환"
+        aria-label="히어로 옵션"
         style={{ touchAction: 'manipulation' }}
       >
         <button
@@ -419,16 +445,21 @@ export default function HomeWeatherHero({ onOpenMap }) {
         >
           <Utensils size={14} aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          onClick={() => setSearchOpen?.(true)}
+          aria-label="검색"
+          className={`flex items-center justify-center w-7 h-7 rounded-[9px] transition-colors active:scale-[0.92] ${toggleIdleCls}`}
+        >
+          <Search size={14} aria-hidden="true" />
+        </button>
       </div>
 
       {view === 'weather' ? (
         <>
-          {/* 상단 바 — 좌측 세로 스택: [등교·자동] 아래 [지도]. 우측 토글은 absolute(위). */}
+          {/* 상단 바 — 좌측 세로 스택: [지도] 버튼. 방향 필은 하단 대시보드에서 관리.
+              우측 토글(날씨↔식당, 검색)은 absolute(위). */}
           <div className="relative z-10 flex flex-col items-start gap-2 px-4 pt-3">
-            <span className={`inline-flex items-center gap-1.5 rounded-card px-3 py-1.5 text-caption font-bold shadow-pill ${chipCls}`}>
-              <Navigation size={12} aria-hidden="true" />
-              {direction} · 자동
-            </span>
             <button
               type="button"
               onClick={onOpenMap}

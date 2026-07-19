@@ -42,15 +42,23 @@ export function getNearestStationInfo(lat, lng, allowed = null) {
   return best ? { name: best, distanceM: Math.round(bestD) } : null
 }
 
-export default function useUserLocation() {
+/**
+ * @param {boolean} [enabled=true] false면 geolocation을 요청하지 않는다.
+ *   지도 확장 진입 시에만 위치를 묻고 싶은 호출부(MapView)가 이 값을
+ *   `mapExpanded`에 연결해 평소(축소 상태)엔 GPS를 조용히 두게 한다
+ *   (mistakes.md §3 — 숨겨진/비활성 화면에서 GPS가 백그라운드로 도는 것 방지).
+ *   false→true로 바뀌면 그 시점에 다시 한 번 요청한다.
+ */
+export default function useUserLocation(enabled = true) {
   const [coords, setCoords] = useState(null)
   useEffect(() => {
+    if (!enabled) return
     if (typeof navigator === 'undefined' || !navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(
       (p) => setCoords([p.coords.latitude, p.coords.longitude]),
       () => setCoords(null),
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 },
     )
-  }, [])
+  }, [enabled])
   return coords
 }
