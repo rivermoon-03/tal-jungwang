@@ -1,8 +1,10 @@
 /**
- * CafeteriaPCLayout / CafeteriaVenueRail 테스트
+ * CafeteriaPCLayout 테스트
  *
- * PC 2열 레이아웃: 좌측 rail(식당 카드 + 운영상태 pill) + 우측 상세(요일 칩 + 끼니 그리드).
- * 시각 의존 로직(운영상태 pill, "지금" 배지, 오늘 요일 자동 선택)은 전부
+ * PC 전폭 레이아웃: 상단 식당 선택 chips(운영상태 dot) + 요일 칩 + 끼니 그리드.
+ * 예전 좌측 rail(CafeteriaVenueRail, 300px 컬럼)은 PCSidebar 컨텍스트
+ * 서브내비 도입으로 제거됐다 — 식당 선택은 이제 가로 chip 버튼이다.
+ * 시각 의존 로직(운영상태 dot, "지금" 배지, 오늘 요일 자동 선택)은 전부
  * vi.setSystemTime으로 고정한 KST 시각 기준으로 검증한다 — 실행 시각에 따라
  * 결과가 바뀌면 안 된다(mistakes.md §1).
  */
@@ -82,8 +84,8 @@ describe('CafeteriaPCLayout', () => {
     vi.useRealTimers()
   })
 
-  // --- (a) rail 카드 렌더 ---
-  it('rail에 cafeterias 이름으로 식당 카드 2개를 렌더한다', () => {
+  // --- (a) 식당 선택 chips 렌더 ---
+  it('상단에 cafeterias 이름으로 식당 선택 chip 2개를 렌더한다', () => {
     render(<CafeteriaPCLayout data={MOCK_DATA} loading={false} error={null} refetch={vi.fn()} />)
     expect(screen.getByText('TIP 학생식당')).toBeInTheDocument()
     expect(screen.getByText('E동 레스토랑')).toBeInTheDocument()
@@ -109,9 +111,9 @@ describe('CafeteriaPCLayout', () => {
     expect(screen.getByText(/11일/).closest('button')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('제육볶음면')).toBeInTheDocument()
 
-    // E동 레스토랑 카드 클릭 → 타이틀 전환
-    const eDongCard = screen.getByText('E동 레스토랑').closest('[role="button"]')
-    fireEvent.click(eDongCard)
+    // E동 레스토랑 chip 클릭 → 타이틀 전환
+    const eDongChip = screen.getByText('E동 레스토랑').closest('button')
+    fireEvent.click(eDongChip)
     expect(screen.getByRole('heading', { name: 'E동 레스토랑 식단' })).toBeInTheDocument()
 
     // selectedDay가 리셋되어 11일이 아니라 오늘(13일)이 다시 선택되어야 한다.
@@ -127,8 +129,8 @@ describe('CafeteriaPCLayout', () => {
     fireEvent.click(screen.getByText(/11일/).closest('button'))
     expect(screen.getByText(/11일/).closest('button')).toHaveAttribute('aria-pressed', 'true')
 
-    const tipCard = screen.getByText('TIP 학생식당').closest('[role="button"]')
-    fireEvent.click(tipCard)
+    const tipChip = screen.getByText('TIP 학생식당').closest('button')
+    fireEvent.click(tipChip)
 
     expect(screen.getByText(/13일/).closest('button')).toHaveAttribute('aria-pressed', 'true')
   })

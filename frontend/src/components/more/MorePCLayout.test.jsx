@@ -1,10 +1,13 @@
 /**
  * MorePCLayout 테스트
  *
- * 좌측 rail(nav 4항목 + 다가오는 일정) + 우측 콘텐츠(activeNav에 따라 기존
- * 서브페이지 재사용). 네트워크 훅은 전부 useMore.js 모킹으로 대체하고,
- * D-day 배지는 vi.setSystemTime으로 고정한 KST 시각 기준으로 검증한다
- * (mistakes.md §1 — 실행 시각에 따라 결과가 바뀌면 안 된다).
+ * nav(학사공지/앱 공지/설정/앱 정보)는 더 이상 이 컴포넌트가 rail로 그리지
+ * 않는다 — PCSidebar의 컨텍스트 서브내비 + 설정 섹션으로 이관됐다
+ * (PCSidebar.test.jsx에서 별도 검증). 이 컴포넌트는 activeNav(=initialNav
+ * prop, store가 있으면 store.pcMoreNav)에 대응하는 전폭 콘텐츠만 그린다.
+ * 네트워크 훅은 전부 useMore.js 모킹으로 대체하고, D-day 배지는
+ * vi.setSystemTime으로 고정한 KST 시각 기준으로 검증한다(mistakes.md §1 —
+ * 실행 시각에 따라 결과가 바뀌면 안 된다).
  */
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -103,67 +106,69 @@ describe('MorePCLayout', () => {
     vi.useRealTimers()
   })
 
-  // --- (a) rail nav 4항목 + 기본 활성 ---
-  it('rail에 nav 4항목(학사공지/앱 공지/설정/앱 정보)을 렌더하고 기본 활성은 학사공지다', () => {
+  // --- (a) 기본 렌더: initialNav 기본값(academic) ---
+  it('기본(initialNav 없음)이면 학사공지 콘텐츠와 헤더를 렌더한다', () => {
     render(<MorePCLayout />)
-    expect(screen.getByRole('button', { name: '학사공지' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('button', { name: '앱 공지' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '설정' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '앱 정보' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '학사공지' })).toBeInTheDocument()
     // 학사공지 콘텐츠(학과 select)가 기본으로 보인다
     expect(screen.getByRole('combobox', { name: '학과 선택' })).toBeInTheDocument()
   })
 
-  // --- (b) nav 클릭 시 우측 콘텐츠 전환 ---
-  it('설정 nav 클릭 시 우측 콘텐츠가 설정 화면(DarkModeSegment)으로 전환된다', () => {
-    render(<MorePCLayout />)
-    fireEvent.click(screen.getByRole('button', { name: '설정' }))
-
-    expect(screen.getByRole('button', { name: '설정' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('button', { name: '학사공지' })).not.toHaveAttribute('aria-current', 'page')
+  // --- (b) initialNav prop으로 각 섹션이 전환된다 (nav 자체는 PCSidebar로 이관) ---
+  it('initialNav="settings"면 설정 화면(DarkModeSegment)이 렌더된다', () => {
+    render(<MorePCLayout initialNav="settings" />)
+    expect(screen.getByRole('heading', { name: '설정' })).toBeInTheDocument()
     expect(screen.getByTestId('dark-mode-segment')).toBeInTheDocument()
-    // 학사공지 콘텐츠는 사라진다
     expect(screen.queryByRole('combobox', { name: '학과 선택' })).not.toBeInTheDocument()
   })
 
-  it('앱 공지 nav 클릭 시 우측 콘텐츠가 공지사항 목록으로 전환된다', () => {
-    render(<MorePCLayout />)
-    fireEvent.click(screen.getByRole('button', { name: '앱 공지' }))
+  it('initialNav="notices"면 공지사항 목록이 렌더된다', () => {
+    render(<MorePCLayout initialNav="notices" />)
     expect(screen.getByText('버스 도착 정보 개선')).toBeInTheDocument()
   })
 
-  // --- (c) initialNav ---
-  it('initialNav="settings"면 설정이 처음부터 활성 상태로 렌더된다', () => {
-    render(<MorePCLayout initialNav="settings" />)
-    expect(screen.getByRole('button', { name: '설정' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByTestId('dark-mode-segment')).toBeInTheDocument()
+  it('initialNav="app-info"면 앱 정보가 렌더된다', () => {
+    render(<MorePCLayout initialNav="app-info" />)
+    expect(screen.getByRole('heading', { name: '앱 정보' })).toBeInTheDocument()
   })
 
-  // --- (d) 다가오는 일정 최대 4개 + D-day 배지 ---
+  // --- (c) 설정 화면 내부의 "앱 정보 · 오픈소스" 행이 여전히 앱 정보로 전환한다 ---
+  it('설정 화면에서 "앱 정보 · 오픈소스" 클릭 시 앱 정보 콘텐츠로 전환된다', () => {
+    render(<MorePCLayout initialNav="settings" />)
+    fireEvent.click(screen.getByText('앱 정보 · 오픈소스'))
+    expect(screen.getByRole('heading', { name: '앱 정보' })).toBeInTheDocument()
+  })
+
+  // --- (d) 다가오는 일정 최대 4개 + D-day 배지 (학사공지 헤더에만 노출) ---
   it('다가오는 일정은 최대 4개까지만 렌더하고, 가장 임박한 항목에 D-day 배지가 있다', () => {
     render(<MorePCLayout />)
 
     // 우측 콘텐츠(AcademicCalendarGrid)에도 같은 이벤트 제목이 나올 수 있으므로
-    // rail의 "다가오는 일정" 섹션으로 범위를 좁혀서 검증한다.
-    const railSection = screen.getByText('다가오는 일정').parentElement
-    const withinRail = within(railSection)
+    // 헤더의 "다가오는 일정" 섹션으로 범위를 좁혀서 검증한다.
+    const headerSection = screen.getByText('다가오는 일정').closest('div').parentElement
+    const withinHeader = within(headerSection)
 
     // next + upcoming 앞 3개 = 4개만 노출
-    expect(withinRail.getByText('기말고사')).toBeInTheDocument()
-    expect(withinRail.getByText('성적정정기간')).toBeInTheDocument()
-    expect(withinRail.getByText('하계방학 시작')).toBeInTheDocument()
-    expect(withinRail.getByText('계절학기 시작')).toBeInTheDocument()
+    expect(withinHeader.getByText('기말고사')).toBeInTheDocument()
+    expect(withinHeader.getByText('성적정정기간')).toBeInTheDocument()
+    expect(withinHeader.getByText('하계방학 시작')).toBeInTheDocument()
+    expect(withinHeader.getByText('계절학기 시작')).toBeInTheDocument()
     // 5, 6번째 항목은 잘려서 보이지 않아야 한다
-    expect(withinRail.queryByText('2학기 개강')).not.toBeInTheDocument()
-    expect(withinRail.queryByText('추석 연휴')).not.toBeInTheDocument()
+    expect(withinHeader.queryByText('2학기 개강')).not.toBeInTheDocument()
+    expect(withinHeader.queryByText('추석 연휴')).not.toBeInTheDocument()
 
     // 가장 임박한 항목(next, 내일=D-1)에 D-day 배지가 있다
-    expect(withinRail.getByText('D-1')).toBeInTheDocument()
+    expect(withinHeader.getByText('D-1')).toBeInTheDocument()
   })
 
   it('다가오는 일정이 없으면(next=null, upcoming=[]) 섹션 자체를 렌더하지 않는다', () => {
     useAcademicCalendar.mockReturnValue({ data: { next: null, upcoming: [] }, loading: false, error: null })
     render(<MorePCLayout />)
+    expect(screen.queryByText('다가오는 일정')).not.toBeInTheDocument()
+  })
+
+  it('학사공지가 아닌 섹션에서는 다가오는 일정을 렌더하지 않는다', () => {
+    render(<MorePCLayout initialNav="notices" />)
     expect(screen.queryByText('다가오는 일정')).not.toBeInTheDocument()
   })
 })

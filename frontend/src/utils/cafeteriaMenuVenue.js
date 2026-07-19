@@ -141,6 +141,21 @@ export function getCafeteriaStatus(cafeteriaName, nowDate = new Date()) {
  * @param {Date} [nowDate] — 기본값 new Date()
  * @returns {boolean}
  */
+// isOpenNow가 open:true로 판정하는 status 값 — pill/dot을 "운영 중"(초록)으로
+// 묶는다. getCafeteriaStatus 결과를 시각적으로 열림/닫힘 2톤으로 표시하는
+// 곳(rail 카드, PC 식당 chips 등)이 전부 이 판정을 공유한다.
+const OPEN_CAFETERIA_STATUSES = new Set(['open', 'closing', 'always'])
+
+/**
+ * getCafeteriaStatus의 status 값이 "운영 중" 톤으로 표시돼야 하는지 여부.
+ *
+ * @param {string} status
+ * @returns {boolean}
+ */
+export function isCafeteriaStatusOpen(status) {
+  return OPEN_CAFETERIA_STATUSES.has(status)
+}
+
 export function isMealTypeOpenNow(cafeteriaName, mealType, nowDate = new Date()) {
   try {
     const venue = resolveVenueForCafeteria(cafeteriaName)

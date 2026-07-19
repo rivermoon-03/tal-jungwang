@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Megaphone } from 'lucide-react'
 import { useNotices } from '../../hooks/useMore'
@@ -10,14 +10,51 @@ function fmtDate(s) {
   return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-// PC dock 우측 알림 버튼에서 플로팅으로 뜨는 공지사항 팝오버.
-// 위치: dock(68px) 위, 우측 정렬.
+const POPOVER_WIDTH = 340
+const VIEWPORT_MARGIN = 12
+
+// 알림(벨) 버튼에서 플로팅으로 뜨는 컴팩트 공지사항 팝오버.
+// anchorRef(벨 버튼)의 위치를 기준으로 화면 안에 들어오도록 붙여 띄운다 —
+// 지도 화면을 절반씩 덮는 큰 드로어가 아니라 벨 근처의 작은 카드로 유지한다.
 // 외부 클릭 / ESC / X 버튼으로 닫힘.
 
 export default function NoticesPopover({ open, onClose, anchorRef }) {
   const popRef = useRef(null)
   const { data, loading, error } = useNotices()
   const notices = Array.isArray(data) ? data : []
+  const [style, setStyle] = useState(null)
+
+  // 벨 버튼 기준으로 팝오버 위치를 계산한다. 뷰포트를 벗어나지 않게 clamp.
+  useLayoutEffect(() => {
+    if (!open) return
+    const anchor = anchorRef?.current
+    if (!anchor) return
+
+    const compute = () => {
+      const rect = anchor.getBoundingClientRect()
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+
+      let left = rect.right + 10
+      // 벨 오른쪽에 붙일 공간이 부족하면(사이드바 협소 등) 벨 위쪽에 띄운다.
+      if (left + POPOVER_WIDTH + VIEWPORT_MARGIN > vw) {
+        left = Math.min(rect.left, vw - POPOVER_WIDTH - VIEWPORT_MARGIN)
+      }
+      left = Math.max(VIEWPORT_MARGIN, left)
+
+      const maxHeight = vh - VIEWPORT_MARGIN * 2
+      let top = rect.top
+      if (top + maxHeight / 2 > vh - VIEWPORT_MARGIN) {
+        top = Math.max(VIEWPORT_MARGIN, vh - VIEWPORT_MARGIN - Math.min(maxHeight, 420))
+      }
+
+      setStyle({ left, top, maxHeight: Math.min(maxHeight, 420) })
+    }
+
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [open, anchorRef])
 
   // ESC 닫기
   useEffect(() => {
@@ -43,12 +80,19 @@ export default function NoticesPopover({ open, onClose, anchorRef }) {
 
   if (!open) return null
 
+  // 위치 계산 전 첫 프레임엔 벨 근처(우하단 폴백)에 숨겨 그린다 — 계산이
+  // 끝나면(useLayoutEffect) 바로 정확한 위치로 보이므로 깜빡임이 없다.
+  const positionStyle = style
+    ? { left: style.left, top: style.top, maxHeight: style.maxHeight, visibility: 'visible' }
+    : { right: 20, bottom: 76, maxHeight: 420, visibility: 'hidden' }
+
   return createPortal(
     <div
       ref={popRef}
       role="dialog"
       aria-label="공지사항"
-      className="fixed z-[200] right-5 bottom-[76px] w-[380px] max-w-[calc(100vw-40px)] max-h-[calc(100dvh-100px)] flex flex-col rounded-card overflow-hidden bg-dock-bg border border-line shadow-dock animate-fade-in"
+      style={positionStyle}
+      className="fixed z-[200] flex w-[340px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-card border border-line bg-dock-bg shadow-dock animate-fade-in"
     >
       {/* 헤더 */}
       <header className="flex items-center gap-2 px-4 py-3 border-b border-line shrink-0">

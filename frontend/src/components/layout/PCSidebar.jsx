@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Bell, Settings as SettingsIcon, Sun, Moon, Bus, Train } from 'lucide-react'
+import { Bell, Settings as SettingsIcon, Sun, Moon, Bus, Train, Info, Shield } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import usePathname from '../../hooks/usePathname'
 import { useNotices } from '../../hooks/useMore'
@@ -7,13 +7,29 @@ import { PC_TABS, getActivePcTabId, navigateToPcTab } from '../common/pcNavTabs'
 import NoticesPopover from '../common/NoticesPopover'
 import PCWeatherSummary from '../dashboard/PCWeatherSummary'
 
+// 컨텍스트 서브내비 — 현재 활성 상위 탭에 딸린 콘텐츠성 하위 항목만 둔다.
+// 설정성 항목(설정/앱 정보/개인정보처리방침)은 하단 "설정" 섹션이 전담한다.
+const CAFETERIA_SUBNAV = [
+  { id: 'diet', label: '식단' },
+  { id: 'venues', label: '운영정보' },
+]
+const MORE_SUBNAV = [
+  { id: 'academic', label: '학사공지' },
+  { id: 'notices', label: '앱 공지' },
+]
+
 /**
  * PCSidebar — 데스크톱 전용 좌측 반투명 사이드바(폭 약 236px).
  *
  * pc-mockup.html의 .sidebar(반투명 A) 구성을 그대로 옮긴다: 브랜드 → 날씨 위젯
  * (PCWeatherSummary 재사용) → 4탭 네비(PCDock과 동일한 pcNavTabs 공유) →
- * 즐겨찾기 요약(useAppStore.favorites) → 설정 진입 → footer(다크모드 토글 +
- * 공지 벨 — 이전에 PCDock이 갖던 기능을 이관).
+ * 컨텍스트 서브내비(활성 탭이 학식/더보기일 때만, macOS Finder식) →
+ * 즐겨찾기 요약(useAppStore.favorites) → 설정 진입 3항목 → footer(다크모드
+ * 토글 + 공지 벨 — 이전에 PCDock이 갖던 기능을 이관).
+ *
+ * 학식/더보기 콘텐츠와는 App.jsx상 형제 컴포넌트라 URL 없이 뷰를 동기화할
+ * 곳이 store뿐이다 — pcCafeteriaTab/pcMoreNav(useAppStore, persist 제외)를
+ * 공유 출처로 쓰고, CafeteriaPCLayout/MorePCLayout이 동일 필드를 구독한다.
  */
 export default function PCSidebar() {
   const pathname = usePathname()
@@ -24,12 +40,43 @@ export default function PCSidebar() {
   const favorites = useAppStore((s) => s.favorites)
   const favoriteRoutes = favorites?.routes ?? []
 
+  const pcCafeteriaTab = useAppStore((s) => s.pcCafeteriaTab)
+  const setPcCafeteriaTab = useAppStore((s) => s.setPcCafeteriaTab)
+  const pcMoreNav = useAppStore((s) => s.pcMoreNav)
+  const setPcMoreNav = useAppStore((s) => s.setPcMoreNav)
+
   const { data: notices } = useNotices()
   const hasNotices = Array.isArray(notices) && notices.length > 0
   const [noticesOpen, setNoticesOpen] = useState(false)
   const bellRef = useRef(null)
 
   const goSettings = (e) => navigateToPcTab(e, '/more')
+
+  // 컨텍스트 서브내비 클릭 — store를 먼저 갱신해 콘텐츠가 즉시 반응하게 하고,
+  // 현재 경로가 상위 탭 루트가 아니면(예: 식당 상세 페이지) 그리로 되돌린다.
+  const selectCafeteriaTab = (id) => (e) => {
+    e.preventDefault()
+    setPcCafeteriaTab(id)
+    if (window.location.pathname !== '/cafeteria') {
+      window.history.pushState({}, '', '/cafeteria')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
+  const selectMoreNav = (id) => (e) => {
+    e.preventDefault()
+    setPcMoreNav(id)
+    if (window.location.pathname !== '/more') {
+      window.history.pushState({}, '', '/more')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
+
+  // 설정 섹션 항목 — 안정 URL(/more/settings, /more/app-info, /privacy)로
+  // pushState하면서 더보기 PC 레이아웃의 nav도 함께 맞춰둔다(있는 경우에만).
+  const goMoreSub = (path, nav) => (e) => {
+    if (nav) setPcMoreNav(nav)
+    navigateToPcTab(e, path)
+  }
 
   return (
     <aside
@@ -76,6 +123,48 @@ export default function PCSidebar() {
         })}
       </nav>
 
+      {/* 컨텍스트 서브내비 — 활성 상위 탭이 학식/더보기일 때만 표시(Finder식) */}
+      {activeId === 'cafeteria' && (
+        <nav className="mt-0.5 flex flex-col gap-0.5" aria-label="학식 하위 메뉴">
+          {CAFETERIA_SUBNAV.map(({ id, label }) => {
+            const active = pcCafeteriaTab === id
+            return (
+              <a
+                key={id}
+                href="/cafeteria"
+                onClick={selectCafeteriaTab(id)}
+                aria-current={active ? 'page' : undefined}
+                className={`pressable flex items-center rounded-button py-[7px] pl-[41px] pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
+                  active ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
+                }`}
+              >
+                {label}
+              </a>
+            )
+          })}
+        </nav>
+      )}
+      {activeId === 'more' && (
+        <nav className="mt-0.5 flex flex-col gap-0.5" aria-label="더보기 하위 메뉴">
+          {MORE_SUBNAV.map(({ id, label }) => {
+            const active = pcMoreNav === id
+            return (
+              <a
+                key={id}
+                href="/more"
+                onClick={selectMoreNav(id)}
+                aria-current={active ? 'page' : undefined}
+                className={`pressable flex items-center rounded-button py-[7px] pl-[41px] pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
+                  active ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
+                }`}
+              >
+                {label}
+              </a>
+            )
+          })}
+        </nav>
+      )}
+
       {/* 즐겨찾기 */}
       {favoriteRoutes.length > 0 && (
         <div className="mt-3">
@@ -103,16 +192,32 @@ export default function PCSidebar() {
         </div>
       )}
 
-      {/* 설정 */}
+      {/* 설정 — 알림/화면 설정 + 앱 정보 + 개인정보처리방침 (더보기의 설정 서브페이지로 라우팅) */}
       <div className="mt-3">
         <p className="px-3 pb-1 text-micro font-bold uppercase tracking-[.07em] text-mute">설정</p>
         <a
-          href="/more"
-          onClick={goSettings}
+          href="/more/settings"
+          onClick={goMoreSub('/more/settings', 'settings')}
           className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
         >
           <SettingsIcon size={18} className="text-mute" aria-hidden="true" />
-          알림 설정
+          설정
+        </a>
+        <a
+          href="/more/app-info"
+          onClick={goMoreSub('/more/app-info', 'app-info')}
+          className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+        >
+          <Info size={18} className="text-mute" aria-hidden="true" />
+          앱 정보
+        </a>
+        <a
+          href="/privacy"
+          onClick={goMoreSub('/privacy', null)}
+          className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+        >
+          <Shield size={18} className="text-mute" aria-hidden="true" />
+          개인정보처리방침
         </a>
       </div>
 
