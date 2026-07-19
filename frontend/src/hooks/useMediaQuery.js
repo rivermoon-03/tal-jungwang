@@ -21,3 +21,10 @@ export default function useMediaQuery(query) {
 export function useIsDesktop() {
   return useMediaQuery('(min-width: 768px)')
 }
+
+// 360px 미만 좁은 폰(iPhone SE 1세대 등) 판정. 시간표 그리드/리스트가
+// 가로 여백 부족으로 잘리는 문제(F4-2)의 분기 기준 — CSS 숨김이 아니라
+// 이 훅으로 JS 조건부 마운트해 좁은 화면 전용 가로 스크롤 레이아웃으로 바꾼다.
+export function useIsNarrowPhone() {
+  return useMediaQuery('(max-width: 359px)')
+}

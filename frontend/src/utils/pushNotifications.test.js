@@ -4,6 +4,7 @@ import {
   isPushSupported,
   urlBase64ToUint8Array,
   getNotificationPermission,
+  requestNotificationPermission,
   hasActivePushSubscription,
   subscribeToPush,
   unsubscribeFromPush,
@@ -94,6 +95,35 @@ describe('isPushSupported / getNotificationPermission', () => {
   it('Notification.permission을 그대로 반환한다', () => {
     stubNotification('granted')
     expect(getNotificationPermission()).toBe('granted')
+  })
+})
+
+describe('requestNotificationPermission', () => {
+  it('Notification 전역이 없으면 unsupported', async () => {
+    await expect(requestNotificationPermission()).resolves.toBe('unsupported')
+  })
+
+  it('이미 granted면 재요청 없이 즉시 granted', async () => {
+    const notif = stubNotification('granted')
+    await expect(requestNotificationPermission()).resolves.toBe('granted')
+    expect(notif.requestPermission).not.toHaveBeenCalled()
+  })
+
+  it('이미 denied면 재요청 없이 즉시 denied', async () => {
+    const notif = stubNotification('denied')
+    await expect(requestNotificationPermission()).resolves.toBe('denied')
+    expect(notif.requestPermission).not.toHaveBeenCalled()
+  })
+
+  it('default면 요청하고 결과를 그대로 반영한다(granted)', async () => {
+    const notif = stubNotification('default', 'granted')
+    await expect(requestNotificationPermission()).resolves.toBe('granted')
+    expect(notif.requestPermission).toHaveBeenCalled()
+  })
+
+  it('default에서 dismissed(default로 남음)면 dismissed로 정규화한다', async () => {
+    stubNotification('default', 'default')
+    await expect(requestNotificationPermission()).resolves.toBe('dismissed')
   })
 })
 

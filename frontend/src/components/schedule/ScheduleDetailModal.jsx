@@ -9,7 +9,7 @@
  *   pcMode="inline"(SchedulePage PC 2열 레이아웃 전용) — portal/fixed 없이 부모가 준
  *   컨테이너를 그대로 채운다(Phase D PC · 시간표).
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Drawer } from 'vaul'
 import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
@@ -17,12 +17,16 @@ import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
+import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
+import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
 import Skeleton from '../common/Skeleton'
 import { RouteProgressStrip } from '../bus/BusArrivalCard'
 import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStationConfig'
 import BusStatsHeader from '../bus/BusStatsHeader'
 import BusEtaCard from '../bus/BusEtaCard'
 import { scrollToCenter } from '../../utils/scrollToCenter'
+import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
+import { BellButton, NarrowPhoneStrip, buildDisplayList, DIRECTION_LABELS } from '../shuttle/ShuttleTimetable'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -51,7 +55,7 @@ function scheduleTypeLabel(type) {
 
 // ─── shared list row ────────────────────────────────────────────────────
 
-function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef }) {
+function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef, bell }) {
   const isHHMM = typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)
   const mins = isHHMM ? minutesUntil(time) : null
   return (
@@ -100,6 +104,7 @@ function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef 
             {fmtDelta(mins)}
           </span>
         )}
+        {bell}
       </div>
     </div>
   )
@@ -437,6 +442,19 @@ function lastSaturdayDateStr() {
 
 function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   const isSecondCampus = direction >= 2
+  // 알림 예약 UI(F3-3 실화면 배선) — 이 콘텐츠가 마운트돼 있는 동안(=셔틀 상세
+  // 시트가 열려있는 동안)만 useShuttleAlarms의 setTimeout이 살아있다(훅 자체
+  // 문서화된 한계, hooks/useShuttleNotification.js 참고). 종 버튼은 아래 리스트/
+  // 좁은 폰 스트립 양쪽에서 공유한다.
+  const isNarrowPhone = useIsNarrowPhone()
+  const { addAlarm, isAlarmSet } = useShuttleAlarms()
+  const [sheetTime, setSheetTime] = useState(null)
+  const openSheet = useCallback((time) => setSheetTime(time), [])
+  const closeSheet = useCallback(() => setSheetTime(null), [])
+  const handleConfirm = useCallback(
+    (lead) => addAlarm(sheetTime, lead, direction),
+    [addAlarm, sheetTime, direction]
+  )
   // 등교 회차편의 하교 출발 시각 판정을 위해 양 방향을 한 번에 조회.
   // (direction 쿼리를 생략하면 백엔드가 양 방향을 함께 반환 — 로딩 경합 제거)
   const today = useShuttleSchedule()
@@ -478,6 +496,20 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   const nowStr = usingFallback ? '00:00' : toHHMM(now)
   const dirData = data?.directions?.find((d) => d.direction === direction)
   const times = dirData?.times ?? []
+
+  // 좁은 폰(< 360px) 전용 가로 스크롤 스트립 데이터 — ShuttleTimetable.jsx의
+  // buildDisplayList를 그대로 재사용해 수시운행 밴드 묶기 로직을 중복하지 않는다.
+  // (mistakes.md §2: 표시 로직은 한 곳의 헬퍼로) times는 문자열/객체가 섞여 있을 수
+  // 있어 {depart_at, note} 형태로 정규화한 뒤 넘긴다.
+  const normalizedTimes = times.map((t) => ({
+    depart_at: (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5),
+    note: typeof t === 'object' ? t?.note ?? null : null,
+  }))
+  const stripDisplayList = buildDisplayList(normalizedTimes)
+  const stripNowMinutes = usingFallback ? 0 : now.getHours() * 60 + now.getMinutes()
+  const stripNextIndex = stripDisplayList.findIndex((item) =>
+    item.type === 'fixed' ? item.minutes > stripNowMinutes : item.endMin > stripNowMinutes
+  )
 
   // 하교의 수시운행 밴드를 [start, end) 구간 리스트로 산출.
   // 등교 회차편의 하교 출발 시각이 이 구간에 속하면 "수시운행 중" 으로 분기한다.
@@ -583,6 +615,7 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   const allDone = !selectedEmpty && displayEntries.length === 0
 
   return (
+  <>
     <div className="flex flex-col gap-2">
       {usingFallback && (
         <div
@@ -664,6 +697,20 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
           </div>
           <TimeGrid times={past.map((p) => p.time)} />
         </>
+      ) : isNarrowPhone ? (
+        // 좁은 폰(< 360px) — 세로 리스트 대신 ShuttleTimetable.jsx의
+        // NarrowPhoneStrip 패턴을 그대로 재사용(가로 스크롤 스냅 + 종 버튼).
+        // 회차편/수시운행 부제 같은 상세 라벨은 이 스트립에서는 생략되고
+        // buildDisplayList 표준 라벨("회차편", "수시운행")만 붙는다 — 화면이
+        // 좁아 부제까지 넣으면 다시 잘리는 문제(F4-2)로 되돌아가므로 최소만 표시.
+        <NarrowPhoneStrip
+          displayList={stripDisplayList}
+          nextIndex={stripNextIndex}
+          nowMinutes={stripNowMinutes}
+          isAlarmSet={(time) => isAlarmSet(time, direction)}
+          onOpenSheet={openSheet}
+          embedded
+        />
       ) : (
         <>
           {past.slice(-2).map(({ time }, i) => <PastRow key={`p-${i}`} time={time} />)}
@@ -700,12 +747,30 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
               isNext={isNext}
               accentColor={accentColor}
               rowRef={isNext ? nextRef : undefined}
+              // 수시운행 밴드(entry.type === 'frequent')는 특정 편이 아니라 종을
+              // 달 수 없다 — entry.time이 있는 편(회차편 포함)에만 종을 붙인다.
+              bell={entry.type === 'fixed' ? (
+                <BellButton
+                  time={entry.time}
+                  isSet={isAlarmSet(entry.time, direction)}
+                  onOpen={openSheet}
+                  size="compact"
+                />
+              ) : undefined}
             />
           )
         })}
       </>
     )}
   </div>
+  <ShuttleNotifySheet
+    open={sheetTime != null}
+    time={sheetTime ?? ''}
+    directionLabel={DIRECTION_LABELS[direction] ?? null}
+    onClose={closeSheet}
+    onConfirm={handleConfirm}
+  />
+</>
 )
 }
 
