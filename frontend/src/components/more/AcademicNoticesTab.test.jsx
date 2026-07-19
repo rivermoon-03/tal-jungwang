@@ -87,6 +87,52 @@ describe('AcademicNoticesTab — 학과 드롭다운', () => {
   })
 })
 
+describe('AcademicNoticesTab — 미지원 학과', () => {
+  const DEPARTMENTS_WITH_UNSUPPORTED = [
+    { code: 'ce', label: '컴퓨터공학부', supported: true },
+    {
+      code: 'ee',
+      label: '전자공학부',
+      supported: false,
+      unsupported_reason: '학교 웹사이트 정책(robots.txt)상 컴퓨터공학부 게시판만 공지 수집이 허용되어 있어요. 이 학과는 아직 지원하지 않아요.',
+    },
+  ]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('미지원 학과 옵션 라벨에 "(준비 중)" 표시가 붙는다', () => {
+    setHooks({ departments: { data: DEPARTMENTS_WITH_UNSUPPORTED, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+    expect(screen.getByRole('option', { name: '전자공학부 (준비 중)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '컴퓨터공학부' })).toBeInTheDocument()
+  })
+
+  it('미지원 학과를 선택하면 공지 대신 미지원 사유 안내를 보여주고 notices를 조회하지 않는다', () => {
+    setHooks({ departments: { data: DEPARTMENTS_WITH_UNSUPPORTED, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+
+    fireEvent.change(screen.getByRole('combobox', { name: '학과 선택' }), { target: { value: 'ee' } })
+
+    expect(screen.getByText(/robots\.txt/)).toBeInTheDocument()
+    expect(screen.queryByText('새 학과 공지가 없어요')).not.toBeInTheDocument()
+    expect(useSchoolNotices).toHaveBeenLastCalledWith(null)
+  })
+
+  it('지원 학과로 다시 바꾸면 안내 문구가 사라지고 공지 목록을 조회한다', () => {
+    setHooks({ departments: { data: DEPARTMENTS_WITH_UNSUPPORTED, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+
+    const select = screen.getByRole('combobox', { name: '학과 선택' })
+    fireEvent.change(select, { target: { value: 'ee' } })
+    fireEvent.change(select, { target: { value: 'ce' } })
+
+    expect(screen.queryByText(/robots\.txt/)).not.toBeInTheDocument()
+    expect(useSchoolNotices).toHaveBeenLastCalledWith('ce')
+  })
+})
+
 describe('AcademicNoticesTab — D-day 배너', () => {
   beforeEach(() => {
     vi.clearAllMocks()
