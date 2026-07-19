@@ -102,6 +102,15 @@ const useAppStore = create(
       selectedMarkerId: null,      // string | null
       setSelectedMarkerId: (id) => set({ selectedMarkerId: id }),
 
+      // ── PC 사이드바 컨텍스트 서브내비 (persist 제외, 새로고침 시 초기화) ──
+      // PCSidebar와 학식/더보기 PC 레이아웃이 서로 다른 컴포넌트 트리에 있어
+      // (App.jsx의 형제) URL 없이 뷰를 동기화할 최소 침습 지점으로 store를 쓴다.
+      // 학식은 diet/venues에 대응하는 안정 URL이 없어 store가 유일한 출처다.
+      pcCafeteriaTab: 'diet', // 'diet' | 'venues'
+      setPcCafeteriaTab: (tab) => set({ pcCafeteriaTab: tab }),
+      pcMoreNav: 'academic', // 'academic' | 'notices' | 'settings' | 'app-info'
+      setPcMoreNav: (nav) => set({ pcMoreNav: nav }),
+
       // ── 지도 전체화면 토글 (시안2: 컴팩트 띠 ↔ 전체 지도) ──────────────
       // 구 snapMode는 backward compat용으로 남겨둔다 (persist migrate에서 정리됨).
       mapExpanded: false,
