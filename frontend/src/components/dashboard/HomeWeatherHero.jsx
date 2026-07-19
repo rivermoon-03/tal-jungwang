@@ -152,7 +152,8 @@ export default function HomeWeatherHero({ onOpenMap }) {
   )
 
   // ── greeting 진입 시퀀스(phase) + 출처 툴팁 ──────────────────────────────
-  // phase: 'quote'(글귀 표시) → 'weather'(온도 행으로 자리를 승계). heroStyle==='classic'이면 미사용.
+  // phase: 'quote'(글귀 표시) → 'weather'(글귀는 남되 작게 강등되고 온도가 주인공을 넘겨받음).
+  // heroStyle==='classic'이면 미사용.
   const [phase, setPhase] = useState('quote')
   const [quoteEntered, setQuoteEntered] = useState(false)
   const [tooltipOpen, setTooltipOpen] = useState(false)
@@ -186,7 +187,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
     tooltipOpenRef.current = tooltipOpen
   }, [tooltipOpen])
 
-  // 6초 후 글귀 → 온도 승계. 툴팁을 읽는 중(열려 있음)이면 그 시점부터 6초씩 다시 연장한다.
+  // 2초 후 글귀 강등 + 온도 확대. 툴팁을 읽는 중(열려 있음)이면 그 시점부터 2초씩 다시 연장한다.
   useEffect(() => {
     if (heroStyle !== 'greeting') return
     let id
@@ -197,7 +198,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
         } else {
           setPhase('weather')
         }
-      }, 6000)
+      }, 2000)
     }
     schedule()
     return () => clearTimeout(id)
@@ -229,6 +230,9 @@ export default function HomeWeatherHero({ onOpenMap }) {
     return () => clearTimeout(id)
   }, [tooltipOpen, tooltipMounted])
 
+  // 강등(phase='weather') 후에도 줄바꿈은 그대로 유지한다. br을 공백으로 합치면 줄 수가
+  // 바뀌어 강등 트랜지션(font-size만 부드럽게 줄어드는 연출) 도중 텍스트가 다시 흐르며
+  // 레이아웃이 한 번 더 튀는 부작용이 생긴다 — 줄 구조를 고정해야 순수하게 크기만 작아진다.
   const greetingLines = greeting.text.split('\n').map((line, i, arr) => (
     <Fragment key={i}>
       {line}
@@ -240,6 +244,14 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const tempColor = lightText ? 'text-white' : 'text-ink dark:text-ink'
   const skyColor  = lightText ? 'text-white/90' : 'text-ink-2 dark:text-mute'
   const metaColor = lightText ? 'text-white/80' : 'text-ink-2 dark:text-mute'
+
+  // 강등 글귀(.whero-quote-text) 색 — Tailwind 유틸리티 클래스 스왑 대신 CSS 커스텀
+  // 프로퍼티로 넘겨, font-size/weight와 함께 하나의 트랜지션(700ms)으로 보간되게 한다.
+  // 강등 색은 한 단계 흐리게: lightText면 white/70, 아니면 --tj-ink-2.
+  const quoteColorVars = {
+    '--quote-color': lightText ? '#fff' : 'var(--tj-ink)',
+    '--quote-color-demoted': lightText ? 'rgba(255,255,255,0.7)' : 'var(--tj-ink-2)',
+  }
 
   // 정왕풍 미니 pill — 배경 대비에 맞춰 톤 조정, strong(6m/s+)이면 살짝 강조.
   const windPillCls = lightText
@@ -459,55 +471,55 @@ export default function HomeWeatherHero({ onOpenMap }) {
           ) : (
             <div className="relative z-10 flex-1 flex flex-col justify-end gap-3 px-4 pb-7 pt-1">
               {/* 인사 글귀 — 하루 단위로 안정적으로 고정된다(heroGreeting.pickGreeting).
-                  마운트 900ms 진입 모션 → 6초 뒤 아래 온도 행으로 자리를 넘기며 접힌다(phase).
+                  마운트 900ms 진입 모션 → 2초 뒤 사라지거나 접히지 않고 그 자리에서 작게
+                  강등(demote)된다(whero-quote-text.is-demoted, 21px/800 → 13px/500).
+                  동시에 아래 온도 행이 확대되며 시각적 주인공을 이어받는다(phase).
                   prefers-reduced-motion은 index.css 전역 규칙(transition/animation ≈0ms)이
                   이미 처리하므로 여기서 별도 분기를 두지 않는다. */}
-              <div className={`whero-quote-grid ${phase === 'weather' ? 'is-collapsed' : ''}`}>
-                <div className="whero-quote-grid-inner">
-                  <div
-                    ref={quoteWrapRef}
-                    className={`min-w-0 whero-quote-content ${
-                      phase === 'weather'
-                        ? 'is-leaving pointer-events-none'
-                        : quoteEntered ? 'is-visible' : ''
+              <div
+                ref={quoteWrapRef}
+                className={`min-w-0 whero-quote-content ${quoteEntered ? 'is-visible' : ''}`}
+              >
+                {hasTooltip ? (
+                  <button
+                    type="button"
+                    data-testid="hero-greeting-text"
+                    onClick={toggleTooltip}
+                    aria-expanded={tooltipOpen}
+                    aria-describedby={tooltipOpen ? tooltipId : undefined}
+                    style={quoteColorVars}
+                    className={`whero-quote-text block w-full cursor-pointer border-0 bg-transparent p-0 text-left [text-wrap:balance] ${
+                      phase === 'weather' ? 'is-demoted' : ''
                     }`}
                   >
-                    {hasTooltip ? (
-                      <button
-                        type="button"
-                        data-testid="hero-greeting-text"
-                        onClick={toggleTooltip}
-                        aria-expanded={tooltipOpen}
-                        aria-describedby={tooltipOpen ? tooltipId : undefined}
-                        className={`block w-full cursor-pointer border-0 bg-transparent p-0 text-left text-title leading-[1.35] tracking-[-0.02em] [text-wrap:balance] ${tempColor}`}
-                      >
-                        {greetingLines}
-                      </button>
-                    ) : (
-                      <p
-                        data-testid="hero-greeting-text"
-                        className={`text-title leading-[1.35] tracking-[-0.02em] [text-wrap:balance] ${tempColor}`}
-                      >
-                        {greetingLines}
-                      </p>
-                    )}
-                    {tooltipMounted && (
-                      <div
-                        id={tooltipId}
-                        role="tooltip"
-                        className={`whero-quote-tooltip rounded-button px-3 py-1.5 text-caption shadow-sh-card ${
-                          tooltipOpen ? 'is-entering' : 'is-leaving'
-                        } ${lightText ? 'bg-black/55 text-white backdrop-blur-md' : 'bg-surface-3 text-ink-2'}`}
-                      >
-                        {tooltipContent}
-                      </div>
-                    )}
+                    {greetingLines}
+                  </button>
+                ) : (
+                  <p
+                    data-testid="hero-greeting-text"
+                    style={quoteColorVars}
+                    className={`whero-quote-text [text-wrap:balance] ${
+                      phase === 'weather' ? 'is-demoted' : ''
+                    }`}
+                  >
+                    {greetingLines}
+                  </p>
+                )}
+                {tooltipMounted && (
+                  <div
+                    id={tooltipId}
+                    role="tooltip"
+                    className={`whero-quote-tooltip rounded-button px-3 py-1.5 text-caption shadow-sh-card ${
+                      tooltipOpen ? 'is-entering' : 'is-leaving'
+                    } ${lightText ? 'bg-black/55 text-white backdrop-blur-md' : 'bg-surface-3 text-ink-2'}`}
+                  >
+                    {tooltipContent}
                   </div>
-                </div>
+                )}
               </div>
 
               {/* 하단 행 — 온도 + 하늘 텍스트 + 정왕풍 pill + 아이콘. phase='weather'로 넘어가면
-                  글귀가 접히며 온도(34→56px)·하늘 텍스트(14→18px)·아이콘(scale)이 확대된다. */}
+                  위 글귀는 강등되고, 온도(34→56px)·하늘 텍스트(14→18px)·아이콘(scale)이 확대된다. */}
               <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-end gap-2">
