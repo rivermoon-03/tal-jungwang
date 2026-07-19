@@ -32,7 +32,7 @@
       "destination": "https://tal-jungwang-production.up.railway.app/api/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
   ]
