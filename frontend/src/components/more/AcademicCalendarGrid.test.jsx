@@ -127,22 +127,62 @@ describe('AcademicCalendarGrid — 월/주 탭', () => {
     expect(screen.getByTestId('week-day-2026-07-12')).not.toHaveAttribute('aria-current')
   })
 
-  it('이벤트가 있는 날은 제목을, 없는 날은 "일정 없음"을 보여준다', () => {
+  it('주 전체에 걸치는 이벤트는 레인 1개로 표시되고(하루당 중복 없음), 상세에도 보인다', () => {
     render(<AcademicCalendarGrid events={EVENTS} now={NOW} />)
     fireEvent.click(screen.getByRole('tab', { name: '주' }))
-    // 기말고사 범위(7/9~7/22) 안에 있는 이번 주 전체 날짜에 제목이 보여야 한다.
-    expect(within(screen.getByTestId('week-day-2026-07-15')).getByText('기말고사')).toBeInTheDocument()
-    expect(within(screen.getByTestId('week-day-2026-07-18')).getByText('기말고사')).toBeInTheDocument()
+    // 기말고사(7/9~7/22)가 이번 주(7/12~7/18) 전체를 덮으므로 레인은 1개만 렌더링된다.
+    const laneGrid = within(screen.getByTestId('week-lane-grid'))
+    expect(laneGrid.getAllByTestId('week-lane')).toHaveLength(1)
+    expect(laneGrid.getByText('기말고사')).toBeInTheDocument()
+    // 오늘(7/18)이 기본 선택일이라 하단 상세에도 같은 이벤트가 보인다.
+    expect(screen.getByText('9일~22일')).toBeInTheDocument()
   })
 
-  it('이벤트가 없는 주로 이동하면 "일정 없음" 문구가 보인다', () => {
+  it('요일 탭을 눌러 선택일을 바꾸면 하단 상세가 그 날 기준으로 갱신된다', () => {
     render(<AcademicCalendarGrid events={EVENTS} now={NOW} />)
     fireEvent.click(screen.getByRole('tab', { name: '주' }))
-    // 8/9(기말고사 범위 밖)가 있는 다음다음 주로 이동.
+    fireEvent.click(screen.getByRole('button', { name: '다음 주' })) // 7/19~7/25
+    // 7/25는 기말고사(~7/22) 범위 밖 → 일정 없음.
+    fireEvent.click(screen.getByTestId('week-day-2026-07-25'))
+    expect(screen.getByTestId('week-day-2026-07-25')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('일정 없음')).toBeInTheDocument()
+    // 같은 주의 7/19~7/22는 기말고사 범위 안.
+    fireEvent.click(screen.getByTestId('week-day-2026-07-20'))
+    expect(screen.getByTestId('week-day-2026-07-20')).toHaveAttribute('aria-selected', 'true')
+    expect(within(screen.getByTestId('week-day-detail')).getByText('기말고사')).toBeInTheDocument()
+  })
+
+  it('이벤트가 전혀 없는 주는 레인 없이 하단에 "일정 없음"만 보인다', () => {
+    render(<AcademicCalendarGrid events={EVENTS} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    // 8/9(기말고사·개강 범위 모두 밖)가 있는 주로 이동.
     fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
     fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
     fireEvent.click(screen.getByRole('button', { name: '다음 주' }))
-    expect(within(screen.getByTestId('week-day-2026-08-08')).getByText('일정 없음')).toBeInTheDocument()
+    expect(within(screen.getByTestId('week-lane-grid')).queryAllByTestId('week-lane')).toHaveLength(0)
+    expect(screen.getByText('일정 없음')).toBeInTheDocument()
+  })
+
+  it('일요일 탭 라벨은 delayed 톤을 쓴다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    const sundayCell = within(screen.getByTestId('week-day-2026-07-12'))
+    expect(sundayCell.getByText('일')).toHaveClass('text-delayed')
+    const mondayCell = within(screen.getByTestId('week-day-2026-07-13'))
+    expect(mondayCell.getByText('월')).not.toHaveClass('text-delayed')
+  })
+
+  it('레인이 3행을 넘으면 4번째부터는 숨기고 "+N개"로 요약한다', () => {
+    // 이번 주(7/12~7/18) 전체에 걸치는 서로 겹치는 이벤트 4개 → 4개 행이 필요하지만 3행까지만 표시.
+    const overlapping = ['A', 'B', 'C', 'D'].map((title) => ({
+      title,
+      start_date: '2026-07-12',
+      end_date: '2026-07-18',
+    }))
+    render(<AcademicCalendarGrid events={overlapping} now={NOW} />)
+    fireEvent.click(screen.getByRole('tab', { name: '주' }))
+    expect(within(screen.getByTestId('week-lane-grid')).getAllByTestId('week-lane')).toHaveLength(3)
+    expect(screen.getByText('+1개')).toBeInTheDocument()
   })
 
   it('이전 주/다음 주 버튼으로 한 주씩 이동한다', () => {

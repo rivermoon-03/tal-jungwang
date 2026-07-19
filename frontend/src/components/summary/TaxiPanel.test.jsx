@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 
 // ── 스토어 모킹 (기본: userLocation 있음) ──
@@ -51,6 +51,21 @@ describe('TaxiPanel — AI티 제거 검증', () => {
     expect(screen.getByText('시흥시청역')).toBeInTheDocument()
     expect(screen.getByText('사당역')).toBeInTheDocument()
     expect(screen.getByText(/배곧/)).toBeInTheDocument()
+  })
+
+  it('분할 요금 (2명, 4명)을 렌더한다', async () => {
+    render(<TaxiPanel />)
+    await waitFor(() => {
+      const twoPersonFares = screen.getAllByText('2명이 나누면 2,400원')
+      const fourPersonFares = screen.getAllByText('4명이 나누면 1,200원')
+      expect(twoPersonFares.length).toBeGreaterThan(0)
+      expect(fourPersonFares.length).toBeGreaterThan(0)
+    })
+  })
+
+  it('승차 포인트를 렌더한다', () => {
+    render(<TaxiPanel />)
+    expect(screen.getByText('승차 포인트: 정문 앞 로터리')).toBeInTheDocument()
   })
 
   it('text-mute-2 생색을 사용하지 않는다', () => {
