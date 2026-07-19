@@ -740,9 +740,6 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                           columnLabels={historyColumnLabels}
                         />
                       )}
-                      <p className="mt-3 text-[11.5px] font-semibold text-mute dark:text-mute text-center">
-                        과거 도착 시각을 참고해 직접 가늠해보세요
-                      </p>
                     </section>
                   ) : (
                     <section aria-label="내 정류장 도착 정보">
