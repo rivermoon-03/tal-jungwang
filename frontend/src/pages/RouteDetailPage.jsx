@@ -7,6 +7,7 @@ import StatusChip from '../components/ui/StatusChip'
 import EmptyState from '../components/ui/EmptyState'
 import ArrivalHistory from '../components/bus/ArrivalHistory'
 import BusStatsHeader from '../components/bus/BusStatsHeader'
+import LastBusBanner from '../components/bus/LastBusBanner'
 import RouteCrowdingSection from '../components/stats/RouteCrowdingSection'
 import { toHistoryRows } from '../utils/historyAdapter'
 import { getGbisStationId, getGbisStationIdForRoute } from '../components/dashboard/busStationConfig'
@@ -444,6 +445,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
     return ttData.timetable[dayTab] ?? []
   }, [ttData, dayTab])
 
+  // 막차 배너는 사용자가 요일 탭을 바꿔 봐도(예: 토요일 시간표 미리보기) 실제
+  // "오늘" 기준으로만 임박 여부를 판단해야 한다 — dayTab이 아닌 defaultDayTab()을 쓴다.
+  const todaySchedule = useMemo(() => {
+    if (!ttData?.timetable) return []
+    return ttData.timetable[defaultDayTab()] ?? []
+  }, [ttData])
+
   // 이 방향이 "어느 요일이든" 출발 시간표를 갖는지 — dayTab(현재 선택된 요일)과 무관하게
   // 판정한다. schedule.length(오늘 선택된 요일만)로 판정하면, 예를 들어 일요일에
   // 운행하지 않는 노선에서 사용자가 요일 전환으로 일요일을 선택하는 순간 이 방향
@@ -600,6 +608,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
 
       {/* ── 바디 ── */}
       <div className="flex-1 overflow-hidden flex flex-col">
+        {/* 막차 임박 배너 — 30분 이내일 때만 렌더(LastBusBanner 내부 판정) */}
+        <LastBusBanner
+          entries={todaySchedule}
+          routeLabel={routeDisplayName}
+          className="mx-4 mt-3"
+        />
+
         {/* 정류장 칩 & 탭 (고정 영역) */}
         <div className="flex-none px-4 pt-3 pb-3">
           {stops.length > 0 && (

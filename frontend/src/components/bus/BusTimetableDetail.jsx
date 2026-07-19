@@ -5,6 +5,8 @@ import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStati
 import { RouteProgressStrip } from './BusArrivalCard'
 import BusStatsHeader from './BusStatsHeader'
 import DataBadge from '../ui/DataBadge'
+import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
+import { scrollToCenterX } from '../../utils/scrollToCenter'
 
 const BOARDING_INFO = {
   '6502': { stop: '이마트', desc: '육교 건너 이마트 정류장에서 탑승하세요' },
@@ -92,11 +94,65 @@ function RealtimeWaypointDetail({ routeNo, stationId }) {
   )
 }
 
+// 좁은 폰(< 360px) 전용 가로 스크롤 스냅 시간표. 세로 리스트가 여백 부족으로
+// 잘리는 문제(F4-2)의 대응 — ShuttleTimetable의 NarrowPhoneStrip과 동일 패턴.
+function NarrowPhoneTimetableStrip({ times, nextIndex, nowMin }) {
+  const containerRef = useRef(null)
+  const nextRef = useRef(null)
+
+  useEffect(() => {
+    scrollToCenterX(containerRef.current, nextRef.current)
+  }, [nextIndex])
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-surface dark:bg-bg pb-16 md:pb-0">
+      {nextIndex === -1 && (
+        <div className="mx-4 mt-3 px-4 py-3 rounded-card bg-surface-2 dark:bg-bg border border-line dark:border-line">
+          <p className="text-meta font-bold text-ink-2 dark:text-ink-2">오늘 운행이 끝났습니다</p>
+          <p className="text-meta font-medium text-mute dark:text-mute mt-0.5">내일 첫차: {times[0]}</p>
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        className="flex gap-2 overflow-x-auto snap-x snap-mandatory px-4 py-3"
+        style={{ touchAction: 'pan-x' }}
+      >
+        {times.map((t, i) => {
+          const isPast = timeToMinutes(t) <= nowMin
+          const isNext = i === nextIndex
+          const diffMin = Math.round(timeToMinutes(t) - nowMin)
+
+          return (
+            <div
+              key={i}
+              ref={isNext ? nextRef : null}
+              className={`snap-center shrink-0 w-[92px] rounded-card border px-2 py-2.5 flex flex-col items-center justify-center gap-1
+                ${isPast ? 'opacity-40' : ''}
+                ${isNext ? 'border-accent bg-accent-bg' : 'border-line dark:border-line bg-surface dark:bg-surface'}`}
+            >
+              <span className={`time-num text-body font-bold ${isNext ? 'text-accent-ink dark:text-accent-ink' : 'text-ink dark:text-ink'}`}>
+                {t}
+              </span>
+              {isNext && (
+                <span className="text-micro font-bold text-accent-ink dark:text-accent-ink">{diffMin}분 후</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <p className="px-4 pb-2 text-caption font-medium text-mute dark:text-mute">
+        밀어서 이후 시간 보기
+      </p>
+    </div>
+  )
+}
+
 export default function BusTimetableDetail({ routeId, routeNo, destination, stationId, onBack }) {
   const isWaypoint = !!ROUTE_WAYPOINTS[routeNo]
 
   const { data, loading } = useBusTimetable(isWaypoint ? null : routeId)
   const nextRef = useRef(null)
+  const isNarrowPhone = useIsNarrowPhone()
 
   const now = new Date()
   const nowMin = now.getHours() * 60 + now.getMinutes()
@@ -105,8 +161,9 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
   const nextIndex = times.findIndex((t) => timeToMinutes(t) > nowMin)
 
   useEffect(() => {
+    if (isNarrowPhone) return // 좁은 폰은 NarrowPhoneTimetableStrip이 자체적으로 가로 스크롤 처리
     nextRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
-  }, [nextIndex, loading])
+  }, [nextIndex, loading, isNarrowPhone])
 
   return (
     <div className="flex flex-col h-full animate-slide-in-right bg-bg dark:bg-bg">
@@ -153,6 +210,8 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
             <div className="flex-1 flex items-center justify-center">
               <p className="text-meta font-semibold text-mute dark:text-mute">시간표 정보가 없습니다.</p>
             </div>
+          ) : isNarrowPhone ? (
+            <NarrowPhoneTimetableStrip times={times} nextIndex={nextIndex} nowMin={nowMin} />
           ) : (
             <ul className="flex-1 overflow-y-auto bg-surface dark:bg-bg pb-16 md:pb-0">
               {nextIndex === -1 && (
