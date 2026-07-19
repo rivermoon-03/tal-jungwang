@@ -11,6 +11,7 @@ import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
 import { formatEta } from '../../utils/eta'
 import RouteBadge from '../ui/RouteBadge'
 import StatusChip from '../ui/StatusChip'
+import DataBadge from '../ui/DataBadge'
 import MiniTrack from './MiniTrack'
 import { staggerStyle } from '../../utils/motion'
 
@@ -221,9 +222,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
             </span>
           )}
           {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
-          {!isTimetable && !muted && (
-            <StatusChip kind="realtime">실시간</StatusChip>
-          )}
+          {!isTimetable && !muted && <DataBadge state="live" />}
           {/* 즐겨찾기 — 원형 테두리 버튼, 제목 행 우측. 44px 탭영역(내부 패딩). */}
           <button
             type="button"
