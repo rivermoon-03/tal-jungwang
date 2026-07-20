@@ -379,7 +379,7 @@ export default function CafeteriaVenueDetailPage({ venueId }) {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '16px 16px 80px',
+          padding: '16px 16px 112px',
         }}
       >
         {/* 현재 영업 상태 카드 */}

@@ -201,6 +201,13 @@ describe('RouteDetailPage', () => {
     expect(scrollContainer.contains(dayBtn)).toBe(false)
   })
 
+  it('스크롤 영역 하단에 모바일 FloatingDock을 피할 여백이 있다(pb-28)', () => {
+    render(<RouteDetailPage routeNumber="33" />)
+    const scrollContainer = document.querySelector('.overflow-y-auto')
+    const contentWrapper = scrollContainer.firstElementChild
+    expect(contentWrapper.className).toMatch(/\bpb-28\b/)
+  })
+
   it('정류장 칩이 렌더링됨', () => {
     render(<RouteDetailPage routeNumber="33" />)
     expect(screen.getByText('본캠')).toBeInTheDocument()
