@@ -37,6 +37,16 @@ describe('CafeteriaVenueDetailPage', () => {
     expect(screen.getByText('학생식당')).toBeInTheDocument()
   })
 
+  it('스크롤 영역 하단에 모바일 FloatingDock을 피할 여백이 112px 이상 있다', () => {
+    render(<CafeteriaVenueDetailPage venueId="student-cafeteria" />)
+    const scrollContainer = Array.from(document.querySelectorAll('div')).find(
+      (el) => el.style.overflowY === 'auto'
+    )
+    expect(scrollContainer).toBeTruthy()
+    const bottomPadding = parseInt(scrollContainer.style.padding.split(' ').pop(), 10)
+    expect(bottomPadding).toBeGreaterThanOrEqual(112)
+  })
+
   it('학생식당 상세: 위치(건물+층)를 렌더한다', () => {
     render(<CafeteriaVenueDetailPage venueId="student-cafeteria" />)
     expect(screen.getByText(/TIP/)).toBeInTheDocument()
