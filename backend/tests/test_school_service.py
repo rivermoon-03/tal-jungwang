@@ -32,9 +32,18 @@ def _db_with_scalars(rows):
 # ── departments ──────────────────────────────────────────────────────────
 
 
-def test_list_departments_returns_ce_only():
+def test_list_departments_marks_ce_supported_and_others_unsupported():
     depts = school.list_departments()
-    assert depts == [{"code": "ce", "label": "컴퓨터공학부"}]
+    by_code = {d["code"]: d for d in depts}
+
+    assert by_code["ce"]["supported"] is True
+    assert "unsupported_reason" not in by_code["ce"]
+
+    others = [d for code, d in by_code.items() if code != "ce"]
+    assert len(others) > 0
+    for d in others:
+        assert d["supported"] is False
+        assert isinstance(d["unsupported_reason"], str) and d["unsupported_reason"]
 
 
 def test_is_valid_department():

@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class DepartmentOut(BaseModel):
     code: str
     label: str
+    supported: bool = True
+    unsupported_reason: str | None = None
 
 
 class DepartmentNoticeOut(BaseModel):

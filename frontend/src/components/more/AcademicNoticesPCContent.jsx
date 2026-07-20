@@ -15,7 +15,7 @@
  *   3. 하단(공간이 남으면) — 학과 공지 카드를 세로 그리드로 배치한다.
  */
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ExternalLink, Megaphone } from 'lucide-react'
+import { ChevronDown, ExternalLink, Info, Megaphone } from 'lucide-react'
 import { useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../../hooks/useMore'
 import { formatFullDate } from '../../utils/noticeDate'
 import AcademicCalendarGrid from './AcademicCalendarGrid'
@@ -38,9 +38,16 @@ export default function AcademicNoticesPCContent() {
   const upcoming = Array.isArray(calendarData?.upcoming) ? calendarData.upcoming : []
   const allEvents = [next, ...upcoming].filter(Boolean)
 
-  const { data: noticesData, loading: noticesLoading, error: noticesError } = useSchoolNotices(selectedDept)
+  const selectedDeptInfo = departments.find((d) => d.code === selectedDept) ?? null
+  const selectedDeptLabel = selectedDeptInfo?.label ?? ''
+  // supported 필드가 없는 이전 응답/모킹은 지원 학과로 취급한다(기본값 true).
+  const isDeptSupported = selectedDeptInfo?.supported ?? true
+
+  // robots.txt 정책상 아직 지원하지 않는 학과는 API를 아예 호출하지 않는다.
+  const { data: noticesData, loading: noticesLoading, error: noticesError } = useSchoolNotices(
+    isDeptSupported ? selectedDept : null
+  )
   const notices = Array.isArray(noticesData) ? noticesData : []
-  const selectedDeptLabel = departments.find((d) => d.code === selectedDept)?.label ?? ''
 
   const [visibleCount, setVisibleCount] = useState(NOTICES_INITIAL_COUNT)
   const scrollRef = useRef(null)
@@ -72,8 +79,13 @@ export default function AcademicNoticesPCContent() {
               className="w-full appearance-none bg-surface dark:bg-surface border border-line dark:border-line rounded-input pl-4 pr-10 py-2.5 text-body font-semibold text-ink dark:text-ink"
             >
               {departments.map((d) => (
-                <option key={d.code} value={d.code}>
+                <option
+                  key={d.code}
+                  value={d.code}
+                  title={d.supported === false ? d.unsupported_reason : undefined}
+                >
                   {d.label}
+                  {d.supported === false ? ' (준비 중)' : ''}
                 </option>
               ))}
             </select>
@@ -105,20 +117,31 @@ export default function AcademicNoticesPCContent() {
             학과 공지
           </div>
 
-          {noticesLoading && (
+          {!isDeptSupported && selectedDeptInfo && (
+            <div
+              role="note"
+              aria-label={`${selectedDeptLabel} 학과 공지 미지원 안내`}
+              className="flex items-start gap-2 bg-accent-bg dark:bg-accent-bg border border-line dark:border-line rounded-card px-4 py-3"
+            >
+              <Info size={18} className="text-mute dark:text-mute flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <p className="text-body text-mute dark:text-mute">{selectedDeptInfo.unsupported_reason}</p>
+            </div>
+          )}
+
+          {isDeptSupported && noticesLoading && (
             <p className="text-body text-mute dark:text-mute text-center py-8">불러오는 중이에요...</p>
           )}
-          {noticesError && (
+          {isDeptSupported && noticesError && (
             <p className="text-body text-red-400 text-center py-8">공지사항을 불러오지 못했어요</p>
           )}
-          {!noticesLoading && !noticesError && notices.length === 0 && (
+          {isDeptSupported && !noticesLoading && !noticesError && notices.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-12 text-mute dark:text-mute">
               <Megaphone size={28} aria-hidden="true" />
               <p className="text-body">새 학과 공지가 없어요</p>
             </div>
           )}
 
-          {notices.length > 0 && (
+          {isDeptSupported && notices.length > 0 && (
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
               {visibleNotices.map((n) => (
                 <a
