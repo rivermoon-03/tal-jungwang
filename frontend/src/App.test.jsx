@@ -133,4 +133,15 @@ describe('App', () => {
     const el = await screen.findByTestId('cafeteria-venue-detail-page')
     expect(el).toHaveTextContent('CafeteriaVenueDetailPage-gs25')
   })
+
+  // main을 감싸는 flex-col wrapper에 min-h-0이 없으면, flex item의 기본
+  // min-height:auto 때문에 콘텐츠가 길어질 때 이 div가 뷰포트 높이를 넘어
+  // 늘어나 버린다. html/body/#root는 overflow:hidden(index.css)이라 이 늘어난
+  // 콘텐츠는 어디서도 스크롤할 수 없게 된다 — 모바일 세로 스크롤 불가 회귀.
+  it('main 래퍼 div: min-h-0 있어야 함 (없으면 긴 콘텐츠에서 스크롤 불가)', () => {
+    isDesktopMock = false
+    const { container } = render(<App />)
+    const wrapper = container.querySelector('main').parentElement
+    expect(wrapper.className).toContain('min-h-0')
+  })
 })

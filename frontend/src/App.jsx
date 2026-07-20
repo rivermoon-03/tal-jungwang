@@ -222,7 +222,7 @@ export default function App() {
             더 이상 마운트하지 않는다) + 우측 지도/콘텐츠. 모바일: 기존 세로 스택. */}
         {isDesktop && <PCSidebar />}
 
-        <div className="flex flex-1 min-w-0 flex-col">
+        <div className="flex flex-1 min-w-0 min-h-0 flex-col">
           <PWAInstallBanner />
 
           <main className="flex-1 overflow-hidden min-h-0 relative">
