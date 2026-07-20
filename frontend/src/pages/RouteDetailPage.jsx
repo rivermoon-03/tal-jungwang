@@ -672,7 +672,7 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
 
         {/* 스크롤 영역: 시간표 리스트 */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="px-4 pt-3 pb-6">
+          <div className="px-4 pt-3 pb-28 md:pb-6">
             {ttLoading && (
               <div className="mt-8">
                 <EmptyState title="불러오는 중..." />
