@@ -29,14 +29,10 @@ async def _collect_job():
 
 
 async def _weather_live_refresh_job():
-    """초단기실황(현재 기온/체감/실황) 캐시를 매시간 갱신 (05:00~23:59 KST).
+    """초단기실황(현재 기온/체감/실황) 캐시를 매시간 갱신 (24시간).
 
     TTL=3600초(1시간), cron=60분 → TTL ≤ cron 간격 준수.
     """
-    hour = datetime.now(_KST).hour
-    if not (5 <= hour <= 23):
-        return  # 심야 제외
-
     from app.core.freshness import mark_fresh
     from app.services.weather import refresh_weather_live_cache
 
@@ -358,7 +354,7 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info(
-        "Weather live (current temp) cache refresh scheduler configured (every 60min, active 05:00-23:59 KST)"
+        "Weather live (current temp) cache refresh scheduler configured (every 60min, active 24h KST)"
     )
 
     # ── 단기예보 캐시 갱신 (3시간 주기: 02:15, 05:15, 08:15, 11:15, 14:15, 17:15, 20:15, 23:15 KST) ──

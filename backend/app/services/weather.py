@@ -135,7 +135,7 @@ def _build_current(
         rain_prob_raw = cur_slot.get("POP", "0")
     rain_prob = int(rain_prob_raw or 0)
 
-    # 기온: 실황(T1H) → 단기예보(TMP) → None (프론트에서 숨김)
+    # 기온: 실황(T1H) → 현재시각 단기예보(TMP) → 가장 가까운 미래 단기예보(TMP) → None
     t1h_raw = ncst.get("T1H")
     tmp_raw = cur_slot.get("TMP")
     if t1h_raw not in (None, ""):
@@ -143,13 +143,33 @@ def _build_current(
     elif tmp_raw not in (None, ""):
         current_temp = int(float(tmp_raw))
     else:
-        current_temp = None
+        # 단기예보(baseTime=HH00)는 HH+1 시각부터 예보가 시작되므로 cur_slot에 TMP가 없을 수 있음.
+        # 가장 가까운 예보 시각(1~3시간 이내 슬롯)에서 기온을 폴백으로 끌어온다.
+        fallback_temp = None
+        for offset in range(1, 4):
+            h = (now.hour + offset) % 24
+            fcst_date = today if (now.hour + offset) < 24 else _next_date(today)
+            slot = fcst.get((fcst_date, f"{h:02d}00"), {})
+            val = slot.get("TMP")
+            if val not in (None, ""):
+                fallback_temp = int(float(val))
+                break
+        current_temp = fallback_temp
 
     # 예보 SKY/PTY 가 실황에 없을 경우 보완
     if not sky_code or sky_code == "0":
-        sky_code = cur_slot.get("SKY", "1")
+        sky_code = cur_slot.get("SKY")
+        if not sky_code:
+            for offset in range(1, 4):
+                h = (now.hour + offset) % 24
+                fcst_date = today if (now.hour + offset) < 24 else _next_date(today)
+                slot = fcst.get((fcst_date, f"{h:02d}00"), {})
+                if slot.get("SKY"):
+                    sky_code = slot["SKY"]
+                    break
+        sky_code = sky_code or "1"
     if pty_code == "0":
-        pty_code = cur_slot.get("PTY", "0")
+        pty_code = cur_slot.get("PTY") or "0"
 
     current_sky = _sky_label(sky_code)
     icon = _sky_icon(sky_code, pty_code)
