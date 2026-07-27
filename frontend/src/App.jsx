@@ -143,20 +143,13 @@ export default function App() {
     setTabBadges({ more: Array.isArray(notices) && notices.length > 0 })
   }, [notices, setTabBadges])
 
+  // currentPage/routeNumber/routeStop/venueId는 위에서 같은 값으로 lazy 초기화하므로
+  // 마운트 시 다시 세팅할 필요가 없다. 주소 해시와 어긋날 수 있는 activeTab만 맞춘다
+  // (스토어에 persist된 값이라 URL과 다를 수 있다).
   useEffect(() => {
-    const page = pathnameToPage(window.location.pathname)
-    setCurrentPage(page)
-    if (page === 'route-detail') {
-      setRouteNumber(parseRouteId(window.location.pathname))
-      setRouteStop(parseStopQuery(window.location.search))
-    }
-    if (page === 'cafeteria-venue') {
-      setVenueId(parseVenueId(window.location.pathname))
-    }
-    if (!page) {
-      const initial = hashToTab(window.location.hash)
-      if (initial !== activeTab) setActiveTab(initial)
-    }
+    if (pathnameToPage(window.location.pathname)) return
+    const initial = hashToTab(window.location.hash)
+    if (initial !== activeTab) setActiveTab(initial)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

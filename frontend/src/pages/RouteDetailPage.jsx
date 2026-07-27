@@ -400,11 +400,10 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   // defaultCategory가 처음 확정되는 시점(null → 값)에 activeCategory를 세팅.
   // 이를 통해 allRoutesData 로딩 완료 후 defaultCategory가 바뀌어도
   // useBusTimetableByRoute에 전달되는 category가 변경되지 않아 불필요한 재fetch/깜빡임을 방지.
-  useEffect(() => {
-    if (activeCategory === null && defaultCategory !== null) {
-      setActiveCategory(defaultCategory)
-    }
-  }, [defaultCategory, activeCategory])
+  // 렌더 중 조정 — 첫 확정값으로 고정한다(이후 defaultCategory가 바뀌어도 유지).
+  if (activeCategory === null && defaultCategory !== null) {
+    setActiveCategory(defaultCategory)
+  }
 
   // resolvedCategory: 사용자가 탭을 선택했거나 effect로 세팅된 값, 아직 없으면 defaultCategory 폴백
   const resolvedCategory = activeCategory ?? defaultCategory
@@ -477,7 +476,13 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   // 아니라 도착 카드 우측 › 화살표로 진입(showHistory). 방향/노선 바뀌면 초기화.
   const [placeTab, setPlaceTab] = useState('arrive')
   const [showHistory, setShowHistory] = useState(false)
-  useEffect(() => { setPlaceTab('arrive'); setShowHistory(false) }, [resolvedCategory, routeNumber])
+  const [seenRouteKey, setSeenRouteKey] = useState(`${resolvedCategory}|${routeNumber}`)
+  const routeKey = `${resolvedCategory}|${routeNumber}`
+  if (routeKey !== seenRouteKey) {
+    setSeenRouteKey(routeKey)
+    setPlaceTab('arrive')
+    setShowHistory(false)
+  }
 
   // 출발 시간표 콘텐츠가 화면에 보이는 중인지 — 요일 전환 버튼 노출 조건과 동일하게 재사용.
   const showDepartContent = (bothGroups && placeTab === 'depart') || (!bothGroups && hasTimetableCapability)

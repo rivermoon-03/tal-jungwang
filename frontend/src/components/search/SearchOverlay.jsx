@@ -102,9 +102,14 @@ export default function SearchOverlay() {
 
   // 열릴 때: 입력 초기화 + 자동 포커스.
   // (ScheduleDetailModal의 "열릴 때마다 store 값으로 재동기화" effect와 동일 패턴.)
+  // 입력 초기화는 렌더 중 조정으로, 포커스만 effect에 남긴다.
+  const [seenOpen, setSeenOpen] = useState(open)
+  if (open !== seenOpen) {
+    setSeenOpen(open)
+    if (open) setQuery('')
+  }
   useEffect(() => {
     if (!open) return
-    setQuery('')
     // 오버레이 마운트/트랜지션 직후 포커스되도록 다음 틱으로 미룬다.
     const id = requestAnimationFrame(() => inputRef.current?.focus())
     return () => cancelAnimationFrame(id)

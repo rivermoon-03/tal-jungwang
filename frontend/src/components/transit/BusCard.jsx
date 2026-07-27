@@ -7,15 +7,13 @@ import ArrivalList from '../bus/ArrivalList'
 export default function BusCard({ setTimetableRoute }) {
   const { data: stationsData, loading: stationsLoading } = useBusStations()
   const stations = useMemo(() => stationsData ?? [], [stationsData])
-  const [selectedId, setSelectedId] = useState(null)
+  // 사용자가 아직 고르지 않았으면 첫 정류장을 쓴다. 예전에는 effect에서 state를
+  // 채웠는데, 그러면 첫 렌더가 선택 없는 상태로 한 번 돌고 렌더가 한 번 더 필요했다.
+  const [pickedId, setPickedId] = useState(null)
   const { direction } = useEffectiveDirection()
+  const selectedId = pickedId ?? stations[0]?.station_id ?? null
+  const setSelectedId = setPickedId
   const selectedStation = stations.find((s) => s.station_id === selectedId)
-
-  useEffect(() => {
-    if (!selectedId && stations.length > 0) {
-      setSelectedId(stations[0].station_id)
-    }
-  }, [selectedId, stations])
 
   const { data: arrivals, loading: arrivalsLoading, refetch } = useBusArrivals(selectedId)
 

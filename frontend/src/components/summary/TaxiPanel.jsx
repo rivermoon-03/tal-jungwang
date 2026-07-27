@@ -37,10 +37,20 @@ function DestRow({ dest, origin }) {
   const destLat = dest.lat
   const destLng = dest.lng
 
+  // 요청 대상이 바뀌는 순간의 초기화는 렌더 중에, 실제 요청만 effect에서 한다.
+  const routeKey = `${originLat},${originLng}|${destLat},${destLng}`
+  // 초기값을 null로 두어 첫 마운트에서도 로딩 상태가 켜지게 한다.
+  const [seenRouteKey, setSeenRouteKey] = useState(null)
+  if (routeKey !== seenRouteKey) {
+    setSeenRouteKey(routeKey)
+    if (originLat != null && originLng != null) {
+      setLoading(true)
+      setResult(null)
+    }
+  }
+
   useEffect(() => {
     if (originLat == null || originLng == null) return
-    setLoading(true)
-    setResult(null)
     apiFetch('/route/driving', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -11,7 +11,7 @@
  *
  * 디자인 토큰 출처: frontend/tailwind.config.js
  */
-import { memo, useMemo, useState, useEffect } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
@@ -28,14 +28,16 @@ function formatEtaLocal(sec) {
 function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
   // 실시간일 때만 1초 tick. 다른 상태에서는 tick 등록 X.
   const hasRealtime = !!realtimeEta?.primary
-  // 기준 시각을 ref로 두면 렌더 중(useMemo 안)에서 읽게 되어 동시성 렌더에서
-  // 값이 어긋날 수 있다. state로 두고 초기값은 lazy initializer로 한 번만 만든다.
-  const [fetchedAt, setFetchedAt] = useState(() => Date.now())
-  // realtimeEta 객체가 새로 들어올 때마다 기준 시각 갱신
-  useEffect(() => {
-    setFetchedAt(Date.now())
-  }, [realtimeEta])
+  // 경과 시간 계산의 기준 시각. 렌더 중에 Date.now()를 부르면 순수하지 않으므로
+  // tick 훅이 준 값을 그대로 기준으로 삼는다(초 단위 계산이라 정밀도는 충분하다).
   const now = useNow(hasRealtime ? 1000 : 60_000)
+  const [fetchedAt, setFetchedAt] = useState(now)
+  // realtimeEta 객체가 새로 들어올 때마다 기준 시각 갱신(렌더 중 조정).
+  const [seenEta, setSeenEta] = useState(realtimeEta)
+  if (realtimeEta !== seenEta) {
+    setSeenEta(realtimeEta)
+    setFetchedAt(now)
+  }
 
   const tickedRealtime = useMemo(() => {
     if (!hasRealtime) return null

@@ -19,7 +19,7 @@
  * ETA 색상: ≤3분 imminent / 일반 ink (amber 중간 단계 없음).
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Drawer } from 'vaul'
 import { MapPin, Star, StarOff, X, Navigation, Info, ChevronRight } from 'lucide-react'
 import { ROUTE_COLOR_MAP } from './MarkerChip'
@@ -90,12 +90,12 @@ export default function MarkerSheet({
   // 새 정류장이 열릴 때마다 확장 상태 리셋 + 열림 보장.
   // station 객체는 매 렌더 새 참조일 수 있어 id 원시값만 본다.
   const stationId = station?.id
-  useEffect(() => {
-    if (stationId != null) {
-      setOpen(true)
-      setSnapIdx(0)
-    }
-  }, [stationId])
+  const [seenStationId, setSeenStationId] = useState(null)
+  if (stationId != null && stationId !== seenStationId) {
+    setSeenStationId(stationId)
+    setOpen(true)
+    setSnapIdx(0)
+  }
 
   if (!station) return null
 

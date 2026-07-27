@@ -42,11 +42,8 @@ jobs:
       - name: 빌드
         run: npm run build
 
-      # 린트는 아직 남은 지적이 있어 병합을 막지 않는다. 수치가 줄어드는지 로그로
-      # 확인하는 용도이며, 0이 되면 continue-on-error를 떼고 게이트로 승격한다.
-      - name: 린트 (참고용, 실패해도 계속)
+      - name: 린트
         run: npm run lint
-        continue-on-error: true
 
   backend:
     name: 백엔드 (pytest)

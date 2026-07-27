@@ -700,9 +700,12 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
   }, [])
 
   // 그룹 전환 시 stale 데이터 플래그를 비워서 새 그룹이 자체 보고로 채우게 한다.
-  useEffect(() => {
+  // 렌더 중 조정 — effect로 미루면 이전 그룹의 정렬로 한 프레임이 그려진다.
+  const [seenBusGroup, setSeenBusGroup] = useState(busGroup)
+  if (busGroup !== seenBusGroup) {
+    setSeenBusGroup(busGroup)
     setHasDataMap({})
-  }, [busGroup])
+  }
 
   if (loading && !routes) {
     return (
@@ -845,11 +848,11 @@ export default function SchedulePage() {
   const [subwayGroup, setSubwayGroup] = useState('정왕')
   const [selectedDetail, setSelectedDetail] = useState(null)
 
-  useEffect(() => {
-    if (isValidMode(query.type) && query.type !== mode) {
-      setMode(query.type)
-    }
-  }, [query.type]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 주소의 type이 바뀌면(뒤로가기 등) 화면 모드를 맞춘다. 렌더 중 조정이라
+  // 이전 모드로 한 프레임이 그려지지 않는다.
+  if (isValidMode(query.type) && query.type !== mode) {
+    setMode(query.type)
+  }
 
   // /schedule 로 바로 들어오면 저장된 모드(storedMode)가 화면을 결정하는데, URL에는
   // 그 사실이 안 남아 링크를 공유하면 상대가 다른 탭을 보게 된다. 마운트 시 현재
@@ -858,8 +861,11 @@ export default function SchedulePage() {
     if (!isValidMode(query.type)) navigateSchedule({ type: mode })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!scheduleHint) return
+  // 힌트로 넘어온 모드/그룹은 렌더 중에 반영한다(로컬 state). 스토어를 비우는
+  // 일은 다른 컴포넌트에 영향을 주므로 렌더가 끝난 뒤 effect에서 한다.
+  const [seenHint, setSeenHint] = useState(null)
+  if (scheduleHint && scheduleHint !== seenHint) {
+    setSeenHint(scheduleHint)
     if (isValidMode(scheduleHint.mode)) {
       setMode(scheduleHint.mode)
       setStoredMode(scheduleHint.mode)
@@ -871,8 +877,10 @@ export default function SchedulePage() {
         if (scheduleHint.group === 'main' || scheduleHint.group === 'second') setShuttleCampus(scheduleHint.group)
       }
     }
-    setScheduleHint(null)
-  }, [scheduleHint, setScheduleHint, setStoredMode, setShuttleCampus])
+  }
+  useEffect(() => {
+    if (scheduleHint) setScheduleHint(null)
+  }, [scheduleHint, setScheduleHint])
 
   function handleModeChange(next) {
     if (next === mode) return

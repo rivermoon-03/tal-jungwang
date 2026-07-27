@@ -205,8 +205,12 @@ export function useApi(path, { interval = null, enabled = true, ttl = 0 } = {}) 
   // (그렇지 않으면 소비자가 stale data + loading=false를 보고
   //  "데이터 없음" 분기로 오판 — 예: 시흥1 = 실시간 전용인데 시간표 폴백으로 빠짐)
   // 단, 캐시 히트가 있으면 그 값으로 즉시 채운다.
-  useEffect(() => {
-    if (!enabled) return
+  // path가 바뀌는 순간의 상태 리셋은 렌더 중에 한다. effect로 미루면 이전 path의
+  // 데이터와 loading=false가 한 프레임 함께 보여 "데이터 없음"으로 오판된다.
+  const resetKey = enabled ? `${path}|${ttl}` : null
+  const [seenResetKey, setSeenResetKey] = useState(null)
+  if (resetKey !== null && resetKey !== seenResetKey) {
+    setSeenResetKey(resetKey)
     const c = readFreshCache(path, ttl)
     if (c) {
       setData(c.data)
@@ -218,11 +222,14 @@ export function useApi(path, { interval = null, enabled = true, ttl = 0 } = {}) 
       setLoading(true)
       setError(null)
     }
-  }, [path, enabled, ttl])
+  }
 
   useEffect(() => {
     if (!enabled) return
     // 방금 캐시로 채웠다면 재fetch 스킵(동시 마운트 시 불필요한 호출 제거).
+    // fetchData는 시작과 동시에 loading 상태를 켠다. 요청 자체가 effect의 목적이라
+    // 렌더 중으로 옮길 수 없다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!readFreshCache(path, ttl)) fetchData()
 
     if (!interval) return

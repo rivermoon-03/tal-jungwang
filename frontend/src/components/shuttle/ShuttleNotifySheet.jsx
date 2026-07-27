@@ -19,13 +19,15 @@ export default function ShuttleNotifySheet({ open, time, directionLabel, onClose
   const [errorReason, setErrorReason] = useState(null)
 
   // 시트를 새로 열 때마다 선택 상태를 초기화한다.
-  useEffect(() => {
+  const [seenOpen, setSeenOpen] = useState(open)
+  if (open !== seenOpen) {
+    setSeenOpen(open)
     if (open) {
       setLead(SHUTTLE_ALARM_LEAD_OPTIONS[0].id)
       setSubmitting(false)
       setErrorReason(null)
     }
-  }, [open])
+  }
 
   useEffect(() => {
     if (!open) return

@@ -121,12 +121,12 @@ export default function GlobalSubwayDetailSheet() {
     setSeenItem(item)
     setPrevItem(item)
   }
+  // 닫힐 때는 렌더 중에 즉시 끄고, 열릴 때의 페이드 인만 다음 프레임으로 미룬다.
+  if (!item && visible) setVisible(false)
   useEffect(() => {
-    if (item) {
-      const id = requestAnimationFrame(() => setVisible(true))
-      return () => cancelAnimationFrame(id)
-    }
-    setVisible(false)
+    if (!item) return undefined
+    const id = requestAnimationFrame(() => setVisible(true))
+    return () => cancelAnimationFrame(id)
   }, [item])
 
   const handleManualRefresh = async () => {

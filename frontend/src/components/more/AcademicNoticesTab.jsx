@@ -8,7 +8,7 @@
  * 원문 링크는 새 탭(`target="_blank"`)으로 열되 reverse tabnabbing 방지를 위해
  * `rel="noopener noreferrer"`를 항상 붙인다.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { ChevronDown, ExternalLink, Info, Megaphone } from 'lucide-react'
 import { useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../../hooks/useMore'
 import { formatDday, formatDateOrRange } from '../../utils/academicCalendar'
@@ -59,9 +59,12 @@ export default function AcademicNoticesTab() {
   // 학과가 바뀌어 공지 목록 자체가 교체되면 보이는 개수도 처음 3개로 되돌린다.
   const [visibleCount, setVisibleCount] = useState(NOTICES_INITIAL_COUNT)
   const noticesScrollRef = useRef(null)
-  useEffect(() => {
+  // 렌더 중 조정 — effect로 미루면 이전 학과의 개수로 한 프레임이 그려진다.
+  const [seenDept, setSeenDept] = useState(selectedDept)
+  if (selectedDept !== seenDept) {
+    setSeenDept(selectedDept)
     setVisibleCount(NOTICES_INITIAL_COUNT)
-  }, [selectedDept])
+  }
 
   const visibleNotices = notices.slice(0, visibleCount)
 

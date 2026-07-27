@@ -14,7 +14,7 @@
  *   2. 본문 — 캘린더 카드가 남은 높이를 채운다(flex-1 min-h-0).
  *   3. 하단(공간이 남으면) — 학과 공지 카드를 세로 그리드로 배치한다.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { ChevronDown, ExternalLink, Info, Megaphone } from 'lucide-react'
 import { useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../../hooks/useMore'
 import { formatFullDate } from '../../utils/noticeDate'
@@ -51,9 +51,12 @@ export default function AcademicNoticesPCContent() {
 
   const [visibleCount, setVisibleCount] = useState(NOTICES_INITIAL_COUNT)
   const scrollRef = useRef(null)
-  useEffect(() => {
+  // 렌더 중 조정 — effect로 미루면 이전 학과의 개수로 한 프레임이 그려진다.
+  const [seenDept, setSeenDept] = useState(selectedDept)
+  if (selectedDept !== seenDept) {
+    setSeenDept(selectedDept)
     setVisibleCount(NOTICES_INITIAL_COUNT)
-  }, [selectedDept])
+  }
 
   const visibleNotices = notices.slice(0, visibleCount)
 

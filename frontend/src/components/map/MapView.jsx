@@ -436,17 +436,22 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   const [, setSheetBusLoading] = useState(false)
   const [, setSheetDirection] = useState('outbound')
 
+  // 정류장이 바뀌는 순간 이전 도착 정보를 비우는 일은 렌더 중에 한다. effect로
+  // 미루면 새 정류장 이름과 이전 정류장 도착 정보가 한 프레임 함께 보인다.
+  const sheetStopId = sheetStation ? getPrimaryStopId(sheetStation) : null
+  const [seenSheetStopId, setSeenSheetStopId] = useState(null)
+  if (sheetStopId !== seenSheetStopId) {
+    setSeenSheetStopId(sheetStopId)
+    setSheetBusArrivals(null)
+  }
+
   useEffect(() => {
-    if (!sheetStation) {
-      setSheetBusArrivals(null)
-      return
-    }
-    const stopId = getPrimaryStopId(sheetStation)
-    if (!stopId) {
-      setSheetBusArrivals(null)
-      return
-    }
+    const stopId = sheetStation ? getPrimaryStopId(sheetStation) : null
+    if (!stopId) return undefined
     let cancelled = false
+    // 요청을 시작하는 순간 로딩으로 전환하는 것은 데이터 페칭의 본질이라
+    // 렌더 중으로 옮길 수 없다(렌더가 부수효과를 갖게 된다).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSheetBusLoading(true)
     apiFetch(`/bus/arrivals/${stopId}`)
       .then((res) => { if (!cancelled) setSheetBusArrivals(res ?? null) })
@@ -845,13 +850,14 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   }, [mapExpanded, mapInstance, gpsCoords])
 
   // SDK 로드 effect
+  // SDK가 이미 로드돼 있으면(다른 화면에서 먼저 로드) 렌더 중에 바로 표시한다.
+  if (kakaoKey && !sdkReady && window.kakao?.maps?.LatLng) {
+    setSdkReady(true)
+  }
+
   useEffect(() => {
     if (!kakaoKey) return
-
-    if (window.kakao?.maps?.LatLng) {
-      setSdkReady(true)
-      return
-    }
+    if (window.kakao?.maps?.LatLng) return
 
     let isMounted = true
 

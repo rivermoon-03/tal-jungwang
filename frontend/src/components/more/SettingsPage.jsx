@@ -170,15 +170,15 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
   const [routeAlertOn, setRouteAlertOn] = useState(false)
   const [routeAlertBusy, setRouteAlertBusy] = useState(false)
   // 'default' | 'granted' | 'denied' | 'unsupported'
-  const [routeAlertPermission, setRouteAlertPermission] = useState('default')
+  // 권한 상태는 렌더 시점에 바로 알 수 있으므로 초기값으로 계산한다.
+  // effect에서 setState하면 첫 렌더가 잘못된 값으로 한 번 그려진다.
+  const [routeAlertPermission, setRouteAlertPermission] = useState(
+    () => (isPushSupported() ? getNotificationPermission() : 'unsupported')
+  )
 
   useEffect(() => {
     let cancelled = false
-    if (!isPushSupported()) {
-      setRouteAlertPermission('unsupported')
-      return undefined
-    }
-    setRouteAlertPermission(getNotificationPermission())
+    if (!isPushSupported()) return undefined
     hasActivePushSubscription().then((subscribed) => {
       if (cancelled) return
       setRouteAlertOn(subscribed)

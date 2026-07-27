@@ -943,10 +943,11 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   // 이 컴포넌트는 GlobalDetailModal 등에서 앱 생명주기 내내 마운트된 채 `open`만
   // 토글되는 경우가 있어(unmount/remount 아님), 설정 화면에서 기본값을 바꾼 뒤에도
   // "다음에 열 때" 반영되도록 열릴 때마다 store 값으로 다시 동기화한다.
-  useEffect(() => {
+  const [seenOpen, setSeenOpen] = useState(open)
+  if (open !== seenOpen) {
+    setSeenOpen(open)
     if (open) setViewModeState(scheduleViewMode)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }
 
   useEffect(() => {
     if (open) {

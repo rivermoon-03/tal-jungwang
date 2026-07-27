@@ -1,7 +1,7 @@
 // 앱 어디서든 페이지 이동 없이 열 수 있는 ScheduleDetailModal.
 // useAppStore.detailModal에 detail 객체를 세팅하면 현재 페이지 위에 그대로 뜬다.
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import useAppStore from '../../stores/useAppStore'
 import ScheduleDetailModal from './ScheduleDetailModal'
 
