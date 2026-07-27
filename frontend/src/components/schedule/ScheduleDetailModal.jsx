@@ -158,7 +158,7 @@ export function TimeGridView({ items, gridRef }) {
         >
           {it.time}
           {it.isLast && !it.isNext && (
-            <span className="absolute -top-1.5 -right-1 text-[9px] font-bold px-1 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink leading-tight">
+            <span className="absolute -top-1.5 -right-1 text-micro font-bold px-1 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink leading-tight">
               막차
             </span>
           )}
