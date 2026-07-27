@@ -281,7 +281,7 @@ function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick() }
       }}
-      className={`w-full text-left cursor-pointer pressable ${wrapperBase} ${index != null ? 'tj-card-enter' : ''}`}
+      className={`w-full text-left cursor-pointer pressable hoverable ${wrapperBase} ${index != null ? 'tj-card-enter' : ''}`}
       style={index != null ? staggerStyle(index) : undefined}
     >
       {content}

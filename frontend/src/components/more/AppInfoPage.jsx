@@ -34,7 +34,9 @@ export default function AppInfoPage({ onBack, embedded = false }) {
           >
             <Heart size={22} fill="currentColor" />
           </div>
-          <p className="text-panel-ttl text-ink dark:text-ink">정왕 교통 허브</p>
+          {/* 헤더·PWA 매니페스트와 같은 이름을 쓴다. "정왕 교통 허브"는 내부
+              프로젝트명이라 사용자에게는 다른 앱처럼 보였다. */}
+          <p className="text-panel-ttl text-ink dark:text-ink">탈것:정왕</p>
           <span className="text-meta font-semibold text-chip-blue-fg dark:text-chip-blue-fg bg-chip-blue-bg dark:bg-chip-blue-bg px-2.5 py-1 rounded-full mt-2 tracking-wider">
             v{APP_VERSION} · BETA
           </span>

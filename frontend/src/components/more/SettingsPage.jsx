@@ -244,7 +244,7 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
         숨기는 게 아니라 같은 마크업을 재배치하는 것뿐이라 CSS 반응형으로 충분하다.
       */}
       <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-10 md:px-8">
-        <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:gap-6 md:max-w-[1040px] md:mx-auto md:items-start">
+        <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:gap-6 md:max-w-[1040px] md:items-start">
         {/* ── 개인화 ── */}
         <Section label="개인화">
         <SettingsGroup>
@@ -438,8 +438,9 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
         {/* ── 기타 ── */}
         <Section label="기타">
         <SettingsGroup>
-          <Row icon={Globe} title="언어" right={<ValueChevron value="한국어" />} />
-          <Row icon={Trash2} title="캐시 비우기" right={<span className="text-[14px] font-semibold text-mute dark:text-mute">관리 예정</span>} />
+          {/* 누르면 아무 일도 일어나지 않던 "언어"와 "캐시 비우기(관리 예정)" 행은
+              뺐다. 동작하지 않는 항목이 설정에 남아 있으면 나머지 설정도 믿기
+              어려워진다. 기능이 실제로 붙을 때 다시 넣는다. */}
           {/* 실제 동작: 기존 AppInfoPage 서브페이지로 이동 */}
           <Row icon={Info} title="앱 정보 · 오픈소스" right={<ChevronRight size={16} className="text-mute dark:text-mute" aria-hidden="true" />} onClick={onOpenAppInfo} />
         </SettingsGroup>

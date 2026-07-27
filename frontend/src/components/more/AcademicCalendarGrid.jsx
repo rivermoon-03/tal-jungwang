@@ -169,7 +169,10 @@ export default function AcademicCalendarGrid({ events = [], initialDate = null, 
                   aria-label={`${cell.day}일${hasEvent ? ' (일정 있음)' : ''}`}
                   aria-pressed={isSelected}
                   aria-current={isToday ? 'date' : undefined}
-                  className={`pressable relative aspect-square min-h-[36px] flex flex-col items-center justify-center gap-0.5 rounded-mini text-label font-semibold tabular-nums ${
+                  // 셀은 모바일에서만 정사각형이다. PC에서 aspect-square를 유지하면
+                  // 폭이 넓어지는 만큼 높이도 커져(1920px에서 한 변 222px) 한 달이
+                  // 화면에 들어오지 않고 내부 스크롤을 두 번 넘게 해야 했다.
+                  className={`pressable hoverable relative aspect-square min-h-[36px] md:aspect-auto md:h-[60px] lg:h-[68px] flex flex-col items-center justify-center gap-0.5 rounded-mini text-label font-semibold tabular-nums ${
                     isSelected
                       ? 'bg-accent dark:bg-accent text-white dark:text-ink'
                       : isToday

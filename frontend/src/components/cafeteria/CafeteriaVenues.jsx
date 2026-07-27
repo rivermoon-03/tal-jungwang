@@ -14,7 +14,7 @@
  *   - 다크모드 정상 지원
  */
 import { useMemo, useState } from 'react'
-import { Star, StarOff } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
 import { ALL_VENUES, RESTAURANTS, VENUE_GROUPS, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
@@ -155,10 +155,9 @@ function FavoriteStarButton({ venueId, size = 15 }) {
         touchAction: 'manipulation',
       }}
     >
-      {isFav
-        ? <Star size={size} strokeWidth={2} fill="currentColor" />
-        : <StarOff size={size} strokeWidth={2} />
-      }
+      {/* 미즐겨찾기는 빈 별로 둔다. StarOff(사선 그어진 별)는 "즐겨찾기를 끌 수
+          없음"처럼 읽히고, 시간표 화면이 쓰는 빈 별 관례와도 어긋났다. */}
+      <Star size={size} strokeWidth={2} fill={isFav ? 'currentColor' : 'none'} />
     </button>
   )
 }
@@ -523,17 +522,20 @@ function OpenRow({ venue, statusInfo, onVenueClick }) {
     : null
 
   return (
+    // hoverable: PC에서 이름과 영업 상태가 700px 떨어져 있어 어느 줄을 보고 있는지
+    // 놓치기 쉬웠다. 행 전체에 hover 배경을 줘서 시선을 한 줄로 묶는다.
     <div
       role="button"
       aria-label={venue.name}
       tabIndex={0}
+      className="hoverable rounded-mini"
       onClick={() => onVenueClick(venue.id)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onVenueClick(venue.id) }}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        padding: '12px 2px',
+        padding: '12px 8px',
         cursor: 'pointer',
         minHeight: 44,
       }}
@@ -822,8 +824,9 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
       {/* 탭 + 정렬 스위치 */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* 주 탭 (지금 영업중 / 운영시간) */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* 주 탭 (지금 영업중 / 운영시간)
+              maxWidth 없이 flex:1만 두면 PC에서 버튼 하나가 460px까지 늘어난다. */}
+          <div style={{ flex: 1, minWidth: 0, maxWidth: 420 }}>
             <SegmentTabs
               items={TABS}
               active={activeTab}

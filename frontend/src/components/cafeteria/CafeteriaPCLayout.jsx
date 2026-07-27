@@ -144,13 +144,13 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
     <div className="h-full min-h-0 flex flex-col overflow-hidden bg-surface">
       {mainTab === 'venues' ? (
         <div className="flex-1 min-h-0 overflow-y-auto bg-bg px-8 py-6">
-          <div className="max-w-[900px] mx-auto">
+          <div className="max-w-[1000px]">
             <CafeteriaVenues onVenueClick={navigateToVenueDetail} />
           </div>
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto bg-bg px-8 py-6">
-          <div className="max-w-[1100px] mx-auto flex flex-col gap-6">
+          <div className="max-w-[1240px] flex flex-col gap-6">
             {/* 상단: 갱신 시각 + 식당 선택 chips(전폭 가로 — 예전 좌측 rail 대체) */}
             <div>
               {updatedLabel && <p className="mb-2 text-caption text-mute">{updatedLabel}</p>}
@@ -239,8 +239,10 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
                   )}
                 </div>
 
-                {/* 끼니 그리드 — "지금" 운영 중인 끼니는 강조 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {/* 끼니 그리드 — "지금" 운영 중인 끼니는 강조.
+                    items-start를 주지 않으면 메뉴가 2개뿐인 조식 카드가 석식 높이까지
+                    늘어나 카드 안이 통째로 빈칸이 된다. */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
                   {cafeteria.meals.map((meal, i) => {
                     const isNow = isMealTypeOpenNow(cafeteria.name, meal.type, nowDate)
                     return (

@@ -42,7 +42,13 @@ const MARKER_TICK = { tickMs: 60_000 }
 // mapExpanded 개념이 없는 호출부와 100% 호환). MainShell이 지도를 전체화면으로
 // 펼칠 때만 mapExpanded=true를 넘겨 상단 검색바 · 우측 상단 컨트롤 스택 ·
 // 최근접 정류장 카드(M-1)로 전환한다.
-export default function MapView({ onMarkerClick, selectedId, mapExpanded = false, onClose }) {
+/**
+ * @param {boolean} [showControls=true] — 내 위치/학교로 FAB 표시 여부.
+ *   PC 셸은 지도를 언마운트하지 않고 페이지 콘텐츠를 그 위에 덮는 구조라, 지도와
+ *   무관한 화면(시간표·학식·설정 등)에서도 FAB이 계속 떠 있고 시간표 그리드와
+ *   겹쳤다. 지도가 실제로 보일 때만 켠다.
+ */
+export default function MapView({ onMarkerClick, selectedId, mapExpanded = false, onClose, showControls = true }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
@@ -979,7 +985,7 @@ export default function MapView({ onMarkerClick, selectedId, mapExpanded = false
         />
 
         {/* mapExpanded=false(기본) — 기존 우하단 FAB 배치(PC 등 mapExpanded 미사용 호출부 호환) */}
-        {mapInstance && !mapExpanded && (
+        {mapInstance && !mapExpanded && showControls && (
           <div
             className="absolute right-4 flex flex-col gap-2 z-[50]"
             style={{ bottom: '4.75rem' }}

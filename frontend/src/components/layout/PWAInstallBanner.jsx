@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, X, Share } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { useIsDesktop } from '../../hooks/useMediaQuery';
 
 /**
  * PWA 설치 배너
@@ -17,20 +18,25 @@ export default function PWAInstallBanner() {
   const { canInstall, isInstalled, isDismissed, isIOS, promptInstall, dismiss } =
     usePWAInstall();
   const [showIOSModal, setShowIOSModal] = useState(false);
+  // 데스크톱 Chrome도 beforeinstallprompt를 쏘기 때문에 PC에서 배너가 상단을 덮고
+  // 사이드바 로고까지 가렸다. 설치형 PWA는 휴대폰에서 쓰는 시나리오라 PC는 제외한다.
+  const isDesktop = useIsDesktop();
+
+  const hidden = isInstalled || isDismissed || isDesktop || (!canInstall && !isIOS);
 
   // 배너가 실제로 렌더링되는 동안 --banner-h CSS 변수를 설정해
   // 지도 FAB 등 다른 요소가 배너 높이만큼 아래로 밀리도록 한다.
   useEffect(() => {
-    if (isInstalled || isDismissed || (!canInstall && !isIOS)) {
+    if (hidden) {
       document.documentElement.style.setProperty('--banner-h', '0px');
       return;
     }
     document.documentElement.style.setProperty('--banner-h', '44px');
     return () => document.documentElement.style.setProperty('--banner-h', '0px');
-  }, [isInstalled, isDismissed, canInstall, isIOS]);
+  }, [hidden]);
 
-  // 이미 설치되었거나, 7일 내 dismiss한 경우 렌더링 불필요
-  if (isInstalled || isDismissed) return null;
+  // 이미 설치되었거나, 7일 내 dismiss했거나, 데스크톱인 경우 렌더링 불필요
+  if (isInstalled || isDismissed || isDesktop) return null;
 
   // iOS: 배너를 클릭하면 안내 모달 표시
   const handleIOSBannerClick = () => setShowIOSModal(true);

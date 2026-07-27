@@ -50,6 +50,38 @@ export default function PCMainShell({ children }) {
     )
   }, [activeFilter, search, bottomCardData.routes])
 
+  // 왜 카드를 통째로 비우는가: primary(대표 도착)는 버스 전용 데이터라서, 셔틀/
+  // 지하철/택시 필터에서 그대로 두면 "셔틀을 눌렀는데 버스가 보이는" 상태가 된다.
+  // 검색 중일 때도 마찬가지로 검색과 무관한 대표 카드가 남으면 결과로 오인된다.
+  const isBusFilter = activeFilter === 'bus'
+  const isSearching = search.trim().length > 0
+  const showPrimary = isBusFilter && !isSearching
+
+  // 빈 상태 문구는 원인별로 다르게 준다 — 필터 미지원 / 검색 결과 없음 /
+  // 해당 방향 운행 없음은 사용자가 취할 행동이 서로 다르다.
+  const emptyState = useMemo(() => {
+    if (!isBusFilter) {
+      const label = MODE_FILTERS.find((f) => f.id === activeFilter)?.label ?? ''
+      return {
+        title: `${label} 정보는 준비 중이에요`,
+        description: '지금은 버스만 지도에서 실시간으로 볼 수 있어요. 셔틀과 지하철은 시간표 탭에서 확인해요.',
+      }
+    }
+    if (isSearching && filteredRoutes.length === 0) {
+      return {
+        title: `"${search.trim()}" 검색 결과가 없어요`,
+        description: '노선 번호나 정류장 이름의 일부만 입력해도 찾을 수 있어요.',
+      }
+    }
+    if (!isSearching && filteredRoutes.length === 0 && !bottomCardData.primary) {
+      return {
+        title: '지금 이 방향은 도착 정보가 없어요',
+        description: '운행이 끝났거나 아직 시작 전일 수 있어요. 방향을 바꾸거나 시간표를 확인해요.',
+      }
+    }
+    return null
+  }, [isBusFilter, activeFilter, isSearching, search, filteredRoutes.length, bottomCardData.primary])
+
   const filters = MODE_FILTERS.map((f) => ({ ...f, active: f.id === activeFilter }))
 
   const handleSelectRoute = (routeNo) => {
@@ -73,17 +105,22 @@ export default function PCMainShell({ children }) {
           filters={filters}
           onToggleFilter={setActiveFilter}
           stationLabel={bottomCardData.stationLabel}
-          live={bottomCardData.live}
-          statusLabel={bottomCardData.statusLabel}
+          live={showPrimary && bottomCardData.live}
+          statusLabel={showPrimary ? bottomCardData.statusLabel : null}
           statusTone={bottomCardData.statusTone}
-          primary={bottomCardData.primary ?? {}}
+          primary={showPrimary ? (bottomCardData.primary ?? {}) : {}}
           routes={filteredRoutes}
           onSelectRoute={handleSelectRoute}
+          emptyState={emptyState}
         />
       )}
 
       <div className="relative h-full min-w-0 flex-1 overflow-hidden">
-        <MapView onMarkerClick={handleMarkerClick} selectedId={selectedId} />
+        <MapView
+          onMarkerClick={handleMarkerClick}
+          selectedId={selectedId}
+          showControls={showFloating}
+        />
 
         {showFloating && <MapLegendOnboarding />}
 

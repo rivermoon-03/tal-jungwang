@@ -54,20 +54,28 @@ export default function PCSidebar() {
 
   // 컨텍스트 서브내비 클릭 — store를 먼저 갱신해 콘텐츠가 즉시 반응하게 하고,
   // 현재 경로가 상위 탭 루트가 아니면(예: 식당 상세 페이지) 그리로 되돌린다.
+  // 서브탭도 주소에 남긴다(?tab= / ?nav=). 뷰의 출처는 여전히 store지만, 주소가
+  // 화면을 설명하지 못하면 새로고침이나 링크 공유에서 다른 화면이 열린다.
   const selectCafeteriaTab = (id) => (e) => {
     e.preventDefault()
     setPcCafeteriaTab(id)
+    const url = `/cafeteria?tab=${id}`
     if (window.location.pathname !== '/cafeteria') {
-      window.history.pushState({}, '', '/cafeteria')
+      window.history.pushState({}, '', url)
       window.dispatchEvent(new PopStateEvent('popstate'))
+    } else {
+      window.history.replaceState({}, '', url)
     }
   }
   const selectMoreNav = (id) => (e) => {
     e.preventDefault()
     setPcMoreNav(id)
+    const url = `/more?nav=${id}`
     if (window.location.pathname !== '/more') {
-      window.history.pushState({}, '', '/more')
+      window.history.pushState({}, '', url)
       window.dispatchEvent(new PopStateEvent('popstate'))
+    } else {
+      window.history.replaceState({}, '', url)
     }
   }
 
@@ -102,68 +110,61 @@ export default function PCSidebar() {
         <PCWeatherSummary />
       </div>
 
-      {/* 4탭 네비 */}
+      {/* 4탭 네비 + 컨텍스트 서브내비.
+          서브내비는 해당 상위 탭 바로 아래에 렌더한다. 예전에는 4탭을 모두 그린 뒤
+          별도 nav로 이어 붙여, 학식 하위 메뉴인데도 마지막 항목인 "더보기"에 딸린
+          것처럼 보였다. */}
       <nav className="flex flex-col gap-0.5" aria-label="주요 메뉴">
         {PC_TABS.map(({ id, Icon, href, label }) => {
           const active = activeId === id
+          const subnav =
+            id === 'cafeteria' ? CAFETERIA_SUBNAV
+            : id === 'more' ? MORE_SUBNAV
+            : null
+          const activeSubId = id === 'cafeteria' ? pcCafeteriaTab : pcMoreNav
+          const onSelectSub = id === 'cafeteria' ? selectCafeteriaTab : selectMoreNav
+
           return (
-            <a
-              key={id}
-              href={href}
-              onClick={(e) => navigateToPcTab(e, href)}
-              aria-current={active ? 'page' : undefined}
-              className={`pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold transition-colors duration-snap ease-out ${
-                active ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
-              }`}
-            >
-              <Icon size={18} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" className={active ? 'text-accent' : 'text-mute'} />
-              {label}
-            </a>
+            <div key={id} className="flex flex-col gap-0.5">
+              <a
+                href={href}
+                onClick={(e) => navigateToPcTab(e, href)}
+                aria-current={active ? 'page' : undefined}
+                className={`pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold transition-colors duration-snap ease-out ${
+                  active ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
+                }`}
+              >
+                <Icon size={18} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" className={active ? 'text-accent' : 'text-mute'} />
+                {label}
+              </a>
+
+              {active && subnav && (
+                <div className="flex flex-col gap-0.5" role="group" aria-label={`${label} 하위 메뉴`}>
+                  {subnav.map((sub) => {
+                    const subActive = activeSubId === sub.id
+                    return (
+                      <a
+                        key={sub.id}
+                        // 하위 메뉴도 각자 고유 URL을 갖는다. 예전에는 둘 다 상위와
+                        // 같은 경로여서 새 탭으로 열거나 북마크하면 어느 쪽인지
+                        // 구분되지 않았다.
+                        href={`${href}?${id === 'cafeteria' ? 'tab' : 'nav'}=${sub.id}`}
+                        onClick={onSelectSub(sub.id)}
+                        aria-current={subActive ? 'page' : undefined}
+                        className={`pressable flex items-center rounded-button py-[7px] pl-[41px] pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
+                          subActive ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
+                        }`}
+                      >
+                        {sub.label}
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )
         })}
       </nav>
-
-      {/* 컨텍스트 서브내비 — 활성 상위 탭이 학식/더보기일 때만 표시(Finder식) */}
-      {activeId === 'cafeteria' && (
-        <nav className="mt-0.5 flex flex-col gap-0.5" aria-label="학식 하위 메뉴">
-          {CAFETERIA_SUBNAV.map(({ id, label }) => {
-            const active = pcCafeteriaTab === id
-            return (
-              <a
-                key={id}
-                href="/cafeteria"
-                onClick={selectCafeteriaTab(id)}
-                aria-current={active ? 'page' : undefined}
-                className={`pressable flex items-center rounded-button py-[7px] pl-[41px] pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
-                  active ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
-                }`}
-              >
-                {label}
-              </a>
-            )
-          })}
-        </nav>
-      )}
-      {activeId === 'more' && (
-        <nav className="mt-0.5 flex flex-col gap-0.5" aria-label="더보기 하위 메뉴">
-          {MORE_SUBNAV.map(({ id, label }) => {
-            const active = pcMoreNav === id
-            return (
-              <a
-                key={id}
-                href="/more"
-                onClick={selectMoreNav(id)}
-                aria-current={active ? 'page' : undefined}
-                className={`pressable flex items-center rounded-button py-[7px] pl-[41px] pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
-                  active ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
-                }`}
-              >
-                {label}
-              </a>
-            )
-          })}
-        </nav>
-      )}
 
       {/* 즐겨찾기 */}
       {favoriteRoutes.length > 0 && (

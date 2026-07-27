@@ -1,6 +1,20 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
+/**
+ * PC 사이드바의 서브탭(?tab= / ?nav=)을 주소에서 읽어 초기값으로 쓴다.
+ * 값이 없거나 허용 목록 밖이면 기본값으로 떨어진다(잘못된 링크로도 앱이 열리게).
+ */
+function readInitialSubTab(param, allowed, fallback) {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const v = new URLSearchParams(window.location.search).get(param)
+    return allowed.includes(v) ? v : fallback
+  } catch {
+    return fallback
+  }
+}
+
 const useAppStore = create(
   persist(
     (set) => ({
@@ -106,9 +120,11 @@ const useAppStore = create(
       // PCSidebar와 학식/더보기 PC 레이아웃이 서로 다른 컴포넌트 트리에 있어
       // (App.jsx의 형제) URL 없이 뷰를 동기화할 최소 침습 지점으로 store를 쓴다.
       // 학식은 diet/venues에 대응하는 안정 URL이 없어 store가 유일한 출처다.
-      pcCafeteriaTab: 'diet', // 'diet' | 'venues'
+      // 초기값은 주소의 ?tab= / ?nav= 를 우선한다. 사이드바가 서브탭을 주소에
+      // 남기므로, 그 주소로 새로 들어왔을 때 같은 화면이 열려야 한다.
+      pcCafeteriaTab: readInitialSubTab('tab', ['diet', 'venues'], 'diet'),
       setPcCafeteriaTab: (tab) => set({ pcCafeteriaTab: tab }),
-      pcMoreNav: 'academic', // 'academic' | 'notices' | 'settings' | 'app-info'
+      pcMoreNav: readInitialSubTab('nav', ['academic', 'notices', 'settings', 'app-info'], 'academic'),
       setPcMoreNav: (nav) => set({ pcMoreNav: nav }),
 
       // ── 지도 전체화면 토글 (시안2: 컴팩트 띠 ↔ 전체 지도) ──────────────

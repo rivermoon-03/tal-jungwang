@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import MapSearchOverlay from './MapSearchOverlay'
 import MapBottomCard from './MapBottomCard'
 import PCStationPicker from '../dashboard/PCStationPicker'
@@ -30,10 +30,11 @@ export default function PCMapDockPanel({
   primary = {},
   routes = [],
   onSelectRoute,
+  emptyState = null,
 }) {
   if (collapsed) {
     return (
-      <div className="relative z-20 flex h-full w-11 flex-none flex-col items-center border-r border-line bg-surface-2/90 pt-3 backdrop-blur-md dark:bg-surface/90">
+      <div className="relative z-20 flex h-full w-11 flex-none flex-col items-center gap-2 border-r border-line bg-surface-2/90 pt-3 backdrop-blur-md dark:bg-surface/90">
         <button
           type="button"
           onClick={onToggleCollapsed}
@@ -43,7 +44,17 @@ export default function PCMapDockPanel({
         >
           <ChevronRight size={16} aria-hidden="true" />
         </button>
-        <MapPin size={16} className="mt-3 text-mute" aria-hidden="true" />
+        {/* 접힌 상태에서도 검색으로 바로 들어갈 수 있어야 한다. 이전에는 패널을
+            접으면 검색창까지 사라져 지도를 넓게 보려면 검색을 포기해야 했다. */}
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label="노선·정류장 검색"
+          title="노선·정류장 검색"
+          className="pressable grid h-9 w-9 place-items-center rounded-btn text-ink-2 hover:bg-ink/[0.06]"
+        >
+          <Search size={16} aria-hidden="true" />
+        </button>
       </div>
     )
   }
@@ -51,7 +62,7 @@ export default function PCMapDockPanel({
   return (
     <div
       data-testid="pc-map-dock-panel"
-      className="relative z-20 flex h-full w-[340px] flex-none flex-col border-r border-line bg-surface-2/90 backdrop-blur-md dark:bg-surface/90"
+      className="relative z-20 flex h-full w-[340px] flex-none flex-col border-r border-line bg-surface-2/90 backdrop-blur-md dark:bg-surface/90 xl:w-[380px]"
     >
       <div className="flex items-center justify-between gap-2 px-3 pb-1 pt-3">
         <h2 className="text-caption font-extrabold tracking-[-0.02em] text-ink">지도</h2>
@@ -87,6 +98,7 @@ export default function PCMapDockPanel({
           primary={primary}
           routes={routes}
           onSelectRoute={onSelectRoute}
+          emptyState={emptyState}
           showGrip={false}
           className="shadow-card"
         />

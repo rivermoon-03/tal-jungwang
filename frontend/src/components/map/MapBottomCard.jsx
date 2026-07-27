@@ -7,6 +7,7 @@
  * 참고: pc-mockup.html의 .map-bottom / .bottom-card / .route-row 마크업을
  * 프로젝트 Tailwind + var(--tj-*) 토큰으로 옮긴 것.
  */
+import EmptyState from '../common/EmptyState'
 
 const STATUS_TONE_CLASS = {
   ease: 'bg-ease/15 text-ease',
@@ -28,6 +29,7 @@ export default function MapBottomCard({
   primary = {},
   routes = [],
   onSelectRoute,
+  emptyState = null,
   className = '',
   showGrip = true,
 }) {
@@ -79,14 +81,25 @@ export default function MapBottomCard({
         </p>
       )}
 
+      {routes.length === 0 && emptyState && (
+        <EmptyState
+          size="sm"
+          title={emptyState.title}
+          description={emptyState.description}
+          className="pt-1"
+        />
+      )}
+
       {routes.length > 0 && (
-        <div className="scrollbar-hide mt-3 flex gap-[10px] overflow-x-auto pb-[2px]">
+        // PC는 가로 캐러셀 대신 2열 그리드로 쌓는다. 마우스로 가로 스크롤을 하기
+        // 어렵고, 패널 폭이 고정이라 두 번째 카드가 잘려 보였다.
+        <div className="scrollbar-hide mt-3 flex gap-[10px] overflow-x-auto pb-[2px] md:grid md:grid-cols-2 md:overflow-visible">
           {routes.map((route) => (
             <button
               key={route.id}
               type="button"
               onClick={() => onSelectRoute?.(route.id)}
-              className="pressable flex-none w-[150px] rounded-card border border-line bg-surface-2 px-3 py-[11px] text-left"
+              className="pressable hoverable flex-none w-[150px] rounded-card border border-line bg-surface-2 px-3 py-[11px] text-left md:w-auto"
             >
               <span className="mb-[7px] flex items-center gap-2">
                 <span

@@ -249,6 +249,39 @@
   opacity: 0.92;
 }
 
+/* 마우스가 있는 환경에서만 hover 피드백을 준다. 터치 기기에서 hover가 눌린 상태로
+   남는 sticky hover를 피하려고 hover:hover + pointer:fine으로 가드한다. */
+@media (hover: hover) and (pointer: fine) {
+  .pressable:hover {
+    opacity: 0.88;
+  }
+  /* 리스트 행·카드처럼 배경으로 hover를 알리는 요소 */
+  .hoverable {
+    transition: background-color var(--dur-motion-press) var(--e-spring),
+      border-color var(--dur-motion-press) var(--e-spring);
+  }
+  .hoverable:hover {
+    background-color: rgb(0 0 0 / 0.04);
+  }
+  .dark .hoverable:hover {
+    background-color: rgb(255 255 255 / 0.06);
+  }
+}
+
+/* ── PC 콘텐츠 폭 ──────────────────────────────
+   모바일 컴포넌트를 그대로 늘리면 한 줄이 100자를 넘거나 카드 하나가 800px가
+   되어 읽기·클릭이 모두 나빠진다. 페이지 본문은 아래 두 유틸로 폭을 잡는다.
+   - tj-page-w: 카드/그리드형 본문 (제목과 같은 좌측 기준선을 공유)
+   - tj-prose-w: 긴 산문 본문 (한 줄 70자 안팎) */
+.tj-page-w {
+  width: 100%;
+  max-width: 1120px;
+}
+.tj-prose-w {
+  width: 100%;
+  max-width: 68ch;
+}
+
 /* ── 시간/숫자 모던 폰트 ────────────────────── */
 .time-num {
   font-family: 'SUIT Variable', SUIT, -apple-system, sans-serif;

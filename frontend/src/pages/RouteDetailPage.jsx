@@ -318,7 +318,9 @@ function DirectionTabs({ categories, active, onChange }) {
     <div
       role="tablist"
       aria-label="방향 선택"
-      className="flex gap-[5px] bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-card p-1 mb-[10px]"
+      // 등교/하교는 두 개짜리 선택지다. 폭을 열어두면 PC에서 버튼 하나가 600px가
+      // 되어 마우스 타깃으로 과하고, 두 선택지가 한눈에 대비되지도 않는다.
+      className="flex gap-[5px] bg-surface-2 dark:bg-bg border border-line dark:border-line rounded-card p-1 mb-[10px] md:max-w-[420px]"
     >
       {categories.map((cat) => {
         const isActive = cat === active
@@ -606,8 +608,11 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
         </button>
       </header>
 
-      {/* ── 바디 ── */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      {/* ── 바디 ──
+          PC에서 폭을 그대로 두면 등교/하교 버튼 하나가 800px가 되고, 실시간 카드는
+          "18분"과 "다음 차"가 1200px 떨어져 한 정보로 안 읽힌다. 최대 폭을 제한하고
+          제목과 같은 좌측 기준선에 맞춘다. */}
+      <div className="flex-1 overflow-hidden flex flex-col tj-page-w">
         {/* 막차 임박 배너 — 30분 이내일 때만 렌더(LastBusBanner 내부 판정) */}
         <LastBusBanner
           entries={todaySchedule}
@@ -763,9 +768,16 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                         histLoading={histLoading}
                         onHistory={() => setShowHistory(true)}
                       />
-                      <p className="mt-2 text-[11.5px] font-semibold text-mute dark:text-mute">
-                        오른쪽 <b className="text-accent-ink dark:text-accent">›</b> 를 누르면 과거 도착 기록·평소 배차를 볼 수 있어요
-                      </p>
+                      {/* 문구를 방향 지시("오른쪽 ›")로 쓰면 PC에서는 그 화살표가
+                          화면 반대편 끝에 있어 찾기 어렵다. 문구 자체를 버튼으로
+                          만들어 어디서든 같은 동작을 하게 한다. */}
+                      <button
+                        type="button"
+                        onClick={() => setShowHistory(true)}
+                        className="pressable mt-2 text-[11.5px] font-semibold text-mute underline underline-offset-2 dark:text-mute"
+                      >
+                        과거 도착 기록과 평소 배차 간격 보기
+                      </button>
                     </section>
                   )
                 )}

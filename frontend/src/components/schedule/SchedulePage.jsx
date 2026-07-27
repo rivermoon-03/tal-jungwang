@@ -23,7 +23,8 @@ import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute, getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
-import { BarChart3, CalendarClock } from 'lucide-react'
+import { BarChart3, CalendarClock, Star } from 'lucide-react'
+import EmptyState from '../common/EmptyState'
 import StatsSheet from './StatsSheet'
 import HolidayBanner from '../common/HolidayBanner'
 
@@ -31,14 +32,11 @@ import HolidayBanner from '../common/HolidayBanner'
 // 선택하지 않았을 때 우측 컬럼에 보이는 빈 상태.
 function ScheduleDetailEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
-      <CalendarClock size={32} className="text-mute dark:text-mute" aria-hidden="true" />
-      <p className="text-label font-semibold text-mute dark:text-mute">
-        왼쪽에서 노선을 선택하면
-        <br />
-        상세 시간표가 여기 표시돼요
-      </p>
-    </div>
+    <EmptyState
+      icon={CalendarClock}
+      title="노선을 선택해요"
+      description="왼쪽 목록에서 노선을 누르면 하루 전체 시간표와 혼잡도를 여기에서 볼 수 있어요."
+    />
   )
 }
 
@@ -522,9 +520,13 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, favCode
 
   const noSchedule = !loading && (error || !data || (data.directions ?? []).length === 0)
   if (noSchedule) {
-    const offLabel = direction >= 2
-      ? '일·공휴일 미운행 — 시간표 추후 업데이트 예정'
-      : '주말·공휴일 미운행 — 시간표 추후 업데이트 예정'
+    // 오늘이 실제 미운행 요일일 때만 "주말·공휴일" 문구를 쓴다. 평일에 데이터가
+    // 없는 경우(방학 등)에도 같은 문구가 나와서 월요일에 "주말 미운행"이 떴다.
+    const offLabel = !offDay
+      ? '오늘은 운행 정보가 없어요 — 방학 중이거나 시간표가 아직 등록되지 않았어요'
+      : direction >= 2
+        ? '일·공휴일 미운행 — 시간표 추후 업데이트 예정'
+        : '주말·공휴일 미운행 — 시간표 추후 업데이트 예정'
     return (
       <ScheduleSection
         title={titleText}
@@ -805,6 +807,18 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, favCode
   )
 }
 
+// 즐겨찾기 필터를 켰지만 해당 모드에 즐겨찾기가 없을 때의 안내.
+function FavoritesEmpty() {
+  return (
+    <EmptyState
+      size="sm"
+      icon={Star}
+      title="즐겨찾기한 노선이 없어요"
+      description="노선 카드의 별을 누르면 여기에 모여요."
+    />
+  )
+}
+
 // ─── main component ──────────────────────────────────────────────────────────
 export default function SchedulePage() {
   const isDesktop = useIsDesktop()
@@ -844,6 +858,13 @@ export default function SchedulePage() {
     }
   }, [query.type]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // /schedule 로 바로 들어오면 저장된 모드(storedMode)가 화면을 결정하는데, URL에는
+  // 그 사실이 안 남아 링크를 공유하면 상대가 다른 탭을 보게 된다. 마운트 시 현재
+  // 모드를 URL에 한 번 반영해 주소가 항상 화면 상태를 나타내게 한다.
+  useEffect(() => {
+    if (!isValidMode(query.type)) navigateSchedule({ type: mode })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!scheduleHint) return
     if (isValidMode(scheduleHint.mode)) {
@@ -864,6 +885,9 @@ export default function SchedulePage() {
     if (next === mode) return
     setMode(next)
     setStoredMode(next)
+    // PC 2단에서는 우측 상세가 이전 모드의 노선을 계속 보여주는 문제가 있었다
+    // (버스에서 지하철 상세를 연 뒤 셔틀 탭으로 가면 지하철 상세가 남음).
+    setSelectedDetail(null)
     navigateSchedule({ type: next })
   }
 
@@ -884,11 +908,21 @@ export default function SchedulePage() {
     : mode === 'subway' ? subwayGroup
     : mode === 'shuttle' ? shuttleCampus
     : null
-  const setActiveGroup =
+  const setGroupRaw =
     mode === 'bus' ? setBusGroup
     : mode === 'subway' ? setSubwayGroup
     : mode === 'shuttle' ? setShuttleCampus
     : () => {}
+  // 그룹(하교/등교, 정왕/초지 등)을 바꿔도 우측 상세는 이전 그룹의 노선을 그대로
+  // 들고 있어 좌우가 어긋났다. 모드 전환과 같은 이유로 선택을 비운다.
+  const setActiveGroup = (next) => {
+    setSelectedDetail(null)
+    setGroupRaw(next)
+  }
+  const handleFavoritesOnlyChange = (next) => {
+    setSelectedDetail(null)
+    setFavoritesOnly(next)
+  }
 
   const detailModalProps = {
     open: selectedDetail != null,
@@ -922,7 +956,7 @@ export default function SchedulePage() {
     mode,
     handleModeChange,
     favoritesOnly,
-    setFavoritesOnly,
+    setFavoritesOnly: handleFavoritesOnlyChange,
     groups,
     activeGroupId,
     setActiveGroup,
@@ -942,7 +976,10 @@ export default function SchedulePage() {
         // PC · 시간표 시안: 좌(노선 리스트+요일) / 우(선택한 노선의 그리드+통계).
         // 데이터 훅은 그대로 재사용 — 모바일의 리스트/모달 컴포넌트를 레이아웃만 갈아끼운다.
         <div className="flex-1 min-h-0 flex overflow-hidden">
-          <div className="w-[380px] flex-shrink-0 h-full flex flex-col overflow-hidden border-r border-line dark:border-line">
+          {/* 좌측 리스트 폭은 화면 크기에 따라 넓힌다. 380px 고정일 때는 노선명이
+              잘려("20-1 아…") 어디 가는 차인지 알 수 없는데도 우측은 1300px가
+              비어 있었다. */}
+          <div className="w-[380px] xl:w-[440px] 2xl:w-[500px] flex-shrink-0 h-full flex flex-col overflow-hidden border-r border-line dark:border-line">
             <ScheduleSectionView {...sectionViewProps} />
           </div>
           <div className="flex-1 min-w-0 h-full overflow-hidden bg-bg dark:bg-bg">
@@ -979,6 +1016,17 @@ function ScheduleSectionView({
   favCodes,
   onOpenStats,
 }) {
+  // 즐겨찾기 필터를 켰을 때 지하철/셔틀은 카드가 각자 null을 반환해 화면이 통째로
+  // 백지가 됐다(버스만 자체 빈 상태가 있었다). 해당 모드에 즐겨찾기가 하나라도
+  // 있는지 favCode 접두사로 먼저 판정해 안내를 띄운다.
+  const hasFavoriteInMode = !favoritesOnly || (
+    mode === 'subway'
+      ? favCodes.some((c) => c.startsWith(`subway:${subwayGroup}:`))
+      : mode === 'shuttle'
+        ? favCodes.some((c) => c.startsWith('shuttle:') && (shuttleCampus === 'second') === c.includes('2캠'))
+        : true
+  )
+
   return (
     <>
       {/* 모드 탭(홈 ModeTabs와 동일 ui/SegmentTabs) + 통계·즐겨찾기 유틸.
@@ -1069,23 +1117,33 @@ function ScheduleSectionView({
             />
           )}
           {mode === 'subway' && (
-            <SubwaySection
-              stationGroup={subwayGroup}
-              onCardClick={handleCardClick}
-              favoritesOnly={favoritesOnly}
-              favCodes={favCodes}
-              dataMode="timetable"
-            />
+            hasFavoriteInMode ? (
+              <SubwaySection
+                stationGroup={subwayGroup}
+                onCardClick={handleCardClick}
+                favoritesOnly={favoritesOnly}
+                favCodes={favCodes}
+                dataMode="timetable"
+              />
+            ) : (
+              <FavoritesEmpty />
+            )
           )}
-          {mode === 'shuttle' && (SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main).map((g) => (
-            <ShuttleSection
-              key={`${shuttleCampus}:${g.id}`}
-              direction={g.direction}
-              onCardClick={handleCardClick}
-              favoritesOnly={favoritesOnly}
-              favCodes={favCodes}
-            />
-          ))}
+          {mode === 'shuttle' && (
+            hasFavoriteInMode ? (
+              (SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main).map((g) => (
+                <ShuttleSection
+                  key={`${shuttleCampus}:${g.id}`}
+                  direction={g.direction}
+                  onCardClick={handleCardClick}
+                  favoritesOnly={favoritesOnly}
+                  favCodes={favCodes}
+                />
+              ))
+            ) : (
+              <FavoritesEmpty />
+            )
+          )}
         </div>
       </div>
     </>

@@ -17,6 +17,10 @@ export function getActivePcTabId(pathname) {
   if (pathname.startsWith('/schedule'))  return 'schedule'
   if (pathname.startsWith('/cafeteria')) return 'cafeteria'
   if (pathname.startsWith('/more'))      return 'more'
+  // 상세 페이지는 진입 경로를 따라간다. 매핑이 없으면 아래 기본값 'map'으로 떨어져
+  // 시간표에서 연 노선 상세인데 사이드바는 "지도"를 가리키는 상태가 됐다.
+  if (pathname.startsWith('/route/'))    return 'schedule'
+  if (pathname.startsWith('/privacy'))   return 'more'
   return 'map'
 }
 

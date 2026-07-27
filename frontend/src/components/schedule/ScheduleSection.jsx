@@ -53,7 +53,7 @@ export default function ScheduleSection({
       className={`pressable transition-all duration-150 ${
         disabled ? 'opacity-50' : ''
       } ${
-        onClick && !disabled ? 'cursor-pointer hover:border-line dark:hover:border-line' : ''
+        onClick && !disabled ? 'cursor-pointer hoverable' : ''
       }`}
       style={{
         padding: 12,

@@ -122,13 +122,15 @@ export default function MorePCLayout({ initialNav = 'academic' }) {
           섹션 전환이 가능하게 유지한다(기존 onOpenAppInfo 동작 보존). */}
       <div className="flex-1 min-w-0 overflow-y-auto">
         <div key={activeNav} className="tj-tab-fade h-full">
+          {/* 본문은 좌측 기준선을 페이지 제목과 맞춘다. mx-auto로 가운데 정렬하면
+              제목만 왼쪽에 남아 축이 어긋나 보였다. 최대 폭만 제한한다. */}
           {activeNav === 'academic' && (
             <div className="h-full px-8 py-6">
               <AcademicNoticesPCContent />
             </div>
           )}
           {activeNav === 'notices' && (
-            <div className="h-full px-8 py-6 max-w-[720px] mx-auto">
+            <div className="h-full px-8 py-6 max-w-[820px]">
               <NoticesPage embedded onBack={noop} />
             </div>
           )}
@@ -138,7 +140,7 @@ export default function MorePCLayout({ initialNav = 'academic' }) {
             </div>
           )}
           {activeNav === 'app-info' && (
-            <div className="h-full px-8 py-6 max-w-[720px] mx-auto">
+            <div className="h-full px-8 py-6 max-w-[560px]">
               <AppInfoPage embedded onBack={noop} />
             </div>
           )}
