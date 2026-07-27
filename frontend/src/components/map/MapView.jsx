@@ -11,7 +11,8 @@ import RestaurantOverlay from './RestaurantOverlay'
 import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
-import GpsSoftPrompt, { useGpsSoftPrompt } from './GpsSoftPrompt'
+import GpsSoftPrompt from './GpsSoftPrompt'
+import { useGpsSoftPrompt } from '../../hooks/useGpsSoftPrompt'
 import { useShuttleNext, useShuttleSchedule, DEFAULT_CENTER } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
@@ -433,7 +434,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   const [sheetStation, setSheetStation] = useState(null)
   const [sheetBusArrivals, setSheetBusArrivals] = useState(null)
   const [, setSheetBusLoading] = useState(false)
-  const [sheetDirection, setSheetDirection] = useState('outbound')
+  const [, setSheetDirection] = useState('outbound')
 
   useEffect(() => {
     if (!sheetStation) {
@@ -750,7 +751,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     }
 
     return []
-  }, [sheetStation, sheetDirection, sheetBusArrivals, busArrivalsSiheung, shuttleToSchoolSched, shuttleFromSchoolSched, shuttleToCampus2Sched, shuttleFromCampus2Sched, subwayNextData, seohaeTimetable])
+  }, [sheetStation, sheetBusArrivals, busArrivalsSiheung, shuttleToSchoolSched, shuttleFromSchoolSched, shuttleToCampus2Sched, shuttleFromCampus2Sched, subwayNextData, seohaeTimetable])
 
   // GPS 소프트 프롬프트 훅
   const { promptState, checkAndShow: checkGps, hide: hideGpsPrompt } = useGpsSoftPrompt()

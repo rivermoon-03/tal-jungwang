@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Sun } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
-import { SKY_ICON, SKY_TEXT } from '../stats/WeatherCard'
+import { SKY_ICON, SKY_TEXT } from '../stats/skyDisplay'
 import { pickGreeting } from '../../utils/heroGreeting'
 import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import Skeleton from '../common/Skeleton'

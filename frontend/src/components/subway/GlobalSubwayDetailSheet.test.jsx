@@ -35,7 +35,7 @@ Object.defineProperty(window, 'matchMedia', {
 // ──────────────────────────────────────────────────────────
 // freshness 헬퍼 단위 테스트 (named export, mock 없이 직접)
 // ──────────────────────────────────────────────────────────
-import { isRealtimeFresh } from './GlobalSubwayDetailSheet'
+import { isRealtimeFresh } from './realtimeFreshness'
 
 describe('isRealtimeFresh — 60초 이내 freshness 판정', () => {
   it('현재 시각 기준 30초 전 타임스탬프 → true', () => {

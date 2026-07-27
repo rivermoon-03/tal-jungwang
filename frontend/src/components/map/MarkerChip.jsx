@@ -10,7 +10,6 @@
  * 다크 대응: 배경 var(--tj-surface), 텍스트 var(--tj-ink), 임박 var(--tj-imminent).
  */
 
-import React from 'react'
 
 /** 노선 코드 → 헥스 색상 (tailwind.config.js의 route-* 색과 일치) */
 export const ROUTE_COLOR_MAP = {
@@ -106,118 +105,8 @@ function makeBlip(imminentEta) {
   return blip
 }
 
-/**
- * React 컴포넌트 버전 (미리보기/스토리용) — 시안1 알약형.
- */
-export default function MarkerChip({ routeCode, routeColor, stationName, liveMinutes, showLive = false, badgeText, subLabel }) {
-  const color = resolveColor(routeCode, routeColor)
-  const hasLive = showLive && liveMinutes != null
-  const imminentEta = hasLive && isImminent(liveMinutes)
-  const dotText = badgeText ?? (routeCode ?? '').slice(0, 2)
-
-  const liveText = hasLive
-    ? (liveMinutes <= 3 ? '곧 도착' : `${liveMinutes}분`)
-    : null
-
-  return (
-    <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* chip: 알약형 pill */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '7px',
-          background: 'var(--tj-surface)',
-          border: '1px solid var(--tj-line,#d7dad9)',
-          borderRadius: '999px',
-          padding: '5px 11px 5px 5px',
-          boxShadow: '0 3px 10px rgba(27,42,74,.12)',
-          cursor: 'pointer',
-          userSelect: 'none',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {/* dot 배지 */}
-        <span
-          data-role="dot"
-          style={{
-            width: '22px',
-            height: '22px',
-            borderRadius: '999px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: color,
-            color: '#fff',
-            fontSize: '12px',
-            fontWeight: 800,
-            flexShrink: 0,
-          }}
-        >
-          {dotText}
-        </span>
-
-        {/* 정류장명 */}
-        <span
-          data-role="name"
-          style={{ fontSize: '14px', fontWeight: 700, color: 'var(--tj-ink)', letterSpacing: '-0.01em' }}
-        >
-          {stationName}
-        </span>
-
-        {/* 실시간 or 서브레이블 */}
-        {hasLive ? (
-          <span
-            data-role="live"
-            style={{
-              fontSize: '14px',
-              fontWeight: 800,
-              color: imminentEta ? 'var(--tj-imminent)' : 'var(--tj-ink)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            <span
-              data-role="blip"
-              className="animate-dot-blink"
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '999px',
-                background: imminentEta ? 'var(--tj-imminent)' : 'var(--tj-accent,#12a594)',
-                flexShrink: 0,
-              }}
-            />
-            {liveText}
-          </span>
-        ) : (
-          <span
-            data-role="sub"
-            style={{ fontSize: '13px', color: 'var(--tj-mute,#868e8b)', fontVariantNumeric: 'tabular-nums' }}
-          >
-            {subLabel ?? '시간표'}
-          </span>
-        )}
-      </div>
-
-      {/* 꼬리 */}
-      <div
-        data-role="tail"
-        style={{
-          width: 0,
-          height: 0,
-          borderLeft: '6px solid transparent',
-          borderRight: '6px solid transparent',
-          borderTop: '7px solid var(--tj-surface)',
-          marginTop: '-1px',
-          filter: 'drop-shadow(0 2px 2px rgba(27,42,74,.14))',
-        }}
-      />
-    </div>
-  )
-}
+// React 컴포넌트 버전은 어디서도 쓰이지 않아 제거했다. 지도 마커는 아래
+// create*Element 계열이 만드는 DOM 노드를 kakao CustomOverlay에 넣어 그린다.
 
 // ─────────────────────────────────────────────────────────────
 // createMarkerChipElement — kakao CustomOverlay 용

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { BusFront, RefreshCw } from 'lucide-react'
 import { useBusStations, useBusArrivals } from '../../hooks/useBus'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
@@ -6,7 +6,7 @@ import ArrivalList from '../bus/ArrivalList'
 
 export default function BusCard({ setTimetableRoute }) {
   const { data: stationsData, loading: stationsLoading } = useBusStations()
-  const stations = stationsData ?? []
+  const stations = useMemo(() => stationsData ?? [], [stationsData])
   const [selectedId, setSelectedId] = useState(null)
   const { direction } = useEffectiveDirection()
   const selectedStation = stations.find((s) => s.station_id === selectedId)

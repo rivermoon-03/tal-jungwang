@@ -85,9 +85,13 @@ function contentSignature(s) {
 export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
   // overlaysRef: Map<id, { overlay, station, mode, sig }>
   const overlaysRef = useRef(new Map())
-  // onTap을 ref로 보관 → 콘텐츠 빌더는 항상 최신 onTap을 보되 effect 재실행을 유발하지 않음
+  // onTap을 ref로 보관 → 콘텐츠 빌더는 항상 최신 onTap을 보되 effect 재실행을 유발하지 않음.
+  // 갱신은 렌더 중이 아니라 커밋 이후(effect)에 한다. 렌더 중 ref를 쓰면 렌더가
+  // 버려지는 경우 실제로 반영되지 않은 값이 남을 수 있다.
   const onTapRef = useRef(onTap)
-  onTapRef.current = onTap
+  useEffect(() => {
+    onTapRef.current = onTap
+  }, [onTap])
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return

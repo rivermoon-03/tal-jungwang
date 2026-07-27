@@ -3,6 +3,8 @@ import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import { nextTimetableSeconds } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
+import { isRealtimeStale } from './realtimeFreshness'
+import { useNow } from '../../hooks/useNow'
 
 // arvlCd 0,1,3,4,5 → 임박 (빨간색)
 function isImminent(statusCode) {
@@ -19,26 +21,18 @@ function getStationCount(ordkey) {
 }
 
 /**
- * recptn_dt(실시간 API 생성 시각) 또는 last_successful_realtime_at 기준 age(초).
- * 3분(180s) 이상이면 stale로 간주한다.
- */
-export function isRealtimeStale(reference) {
-  if (!reference) return false
-  const ms = new Date(reference).getTime()
-  if (Number.isNaN(ms)) return false
-  return (Date.now() - ms) >= 180_000
-}
-
-/**
  * 시간표 모드 / 실시간 모드 양쪽에서 재사용하는 공통 stale 배지.
  * 공용 DataBadge(ui/DataBadge.jsx)의 stale 상태를 그대로 사용해
  * 다른 화면의 stale 표기와 시각 문법을 통일한다.
  */
 export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
+  // 렌더 중 Date.now()를 부르면 순수하지 않을 뿐 아니라, 리렌더가 없으면 지연
+  // 표시가 갱신되지 않는다. 공용 tick 훅으로 1분마다 다시 계산한다.
+  const now = useNow(60_000)
   if (!reference) return null
   const ms = new Date(reference).getTime()
   if (Number.isNaN(ms)) return null
-  const ageMin = Math.floor((Date.now() - ms) / 60000)
+  const ageMin = Math.floor((now - ms) / 60000)
   if (ageMin < 3) return null
   return <DataBadge state="stale" staleAgeText={`${prefix}데이터 ${ageMin}분 지연`} className={className} />
 }
@@ -164,6 +158,8 @@ function ArrivalTime({ item, timetableTrains }) {
 const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
   const imminent = isImminent(item.status_code)
   const [secondsAgo, setSecondsAgo] = useState(0)
+  // 데이터 지연 표시는 렌더 중 Date.now()를 부르는 대신 tick으로 계산한다.
+  const nowMs = useNow(60_000)
 
   useEffect(() => {
     if (!lastFetchedAt) return
@@ -236,7 +232,7 @@ const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, ti
           )}
           {recptnTime && (() => {
             const ageMin = item.recptn_dt
-              ? Math.floor((Date.now() - new Date(item.recptn_dt).getTime()) / 60000)
+              ? Math.floor((nowMs - new Date(item.recptn_dt).getTime()) / 60000)
               : 0
             return ageMin >= 3
               ? <span className="text-ease font-semibold">{recptnTime} 기준 · 데이터 {ageMin}분 지연</span>

@@ -87,13 +87,15 @@ export default function MarkerSheet({
     ? (favorites?.stations ?? []).includes(String(station.id))
     : false
 
-  // 새 정류장이 열릴 때마다 확장 상태 리셋 + 열림 보장
+  // 새 정류장이 열릴 때마다 확장 상태 리셋 + 열림 보장.
+  // station 객체는 매 렌더 새 참조일 수 있어 id 원시값만 본다.
+  const stationId = station?.id
   useEffect(() => {
-    if (station) {
+    if (stationId != null) {
       setOpen(true)
       setSnapIdx(0)
     }
-  }, [station?.id])
+  }, [stationId])
 
   if (!station) return null
 

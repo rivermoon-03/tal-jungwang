@@ -292,7 +292,7 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, favCo
   const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
   const setSubwayDetailSheet = useAppStore((s) => s.setSubwayDetailSheet)
   const didAutoSwitchRef = useRef(false)
-  const directions = SUBWAY_DIRECTIONS[stationGroup] ?? []
+  const directions = useMemo(() => SUBWAY_DIRECTIONS[stationGroup] ?? [], [stationGroup])
   // 1초 tick(분 단위 카운트다운 갱신용). 시간표 파생 계산은 분 단위로만 재계산한다.
   const nowMs = useNow(1000)
   const now = new Date(nowMs)

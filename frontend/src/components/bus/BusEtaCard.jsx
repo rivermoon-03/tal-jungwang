@@ -48,7 +48,7 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
       primary: tick(realtimeEta.primary),
       secondary: tick(realtimeEta.secondary),
     }
-  }, [hasRealtime, realtimeEta, now])
+  }, [hasRealtime, realtimeEta, now, fetchedAt])
 
   // ── 상태 1: 실시간 ────────────────────────────────────────────────
   if (hasRealtime) {

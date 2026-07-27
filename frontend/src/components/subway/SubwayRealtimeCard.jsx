@@ -4,6 +4,7 @@ import useFavorites from '../../hooks/useFavorites';
 import StatusChip from '../ui/StatusChip';
 import DataBadge from '../ui/DataBadge';
 import { formatEta } from '../../utils/eta';
+import { useNow } from '../../hooks/useNow'
 
 // 실시간 데이터가 N분 전 수신된 값임을 알리는 배지 + 탭/호버 시 안내 툴팁.
 // "지하철이 지연됐다"가 아니라 "데이터가 지연됐다"는 점을 명시한다.
@@ -242,9 +243,11 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
   const [secondsAgo, setSecondsAgo] = useState(0)
 
   // staleSource(예: upTrain.recptn_dt or last_successful_realtime_at) 기준 age(분)
+  const nowMs = useNow(60_000)
   const staleRef = staleSource || upTrain?.recptn_dt || downTrain?.recptn_dt
+  // 렌더 중 Date.now() 대신 tick 값을 쓴다(순수성 + 표시 자동 갱신).
   const ageMin = staleRef
-    ? Math.floor((Date.now() - new Date(staleRef).getTime()) / 60000)
+    ? Math.floor((nowMs - new Date(staleRef).getTime()) / 60000)
     : 0
   const isTimeStale = stale || ageMin >= 3
 

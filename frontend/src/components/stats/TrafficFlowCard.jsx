@@ -35,7 +35,7 @@ export default function TrafficFlowCard() {
     return () => clearInterval(id)
   }, [])
 
-  const points     = flow?.points ?? []
+  const points     = useMemo(() => flow?.points ?? [], [flow])
   const sampleDays = flow?.sample_days ?? 0
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
 

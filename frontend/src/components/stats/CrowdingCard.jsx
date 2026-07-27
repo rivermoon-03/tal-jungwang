@@ -29,7 +29,7 @@ export default function CrowdingCard() {
     return () => clearInterval(id)
   }, [])
 
-  const points    = data?.points ?? []
+  const points    = useMemo(() => data?.points ?? [], [data])
   const sampleDays = data?.sample_days ?? 0
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
   const accent     = ROUTE_ACCENTS[routeNo] ?? '#38bdf8'

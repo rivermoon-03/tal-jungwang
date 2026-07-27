@@ -136,9 +136,11 @@ describe('stats/ 핵심 텍스트 식별자 존재', () => {
     expect(src).toMatch(/노선별 혼잡도/)
   })
 
-  it('WeatherCard.jsx: 날씨 아이콘 컴포넌트 사용', () => {
-    const src = readFile('WeatherCard.jsx')
-    expect(src).toMatch(/Sun|CloudSun|CloudRain|CloudSnow/)
+  it('날씨 아이콘 매핑이 하늘 상태별로 정의되어 있다', () => {
+    // 아이콘 매핑은 skyDisplay.js로 분리했다(컴포넌트 파일과 함께 두면 fast
+    // refresh가 깨진다). WeatherCard는 그 매핑을 가져다 쓴다.
+    expect(readFile('skyDisplay.js')).toMatch(/Sun|CloudSun|CloudRain|CloudSnow/)
+    expect(readFile('WeatherCard.jsx')).toMatch(/SKY_ICON/)
   })
 
   it('TrafficFlowCard.jsx: 교통 흐름 텍스트 존재', () => {

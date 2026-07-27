@@ -8,6 +8,7 @@
  * 좁은 화면 가로 스크롤 전환). default export와 이 파일 자체는 vitest 스냅샷/회귀
  * 검증용으로 남겨둔다 — 삭제하지 말 것.
  */
+import { DIRECTION_LABELS, buildDisplayList } from './shuttleSchedule'
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
 import { Bell, BellRing } from 'lucide-react'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
@@ -15,47 +16,7 @@ import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
 import { scrollToCenter, scrollToCenterX } from '../../utils/scrollToCenter'
 import ShuttleNotifySheet from './ShuttleNotifySheet'
 
-// direction 코드(CLAUDE.md 도메인 용어) → 표시 라벨. ScheduleDetailModal의
-// ShuttleContent도 알림 시트 문구에 이 매핑을 재사용한다.
-export const DIRECTION_LABELS = { 0: '등교', 1: '하교', 2: '제2캠퍼스 등교', 3: '제2캠퍼스 하교' }
 
-function toMinutes(t) {
-  const [hh, mm] = t.split(':').map(Number)
-  return hh * 60 + mm
-}
-
-// note === '수시운행'인 연속 항목을 하나의 밴드로 묶어 display 목록을 생성.
-// ScheduleDetailModal의 ShuttleContent도 좁은 폰 스트립을 만들 때 이 함수를
-// 그대로 재사용한다(수시운행 밴드 묶기 로직 중복 방지).
-export function buildDisplayList(times) {
-  const result = []
-  let i = 0
-  while (i < times.length) {
-    if (times[i].note === '수시운행') {
-      let j = i
-      while (j < times.length && times[j].note === '수시운행') j++
-      result.push({
-        type: 'frequent',
-        key: `frequent-${times[i].depart_at}`,
-        startTime: times[i].depart_at,
-        endTime: times[j - 1].depart_at,
-        startMin: toMinutes(times[i].depart_at),
-        endMin: toMinutes(times[j - 1].depart_at),
-      })
-      i = j
-    } else {
-      result.push({
-        type: 'fixed',
-        key: times[i].depart_at,
-        time: times[i].depart_at,
-        minutes: toMinutes(times[i].depart_at),
-        note: times[i].note ?? null,
-      })
-      i++
-    }
-  }
-  return result
-}
 
 function nextLabel(diffMin, isReturn) {
   if (isReturn) return '회차편'

@@ -20,13 +20,18 @@ export default function GlobalSubwayLineSheet() {
   // PC 크로스페이드용 visible 상태(기존 로직 유지)
   const [pcVisible, setPcVisible] = useState(false)
 
+  // 스냅샷 갱신은 렌더 중 조정으로, 크로스페이드 토글만 effect에 남긴다.
+  const [seenItem, setSeenItem] = useState(null)
+  if (item && item !== seenItem) {
+    setSeenItem(item)
+    setPrevItem(item)
+  }
   useEffect(() => {
     if (item) {
-      setPrevItem(item)
-      requestAnimationFrame(() => setPcVisible(true))
-    } else {
-      setPcVisible(false)
+      const id = requestAnimationFrame(() => setPcVisible(true))
+      return () => cancelAnimationFrame(id)
     }
+    setPcVisible(false)
   }, [item])
 
   const displayed = item ?? prevItem

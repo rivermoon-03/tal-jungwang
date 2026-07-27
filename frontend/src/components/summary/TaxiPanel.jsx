@@ -30,22 +30,29 @@ function DestRow({ dest, origin }) {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  // origin 객체는 매 렌더 새 참조일 수 있어 좌표 원시값만 의존성으로 둔다.
+  // effect 본문도 같은 원시값을 쓰게 해서 의존성과 실제 사용을 일치시킨다.
+  const originLat = origin?.lat
+  const originLng = origin?.lng
+  const destLat = dest.lat
+  const destLng = dest.lng
+
   useEffect(() => {
-    if (!origin) return
+    if (originLat == null || originLng == null) return
     setLoading(true)
     setResult(null)
     apiFetch('/route/driving', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        origin:      { lat: origin.lat, lng: origin.lng },
-        destination: { lat: dest.lat,   lng: dest.lng   },
+        origin:      { lat: originLat, lng: originLng },
+        destination: { lat: destLat,   lng: destLng   },
       }),
     })
       .then((data) => setResult(data))
       .catch(() => setResult(null))
       .finally(() => setLoading(false))
-  }, [origin?.lat, origin?.lng, dest.lat, dest.lng])
+  }, [originLat, originLng, destLat, destLng])
 
   const isActive = driveRouteCoords === result?.coordinates && result?.coordinates?.length > 0
   const hasRoute = result?.coordinates?.length > 0

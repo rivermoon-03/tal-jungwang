@@ -1,23 +1,7 @@
 import { useMemo } from 'react'
-import { Sun, Cloud, CloudSun, CloudRain, CloudSnow } from 'lucide-react'
+import { SKY_ICON, SKY_TEXT } from './skyDisplay'
 import { useWeather } from '../../hooks/useWeather'
 import { useApi } from '../../hooks/useApi'
-
-export const SKY_ICON = {
-  sunny:         Sun,
-  partly_cloudy: CloudSun,
-  cloudy:        Cloud,
-  rainy:         CloudRain,
-  snowy:         CloudSnow,
-}
-
-export const SKY_TEXT = {
-  sunny:         '맑음',
-  partly_cloudy: '구름많음',
-  cloudy:        '흐림',
-  rainy:         '비',
-  snowy:         '눈',
-}
 
 function toDateStr(d) {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
@@ -175,9 +159,9 @@ export default function WeatherCard() {
   }, [forecastData, weather])
 
   const icon        = weather?.icon ?? 'sunny'
-  const Icon        = SKY_ICON[icon] ?? Sun
+  const Icon        = SKY_ICON[icon] ?? SKY_ICON.sunny
 
-  const TomorrowIcon = tomorrowSummary ? (SKY_ICON[tomorrowSummary.icon] ?? Sun) : null
+  const TomorrowIcon = tomorrowSummary ? (SKY_ICON[tomorrowSummary.icon] ?? SKY_ICON.sunny) : null
 
   return (
     <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">

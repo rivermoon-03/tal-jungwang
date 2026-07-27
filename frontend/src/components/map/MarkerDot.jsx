@@ -16,7 +16,6 @@
  * 아이콘/도트 배경은 노선색(tjLineColor 우선, 없으면 TYPE_COLOR_MAP fallback) 사용.
  */
 
-import React from 'react'
 import { tjLineColor } from '../common/lineColor'
 
 export const TYPE_COLOR_MAP = {
@@ -56,33 +55,7 @@ function resolveTypeIcon(type) {
   return TYPE_ICON_MAP[type] ?? BUS_ICON_SVG
 }
 
-/**
- * React 컴포넌트 버전.
- * @param {{ type: 'bus'|'bus_seoul'|'subway'|'seohae'|'shuttle', customColor?: string, routeCode?: string }} props
- */
-export default function MarkerDot({ type, customColor, routeCode }) {
-  const color = resolveTypeColor(type, customColor, routeCode)
-  const iconSvg = resolveTypeIcon(type)
-
-  return (
-    <div
-      style={{
-        width: `${DOT_SIZE}px`,
-        height: `${DOT_SIZE}px`,
-        borderRadius: '50%',
-        background: color,
-        border: '2px solid var(--tj-surface)',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.22)',
-        cursor: 'pointer',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      dangerouslySetInnerHTML={{ __html: iconSvg }}
-    />
-  )
-}
+// React 컴포넌트 버전은 어디서도 쓰이지 않아 제거했다.
 
 /**
  * kakao CustomOverlay setContent 용 순수 DOM 노드 반환.

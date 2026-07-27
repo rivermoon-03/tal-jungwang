@@ -26,7 +26,8 @@ import BusStatsHeader from '../bus/BusStatsHeader'
 import BusEtaCard from '../bus/BusEtaCard'
 import { scrollToCenter } from '../../utils/scrollToCenter'
 import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
-import { BellButton, NarrowPhoneStrip, buildDisplayList, DIRECTION_LABELS } from '../shuttle/ShuttleTimetable'
+import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
+import { buildDisplayList, DIRECTION_LABELS } from '../shuttle/shuttleSchedule'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 

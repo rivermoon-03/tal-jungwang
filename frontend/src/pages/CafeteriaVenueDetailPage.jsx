@@ -7,7 +7,7 @@
  *   - 다크모드 정상 지원
  *   - 터치 영역 >= 44px
  */
-import { useMemo } from 'react'
+import { createElement, useMemo } from 'react'
 import { ChevronLeft, Clock } from 'lucide-react'
 import { ALL_VENUES } from '../data/cafeteriaVenues'
 import {
@@ -338,7 +338,7 @@ export default function CafeteriaVenueDetailPage({ venueId }) {
             flexShrink: 0,
           }}
         >
-          <Icon size={18} strokeWidth={2} color={catColor} />
+          {createElement(Icon, { size: 18, strokeWidth: 2, color: catColor })}
         </div>
 
         {/* 이름 + 위치 */}

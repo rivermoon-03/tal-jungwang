@@ -114,36 +114,3 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
     </div>
   )
 }
-
-/**
- * useGpsSoftPrompt — FAB 클릭 핸들러에서 사용할 헬퍼 훅.
- * 권한 상태를 비동기로 확인하고 결과를 반환.
- *
- * @returns {{ promptState: 'idle'|'prompt'|'denied'|'granted', checkAndShow: () => void, hide: () => void }}
- */
-export function useGpsSoftPrompt() {
-  const [promptState, setPromptState] = useState('idle')
-
-  async function checkAndShow() {
-    if (!navigator.permissions?.query) {
-      setPromptState('prompt')
-      return
-    }
-    try {
-      const result = await navigator.permissions.query({ name: 'geolocation' })
-      if (result.state === 'granted') {
-        setPromptState('granted')
-      } else {
-        setPromptState(result.state)
-      }
-    } catch {
-      setPromptState('prompt')
-    }
-  }
-
-  function hide() {
-    setPromptState('idle')
-  }
-
-  return { promptState, checkAndShow, hide }
-}

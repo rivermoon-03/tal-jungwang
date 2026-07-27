@@ -5,6 +5,7 @@ import { useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from 
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 import { TimeGridView } from '../schedule/ScheduleDetailModal'
 import StatusChip from '../ui/StatusChip'
+import { isRealtimeFresh } from './realtimeFreshness'
 
 // DESIGN.md §4 모션 이징 — 시트류(GlobalSubwayLineSheet 등)와 동일 토큰 사용.
 const EASE = 'var(--e-out)'
@@ -22,14 +23,6 @@ function timeToMinutes(t) {
  * @param {boolean} stale  envelope의 stale 플래그
  * @returns {boolean}
  */
-export function isRealtimeFresh(lastSuccessfulRealtimeAt, stale) {
-  if (stale) return false
-  if (!lastSuccessfulRealtimeAt) return false
-  const ts = new Date(lastSuccessfulRealtimeAt).getTime()
-  if (Number.isNaN(ts)) return false
-  return Date.now() - ts < 60_000
-}
-
 // ordkey 또는 status_msg에서 남은 정거장 수 추출
 function getStationCount(train) {
   if (!train) return null
@@ -122,13 +115,18 @@ export default function GlobalSubwayDetailSheet() {
   // 그리드에서 "다음 차" 칸으로 최초 진입 시 자동 스크롤 (버스 그리드뷰와 동일 패턴)
   const gridNextRef = useRef(null)
 
+  // 스냅샷 갱신은 렌더 중 조정으로, 페이드 토글만 effect에 남긴다.
+  const [seenItem, setSeenItem] = useState(null)
+  if (item && item !== seenItem) {
+    setSeenItem(item)
+    setPrevItem(item)
+  }
   useEffect(() => {
     if (item) {
-      setPrevItem(item)
-      requestAnimationFrame(() => setVisible(true))
-    } else {
-      setVisible(false)
+      const id = requestAnimationFrame(() => setVisible(true))
+      return () => cancelAnimationFrame(id)
     }
+    setVisible(false)
   }, [item])
 
   const handleManualRefresh = async () => {

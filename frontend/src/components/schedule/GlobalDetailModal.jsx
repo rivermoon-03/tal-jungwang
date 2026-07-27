@@ -16,10 +16,14 @@ export default function GlobalDetailModal() {
   // detail이 null이 되기 직전 값을 스냅샷으로 들고 있는다(GlobalSubwayLineSheet와 동일 패턴).
   // 닫힘 애니메이션 동안 콘텐츠를 유지하려는 스냅샷이다. ref로 두면 렌더 중
   // 읽게 되어 동시성 렌더에서 값이 어긋날 수 있으므로 state로 보관한다.
+  // 렌더 중 조정 패턴(React 공식 "Adjusting state when a prop changes").
+  // effect로 미루면 렌더가 한 번 더 돌고, 그 사이 한 프레임 동안 빈 내용이 보인다.
   const [prevDetail, setPrevDetail] = useState(null)
-  useEffect(() => {
-    if (detail) setPrevDetail(detail)
-  }, [detail])
+  const [seenDetail, setSeenDetail] = useState(null)
+  if (detail && detail !== seenDetail) {
+    setSeenDetail(detail)
+    setPrevDetail(detail)
+  }
   const displayed = detail ?? prevDetail
 
   const favCode = displayed?.favCode ?? null

@@ -1,11 +1,4 @@
-/**
- * 빈 메뉴 여부 판정 — 빈 배열 또는 ["미운영"] 단독
- */
-export function isEmptyMenu(items) {
-  if (!items || items.length === 0) return true
-  if (items.length === 1 && items[0] === '미운영') return true
-  return false
-}
+import { isEmptyMenu } from './mealMenu'
 
 /**
  * 시안1: 카드 그리드 메뉴 섹션

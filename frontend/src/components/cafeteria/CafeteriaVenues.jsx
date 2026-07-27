@@ -13,7 +13,7 @@
  *   - 본문 글자 >= 15px (text-body)
  *   - 다크모드 정상 지원
  */
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
 import { Star } from 'lucide-react'
 import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
@@ -72,7 +72,7 @@ function CategoryIconChip({ category }) {
         justifyContent: 'center',
       }}
     >
-      <Icon size={18} strokeWidth={2} color={color} />
+      {createElement(Icon, { size: 18, strokeWidth: 2, color })}
     </div>
   )
 }
@@ -422,7 +422,7 @@ function CategoryGroupHeader({ category }) {
           padding: '3px 10px',
         }}
       >
-        <Icon size={14} strokeWidth={2.2} color={color} />
+        {createElement(Icon, { size: 14, strokeWidth: 2.2, color })}
         <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.02em', color }}>
           {category}
         </span>
