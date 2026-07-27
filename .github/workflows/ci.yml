@@ -16,6 +16,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# 러너 기본값은 UTC라 날짜와 시각을 다루는 테스트가 개발자 기기(KST)와 다른 결과를
+# 낸다. 정왕 지역 교통 정보를 다루는 서비스라 KST가 실제 동작 기준이므로 러너 시간대를
+# 서울로 고정한다.
+env:
+  TZ: Asia/Seoul
+
 jobs:
   frontend:
     name: 프런트엔드 (vitest + build)
@@ -65,6 +71,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 외부 API와 DB는 테스트에서 모킹하므로 서비스 컨테이너가 필요 없다.
+      # 외부 API와 DB는 테스트에서 모킹하므로 서비스 컨테이너는 필요 없다. 다만
+      # Settings(pydantic)가 기본값 없는 필드를 요구해 import 단계에서 실패하므로,
+      # 실제로 접속하지 않는 자리표시자를 넣어 설정 검증만 통과시킨다.
       - name: 테스트
+        env:
+          DB_HOST: localhost
+          DB_NAME: test
+          DB_USER: test
+          DB_PASSWORD: test
+          REDIS_HOST: localhost
+          ADMIN_USERNAME: test
+          ADMIN_PASSWORD_HASH: test
+          JWT_SECRET_KEY: test-only-not-a-real-secret
+          ALLOWED_ORIGINS: http://localhost:5173
         run: pytest -q
