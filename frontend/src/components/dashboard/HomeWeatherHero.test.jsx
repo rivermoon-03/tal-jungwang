@@ -40,7 +40,7 @@ vi.mock('../../utils/directionAutoChangeToast', () => ({
 
 // ── DirectionAutoToast 컴포넌트 모킹 — visible 상태에서만 렌더 ──
 vi.mock('../../components/common/DirectionAutoToast', () => ({
-  default: vi.fn(({ message, visible, previousDirection, onClose }) =>
+  default: vi.fn(({ message, visible, onClose }) =>
     visible ? (
       <div data-testid="direction-auto-toast">
         {message}
@@ -88,7 +88,7 @@ describe('HomeWeatherHero — greeting 스타일(기본)', () => {
   })
 
   it('[등교·자동] pill이 없고, 지도 버튼만 좌측에 있다', () => {
-    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
 
     expect(screen.queryByText(/등교.*자동/)).not.toBeInTheDocument()
     expect(screen.getByLabelText('지도 보기')).toBeInTheDocument()

@@ -62,7 +62,6 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
   const nowX = useMemo(() => {
     if (nowMinutes == null || visibleIndices.length === 0) return null
     const innerW = W - PAD_X * 2
-    const count = visibleIndices.length
     const loMin = Math.floor(visibleIndices[0] / 2) * 60 + (visibleIndices[0] % 2) * 30
     const lastIdx = visibleIndices[visibleIndices.length - 1]
     const hiMin = Math.floor(lastIdx / 2) * 60 + (lastIdx % 2) * 30

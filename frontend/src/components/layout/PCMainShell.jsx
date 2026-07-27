@@ -116,9 +116,9 @@ export default function PCMainShell({ children }) {
       )}
 
       <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+        {/* selectedId는 MapView가 쓰지 않는다(마커 선택 상태는 store에서 직접 읽는다). */}
         <MapView
           onMarkerClick={handleMarkerClick}
-          selectedId={selectedId}
           showControls={showFloating}
         />
 

@@ -1,7 +1,7 @@
 /**
  * BusPanel — 등교/하교 정류장 표기 + 빈 상태 카피 + 방향 필터 테스트
  */
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getOriginLabel } from '../dashboard/busStationConfig'
 import BusPanel from './BusPanel'

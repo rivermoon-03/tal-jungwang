@@ -117,7 +117,7 @@ export default function BusPanel() {
 }
 
 function SeoulRouteRow({ route, selectedBusStation, selectedBusDirection }) {
-  const { route_id, route_number, stops = [] } = route
+  const { route_id, route_number } = route
   const timetable = useBusTimetable(route_id)
 
   if (timetable.loading) return <SkeletonArrivalCard />

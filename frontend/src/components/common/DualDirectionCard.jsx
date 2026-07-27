@@ -227,7 +227,7 @@ function SlotHeader({ dir, align, extra = null }) {
 }
 
 /** 진행 바 width 계산: minutes 기준 최대 30분 */
-function progressWidth(minutes, isUrgent) {
+function progressWidth(minutes) {
   if (minutes == null) return 0
   // 30분 기준, 최소 5%
   const pct = Math.max(5, Math.min(100, Math.round((1 - minutes / 30) * 100)))

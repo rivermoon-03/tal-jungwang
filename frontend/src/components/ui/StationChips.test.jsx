@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { it, expect, vi } from 'vitest'
 import StationChips from './StationChips'
 
 it('칩 클릭 시 onChange(id)', () => {

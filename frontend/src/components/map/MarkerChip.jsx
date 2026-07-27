@@ -235,8 +235,6 @@ export function createMarkerChipElement({
   badgeText,
   extraPillText = null,
   subLabel = null,
-  iconType = null,
-  subLabelSep = '·',
 }) {
   const color = resolveColor(routeCode, routeColor)
   const hasLive = showLive && liveMinutes != null
@@ -526,7 +524,7 @@ export function createClusterBadgeElement({ count, colors = [], onClick }) {
 // pill · [dot "철" 서해선색 | name | live 상행N분]
 // ─────────────────────────────────────────────────────────────
 
-export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinutes, earliestBus, onClick }) {
+export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinutes, onClick }) {
   const SEOHAE = '#75bf43'
 
   const wrapper = document.createElement('div')

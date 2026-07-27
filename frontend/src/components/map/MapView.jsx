@@ -48,14 +48,13 @@ const MARKER_TICK = { tickMs: 60_000 }
  *   무관한 화면(시간표·학식·설정 등)에서도 FAB이 계속 떠 있고 시간표 그리드와
  *   겹쳤다. 지도가 실제로 보일 때만 켠다.
  */
-export default function MapView({ onMarkerClick, selectedId, mapExpanded = false, onClose, showControls = true }) {
+export default function MapView({ onMarkerClick, mapExpanded = false, onClose, showControls = true }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
   const [mapInstance, setMapInstance] = useState(null)
   const kakaoKey = import.meta.env.VITE_KAKAO_JS_APP_KEY
   const userLocation        = useAppStore((s) => s.userLocation)
-  const setDriveRouteCoords = useAppStore((s) => s.setDriveRouteCoords)
   const mapPanTarget        = useAppStore((s) => s.mapPanTarget)
   const setMapPanTarget     = useAppStore((s) => s.setMapPanTarget)
   const activeTab           = useAppStore((s) => s.activeTab)
@@ -433,7 +432,7 @@ export default function MapView({ onMarkerClick, selectedId, mapExpanded = false
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
   const [sheetBusArrivals, setSheetBusArrivals] = useState(null)
-  const [sheetBusLoading, setSheetBusLoading] = useState(false)
+  const [, setSheetBusLoading] = useState(false)
   const [sheetDirection, setSheetDirection] = useState('outbound')
 
   useEffect(() => {
@@ -780,10 +779,6 @@ export default function MapView({ onMarkerClick, selectedId, mapExpanded = false
     }
   }
 
-  function panTo(lat, lng) {
-    if (!mapRef.current) return
-    mapRef.current.panTo(new window.kakao.maps.LatLng(lat, lng))
-  }
 
   // 다른 탭 갔다 돌아올 때 hidden → visible 전환 후 relayout
   useEffect(() => {

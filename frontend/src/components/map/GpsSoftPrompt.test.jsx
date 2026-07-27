@@ -10,7 +10,7 @@ import GpsSoftPrompt from './GpsSoftPrompt'
 const mockGeolocation = {
   getCurrentPosition: vi.fn(),
 }
-Object.defineProperty(global.navigator, 'geolocation', {
+Object.defineProperty(globalThis.navigator, 'geolocation', {
   value: mockGeolocation,
   writable: true,
 })

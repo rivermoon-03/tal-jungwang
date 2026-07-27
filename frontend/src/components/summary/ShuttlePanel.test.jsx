@@ -266,7 +266,7 @@ describe('ShuttlePanel — AI티 제거 검증', () => {
 
   it('좌측 바(border-l, border-left) 클래스를 사용하지 않는다', () => {
     const { container } = render(<ShuttlePanel />)
-    expect(container.innerHTML).not.toMatch(/border-l[-\[\b]/)
+    expect(container.innerHTML).not.toMatch(/border-l[-[\b]/)
     expect(container.innerHTML).not.toMatch(/border-left/)
   })
 

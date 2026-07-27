@@ -136,7 +136,7 @@ function buildArrivalCopy(nextArrival, weather, now) {
   const pillIsRedundant =
     !pill ||
     pill === `${route} ${mins}분` ||
-    pill === big.replace(/[🏃☔🥶]/g, '').trim()
+    pill === big.replace(/[🏃☔🥶]/gu, '').trim()
   const sub =
     mins <= 3
       ? '지금 바로 출발하세요!'

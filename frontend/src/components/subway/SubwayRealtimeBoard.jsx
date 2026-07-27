@@ -1,6 +1,5 @@
 import { memo, useState, useEffect } from 'react'
 import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
-import useAppStore from '../../stores/useAppStore'
 import { nextTimetableSeconds } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
@@ -164,7 +163,6 @@ function ArrivalTime({ item, timetableTrains }) {
 
 const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, timetableLookup }) {
   const imminent = isImminent(item.status_code)
-  const darkMode = useAppStore((s) => s.darkMode)
   const [secondsAgo, setSecondsAgo] = useState(0)
 
   useEffect(() => {

@@ -42,7 +42,7 @@ describe('TaxiPanel — AI티 제거 검증', () => {
 
   it('좌측 바(border-l) 클래스를 사용하지 않는다', () => {
     const { container } = render(<TaxiPanel />)
-    expect(container.innerHTML).not.toMatch(/border-l[-\[]/);
+    expect(container.innerHTML).not.toMatch(/border-l[-[]/);
   })
 
   it('목적지 이름 4개를 모두 렌더한다', () => {

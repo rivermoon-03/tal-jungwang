@@ -157,7 +157,6 @@ describe('CafeteriaVenues — 정렬 스위치', () => {
   it('기본값은 "장소별"이며 건물 그룹 헤더가 보인다', () => {
     renderScheduleTab()
     // 건물 헤더(TIP, E동, 중앙도서관) 중 하나가 보여야 함
-    const buildingHeaders = screen.queryAllByTestId('group-header')
     // aria-label이나 data-testid가 없으면 텍스트로 확인
     expect(
       screen.queryAllByText(/^TIP$/).length > 0 ||

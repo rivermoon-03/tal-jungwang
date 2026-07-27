@@ -116,13 +116,15 @@ export default function GlobalSubwayDetailSheet() {
   const [refreshCooldown, setRefreshCooldown] = useState(0)
   // 평일/토/일 탭 (day_type key)
   const [dayType, setDayType] = useState('weekday')
-  const prevItem = useRef(null)
+  // 닫힘 애니메이션 동안 콘텐츠를 유지하려는 스냅샷이다. ref로 두면 렌더 중
+  // 읽게 되어 동시성 렌더에서 값이 어긋날 수 있으므로 state로 보관한다.
+  const [prevItem, setPrevItem] = useState(null)
   // 그리드에서 "다음 차" 칸으로 최초 진입 시 자동 스크롤 (버스 그리드뷰와 동일 패턴)
   const gridNextRef = useRef(null)
 
   useEffect(() => {
     if (item) {
-      prevItem.current = item
+      setPrevItem(item)
       requestAnimationFrame(() => setVisible(true))
     } else {
       setVisible(false)
@@ -141,7 +143,7 @@ export default function GlobalSubwayDetailSheet() {
     return () => clearInterval(id)
   }, [refreshCooldown])
 
-  const displayed = item ?? prevItem.current
+  const displayed = item ?? prevItem
 
   // ── 시간표 데이터 ──────────────────────────────────────────
   // timetableKey는 단일 키(방향 포함)이거나, dayType별 조합일 수 있음

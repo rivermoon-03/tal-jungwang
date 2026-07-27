@@ -9,6 +9,10 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// ESM에는 __dirname이 없다. 파일 기준 경로는 import.meta.url에서 얻는다.
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const SRC = fs.readFileSync(path.resolve(__dirname, 'PCDock.jsx'), 'utf8')
 

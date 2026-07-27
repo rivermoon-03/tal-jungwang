@@ -1,6 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import * as usePathnameModule from '../../hooks/usePathname'
 import FloatingDock from './FloatingDock'
 
 vi.mock('../../hooks/usePathname', () => ({
@@ -32,7 +31,7 @@ describe('FloatingDock', () => {
   })
 
   it('시간표 탭 롱프레스 타이머 500ms 설정', () => {
-    const setTimeoutSpy = vi.spyOn(global, 'setTimeout')
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     render(<FloatingDock />)
     const scheduleTab = screen.getByLabelText('시간표')
 
@@ -117,7 +116,7 @@ describe('FloatingDock', () => {
   })
 
   it('시간표 탭 touch-action: none 설정', () => {
-    const { container } = render(<FloatingDock />)
+    render(<FloatingDock />)
     const scheduleTab = screen.getByLabelText('시간표')
     const link = scheduleTab.closest('a')
 

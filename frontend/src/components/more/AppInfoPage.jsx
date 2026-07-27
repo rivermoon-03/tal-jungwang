@@ -4,6 +4,7 @@
  * Props:
  *   onBack  () => void
  */
+/* global __APP_VERSION__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
 import { ChevronLeft, Heart, School } from 'lucide-react'
 
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'

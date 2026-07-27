@@ -28,7 +28,7 @@ afterEach(() => {
 describe('useShuttleSchedule 기간 전환 자가회복 (지도 stale 회귀)', () => {
   it('오늘자 시간표는 포그라운드 복귀(visibilitychange) 시 재fetch해 최신 기간으로 갱신된다', async () => {
     let calls = 0
-    vi.spyOn(global, 'fetch').mockImplementation(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
       calls += 1
       // 첫 응답은 학기, 이후 재검증부터는 계절학기.
       return Promise.resolve(ok(calls <= 1 ? SEMESTER : SEASONAL))
@@ -50,8 +50,8 @@ describe('useShuttleSchedule 기간 전환 자가회복 (지도 stale 회귀)', 
 
   it('특정 날짜 고정 조회(dateStr)는 정적이라 폴링 타이머를 만들지 않는다', async () => {
     vi.useFakeTimers()
-    const setIntervalSpy = vi.spyOn(global, 'setInterval')
-    vi.spyOn(global, 'fetch').mockResolvedValue(ok(SEASONAL))
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok(SEASONAL))
 
     const { unmount } = renderHook(() => useShuttleSchedule(0, '2026-07-01'))
 

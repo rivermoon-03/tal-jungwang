@@ -55,7 +55,7 @@ function scheduleTypeLabel(type) {
 
 // ─── shared list row ────────────────────────────────────────────────────
 
-function TimeRow({ time, isNext, isLast, destination, note, accentColor, rowRef, bell }) {
+function TimeRow({ time, isNext, isLast, destination, note, rowRef, bell }) {
   const isHHMM = typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)
   const mins = isHHMM ? minutesUntil(time) : null
   return (
@@ -224,7 +224,6 @@ function BusContent({ routeCode, routeId = null, stopId = null, accentColor, vie
   const { data, loading, error } = routeId != null ? byId : byRoute
   const nextRef = useRef(null)
   const now = new Date()
-  const nowStr = toHHMM(now)
   const allTimes = data?.times ?? []
   // Date 기반 비교: 자정 이후 00:xx 시간대를 문자열 비교가 미래로 잘못 잡는 버그 방지
   // 12h 필터 없음 — 상세 모달은 당일 시간표 전체를 표시하므로 단순 미래 여부만 판단

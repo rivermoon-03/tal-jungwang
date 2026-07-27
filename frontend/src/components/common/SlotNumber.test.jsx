@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import SlotNumber from './SlotNumber'
 
@@ -44,7 +44,7 @@ describe('SlotNumber', () => {
   })
 
   it('값 변경 시 글로우 타이머 시작', () => {
-    const setTimeoutSpy = vi.spyOn(global, 'setTimeout')
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     const { rerender } = render(<SlotNumber value={5} />)
     setTimeoutSpy.mockClear()
 
@@ -73,7 +73,7 @@ describe('SlotNumber', () => {
   })
 
   it('타이머 클린업 필수', () => {
-    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout')
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
     const { unmount, rerender } = render(<SlotNumber value={5} />)
 
     rerender(<SlotNumber value={10} />)

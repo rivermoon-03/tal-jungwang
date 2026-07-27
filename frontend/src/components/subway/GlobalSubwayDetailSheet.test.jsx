@@ -14,8 +14,8 @@
  *   8. 실시간 영역은 fresh일 때만 렌더됨 (data-testid="realtime-section")
  *   9. stale / null이면 실시간 영역 숨김
  */
-import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
 
 // jsdom에 window.matchMedia 없어서 stub 필요
 Object.defineProperty(window, 'matchMedia', {

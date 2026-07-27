@@ -11,7 +11,7 @@
  *
  * 디자인 토큰 출처: frontend/tailwind.config.js
  */
-import { memo, useMemo, useRef, useEffect } from 'react'
+import { memo, useMemo, useState, useEffect } from 'react'
 import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
@@ -28,16 +28,18 @@ function formatEtaLocal(sec) {
 function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
   // 실시간일 때만 1초 tick. 다른 상태에서는 tick 등록 X.
   const hasRealtime = !!realtimeEta?.primary
-  const fetchedAtRef = useRef(Date.now())
+  // 기준 시각을 ref로 두면 렌더 중(useMemo 안)에서 읽게 되어 동시성 렌더에서
+  // 값이 어긋날 수 있다. state로 두고 초기값은 lazy initializer로 한 번만 만든다.
+  const [fetchedAt, setFetchedAt] = useState(() => Date.now())
   // realtimeEta 객체가 새로 들어올 때마다 기준 시각 갱신
   useEffect(() => {
-    fetchedAtRef.current = Date.now()
+    setFetchedAt(Date.now())
   }, [realtimeEta])
   const now = useNow(hasRealtime ? 1000 : 60_000)
 
   const tickedRealtime = useMemo(() => {
     if (!hasRealtime) return null
-    const elapsedSec = Math.max(0, Math.floor((now - fetchedAtRef.current) / 1000))
+    const elapsedSec = Math.max(0, Math.floor((now - fetchedAt) / 1000))
     const tick = (item) => {
       if (!item || item.arrive_in_seconds == null) return item
       return { ...item, arrive_in_seconds: item.arrive_in_seconds - elapsedSec }

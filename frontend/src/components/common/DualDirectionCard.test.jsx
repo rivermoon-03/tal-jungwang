@@ -255,7 +255,7 @@ describe('DualDirectionCard', () => {
         right={{ variant: 'empty' }}
       />
     )
-    expect(container.innerHTML).not.toMatch(/border-l[-\[]/);
+    expect(container.innerHTML).not.toMatch(/border-l[-[]/);
     expect(container.innerHTML).not.toMatch(/border-left/)
   })
 

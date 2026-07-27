@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import useAppStore from '../../stores/useAppStore'
 import StatusChip from '../ui/StatusChip'
 
 function timeToMinutes(t) {
@@ -7,9 +6,8 @@ function timeToMinutes(t) {
   return hh * 60 + mm
 }
 
-export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx, lineColor, lineDarkColor, lineLightColor }) {
+export default function SubwayTimetable({ entries, nextIndex, lastIdx, firstIdx }) {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
-  const darkMode = useAppStore((s) => s.darkMode)
 
   // entries 의 depart_at 을 분 단위로 미리 변환해 캐싱.
   // entries reference 가 안 바뀌면 재계산 안 함 (timeToMinutes 매 렌더 호출 회피).

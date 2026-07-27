@@ -59,7 +59,8 @@ export function useSnap() {
     consumedRef.current = false
     // 터치는 자동 캡처되지만 마우스는 핸들(24px) 밖으로 벗어나면 pointermove가 끊긴다.
     // 명시적으로 캡처해서 마우스 드래그도 끝까지 추적되게 한다.
-    try { e.currentTarget?.setPointerCapture?.(e.pointerId) } catch {}
+    // 포인터 캡처는 브라우저에 따라 실패할 수 있고, 실패해도 스냅 동작에는 영향이 없다
+    try { e.currentTarget?.setPointerCapture?.(e.pointerId) } catch { /* 무시 */ }
   }, [])
 
   const onPointerMove = useCallback((e) => {
@@ -82,7 +83,7 @@ export function useSnap() {
   const onPointerUp = useCallback((e) => {
     startYRef.current = null
     consumedRef.current = false
-    try { e?.currentTarget?.releasePointerCapture?.(e.pointerId) } catch {}
+    try { e?.currentTarget?.releasePointerCapture?.(e.pointerId) } catch { /* 무시 */ }
   }, [])
 
   const handlers = {

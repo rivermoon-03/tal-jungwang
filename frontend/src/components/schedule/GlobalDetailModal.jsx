@@ -1,7 +1,7 @@
 // 앱 어디서든 페이지 이동 없이 열 수 있는 ScheduleDetailModal.
 // useAppStore.detailModal에 detail 객체를 세팅하면 현재 페이지 위에 그대로 뜬다.
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import useAppStore from '../../stores/useAppStore'
 import ScheduleDetailModal from './ScheduleDetailModal'
 
@@ -14,11 +14,13 @@ export default function GlobalDetailModal() {
 
   // vaul(모바일 바텀시트)의 닫힘 애니메이션 동안에도 콘텐츠가 유지되도록
   // detail이 null이 되기 직전 값을 스냅샷으로 들고 있는다(GlobalSubwayLineSheet와 동일 패턴).
-  const prevDetail = useRef(null)
+  // 닫힘 애니메이션 동안 콘텐츠를 유지하려는 스냅샷이다. ref로 두면 렌더 중
+  // 읽게 되어 동시성 렌더에서 값이 어긋날 수 있으므로 state로 보관한다.
+  const [prevDetail, setPrevDetail] = useState(null)
   useEffect(() => {
-    if (detail) prevDetail.current = detail
+    if (detail) setPrevDetail(detail)
   }, [detail])
-  const displayed = detail ?? prevDetail.current
+  const displayed = detail ?? prevDetail
 
   const favCode = displayed?.favCode ?? null
   const isFav = favCode ? favorites.routes?.includes(favCode) ?? false : false

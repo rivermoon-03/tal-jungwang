@@ -3,7 +3,7 @@
  * 백엔드 형식: { week_start, year, fetched_at, cafeterias: [{ name, meals: [{ type, time, by_day }] }] }
  */
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // useCafeteriaMenu 훅 모킹
 vi.mock('../hooks/useCafeteria', () => ({
@@ -492,7 +492,7 @@ describe('CafeteriaPage', () => {
 
     it('메뉴 있는 날(23, 24일) 칩은 정상 표시되고 없는 날(25~27일)은 흐리게 표시된다', () => {
       useCafeteriaMenu.mockReturnValue({ data: PARTIAL_DATA, loading: false, error: null, refetch: vi.fn() })
-      const { container } = render(<CafeteriaPage />)
+      render(<CafeteriaPage />)
       // 기본 탭이 venues이므로 식단 탭으로 전환
       fireEvent.click(screen.getByRole('tab', { name: '식단' }))
       // 메뉴 있는 날: data-has-menu="true"

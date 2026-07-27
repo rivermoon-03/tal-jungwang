@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { X, TrainFront } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
@@ -13,21 +13,23 @@ const EASE = 'var(--e-out)'
 export default function GlobalSubwayLineSheet() {
   const item = useAppStore((s) => s.subwayLineSheet)
   const close = useAppStore((s) => s.closeSubwayLineSheet)
-  const prevItem = useRef(null)
+  // 닫힘 애니메이션 동안 콘텐츠를 유지하려는 스냅샷이다. ref로 두면 렌더 중
+  // 읽게 되어 동시성 렌더에서 값이 어긋날 수 있으므로 state로 보관한다.
+  const [prevItem, setPrevItem] = useState(null)
 
   // PC 크로스페이드용 visible 상태(기존 로직 유지)
   const [pcVisible, setPcVisible] = useState(false)
 
   useEffect(() => {
     if (item) {
-      prevItem.current = item
+      setPrevItem(item)
       requestAnimationFrame(() => setPcVisible(true))
     } else {
       setPcVisible(false)
     }
   }, [item])
 
-  const displayed = item ?? prevItem.current
+  const displayed = item ?? prevItem
   const open = !!item
 
   if (!displayed && !open) return null

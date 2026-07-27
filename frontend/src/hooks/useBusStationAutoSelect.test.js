@@ -7,7 +7,7 @@
  * 3. GPS coords 없을 때 첫 번째 허용 정류장으로 폴백
  * 4. 미선택(null) 상태가 없음 — 항상 유효한 정류장이 선택됨
  */
-import { renderHook, act } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── store mock ─────────────────────────────────────────────────────────────

@@ -21,7 +21,6 @@ import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
 import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
-import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getGbisStationIdForRoute, getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
 import EmptyState from '../common/EmptyState'
@@ -149,14 +148,8 @@ function timeStrToMinutes(timeStr, now) {
   return diff
 }
 
-function withHaeng(label) {
-  if (!label) return label
-  if (/방면/.test(label)) return label.replace(/\s*방면/g, '행')
-  return label.endsWith('행') ? label : `${label}행`
-}
-
 // ─── per-route bus section ───────────────────────────────────────────────────
-function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, originLabel, mapLat, mapLng, isRealtime, onCardClick, onHasDataChange }) {
+function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, mapLat, mapLng, isRealtime, onCardClick, onHasDataChange }) {
   const now = new Date()
 
   const stationId = isRealtime ? getGbisStationIdForRoute(routeCode, busGroup) : null
@@ -201,7 +194,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
 
   // onClick adapter: BusArrivalCard의 onTimetableClick(route_id, route_no, label) →
   // 기존 onCardClick({ type:'bus', ... }) 형태로 변환
-  const handleCardClick = (rid, rno, _lbl) => {
+  const handleCardClick = (rid, rno) => {
     onCardClick({
       type: 'bus',
       routeCode: rno ?? routeCode,

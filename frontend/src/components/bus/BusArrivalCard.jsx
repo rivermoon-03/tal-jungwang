@@ -8,7 +8,6 @@ import {
 } from '../dashboard/busStationConfig'
 import useFavorites from '../../hooks/useFavorites'
 import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
-import { formatEta } from '../../utils/eta'
 import RouteBadge from '../ui/RouteBadge'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
@@ -146,7 +145,7 @@ function computeDisplay(arrivals) {
 // 카드
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BusArrivalCard({ arrivals, stationId, onTimetableClick, selectedStation = null, index = null }) {
+function BusArrivalCard({ arrivals, onTimetableClick, selectedStation = null, index = null }) {
   const first = arrivals[0]
   const isTimetable = first.arrival_type === 'timetable'
   const cfg = getRouteDisplayConfig(first.route_no)

@@ -24,12 +24,12 @@ afterEach(() => {
 
 describe('apiFetch', () => {
   it('throws on non-ok with status', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 503 })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 503 })
     await expect(apiFetch('/x')).rejects.toMatchObject({ status: 503 })
   })
 
   it('throws on success:false with code', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ success: false, error: { message: 'nope', code: 'E' } }),
     })
@@ -39,7 +39,7 @@ describe('apiFetch', () => {
 
 describe('useApi public API contract', () => {
   it('exposes { data, loading, error, fetchedAt, refetch }', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(ok({ v: 1 }))
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ v: 1 }))
     const { result } = renderHook(() => useApi('/contract'))
     expect(result.current).toHaveProperty('loading')
     expect(typeof result.current.refetch).toBe('function')
@@ -50,7 +50,7 @@ describe('useApi public API contract', () => {
   })
 
   it('enabled=false does not fetch', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(ok({ v: 1 }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ v: 1 }))
     const { result } = renderHook(() => useApi('/disabled', { enabled: false }))
     await Promise.resolve()
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -62,7 +62,7 @@ describe('useApi public API contract', () => {
 describe('in-flight dedup', () => {
   it('coalesces concurrent same-path mounts into 1 network call', async () => {
     let resolve
-    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => new Promise((r) => { resolve = r }),
     )
     const a = renderHook(() => useApi('/same'))
@@ -79,7 +79,7 @@ describe('in-flight dedup', () => {
 
 describe('ttl cache hit', () => {
   it('second mount within ttl reuses cache, no extra fetch', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(ok({ v: 5 }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ v: 5 }))
     const first = renderHook(() => useApi('/ttl', { ttl: 10000 }))
     await waitFor(() => expect(first.result.current.data).toEqual({ v: 5 }))
     expect(fetchSpy).toHaveBeenCalledTimes(1)
@@ -94,7 +94,7 @@ describe('ttl cache hit', () => {
 
 describe('path change resets to loading/null', () => {
   it('clears data and sets loading when path changes (시흥1 폴백 회귀)', async () => {
-    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
       if (String(url).includes('/p1')) return Promise.resolve(ok({ p: 1 }))
       // p2는 영원히 pending → 전환 직후 loading=true, data=null 검증
       return new Promise(() => {})
@@ -113,8 +113,8 @@ describe('path change resets to loading/null', () => {
 describe('path-level single scheduler (#5)', () => {
   it('uses one timer for N subscribers of same (path, interval) and broadcasts', async () => {
     vi.useFakeTimers()
-    const setIntervalSpy = vi.spyOn(global, 'setInterval')
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(ok({ t: 1 }))
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ t: 1 }))
 
     const a = renderHook(() => useApi('/poll', { interval: 1000 }))
     const b = renderHook(() => useApi('/poll', { interval: 1000 }))
@@ -140,8 +140,8 @@ describe('path-level single scheduler (#5)', () => {
 
   it('tears down timer when last subscriber unmounts', async () => {
     vi.useFakeTimers()
-    const clearIntervalSpy = vi.spyOn(global, 'clearInterval')
-    vi.spyOn(global, 'fetch').mockResolvedValue(ok({ t: 1 }))
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ t: 1 }))
 
     const a = renderHook(() => useApi('/teardown', { interval: 1000 }))
     const b = renderHook(() => useApi('/teardown', { interval: 1000 }))
@@ -156,8 +156,8 @@ describe('path-level single scheduler (#5)', () => {
 
   it('enabled=false instance does not subscribe to scheduler', async () => {
     vi.useFakeTimers()
-    const setIntervalSpy = vi.spyOn(global, 'setInterval')
-    vi.spyOn(global, 'fetch').mockResolvedValue(ok({ t: 1 }))
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ t: 1 }))
 
     renderHook(() => useApi('/off', { interval: 1000, enabled: false }))
     const pollTimers = setIntervalSpy.mock.calls.filter((c) => c[1] === 1000)
@@ -169,7 +169,7 @@ describe('LRU cache eviction (#6)', () => {
   it('evicts oldest entries beyond CACHE_MAX so cache hits expire', async () => {
     vi.useRealTimers()
     // 동기적으로 resolve되는 fetch — apiFetch 한 번이면 cache.set이 채워진다.
-    vi.spyOn(global, 'fetch').mockImplementation((url) =>
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) =>
       Promise.resolve(ok({ url: String(url) })),
     )
     const ttl = 60_000

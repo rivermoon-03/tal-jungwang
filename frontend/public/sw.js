@@ -126,7 +126,7 @@ self.addEventListener('fetch', (e) => {
 // 백엔드가 Web Push로 { title, body, url } 페이로드를 보낸다. 로그인이 없는
 // 앱이라 알림에 사용자 식별 정보는 담기지 않는다.
 self.addEventListener('push', (e) => {
-  let data = {}
+  let data
   try {
     data = e.data ? e.data.json() : {}
   } catch {

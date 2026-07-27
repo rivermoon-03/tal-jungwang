@@ -1,3 +1,4 @@
+/* global process -- vite 설정은 Node 환경에서 실행된다 */
 import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'

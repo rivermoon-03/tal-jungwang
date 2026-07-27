@@ -38,8 +38,6 @@ export default function PWAInstallBanner() {
   // 이미 설치되었거나, 7일 내 dismiss했거나, 데스크톱인 경우 렌더링 불필요
   if (isInstalled || isDismissed || isDesktop) return null;
 
-  // iOS: 배너를 클릭하면 안내 모달 표시
-  const handleIOSBannerClick = () => setShowIOSModal(true);
   const handleIOSModalClose = () => setShowIOSModal(false);
 
   // Chrome/Android: native prompt

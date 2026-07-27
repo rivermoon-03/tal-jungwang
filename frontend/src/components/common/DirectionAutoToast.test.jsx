@@ -100,7 +100,7 @@ describe('DirectionAutoToast', () => {
 
   it('"되돌리기" 클릭 후 퇴장 모션(160ms) 동안 opacity가 0으로 변경되고 onClose를 호출한다', () => {
     const onClose = vi.fn()
-    const { container, rerender } = render(
+    const { container } = render(
       <DirectionAutoToast
         message="오후라서 하교로 전환했어요"
         previousDirection="등교"
