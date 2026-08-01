@@ -24,6 +24,7 @@ env.txt
 .playwright-mcp/
 .superpowers/
 .superdesign/tmp/
+.worktrees/
 CLAUDE.md
 docs/
 docs_log/
