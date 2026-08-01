@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Sun, Map, Navigation, Utensils, Wind, Search } from 'lucide-react'
+import { Sun, Map, Navigation, Utensils, Wind, Search, ChevronDown } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useAppStore from '../../stores/useAppStore'
@@ -88,17 +88,24 @@ function goToCafeteria() {
 }
 
 /**
- * HomeWeatherHero — 모바일 홈 상단 A. 날씨 상태 + 시간대(낮/저녁/밤)에 따라
- * 배경/이펙트가 변한다(맑음=낮 햇살 광선·밤 별/달/유성 · 흐림=드리프트 구름 ·
- * 비=3겹 원근 빗줄기+스플래시(+밤엔 번개) · 눈=원근 눈송이,
- * 맑음·흐림은 저녁엔 노을/보랏빛, 밤엔 남색/청회색으로 톤이 어두워진다).
- * useAppStore.heroStyle에 따라 메인 블록이 두 가지로 갈린다:
+ * HomeWeatherHero — 모바일 홈 상단 A. 결함 #31 리디자인: 기본은 "한 줄 스트립"만
+ * 차지한다("32° 맑음 · 바람 2.6m/s" + 펼치기 토글) — 예전처럼 뷰포트의 45%를
+ * 영구 점유해 하단 Dashboard가 내부 스크롤에 갇히던 문제를 없앤다. 스트립을
+ * 탭하면 아코디언으로 펼쳐져 기존 인사말/예보 상세(이펙트·greeting·classic
+ * 레이아웃)가 그대로 나타난다 — 아래 로직은 펼침 여부와 무관하게 기존 그대로다.
+ *
+ * 펼친 패널 내부 날씨 상태 + 시간대(낮/저녁/밤)에 따라 배경/이펙트가 변한다
+ * (맑음=낮 햇살 광선·밤 별/달/유성 · 흐림=드리프트 구름 · 비=3겹 원근
+ * 빗줄기+스플래시(+밤엔 번개) · 눈=원근 눈송이, 맑음·흐림은 저녁엔 노을/보랏빛,
+ * 밤엔 남색/청회색으로 톤이 어두워진다).
+ * useAppStore.heroStyle에 따라 펼친 메인 블록이 두 가지로 갈린다:
  *  - 'classic': 큰 온도(60px) 중심 레이아웃(기존).
  *  - 'greeting'(기본): 온도 위에 pickGreeting()이 고른 감성 글귀를 얹고,
  *    온도는 34px로 축소. 필름 그레인 + 호흡 글로우 배경 레이어가 함께 붙는다.
- * 등하교 방향 pill과 지도 전환 버튼을 함께 노출해 하단 B(Dashboard)로 이어지는
- * 진입점 역할을 한다. 우상단 아이콘 토글로 같은 자리에서 "지금 영업 중인
- * 매점/식당" 미니 뷰로 전환할 수 있다(세션 동안만 유지되는 로컬 state).
+ * 지도 전환 버튼·날씨/식당 토글·검색 진입은 모두 스트립 행
+ * 우측에 항상 노출한다(검색은 결함 명세상 필수, 날씨/식당 토글도 함께 유지해
+ * 기존 진입점을 잃지 않게 한다). 날씨/식당 토글을 누르면 결과를 보여주기 위해
+ * 패널도 함께 펼쳐진다.
  */
 export default function HomeWeatherHero({ onOpenMap }) {
   const { weather } = useWeather()
@@ -106,6 +113,13 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const heroStyle = useAppStore((s) => s.heroStyle) // 'greeting'(기본) | 'classic'
   const setSearchOpen = useAppStore((s) => s.setSearchOpen)
   const [view, setView] = useState('weather') // 'weather' | 'cafeteria' — persist 불필요, 새로고침 시 날씨로 리셋
+  // 아코디언 펼침 여부 — 기본 접힘(스트립만 노출). persist 불필요(세션 로컬, 새로고침 시 리셋).
+  const [expanded, setExpanded] = useState(false)
+  // 날씨/식당 토글 클릭 시: 뷰 전환 + 결과를 보여주기 위해 패널을 함께 펼친다.
+  function selectView(next) {
+    setView(next)
+    setExpanded(true)
+  }
 
   // 자동 방향 전환 감지 — 이전 direction을 추적하고, 자동 전환 시(isOverride=false) 토스트 표시
   const prevDirectionRef = useRef(direction)
@@ -178,7 +192,8 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const quoteWrapRef = useRef(null) // 바깥 클릭 판정 대상
   const tooltipId = useId()
 
-  const tooltipContent = greeting.source ? `— ${greeting.source}` : (greeting.sub || null)
+  // UI 렌더 텍스트에 em-dash 금지 정책 — 출처 접두는 "·"로.
+  const tooltipContent = greeting.source ? `· ${greeting.source}` : (greeting.sub || null)
   const hasTooltip = Boolean(tooltipContent)
 
   // 열기는 이벤트 핸들러에서 즉시 동기 처리(effect의 setState 남용을 피한다).
@@ -310,6 +325,81 @@ export default function HomeWeatherHero({ onOpenMap }) {
           onClose={() => setToastVisible(false)}
         />
       )}
+
+      {/* 한 줄 스트립 — 결함 #31: 항상 이 높이만 차지. 왼쪽은 펼치기 토글,
+          오른쪽은 날씨/식당/검색 아이콘(항상 노출 — 검색은 명세상 필수 유지). */}
+      <div className="whero-strip">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-label={expanded ? '날씨 요약 접기' : '날씨 요약 펼치기'}
+          className="flex-1 min-w-0 flex items-center gap-1.5 text-left active:scale-[0.99] transition-transform duration-press"
+        >
+          <span className={`text-caption font-bold whitespace-nowrap truncate ${tempColor}`}>
+            {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'} {SKY_TEXT[icon] ?? ''}
+          </span>
+          {wind && (
+            <span className={`text-caption font-medium whitespace-nowrap truncate ${metaColor}`}>
+              · 바람 {wind.value}
+            </span>
+          )}
+          <ChevronDown
+            size={15}
+            aria-hidden="true"
+            className={`shrink-0 transition-transform duration-base ${expanded ? 'rotate-180' : ''} ${lightText ? 'text-white/80' : 'text-ink-2 dark:text-mute'}`}
+          />
+        </button>
+
+        {/* 지도 진입 — 접힘 상태에서도 항상 노출(핵심 액션을 아코디언 뒤에 숨기지 않는다). */}
+        <button
+          type="button"
+          onClick={onOpenMap}
+          aria-label="지도 보기"
+          className={`shrink-0 inline-flex items-center gap-1 rounded-card px-2.5 h-8 text-[12px] font-bold shadow-pill active:scale-[0.94] transition-transform duration-press ease-spring ${chipCls}`}
+        >
+          <Map size={14} aria-hidden="true" />
+          지도
+        </button>
+
+        <div
+          className={`shrink-0 inline-flex items-center gap-0.5 rounded-card p-0.5 shadow-pill ${chipCls}`}
+          role="group"
+          aria-label="히어로 옵션"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <button
+            type="button"
+            onClick={() => selectView('weather')}
+            aria-label="날씨 보기"
+            aria-pressed={view === 'weather'}
+            className={`flex items-center justify-center w-7 h-7 rounded-badge transition-colors active:scale-[0.92] ${view === 'weather' ? toggleActiveCls : toggleIdleCls}`}
+          >
+            <Sun size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => selectView('cafeteria')}
+            aria-label="식당 보기"
+            aria-pressed={view === 'cafeteria'}
+            className={`flex items-center justify-center w-7 h-7 rounded-badge transition-colors active:scale-[0.92] ${view === 'cafeteria' ? toggleActiveCls : toggleIdleCls}`}
+          >
+            <Utensils size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchOpen?.(true)}
+            aria-label="검색"
+            className={`flex items-center justify-center w-7 h-7 rounded-badge transition-colors active:scale-[0.92] ${toggleIdleCls}`}
+          >
+            <Search size={14} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      {/* 아코디언 패널 — 펼쳤을 때만 마운트. 기존 인사말/예보 상세 + 날씨 이펙트가 여기 담긴다. */}
+      {expanded && (
+      <div className="whero-panel">
       {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다. */}
       {mood === 'sunny' && timeOfDay !== 'night' && <div className="whero-glow" aria-hidden="true" />}
       {mood === 'sunny' && timeOfDay === 'day' && <div className="whero-rays" aria-hidden="true" />}
@@ -419,59 +509,10 @@ export default function HomeWeatherHero({ onOpenMap }) {
       {/* 하단 seam — mood 색을 대시보드 배경으로 얇게 블렌드 */}
       <div className="whero-seam" aria-hidden="true" />
 
-      {/* 우상단 아이콘 클러스터 — 날씨↔식당 토글 + 검색 버튼.
-          다른 pill과 같은 chip 시각언어(라운드 카드 + 그림자). */}
-      <div
-        className={`absolute top-2.5 right-2.5 z-20 inline-flex items-center gap-0.5 rounded-card p-0.5 shadow-pill ${chipCls}`}
-        role="group"
-        aria-label="히어로 옵션"
-        style={{ touchAction: 'manipulation' }}
-      >
-        <button
-          type="button"
-          onClick={() => setView('weather')}
-          aria-label="날씨 보기"
-          aria-pressed={view === 'weather'}
-          className={`flex items-center justify-center w-7 h-7 rounded-[9px] transition-colors active:scale-[0.92] ${view === 'weather' ? toggleActiveCls : toggleIdleCls}`}
-        >
-          <Sun size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setView('cafeteria')}
-          aria-label="식당 보기"
-          aria-pressed={view === 'cafeteria'}
-          className={`flex items-center justify-center w-7 h-7 rounded-[9px] transition-colors active:scale-[0.92] ${view === 'cafeteria' ? toggleActiveCls : toggleIdleCls}`}
-        >
-          <Utensils size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setSearchOpen?.(true)}
-          aria-label="검색"
-          className={`flex items-center justify-center w-7 h-7 rounded-[9px] transition-colors active:scale-[0.92] ${toggleIdleCls}`}
-        >
-          <Search size={14} aria-hidden="true" />
-        </button>
-      </div>
-
       {view === 'weather' ? (
         <>
-          {/* 상단 바 — 좌측 세로 스택: [지도] 버튼. 방향 필은 하단 대시보드에서 관리.
-              우측 토글(날씨↔식당, 검색)은 absolute(위). */}
-          <div className="relative z-10 flex flex-col items-start gap-2 px-4 pt-3">
-            <button
-              type="button"
-              onClick={onOpenMap}
-              aria-label="지도 보기"
-              className={`inline-flex items-center gap-1.5 rounded-card px-3 py-1.5 text-caption font-bold shadow-pill min-h-[34px] active:scale-[0.94] transition-transform duration-press ease-spring ${chipCls}`}
-            >
-              <Map size={14} aria-hidden="true" />
-              지도
-            </button>
-          </div>
-
-          {/* 메인 블록 — 45% 높이를 활용해 하단 정렬. heroStyle에 따라 두 레이아웃으로 갈린다.
+          {/* 지도 버튼은 스트립 행으로 이동(항상 노출) — 패널 상단 바는 제거. */}
+          {/* 메인 블록 — heroStyle에 따라 두 레이아웃으로 갈린다.
               pb를 키워 콘텐츠가 하단 seam(34px, 배경 블렌드)에 얹히지 않게 한다. */}
           {heroStyle === 'classic' ? (
             <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-7 pt-2">
@@ -622,6 +663,8 @@ export default function HomeWeatherHero({ onOpenMap }) {
             더보기
           </button>
         </div>
+      )}
+      </div>
       )}
     </div>
   )

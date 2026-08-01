@@ -16,11 +16,13 @@ import { useGpsSoftPrompt } from '../../hooks/useGpsSoftPrompt'
 import { useShuttleNext, useShuttleSchedule, DEFAULT_CENTER } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useBusArrivals, useBusStations, useBusTimetableByRoute } from '../../hooks/useBus'
+import { useTaxiToStation } from '../../hooks/useRoute'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import useUserLocation from '../../hooks/useUserLocation'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getRouteDisplayConfig } from '../dashboard/busStationConfig'
+import MapLegendOnboarding from './MapLegendOnboarding'
 
 function getPrimaryStopId(marker) {
   if (!marker) return null
@@ -38,6 +40,25 @@ const SDK_SCRIPT_ID = 'kakao-map-sdk'
 // 지도 마커는 분 단위 표시라 도착 훅을 60초 tick으로 받는다 (카드의 1초 tick과 분리).
 const MARKER_TICK = { tickMs: 60_000 }
 
+// 정왕역 좌표(하단 구간 요약 바 · 도보 소요시간 조회용). markersData의
+// jeongwang_station 마커와 같은 값 — 백엔드 마커 좌표가 로드되기 전에도
+// 요약 바 fetch를 시작할 수 있도록 상수로 둔다.
+const JEONGWANG_STATION = { lat: 37.352618, lng: 126.742747 }
+
+// 두 좌표 사이 대권거리(km) — 결함 #28 fitBounds에서 GPS가 로컬 반경 밖(방학 중
+// 타지역 등)인지 판단하는 용도. NearestStopCard/useUserLocation의 haversine과
+// 같은 공식이지만 그 파일엔 private 헬퍼라 재사용할 수 없어 여기 따로 둔다.
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const toRad = (d) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
 
 // mapExpanded=false(기본값)일 땐 기존 우하단 FAB 배치를 그대로 쓴다(PCMainShell 등
 // mapExpanded 개념이 없는 호출부와 100% 호환). MainShell이 지도를 전체화면으로
@@ -52,6 +73,12 @@ const MARKER_TICK = { tickMs: 60_000 }
 export default function MapView({ onMarkerClick, mapExpanded = false, onClose, showControls = true }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
+  // 결함 #28 — 초기 fitBounds 1회 적용 여부(마커·GPS는 매 tick 갱신되지만
+  // 카메라 재정렬은 세션당 1회만). effect 재구독 없이 항상 최신 값을 보도록
+  // managedStations/gpsCoords는 ref로도 따로 들고 있는다(아래 참고).
+  const didInitialFitRef = useRef(false)
+  const managedStationsRef = useRef([])
+  const gpsCoordsRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
   const [mapInstance, setMapInstance] = useState(null)
   const kakaoKey = import.meta.env.VITE_KAKAO_JS_APP_KEY
@@ -85,6 +112,23 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   const { data: busArrivalsEmart }      = useBusArrivals(224000513, MARKER_TICK)
   const { data: stationsData }          = useBusStations()
   const { data: markersData }           = useMapMarkers()
+  const { data: taxiToStationData }     = useTaxiToStation() // 학교 ↔ 정왕역 자동차 소요시간(하단 구간 요약 바)
+
+  // 하단 구간 요약 바(§4)용 정왕역↔학교 도보 소요시간 — 기존 /route/walking 엔드포인트를
+  // MarkerSheet의 onNavigate와 동일하게 재사용한다(새 API 발명 아님). 두 좌표가 고정값이라
+  // polling 없이 마운트 시 1회만 조회하고 실패하면 조용히 생략한다(요약 바가 부분 정보로 표시).
+  const [walkSchoolStationSec, setWalkSchoolStationSec] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    apiFetch('/route/walking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origin: JEONGWANG_STATION, destination: DEFAULT_CENTER }),
+    })
+      .then((res) => { if (!cancelled && res?.duration_seconds != null) setWalkSchoolStationSec(res.duration_seconds) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   // 정류장 이름 → stop_id 해석 (순수 지명으로 정규화된 name 사용)
   const stopIds = useMemo(() => {
@@ -415,6 +459,50 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       return s
     })
   }, [staticStationData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, shuttleToCampus2Mins, shuttleFromCampus2Mins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, siheungUpMinutes, siheungDnMinutes, siheungEarliestBus, liveMinByRouteDir])
+
+  // attemptInitialFit(아래)이 effect 재구독 없이 항상 최신 마커/GPS를 보도록 커밋 이후 갱신.
+  // (ZoomAwareOverlayManager의 onTapRef와 같은 패턴 — 렌더 중 대입은 react-hooks/refs 위반이라
+  // effect로 옮긴다.)
+  useEffect(() => {
+    managedStationsRef.current = managedStations
+    gpsCoordsRef.current = gpsCoords
+  }, [managedStations, gpsCoords])
+
+  // 결함 #28 — 초기 카메라 fitBounds. 마커 하나 없는 골목만 보이던 고정 center/level
+  // 대신, 로컬 핵심 마커(학교·정왕역·주변 정류장) 전체가 보이도록 bounds를 맞춘다.
+  // - 서울 원거리 허브(bus_hub_sl_*: 강남·사당·석수·구로)는 제외 — 포함하면 로컬 뷰가
+  //   서울까지 뒤덮도록 과도하게 축소된다(마커 가시성이 GPS보다 우선이라는 스펙과 같은 이유).
+  // - 세션 중 사용자가 지도를 움직이면 idle 리스너가 mapView를 저장한다 — 그 값이 있으면
+  //   "이미 조작된 지도"로 보고 절대 재정렬하지 않는다(탭 전환 복귀 시 기존 center/level 복원 로직과 동일 존중).
+  // - GPS는 학교 반경 15km 이내일 때만 bounds에 포함한다(방학 중 타지역에 있으면 로컬 뷰가
+  //   무의미하게 축소되는 것을 막기 위함 — "마커가 우선"이라는 요구사항의 보수적 해석).
+  // - 컨테이너 크기가 0이면(모바일 mapExpanded=false 축소 상태) bounds 계산이 왜곡되므로
+  //   대기한다 — ResizeObserver의 relayout 콜백에서 컨테이너가 실제 크기를 갖췄을 때 재시도한다.
+  const attemptInitialFit = useCallback((map) => {
+    if (!map || didInitialFitRef.current) return
+    if (useAppStore.getState().mapView) {
+      didInitialFitRef.current = true
+      return
+    }
+    const el = containerRef.current
+    if (!el || el.offsetHeight === 0 || el.offsetWidth === 0) return
+
+    const coreMarkers = (managedStationsRef.current ?? []).filter(
+      (s) => s.lat != null && s.lng != null && !String(s.id ?? '').startsWith('bus_hub_sl_')
+    )
+    if (!coreMarkers.length) return
+
+    const bounds = new window.kakao.maps.LatLngBounds()
+    coreMarkers.forEach((s) => bounds.extend(new window.kakao.maps.LatLng(s.lat, s.lng)))
+
+    const gps = gpsCoordsRef.current
+    if (gps && distanceKm(gps[0], gps[1], DEFAULT_CENTER.lat, DEFAULT_CENTER.lng) < 15) {
+      bounds.extend(new window.kakao.maps.LatLng(gps[0], gps[1]))
+    }
+
+    map.setBounds(bounds)
+    didInitialFitRef.current = true
+  }, [])
 
   // selectedMode에 따라 학교방향 chip + G(extraPillText) chip 노출 필터링
   // - taxi: 관리형 정류장 마커(학교방향 chip 포함) 전체 숨김
@@ -810,6 +898,9 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       rafId = requestAnimationFrame(() => {
         rafId = null
         mapInstance.relayout()
+        // 모바일에서 지도가 height:0 → 전체화면으로 확장되는 순간 컨테이너가 비로소
+        // 실제 크기를 갖는다 — 결함 #28 fitBounds가 그 크기를 기다리고 있었다면 여기서 재시도.
+        attemptInitialFit(mapInstance)
       })
     }
     const observer = new ResizeObserver(scheduleRelayout)
@@ -827,7 +918,14 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       transitionTarget?.removeEventListener('transitionend', onTransitionEnd)
       if (rafId != null) cancelAnimationFrame(rafId)
     }
-  }, [mapInstance])
+  }, [mapInstance, attemptInitialFit])
+
+  // 결함 #28 — mapInstance가 이미 화면에 보이는 상태(PC 등)로 준비됐거나, 마커/GPS
+  // 데이터가 뒤늦게 도착한 경우를 위한 기본 트리거. 위 ResizeObserver 경로(모바일
+  // 확장 전환)와 함께 이중으로 시도하되, attemptInitialFit 자체가 1회성 가드를 갖고 있다.
+  useEffect(() => {
+    attemptInitialFit(mapInstance)
+  }, [mapInstance, managedStations, gpsCoords, attemptInitialFit])
 
   // 독 버튼/지도에서 보기 요청 pan — mapInstance 준비 이후 반드시 실행
   useEffect(() => {
@@ -888,7 +986,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     script.id = SDK_SCRIPT_ID
     script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoKey}&autoload=false`
     script.onload = onSdkLoaded
-    script.onerror = () => console.error('[MapView] Failed to load Kakao Maps SDK — check API key and allowed domains')
+    script.onerror = () => console.error('[MapView] Failed to load Kakao Maps SDK - check API key and allowed domains')
     document.head.appendChild(script)
 
     return () => { isMounted = false }
@@ -962,6 +1060,21 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     '시흥시청': busArrivalsSiheung,
   }
 
+  // 하단 구간 요약 바(§4) — "정왕역 ↔ 학교" 핵심 구간을 한 줄로.
+  // 방향(등교/하교)에 맞는 셔틀 다음 차 시간을 우선 노출한다. 값이 없는 조각은
+  // "—" 대신 그 조각 자체를 생략한다(UI 렌더 텍스트에 자리표시자 대시를 쓰지 않는다).
+  const routeSummaryShuttleMins = effectiveDirection === '하교' ? shuttleFromSchoolMins : shuttleToSchoolMins
+  const routeSummaryWalkMins = walkSchoolStationSec != null ? Math.max(1, Math.ceil(walkSchoolStationSec / 60)) : null
+  const routeSummaryTaxiMins = taxiToStationData?.duration_seconds != null
+    ? Math.max(1, Math.ceil(taxiToStationData.duration_seconds / 60))
+    : null
+  const routeSummaryParts = [
+    routeSummaryShuttleMins != null ? `셔틀 ${routeSummaryShuttleMins}분` : null,
+    routeSummaryWalkMins != null ? `도보 ${routeSummaryWalkMins}분` : null,
+    routeSummaryTaxiMins != null ? `택시 ${routeSummaryTaxiMins}분` : null,
+  ].filter(Boolean)
+  const routeSummaryText = routeSummaryParts.length ? `정왕역 ↔ 학교 · ${routeSummaryParts.join(' · ')}` : null
+
   return (
     <>
       {/*
@@ -1013,8 +1126,20 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
           </div>
         )}
 
+        {/* 하단 구간 요약 바(§4) — mapExpanded=false(PC 임베드 등) 우상단.
+            우측 ⓘ 버튼과 겹치지 않도록 좌측에 둔다. 값이 하나도 없으면(초기 로딩) 렌더하지 않는다. */}
+        {mapInstance && !mapExpanded && showControls && routeSummaryText && (
+          <div
+            className="absolute top-3 left-3 z-[45] max-w-[calc(100%-96px)] truncate rounded-pill
+                       bg-surface dark:bg-surface border border-line dark:border-line
+                       shadow-pill px-3 py-1.5 text-caption font-semibold text-ink-2 dark:text-ink-2"
+          >
+            {routeSummaryText}
+          </div>
+        )}
+
         {/* mapExpanded=true(M-1) — 검색 pill(상단 전폭) + 우측 상단 세로 컨트롤 스택
-            (닫기 · 내 위치 · 학교로, 검색바 아래) + 하단 최근접 정류장 카드.
+            (닫기 · 내 위치 · 학교로 · 범례ⓘ, 검색바 아래) + 하단 최근접 정류장 카드.
             top/bottom 모두 safe-area-inset을 더해 노치·홈 인디케이터를 피한다. */}
         {mapInstance && mapExpanded && (
           <>
@@ -1031,6 +1156,18 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
               <Search size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
               <span className="truncate">노선 · 정류장 검색</span>
             </button>
+
+            {/* 하단 구간 요약 바(§4) — 우측 세로 컨트롤 스택과 같은 높이의 좌측에 배치 */}
+            {routeSummaryText && (
+              <div
+                className="absolute left-3 z-[55] max-w-[calc(100%-140px)] truncate rounded-pill
+                           bg-surface dark:bg-surface border border-line dark:border-line
+                           shadow-pill px-3 py-1.5 text-caption font-semibold text-ink-2 dark:text-ink-2"
+                style={{ top: 'calc(env(safe-area-inset-top) + 64px)' }}
+              >
+                {routeSummaryText}
+              </div>
+            )}
 
             <div
               className="absolute right-4 flex flex-col gap-2 z-[55]"
@@ -1067,6 +1204,8 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
               >
                 <School size={17} className="text-navy" />
               </button>
+              {/* 범례 안내 ⓘ — 상시 노출 토스트 대신 탭해서 여는 접이식 패널(§3) */}
+              <MapLegendOnboarding embedded />
             </div>
 
             <NearestStopCard

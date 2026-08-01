@@ -20,7 +20,7 @@ export default function RoutePanel({
       <header className="flex items-start justify-between px-[14px] pt-3 pb-2">
         <div>
           {subtitle && (
-            <div className="text-ghdr uppercase font-bold text-mute dark:text-mute">
+            <div className="text-dest uppercase font-bold text-mute dark:text-mute">
               {subtitle}
             </div>
           )}

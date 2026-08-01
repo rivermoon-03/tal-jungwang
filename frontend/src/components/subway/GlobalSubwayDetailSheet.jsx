@@ -87,7 +87,7 @@ function ScheduleSummaryLine({ nextTime, firstAt, lastAt }) {
           다음 열차 <b className="text-accent-ink dark:text-accent font-bold">{nextTime}</b> ·{' '}
         </>
       )}
-      첫차 {firstAt ?? '—'} · 막차 {lastAt ?? '—'}
+      첫차 {firstAt ?? '정보 없음'} · 막차 {lastAt ?? '정보 없음'}
     </p>
   )
 }

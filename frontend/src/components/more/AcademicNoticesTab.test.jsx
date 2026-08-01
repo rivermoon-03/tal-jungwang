@@ -2,6 +2,9 @@
  * AcademicNoticesTab — 더보기 "학사공지" 탭 단위 테스트.
  * 백엔드 API(/school/departments, /school/notices, /school/calendar)는
  * useMore 훅을 모킹해 실제 네트워크 호출 없이 검증한다.
+ *
+ * 결함 #34 재구성: "다가오는 학사일정" 리스트(상위 4개, D-day 칩+제목+기간)가
+ * 대문이 되고, 캘린더는 그 아래(기본 주간 스트립), 학과 공지는 세로 리스트다.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -24,9 +27,10 @@ const NOTICE = {
   published_at: '2026-07-16T00:00:00+09:00',
 }
 
-// 가로 스크롤 점진 렌더링 검증용 — useSchoolNotices가 이미 전체를 한 번에
-// 내려주는 것을 가정해 6건을 모킹하고, 화면에 처음 몇 개가 보이는지만 검증한다.
-const MANY_NOTICES = Array.from({ length: 6 }, (_, i) => ({
+// 세로 리스트 "더 보기" 점진적 노출 검증용 — useSchoolNotices가 이미 전체를 한
+// 번에 내려주는 것을 가정해 7건을 모킹하고, 화면에 처음 몇 개가 보이는지 +
+// "더 보기" 클릭 후 몇 개가 늘어나는지만 검증한다.
+const MANY_NOTICES = Array.from({ length: 7 }, (_, i) => ({
   id: 200 + i,
   title: `공지 제목 ${i + 1}`,
   url: `https://www.tukorea.ac.kr/bbs/ce/201/${200 + i}/artclView.do`,
@@ -133,99 +137,95 @@ describe('AcademicNoticesTab — 미지원 학과', () => {
   })
 })
 
-describe('AcademicNoticesTab — D-day 배너', () => {
+describe('AcademicNoticesTab — 다가오는 학사일정 리스트', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setHooks()
   })
 
-  it('D-N 배지와 제목, 날짜 범위를 표시한다', () => {
+  it('D-N 칩과 제목, 날짜 범위를 표시한다', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.getByText(/^D[-+]\d+$/)).toBeInTheDocument()
+    expect(screen.getAllByText(/^D[-+]\d+$/).length).toBeGreaterThan(0)
     // 선택된 캘린더 날짜 아래에도 같은 제목/날짜범위가 표시될 수 있어 getAllByText로 확인.
     expect(screen.getAllByText('기말고사').length).toBeGreaterThan(0)
     expect(screen.getAllByText('6월 9일 ~ 6월 22일').length).toBeGreaterThan(0)
   })
 
-  it('"다가오는 일정" 텍스트 라벨 없이 월간 캘린더 그리드를 바로 렌더링한다', () => {
+  it('next(가장 임박)뿐 아니라 upcoming 항목도 리스트에 함께 보인다(상위 4개)', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.queryByText('다가오는 일정')).not.toBeInTheDocument()
-    // next(기말고사) start_date가 2026-06-09이므로 초기 달은 2026년 6월.
-    expect(screen.getByText('2026년 6월')).toBeInTheDocument()
-    // 6/9는 이벤트 범위(6/9~6/22) 시작일이라 그리드에 날짜 셀이 존재해야 한다.
-    expect(screen.getByTestId('cal-day-2026-06-09')).toBeInTheDocument()
+    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
+    expect(screen.getByText('2학기 개강')).toBeInTheDocument()
   })
 
-  it('next가 없으면 D-day 배너를 렌더링하지 않는다', () => {
+  it('next가 없으면 리스트도, D-day 칩도 렌더링하지 않는다', () => {
     setHooks({ calendar: { data: { next: null, upcoming: [] }, loading: false, error: null } })
     render(<AcademicNoticesTab />)
     expect(screen.queryByText(/^D[-+]\d+$/)).not.toBeInTheDocument()
+    expect(screen.queryByText('다가오는 학사일정')).not.toBeInTheDocument()
   })
 
-  it('next와 upcoming이 모두 없으면 캘린더 그리드도 렌더링하지 않는다', () => {
+  it('next와 upcoming이 모두 없으면 캘린더도 렌더링하지 않는다', () => {
     setHooks({ calendar: { data: { next: null, upcoming: [] }, loading: false, error: null } })
     render(<AcademicNoticesTab />)
-    expect(screen.queryByTestId('cal-day-2026-06-09')).not.toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   })
 
-  it('D-day 배너는 탭 가능한 버튼이다', () => {
+  it('항목이 4개 이하이면 "전체 일정 보기" 버튼이 없다', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.getByRole('button', { name: /다가오는 일정 더 보기/ })).toBeInTheDocument()
+    // next 1개 + upcoming 2개 = 3개 ≤ 4
+    expect(screen.queryByText('전체 일정 보기')).not.toBeInTheDocument()
+  })
+
+  it('일정 항목을 탭하면 캘린더가 그 날짜로 이동한다(월 전체보기 기준월이 바뀜)', () => {
+    render(<AcademicNoticesTab />)
+    // aria-label은 "·"(가운뎃점)로 구분한다 — UI 렌더 텍스트에 em-dash("—") 미사용.
+    fireEvent.click(screen.getByRole('button', { name: /2학기 개강 · 캘린더에서 보기/ }))
+    fireEvent.click(screen.getByRole('tab', { name: '월 전체보기' }))
+    // 2학기 개강(9/1)로 포커스가 이동했으므로 캘린더 기준월이 9월이어야 한다.
+    expect(screen.getByText('2026년 9월')).toBeInTheDocument()
   })
 })
 
-describe('AcademicNoticesTab — D-day 배너 탭 → 다가오는 일정 모달', () => {
+describe('AcademicNoticesTab — 전체 일정 보기 모달', () => {
+  const MANY_UPCOMING = {
+    next: { title: '기말고사', start_date: '2026-06-09', end_date: '2026-06-22' },
+    upcoming: [
+      { title: '하계방학 시작', start_date: '2026-06-23', end_date: '2026-06-23' },
+      { title: '2학기 개강', start_date: '2026-09-01', end_date: '2026-09-01' },
+      { title: '수강정정', start_date: '2026-09-05', end_date: '2026-09-08' },
+      { title: '중간고사', start_date: '2026-10-19', end_date: '2026-10-25' },
+    ],
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
-    setHooks()
+    setHooks({ calendar: { data: MANY_UPCOMING, loading: false, error: null } })
   })
 
-  it('배너를 탭하면 모달이 열리고 upcoming 항목(제목+날짜)을 보여준다', () => {
+  it('5개보다 많으면 "전체 일정 보기" 버튼이 보이고, 탭하면 나머지 항목도 모달에 보인다', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.queryByText('하계방학 시작')).not.toBeInTheDocument()
+    expect(screen.queryByText('중간고사')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /다가오는 일정 더 보기/ }))
-
-    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
-    expect(screen.getByText('6월 23일')).toBeInTheDocument()
-    expect(screen.getByText('2학기 개강')).toBeInTheDocument()
-    expect(screen.getByText('9월 1일')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('전체 일정 보기'))
+    expect(screen.getByText('중간고사')).toBeInTheDocument()
   })
 
-  it('upcoming이 3개 미만이면 있는 만큼만 보여준다', () => {
-    setHooks({
-      calendar: {
-        data: {
-          next: { title: '기말고사', start_date: '2026-06-09', end_date: '2026-06-22' },
-          upcoming: [{ title: '하계방학 시작', start_date: '2026-06-23', end_date: '2026-06-23' }],
-        },
-        loading: false,
-        error: null,
-      },
-    })
+  it('모달에서 항목을 탭하면 캘린더가 그 날짜로 이동한다', () => {
     render(<AcademicNoticesTab />)
-    fireEvent.click(screen.getByRole('button', { name: /다가오는 일정 더 보기/ }))
-    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
-    expect(screen.queryByText('2학기 개강')).not.toBeInTheDocument()
-  })
+    fireEvent.click(screen.getByText('전체 일정 보기'))
+    fireEvent.click(screen.getByText('중간고사'))
 
-  it('닫기 버튼을 누르면 모달이 닫힌다', () => {
-    render(<AcademicNoticesTab />)
-    fireEvent.click(screen.getByRole('button', { name: /다가오는 일정 더 보기/ }))
-    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: '닫기' }))
-    expect(screen.queryByText('하계방학 시작')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: '월 전체보기' }))
+    expect(screen.getByText('2026년 10월')).toBeInTheDocument()
   })
 })
 
-describe('AcademicNoticesTab — 공지 리스트', () => {
+describe('AcademicNoticesTab — 학과 공지 리스트', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('제목·날짜·배지·원문 링크를 렌더링한다', () => {
+  it('제목·날짜·원문 링크를 렌더링한다', () => {
     setHooks()
     render(<AcademicNoticesTab />)
     expect(screen.getByText(NOTICE.title)).toBeInTheDocument()
@@ -255,51 +255,25 @@ describe('AcademicNoticesTab — 공지 리스트', () => {
   })
 })
 
-describe('AcademicNoticesTab — 학과 공지 가로 스크롤 점진 렌더링', () => {
+describe('AcademicNoticesTab — 학과 공지 "더 보기" 점진적 노출', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setHooks({ notices: { data: MANY_NOTICES, loading: false, error: null } })
   })
 
-  // 스크롤 컨테이너의 레이아웃 프로퍼티를 원하는 값으로 강제한다.
-  // jsdom은 실제 레이아웃을 계산하지 않으므로 scrollLeft/clientWidth/scrollWidth가
-  // 항상 0이라, defineProperty로 "끝 근처까지 스크롤한" 상태를 시뮬레이션한다.
-  function setScrollGeometry(el, { scrollLeft, clientWidth, scrollWidth }) {
-    Object.defineProperty(el, 'scrollLeft', { configurable: true, value: scrollLeft })
-    Object.defineProperty(el, 'clientWidth', { configurable: true, value: clientWidth })
-    Object.defineProperty(el, 'scrollWidth', { configurable: true, value: scrollWidth })
-  }
-
-  it('처음에는 3개만 렌더링한다', () => {
+  it('처음에는 5개만 렌더링하고 "더 보기" 버튼이 있다', () => {
     render(<AcademicNoticesTab />)
     expect(screen.getByText('공지 제목 1')).toBeInTheDocument()
-    expect(screen.getByText('공지 제목 3')).toBeInTheDocument()
-    expect(screen.queryByText('공지 제목 4')).not.toBeInTheDocument()
+    expect(screen.getByText('공지 제목 5')).toBeInTheDocument()
+    expect(screen.queryByText('공지 제목 6')).not.toBeInTheDocument()
+    expect(screen.getByText(/더 보기/)).toBeInTheDocument()
   })
 
-  it('끝에서 먼 지점으로 스크롤하면 더 렌더링하지 않는다', () => {
+  it('"더 보기"를 누르면 나머지가 모두 보이고 버튼이 사라진다', () => {
     render(<AcademicNoticesTab />)
-    const scrollEl = screen.getByTestId('notices-scroll')
-
-    setScrollGeometry(scrollEl, { scrollLeft: 50, clientWidth: 300, scrollWidth: 1000 })
-    fireEvent.scroll(scrollEl)
-
-    expect(screen.queryByText('공지 제목 4')).not.toBeInTheDocument()
-  })
-
-  it('스크롤이 끝 근처에 도달하면 3개씩 더 렌더링한다', () => {
-    render(<AcademicNoticesTab />)
-    const scrollEl = screen.getByTestId('notices-scroll')
-
-    // clientWidth(300) + scrollLeft(650) >= scrollWidth(1000) - threshold(80)
-    setScrollGeometry(scrollEl, { scrollLeft: 650, clientWidth: 300, scrollWidth: 1000 })
-    fireEvent.scroll(scrollEl)
-
-    expect(screen.getByText('공지 제목 4')).toBeInTheDocument()
+    fireEvent.click(screen.getByText(/더 보기/))
     expect(screen.getByText('공지 제목 6')).toBeInTheDocument()
-
-    // 이미 전체(6건)를 다 보여주고 있으므로 추가 스크롤해도 그대로 6건이다(초과 렌더링 없음).
-    fireEvent.scroll(scrollEl)
-    expect(screen.getAllByRole('link')).toHaveLength(6)
+    expect(screen.getByText('공지 제목 7')).toBeInTheDocument()
+    expect(screen.queryByText(/더 보기/)).not.toBeInTheDocument()
   })
 })

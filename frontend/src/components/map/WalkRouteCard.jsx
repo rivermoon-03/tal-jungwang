@@ -2,7 +2,7 @@ import { X, Footprints } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 
 function fmtMin(sec) {
-  if (sec == null) return '—'
+  if (sec == null) return '·'
   const m = Math.round(sec / 60)
   return m === 0 ? '1분 미만' : `${m}분`
 }

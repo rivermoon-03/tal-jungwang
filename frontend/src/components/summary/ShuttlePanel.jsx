@@ -6,8 +6,12 @@ import { SkeletonPanelRow } from '../common/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import ErrorState from '../ui/ErrorState'
 import MascotDot from '../ui/MascotDot'
-import DualDirectionCard from '../common/DualDirectionCard'
+import TransitCard from '../ui/TransitCard.jsx'
 import { getNextShuttleBusInfo } from '../../utils/nextShuttleBus.js'
+
+// 결함 #4 — 버스/지하철 패널과 동일 규칙: ETA 5분 이하만 임박(색만) 처리.
+// (예전엔 3분 기준이었다 — toSlot()의 isUrgent 판정을 아래에서 5분 기준으로 맞춘다.)
+const SOON_THRESHOLD_MIN = 5
 
 /**
  * ShuttlePanel — 셔틀 모드 패널.
@@ -190,7 +194,7 @@ export default function ShuttlePanel() {
     <div className="space-y-2">
       {isSeasonal && (
         <div className="flex items-center gap-2 px-1">
-          <span className="text-micro font-semibold px-2 py-0.5 rounded-full bg-accent/12 text-accent dark:text-accent tracking-wide">
+          <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-accent/12 text-accent dark:text-accent tracking-wide">
             계절학기
           </span>
           <span className="text-caption text-mute dark:text-mute truncate">
@@ -198,18 +202,84 @@ export default function ShuttlePanel() {
           </span>
         </div>
       )}
-      <DualDirectionCard
-        symbol="셔"
-        symbolColor="var(--tj-accent)"
-        lineName={campus === 'second' ? '2캠 셔틀버스' : '셔틀버스'}
-        sub="다음 출발"
-        left={left}
-        right={right}
-        onLeftClick={() => openModal(goDir)}
-        onRightClick={() => openModal(backDir)}
-      />
+      {/* 결함 #4 — DualDirectionCard(좌우 듀얼 컬럼) 대신 방향별 TransitCard 두 장으로 통일. */}
+      <div className="flex items-center justify-between px-0.5">
+        <h3 className="text-[13px] font-bold text-ink dark:text-ink">
+          {campus === 'second' ? '2캠 셔틀버스' : '셔틀버스'}
+        </h3>
+        <span className="text-[12px] font-semibold text-mute dark:text-mute">다음 출발</span>
+      </div>
+      <div className="space-y-2">
+        <TransitCard
+          badge={{ label: '셔', bgVar: 'var(--tj-accent)' }}
+          onClick={() => openModal(goDir)}
+          {...slotToCardProps(left)}
+        />
+        <TransitCard
+          badge={{ label: '셔', bgVar: 'var(--tj-accent)' }}
+          onClick={() => openModal(backDir)}
+          {...slotToCardProps(right)}
+        />
+      </div>
     </div>
   )
+}
+
+/**
+ * toSlot()의 variant별 결과를 TransitCard props로 변환한다. title은 방향 라벨만
+ * (dir 문자열 "↑ 등교"에서 화살표를 떼고 "등교"만) — 화살표는 시각적 군더더기라
+ * TransitCard의 15px 굵은 제목엔 텍스트만 남긴다.
+ */
+function slotToCardProps(slot) {
+  const title = slot?.dir ? slot.dir.split(' ').pop() : '셔틀버스'
+
+  if (!slot || slot.variant === 'empty') {
+    return {
+      title,
+      muted: true,
+      chips: [],
+      eta: {
+        primary: { text: '운행 없음', tone: 'muted' },
+        secondary: slot?.firstTomorrow ? { text: `내일 첫차 ${slot.firstTomorrow}` } : undefined,
+      },
+    }
+  }
+
+  if (slot.variant === 'return') {
+    const desc = [slot.descLine1, slot.descLine2].filter(Boolean).join(' ')
+    return {
+      title,
+      chips: [{ label: slot.returnChipLabel ?? '회차편', tone: 'warn' }],
+      eta: {
+        primary: { text: slot.time, tone: 'default' },
+        secondary: desc ? { text: desc } : undefined,
+      },
+    }
+  }
+
+  if (slot.variant === 'frequent') {
+    return {
+      title,
+      subtitle: slot.route,
+      chips: [],
+      eta: {
+        primary: { text: slot.freqLabel, tone: 'default' },
+        secondary: slot.freqSub ? { text: slot.freqSub } : undefined,
+      },
+    }
+  }
+
+  // normal
+  const etaText = slot.imminentLabel ?? (slot.minutes != null ? `${slot.minutes}분` : '정보 없음')
+  return {
+    title,
+    subtitle: slot.route,
+    chips: [],
+    eta: {
+      primary: { text: etaText, tone: slot.isUrgent ? 'imminent' : slot.minutes == null ? 'muted' : 'default' },
+      secondary: slot.nextMinutes != null ? { text: `다음 ${slot.nextMinutes}분` } : undefined,
+    },
+  }
 }
 
 function normalizeData(query) {
@@ -255,7 +325,7 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
       minutes,
       nextMinutes,
       imminentLabel: imminent ? '곧 출발' : null,
-      isUrgent: imminent || (minutes != null && minutes <= 3),
+      isUrgent: imminent || (minutes != null && minutes <= SOON_THRESHOLD_MIN),
     }
   }
 
@@ -283,6 +353,6 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
     minutes,
     nextMinutes,
     imminentLabel: imminent ? '곧 출발' : null,
-    isUrgent: imminent || (minutes != null && minutes <= 3),
+    isUrgent: imminent || (minutes != null && minutes <= SOON_THRESHOLD_MIN),
   }
 }

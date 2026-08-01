@@ -17,6 +17,7 @@ import ScheduleDetailModal from '../schedule/ScheduleDetailModal'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { useBusTimetableByRoute, useBusArrivals, useBusStations, useBusRoutesByCategory } from '../../hooks/useBus'
+import { makeFavKey, parseFavKey } from '../../utils/favKey'
 
 // 스케줄 페이지가 생성하는 새 형식 버스 favKey: "등교:X" / "하교:X" / "기타:X"
 const BUS_CATEGORY_PREFIXES = ['등교:', '하교:', '기타:']
@@ -70,6 +71,15 @@ const SUBWAY_DIR_COMMUTE = {
 function classifyCommute(favKey) {
   if (!favKey) return '하교'
   if (FAV_KEY_COMMUTE[favKey]) return FAV_KEY_COMMUTE[favKey]
+
+  // 신규 favKey 스키마("${mode}:${id}:${direction}", utils/favKey.js makeFavKey)
+  // — subway는 legacyKey와 형태가 같아 아래 subway: 분기가 이어서 처리하고,
+  // bus/shuttle은 direction이 곧 등교/하교(/기타) 라벨이라 여기서 바로 분류한다.
+  const parsed = parseFavKey(favKey)
+  if (parsed && parsed.mode !== 'subway') {
+    return parsed.direction === '등교' ? '등교' : '하교'
+  }
+
   const busParsed = parseBusFavKey(favKey)
   if (busParsed) return busParsed.category === '등교' ? '등교' : '하교'
   if (favKey.startsWith('subway:')) {
@@ -166,9 +176,13 @@ function getBoardingStatus(arrivalMin, walkMin) {
 }
 
 function useFavoriteItems(favorites) {
-  // 셔틀 다음 열차 — 방향별
-  const { data: shuttleUp }   = useShuttleNext(0) // 등교
-  const { data: shuttleDown } = useShuttleNext(1) // 하교
+  // 셔틀 다음 열차 — 방향별 (0/1: 본캠 등교/하교, 2/3: 2캠 등교/하교)
+  // utils/favKey.js 신규 스키마(makeFavKey({mode:'shuttle', id:'main'|'second', ...}))가
+  // 2캠 즐겨찾기도 저장할 수 있어 본캠뿐 아니라 2캠 다음 차 데이터도 함께 가져온다.
+  const { data: shuttleUp }         = useShuttleNext(0) // 본캠 등교
+  const { data: shuttleDown }       = useShuttleNext(1) // 본캠 하교
+  const { data: shuttleUpSecond }   = useShuttleNext(2) // 2캠 등교
+  const { data: shuttleDownSecond } = useShuttleNext(3) // 2캠 하교
   // 지하철 다음 열차
   const { data: subwayNext } = useSubwayNext()
   // 버스: favKey별 다음 출발까지 남은 분 (실시간 + 시간표)
@@ -204,11 +218,37 @@ function useFavoriteItems(favorites) {
     return m
   }, [routesDeung, routesHa, routesEt])
 
+  // utils/favKey.js 신규 스키마("bus:${id}:${busGroup}", id=route_id 우선)로 저장된
+  // 즐겨찾기를 되짚어 노선/정류장을 찾기 위한 인덱스. SchedulePage.jsx가 만드는
+  // favCode(makeFavKey({mode:'bus', id: route.route_id ?? route.route_number,
+  // direction: busGroup}))와 문자열이 정확히 같아야 하므로 같은 방식으로 만든다.
+  const busRouteMetaByFavKey = useMemo(() => {
+    const m = {}
+    const add = (cat, list) => {
+      for (const r of Array.isArray(list) ? list : []) {
+        const stop = r.stops?.[0] ?? null
+        const favCode = makeFavKey({ mode: 'bus', id: r.route_id ?? r.route_number, direction: cat })
+        m[favCode] = { route: r, stop }
+      }
+    }
+    add('등교', routesDeung)
+    add('하교', routesHa)
+    add('기타', routesEt)
+    return m
+  }, [routesDeung, routesHa, routesEt])
+
+  // favorites.routes(레거시) + favorites.keys(신규 favKey 스키마)를 하나로 합쳐 순회한다.
+  // 지하철 신규 키("subway:역:방향")는 레거시와 문자열 형태가 같아 기존 분기가
+  // 그대로 처리하고, 셔틀/버스 신규 키는 아래에서 별도 분기로 처리한다.
+  const combinedCodes = useMemo(() => {
+    return [...new Set([...(favorites.routes ?? []), ...(favorites.keys ?? [])])]
+  }, [favorites.routes, favorites.keys])
+
   const items = useMemo(() => {
     const result = []
 
-    // 즐겨찾기 노선들
-    for (const routeCode of favorites.routes ?? []) {
+    // 즐겨찾기 노선들 (레거시 favorites.routes + 신규 favorites.keys 통합)
+    for (const routeCode of combinedCodes) {
       // 지하철 ("subway:정왕:up" 등) — 방향별 카드
       if (typeof routeCode === 'string' && routeCode.startsWith('subway:')) {
         const parts = routeCode.split(':')
@@ -254,19 +294,25 @@ function useFavoriteItems(favorites) {
         })
         continue
       }
-      // 셔틀 ("shuttle:등교" / "shuttle:하교")
+      // 셔틀 — 레거시 "shuttle:등교"/"shuttle:하교"(본캠 전용, 2세그먼트)와
+      // 신규 "shuttle:main:등교"/"shuttle:second:하교"(makeFavKey, 3세그먼트) 모두 처리.
       if (typeof routeCode === 'string' && routeCode.startsWith('shuttle:')) {
-        const label = routeCode.split(':')[1] ?? '등교'
-        const direction = label === '하교' ? 1 : 0
-        const next = direction === 0 ? shuttleUp : shuttleDown
+        const parts = routeCode.split(':')
+        const isNewSchema = parts.length >= 3
+        const campusId = isNewSchema ? (parts[1] ?? 'main') : 'main'
+        const label = (isNewSchema ? parts[2] : parts[1]) ?? '등교'
+        const isSecondCampus = campusId === 'second'
+        const direction = (isSecondCampus ? 2 : 0) + (label === '하교' ? 1 : 0)
+        const next = [shuttleUp, shuttleDown, shuttleUpSecond, shuttleDownSecond][direction]
         const sec = next?.arrive_in_seconds
         const mins = sec != null ? Math.max(0, Math.round(sec / 60)) : null
         const imminent = sec != null && sec < 60
+        const campusTag = isSecondCampus ? '2캠 ' : ''
         result.push({
           id: `route:${routeCode}`,
           type: 'shuttle',
-          routeCode: `${label}셔틀`,
-          stationName: '본캠',
+          routeCode: `${campusTag}${label}셔틀`.trim(),
+          stationName: isSecondCampus ? '2캠' : '본캠',
           minutes: mins,
           imminentLabel: imminent ? '곧 출발' : null,
           walkMin: 3,
@@ -276,7 +322,45 @@ function useFavoriteItems(favorites) {
             type: 'shuttle',
             routeCode: `셔틀${label}`,
             direction,
-            title: `셔틀버스 ${label}`,
+            title: `${campusTag}셔틀버스 ${label}`.trim(),
+          },
+        })
+        continue
+      }
+
+      // 최신 favKey 스키마 버스("bus:${route_id 또는 route_number}:${busGroup}",
+      // utils/favKey.js makeFavKey) — SchedulePage.jsx BusRouteSection이 저장하는 형식.
+      if (typeof routeCode === 'string' && routeCode.startsWith('bus:')) {
+        const parsed = parseFavKey(routeCode)
+        const lookup = parsed ? busRouteMetaByFavKey?.[routeCode] : null
+        if (!lookup) continue // 아직 카테고리 데이터가 로드되지 않았거나 노선이 존재하지 않음
+        const { route, stop } = lookup
+        const busNo = route.route_number
+        const minKey = NEW_TO_LEGACY_MIN_KEY[`${parsed.direction}:${busNo}`] ?? null
+        const mins = minKey ? (busMinsByRoute?.[minKey] ?? null) : null
+        const isAccent = busNo === '3400' || busNo === '5200' || busNo === '6502' || busNo === '3401'
+        result.push({
+          id: `route:${routeCode}`,
+          type: 'bus',
+          routeCode: busNo,
+          stationName: stop?.name ?? null,
+          stationId: route.is_realtime && stop?.stop_id != null ? String(stop.stop_id) : null,
+          destination: route.direction_name ?? null,
+          minutes: mins,
+          walkMin: 5,
+          status: getBoardingStatus(mins, 5),
+          commute: classifyCommute(routeCode),
+          detail: {
+            type: 'bus',
+            routeCode: busNo,
+            routeId: route.route_id ?? null,
+            stopId: stop?.stop_id ?? null,
+            category: parsed.direction ?? null,
+            isRealtime: Boolean(route.is_realtime),
+            accentColor: isAccent ? '#DC2626' : undefined,
+            title: route.direction_name
+              ? `${busNo} · ${route.direction_name}`
+              : `${busNo}번 버스`,
           },
         })
         continue
@@ -346,7 +430,18 @@ function useFavoriteItems(favorites) {
     }
 
     return result
-  }, [favorites.routes, shuttleUp, shuttleDown, subwayNext, busMinsByRoute, stopIdByFavKey, busRouteMeta])
+  }, [
+    combinedCodes,
+    shuttleUp,
+    shuttleDown,
+    shuttleUpSecond,
+    shuttleDownSecond,
+    subwayNext,
+    busMinsByRoute,
+    stopIdByFavKey,
+    busRouteMeta,
+    busRouteMetaByFavKey,
+  ])
 
   return items
 }
@@ -355,6 +450,9 @@ export default function FavoritesPage({ onGoSchedule }) {
   const favorites = useAppStore((s) => s.favorites)
   const toggleFavoriteRoute = useAppStore((s) => s.toggleFavoriteRoute)
   const toggleFavoriteStation = useAppStore((s) => s.toggleFavoriteStation)
+  // 신규 favKey 스키마(utils/favKey.js)로 저장된 항목 제거용 — SchedulePage/
+  // RouteDetailPage와 동일하게 favorites.keys는 toggleFavoriteKey로만 쓴다.
+  const toggleFavoriteKey = useAppStore((s) => s.toggleFavoriteKey)
 
   const items = useFavoriteItems(favorites)
   const allEmpty = items.length === 0
@@ -381,8 +479,15 @@ export default function FavoritesPage({ onGoSchedule }) {
     if (idx === -1) return
     const type = id.slice(0, idx)
     const code = id.slice(idx + 1)
-    if (type === 'route') toggleFavoriteRoute(code)
-    else toggleFavoriteStation(code)
+    if (type === 'route') {
+      // favCode가 저장된 배열(신규 favorites.keys vs 레거시 favorites.routes)에 맞는
+      // 토글 액션을 써야 실제로 지워진다 — 반대로 부르면 다른 배열만 건드려 재렌더
+      // 후에도 항목이 그대로 남는다.
+      if ((favorites.keys ?? []).includes(code)) toggleFavoriteKey(code)
+      else toggleFavoriteRoute(code)
+    } else {
+      toggleFavoriteStation(code)
+    }
   }
 
   function handleOpenDetail(detail) {

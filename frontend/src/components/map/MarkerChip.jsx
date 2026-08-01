@@ -147,7 +147,7 @@ export function createMarkerChipElement({
       'display:inline-flex',
       'align-items:center',
       'gap:4px',
-      'background:#DC2626',
+      'background:var(--tj-delayed)',
       'color:#fff',
       'font-size:13px',
       'font-weight:800',
@@ -168,7 +168,7 @@ export function createMarkerChipElement({
     'align-items:center',
     'gap:7px',
     'background:var(--tj-surface)',
-    'border:1px solid #d7dad9',
+    'border:1px solid var(--tj-line)',
     'border-radius:999px',
     'padding:5px 11px 5px 5px',
     'box-shadow:0 3px 10px rgba(27,42,74,.12)',
@@ -220,9 +220,9 @@ export function createMarkerChipElement({
         'margin-left:5px',
         'font-size:13px',
         'font-weight:700',
-        'color:#b45309',
-        'background:#fef3c7',
-        'border-radius:6px',
+        'color:var(--tj-imminent)',
+        'background:var(--tj-imminent-bg)',
+        'border-radius:8px',
         'padding:1px 5px',
       ].join(';')
       tag.textContent = '부정확'
@@ -271,7 +271,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
     'align-items:center',
     'gap:7px',
     'background:var(--tj-surface)',
-    'border:1px solid #d7dad9',
+    'border:1px solid var(--tj-line)',
     'border-radius:999px',
     'padding:5px 11px 5px 5px',
     'box-shadow:0 3px 10px rgba(27,42,74,.12)',
@@ -332,7 +332,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
     liveEl.appendChild(textSpan)
   } else {
     const textSpan = document.createElement('span')
-    textSpan.textContent = '—'
+    textSpan.textContent = '·'
     liveEl.appendChild(textSpan)
   }
 
@@ -386,15 +386,15 @@ export function createClusterBadgeElement({ count, colors = [], onClick }) {
   const countBadge = document.createElement('span')
   countBadge.style.cssText = [
     'position:absolute',
-    'right:-4px',
-    'bottom:-4px',
+    'right:-5px',
+    'bottom:-5px',
     'z-index:4',
-    'width:18px',
-    'height:18px',
+    'width:20px',
+    'height:20px',
     'border-radius:50%',
     'background:var(--tj-ink)',
     'color:var(--tj-bg)',
-    'font-size:10px',
+    'font-size:12px',
     'font-weight:800',
     'display:flex',
     'align-items:center',
@@ -432,7 +432,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
     'align-items:center',
     'gap:7px',
     'background:var(--tj-surface)',
-    'border:1px solid #d7dad9',
+    'border:1px solid var(--tj-line)',
     'border-radius:999px',
     'padding:5px 11px 5px 5px',
     'box-shadow:0 3px 10px rgba(27,42,74,.12)',
@@ -478,7 +478,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
     liveEl.appendChild(textSpan)
   } else {
     const textSpan = document.createElement('span')
-    textSpan.textContent = '—'
+    textSpan.textContent = '·'
     liveEl.appendChild(textSpan)
   }
 

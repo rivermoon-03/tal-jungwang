@@ -56,8 +56,9 @@ export default function RouteBadge({
           padding: size === 'sm' ? '1.5px 7px' : '2px 8px',
           borderRadius: 999,
           background: color,
-          color: '#fff',
-          fontSize: size === 'sm' ? 10 : 11,
+          color: 'white',
+          // 12px 미만 폰트 금지 — sm/기본 모두 12px로 상향(기존 10/11px)
+          fontSize: 12,
           fontWeight: 800,
           letterSpacing: '-0.01em',
           lineHeight: 1.2,
@@ -83,7 +84,7 @@ export default function RouteBadge({
           padding: '0 8px',
           borderRadius: 6,
           background: color,
-          color: '#fff',
+          color: 'white',
           fontSize: 12,
           fontWeight: 900,
           letterSpacing: '-0.01em',
@@ -100,7 +101,8 @@ export default function RouteBadge({
 
   // badge (default)
   const sz = size === 'sm' ? 30 : 36;
-  const fs = size === 'sm' ? 11 : 13;
+  // 12px 미만 폰트 금지 — sm은 기존 11px에서 12px로 상향, md(13px)는 그대로
+  const fs = size === 'sm' ? 12 : 13;
   const isWide = (display?.length ?? 0) >= 3;
   const px = isWide ? (size === 'sm' ? 6 : 8) : 0;
 
@@ -113,7 +115,7 @@ export default function RouteBadge({
         padding: `0 ${px}px`,
         borderRadius: 10,
         background: color,
-        color: '#fff',
+        color: 'white',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',

@@ -153,7 +153,7 @@ export default function AcademicNoticesPCContent() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="pressable hoverable bg-surface dark:bg-surface rounded-card border border-line dark:border-line shadow-sh-card px-4 py-4 flex flex-col gap-2"
-                  aria-label={`${n.title} — 원문 보기 (새 탭)`}
+                  aria-label={`${n.title} · 원문 보기 (새 탭)`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-meta font-bold text-chip-blue-fg dark:text-chip-blue-fg bg-chip-blue-bg dark:bg-chip-blue-bg px-2 py-0.5 rounded-full flex-shrink-0">

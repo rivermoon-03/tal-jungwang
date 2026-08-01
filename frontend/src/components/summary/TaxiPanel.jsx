@@ -14,7 +14,7 @@ const TAXI_DESTS = [
 ]
 
 function fmtMin(sec) {
-  if (sec == null) return '—'
+  if (sec == null) return '정보 없음'
   const m = Math.round(sec / 60)
   return m === 0 ? '1분 미만' : `약 ${m}분`
 }

@@ -56,7 +56,7 @@ export default function LastBusBanner({
         <p
           className={
             compact
-              ? 'text-[11px] font-semibold text-delayed/80 mt-0.5 tabular-nums'
+              ? 'text-meta font-semibold text-delayed/80 mt-0.5 tabular-nums'
               : 'text-caption font-semibold text-delayed/80 mt-0.5 tabular-nums'
           }
         >

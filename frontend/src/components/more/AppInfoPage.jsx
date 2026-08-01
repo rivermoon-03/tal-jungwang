@@ -30,7 +30,7 @@ export default function AppInfoPage({ onBack, embedded = false }) {
         <section className="bg-surface dark:bg-surface rounded-card shadow-card px-5 py-6 flex flex-col items-center text-center">
           <div
             className="w-14 h-14 rounded-card flex items-center justify-center text-white mb-3"
-            style={{ background: 'linear-gradient(160deg, #102c4c, #1b3a6e)' }}
+            style={{ background: 'linear-gradient(160deg, var(--tj-accent), var(--tj-accent-hover))' }}
             aria-hidden="true"
           >
             <Heart size={22} fill="currentColor" />

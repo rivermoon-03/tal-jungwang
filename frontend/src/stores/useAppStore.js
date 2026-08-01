@@ -17,7 +17,7 @@ function readInitialSubTab(param, allowed, fallback) {
 
 const useAppStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       // ── 기존 필드 (유지) ─────────────────────────────────────────────
       activeTab: 'main',
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -135,7 +135,12 @@ const useAppStore = create(
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
       // venues: F2 매점/식당(cafeteriaVenues) 즐겨찾기 id 배열.
-      favorites: { routes: [], stations: [], venues: [] },
+      // keys: utils/favKey.js의 makeFavKey 스키마("${mode}:${id}:${direction}")로
+      // 저장하는 신규 통합 즐겨찾기 배열(v8). routes는 레거시 형식(순수
+      // 노선번호 / "${busGroup}:${routeNo}")을 그대로 유지하는 채널이고, 신규·
+      // 구버전 어느 쪽으로 저장됐어도 utils/favKey.js의 matchesLegacy가 둘 다
+      // 인식한다 — 마이그레이션 시점에 routes를 keys로 일괄 변환하지 않는다.
+      favorites: { routes: [], stations: [], venues: [], keys: [] },
       toggleFavoriteRoute: (id) =>
         set((s) => {
           const routes = s.favorites.routes.includes(id)
@@ -158,6 +163,16 @@ const useAppStore = create(
             : [...(s.favorites.venues ?? []), id]
           return { favorites: { ...s.favorites, venues } }
         }),
+      // 신규 favKey(utils/favKey.js makeFavKey 결과) 토글/조회. toggleFavoriteRoute는
+      // 다른 화면이 아직 쓰고 있어 그대로 유지한다(리디자인 단계에서 점진 교체).
+      toggleFavoriteKey: (key) =>
+        set((s) => {
+          const keys = (s.favorites.keys ?? []).includes(key)
+            ? s.favorites.keys.filter((k) => k !== key)
+            : [...(s.favorites.keys ?? []), key]
+          return { favorites: { ...s.favorites, keys } }
+        }),
+      isFavoriteKey: (key) => (get().favorites.keys ?? []).includes(key),
 
       // ── PWA / 알림 ───────────────────────────────────────────────────
       pwaBannerDismissedAt: null,
@@ -220,7 +235,7 @@ const useAppStore = create(
     }),
     {
       name: 'tal-jungwang',
-      version: 7,
+      version: 8,
       migrate: (state, fromVersion) => {
         if (!state) return state
         // v1 → v2: 버스 그룹 4분할
@@ -265,6 +280,14 @@ const useAppStore = create(
           delete state.commuteModeOverride
           delete state.selectedDestinationCode
           delete state.firstScreen
+        }
+        // v7 → v8: 즐겨찾기 키 스키마 통합(utils/favKey.js). 기존 favorites.routes는
+        // 그대로 둔다(레거시 형식과의 런타임 호환은 matchesLegacy가 담당). 신규
+        // 통합 스키마를 저장할 favorites.keys 배열만 추가한다.
+        if (fromVersion < 8) {
+          if (state.favorites && typeof state.favorites === 'object') {
+            if (!Array.isArray(state.favorites.keys)) state.favorites.keys = []
+          }
         }
         return state
       },

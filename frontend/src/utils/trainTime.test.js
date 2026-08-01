@@ -12,7 +12,8 @@ describe('formatRelAbs', () => {
     expect(formatRelAbs(null, '10:25')).toBe('10:25')
   })
   it('neither', () => {
-    expect(formatRelAbs(null, null)).toBe('—')
+    // UI 렌더 텍스트에 em-dash("—")를 쓰지 않는다 — formatRelAbs는 '·'로 대체했다.
+    expect(formatRelAbs(null, null)).toBe('·')
   })
   it('NaN minutes falls back to hhmm', () => {
     expect(formatRelAbs(Number.NaN, '10:25')).toBe('10:25')

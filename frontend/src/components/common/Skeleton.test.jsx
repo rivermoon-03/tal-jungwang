@@ -9,7 +9,6 @@ import { render } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import Skeleton, { SkeletonArrivalCard, SkeletonPanelRow } from './Skeleton'
 import ArrivalRow from '../dashboard/ArrivalRow'
-import DualDirectionCard from '../common/DualDirectionCard'
 
 describe('Skeleton — 기본 shimmer 블록', () => {
   it('tj-skeleton 클래스와 aria-hidden을 갖는다', () => {
@@ -52,23 +51,13 @@ describe('SkeletonArrivalCard — ArrivalRow와 컨테이너 클래스 공유', 
   })
 })
 
-describe('SkeletonPanelRow — DualDirectionCard와 컨테이너 클래스 공유', () => {
-  it('DualDirectionCard 실제 카드와 동일한 rounded-card / p-4 박스를 갖는다', () => {
-    const { container: real } = render(
-      <DualDirectionCard
-        symbol="서"
-        symbolColor="var(--tj-accent)"
-        lineName="서해선"
-        left={{ variant: 'normal', dir: '상행', minutes: 5 }}
-        right={{ variant: 'normal', dir: '하행', minutes: 3 }}
-      />
-    )
+// DualDirectionCard(좌우 듀얼 컬럼 카드)는 TransitCard로 대체되며 삭제됐다(결함
+// #4, 2026-08). SubwayPanel/ShuttlePanel은 여전히 로딩 중 이 듀얼 컬럼 모양의
+// 스켈레톤을 쓰므로 SkeletonPanelRow 자체의 구조 검증만 남긴다.
+describe('SkeletonPanelRow — 듀얼 컬럼 로딩 스켈레톤', () => {
+  it('rounded-card / p-4 박스를 갖는다', () => {
     const { container: skel } = render(<SkeletonPanelRow />)
-
-    const realCard = real.querySelector('.rounded-card.p-4')
     const skelCard = skel.querySelector('.rounded-card.p-4')
-
-    expect(realCard).not.toBeNull()
     expect(skelCard).not.toBeNull()
   })
 

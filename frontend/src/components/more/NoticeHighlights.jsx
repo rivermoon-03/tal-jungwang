@@ -3,9 +3,13 @@
  *
  * 시안1 특징:
  *   - 좌측 스트라이프 제거 → 핀 아이콘 칩(accent 배경 30×30) + 글로우 효과
- *   - hero bg: linear-gradient(150deg, #1a211e, #202221) — sage12/sage3(다크) 톤
- *   - 우상단 radial-gradient 글로우 (accent 반투명)
+ *   - hero bg: 항상 어두운 톤(dock-bg 토큰 — FloatingDock과 같은 "상시 다크 크롬" 취급)
+ *   - 우상단 블러 처리된 accent 글로우
  *   - 카드 안 "전체 공지 보기" chevron CTA
+ *
+ * 색은 전부 --tj-* 토큰(Tailwind dock-bg/accent/white 유틸)만 쓴다 — 예전엔
+ * linear-gradient/rgba에 하드코딩된 hex(#1a211e, #202221, rgba(18,165,148,…) 등)를
+ * 직접 박아 뒀었다.
  *
  * Props:
  *   onOpen?: (notice) => void — 카드/CTA 클릭 시 호출 (NoticesPage 라우팅 위임)
@@ -47,110 +51,47 @@ export default function NoticeHighlights({ onOpen }) {
     <button
       type="button"
       onClick={onOpen ? () => onOpen(top) : undefined}
-      className="pressable w-full text-left mb-3"
-      style={{
-        position: 'relative',
-        overflow: 'hidden',
-        padding: '20px 20px 18px',
-        borderRadius: 18,
-        background: 'linear-gradient(150deg, #1a211e 0%, #202221 100%)',
-        color: '#fff',
-        border: 'none',
-        boxShadow: '0 8px 22px rgba(26,33,30,0.24)',
-        cursor: 'pointer',
-      }}
       aria-label={`공지: ${top.title}`}
+      className="pressable relative w-full text-left mb-3 overflow-hidden rounded-sheet bg-dock-bg px-5 pt-5 pb-[18px] shadow-sh-pop"
     >
-      {/* 우상단 글로우 */}
+      {/* 우상단 글로우 — 블러 처리된 accent 원 (rgba/radial-gradient 대신 blur 유틸) */}
       <span
         aria-hidden="true"
-        style={{
-          position: 'absolute',
-          right: -50,
-          top: -50,
-          width: 160,
-          height: 160,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(18,165,148,0.45), transparent 70%)',
-          pointerEvents: 'none',
-        }}
+        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent/45 blur-3xl"
       />
 
       {/* 킥커 행: 핀 칩 + 태그 + 날짜 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="relative flex items-center gap-2">
         <span
           aria-hidden="true"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 10,
-            background: 'rgba(18,165,148,0.92)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            flexShrink: 0,
-          }}
+          className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-button bg-accent text-white"
         >
           <Pin size={14} aria-hidden="true" />
         </span>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              color: 'var(--tj-accent)',
-              letterSpacing: '0.08em',
-            }}
-          >
+        <div className="flex flex-col gap-px">
+          <span className="text-dest font-extrabold text-accent tracking-[0.08em]">
             고정 공지
           </span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.60)' }}>
+          <span className="text-dest font-semibold text-white/60">
             {fmtDate(top.created_at)}
           </span>
         </div>
       </div>
 
       {/* 제목 */}
-      <div
-        style={{
-          fontSize: 19,
-          fontWeight: 800,
-          letterSpacing: '-0.02em',
-          marginTop: 14,
-          lineHeight: 1.32,
-        }}
-      >
+      <div className="relative mt-3.5 text-[19px] font-extrabold leading-[1.32] tracking-[-0.02em] text-white">
         {top.title}
       </div>
 
       {/* 미리보기 */}
       {preview && (
-        <div
-          style={{
-            fontSize: 13,
-            color: 'rgba(255,255,255,0.82)',
-            fontWeight: 500,
-            lineHeight: 1.6,
-            marginTop: 8,
-          }}
-        >
+        <div className="relative mt-2 text-caption font-medium leading-[1.6] text-white/80">
           {preview}
         </div>
       )}
 
       {/* 전체 공지 보기 CTA */}
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          marginTop: 14,
-          fontSize: 13,
-          fontWeight: 800,
-          color: '#fff',
-        }}
-      >
+      <span className="relative mt-3.5 inline-flex items-center gap-1 text-caption font-extrabold text-white">
         전체 공지 보기
         <ChevronRight size={15} aria-hidden="true" />
       </span>

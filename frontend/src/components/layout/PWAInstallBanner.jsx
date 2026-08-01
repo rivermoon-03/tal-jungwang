@@ -59,7 +59,7 @@ export default function PWAInstallBanner() {
         role="banner"
         aria-label="앱 설치 배너"
         className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-2 text-white"
-        style={{ backgroundColor: '#102c4c', minHeight: '44px' }}
+        style={{ backgroundColor: 'var(--tj-accent)', minHeight: '44px' }}
       >
         <button
           onClick={handleInstall}
@@ -96,7 +96,7 @@ export default function PWAInstallBanner() {
 
           {/* Modal sheet */}
           <div
-            className="relative w-full max-w-sm mx-4 mb-6 bg-white rounded-2xl shadow-2xl p-6"
+            className="relative w-full max-w-sm mx-4 mb-6 bg-white rounded-sheet shadow-2xl p-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
@@ -110,8 +110,8 @@ export default function PWAInstallBanner() {
 
             {/* Icon */}
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 mx-auto"
-              style={{ backgroundColor: '#1b3a6e' }}
+              className="w-14 h-14 rounded-sheet flex items-center justify-center mb-4 mx-auto"
+              style={{ backgroundColor: 'var(--tj-accent-hover)' }}
               aria-hidden="true"
             >
               <span className="text-white font-semibold text-xl">TU</span>
@@ -129,7 +129,7 @@ export default function PWAInstallBanner() {
               <li className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#102c4c' }}
+                  style={{ backgroundColor: 'var(--tj-accent)' }}
                 >
                   1
                 </span>
@@ -146,7 +146,7 @@ export default function PWAInstallBanner() {
               <li className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#102c4c' }}
+                  style={{ backgroundColor: 'var(--tj-accent)' }}
                 >
                   2
                 </span>
@@ -157,7 +157,7 @@ export default function PWAInstallBanner() {
               <li className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#102c4c' }}
+                  style={{ backgroundColor: 'var(--tj-accent)' }}
                 >
                   3
                 </span>
@@ -169,8 +169,8 @@ export default function PWAInstallBanner() {
 
             <button
               onClick={handleIOSModalClose}
-              className="mt-5 w-full py-3 rounded-xl font-semibold text-white text-sm"
-              style={{ backgroundColor: '#102c4c' }}
+              className="mt-5 w-full py-3 rounded-card font-semibold text-white text-sm"
+              style={{ backgroundColor: 'var(--tj-accent)' }}
             >
               확인
             </button>

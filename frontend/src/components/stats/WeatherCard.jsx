@@ -158,44 +158,34 @@ export default function WeatherCard() {
       .sort((a, b) => a.hour - b.hour)
   }, [forecastData, weather])
 
-  const icon        = weather?.icon ?? 'sunny'
-  const Icon        = SKY_ICON[icon] ?? SKY_ICON.sunny
-
   const TomorrowIcon = tomorrowSummary ? (SKY_ICON[tomorrowSummary.icon] ?? SKY_ICON.sunny) : null
 
   return (
     <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">
-      <div className="p-5">
-        {/* 헤더 — 온도 + 아이콘 가로 배치 */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-end gap-3.5">
-            <span className="text-eta-xl font-bold text-ink tabular-nums tracking-[-0.04em] leading-none">
-              {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
-            </span>
-            <div className="mb-1">
-              <div className="text-body font-bold text-ink leading-none tracking-tight">
-                {SKY_TEXT[icon] ?? weather?.currentSky ?? ''}
-              </div>
-              <div className="mt-2 flex gap-2.5 text-caption font-semibold text-mute">
-                {todayHigh != null && (
-                  <span>
-                    <span className="text-imminent font-semibold">↑</span>{' '}
-                    <span className="text-ink-2 font-semibold tabular-nums">{todayHigh}°</span>
-                  </span>
-                )}
-                {todayLow  != null && (
-                  <span>
-                    <span className="text-ease font-semibold">↓</span>{' '}
-                    <span className="text-ink-2 font-semibold tabular-nums">{todayLow}°</span>
-                  </span>
-                )}
-                {weather?.rainProb != null && weather.rainProb > 0 && (
-                  <span>강수 <span className="text-ink-2 font-semibold tabular-nums">{weather.rainProb}%</span></span>
-                )}
-              </div>
-            </div>
+      <div className="p-4">
+        {/* 현재 온도/하늘 상태는 이미 위쪽 StatusChips 스트립(대시보드 스타일 요약 칩)이
+            보여주므로 여기서 아이콘+큰 숫자로 다시 반복하지 않는다(결함 #6 — 32° 타일
+            중복). 이 카드는 오늘 최고/최저·강수확률과 시간대별 추이처럼 스트립에
+            없는 정보만 보탠다. */}
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-caption font-bold text-mute tracking-wide">오늘 기온 추이</h3>
+          <div className="flex items-center gap-2.5 text-caption font-semibold text-mute">
+            {todayHigh != null && (
+              <span>
+                <span className="text-imminent font-semibold">↑</span>{' '}
+                <span className="text-ink-2 font-semibold tabular-nums">{todayHigh}°</span>
+              </span>
+            )}
+            {todayLow != null && (
+              <span>
+                <span className="text-ease font-semibold">↓</span>{' '}
+                <span className="text-ink-2 font-semibold tabular-nums">{todayLow}°</span>
+              </span>
+            )}
+            {weather?.rainProb != null && weather.rainProb > 0 && (
+              <span>강수 <span className="text-ink-2 font-semibold tabular-nums">{weather.rainProb}%</span></span>
+            )}
           </div>
-          <Icon size={44} strokeWidth={1.4} className="text-mute shrink-0" aria-hidden="true" />
         </div>
 
         {/* 기온 변화 스파크라인 */}

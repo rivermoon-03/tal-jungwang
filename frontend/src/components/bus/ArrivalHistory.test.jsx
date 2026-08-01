@@ -32,6 +32,12 @@ const sampleRows = [
   },
 ]
 
+const sampleColumns = [
+  { times: ['07:15', '07:30', '07:45', '08:00', '08:15', '08:30'] },
+  { times: ['07:16', '07:32', '07:48'] },
+  { times: ['07:44'] },
+]
+
 describe('ArrivalHistory', () => {
   describe('컬럼 헤더', () => {
     it('오늘 헤더가 없다 (오늘 컬럼 제거)', () => {
@@ -39,11 +45,11 @@ describe('ArrivalHistory', () => {
       expect(screen.queryByText('오늘')).toBeNull()
     })
 
-    it('어제/이틀 전/7일 전 헤더가 렌더된다', () => {
+    it('지난주/2주 전/3주 전 헤더가 렌더된다', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      expect(screen.getByText('어제')).toBeInTheDocument()
-      expect(screen.getByText('이틀 전')).toBeInTheDocument()
-      expect(screen.getByText('7일 전')).toBeInTheDocument()
+      expect(screen.getByText('지난주')).toBeInTheDocument()
+      expect(screen.getByText('2주 전')).toBeInTheDocument()
+      expect(screen.getByText('3주 전')).toBeInTheDocument()
     })
 
     it('columnLabels prop이 주어지면 해당 라벨을 사용한다', () => {
@@ -52,6 +58,18 @@ describe('ArrivalHistory', () => {
       expect(screen.getByText('6/24(수)')).toBeInTheDocument()
       expect(screen.getByText('6/23(화)')).toBeInTheDocument()
       expect(screen.getByText('6/18(수)')).toBeInTheDocument()
+    })
+  })
+
+  describe('섹션 헤더 — 왜 이 3일인지 설명(결함 #30)', () => {
+    it('"이 시간대 실제 도착" 헤더가 렌더된다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      expect(screen.getByText('이 시간대 실제 도착')).toBeInTheDocument()
+    })
+
+    it('같은 요일 3주치라는 설명이 렌더된다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      expect(screen.getByText(/오늘과 같은 요일 최근 3주 기록/)).toBeInTheDocument()
     })
   })
 
@@ -79,15 +97,13 @@ describe('ArrivalHistory', () => {
       expect(closestLabels.length).toBe(3)
     })
 
-    it('past/after position은 "도착함" 라벨을 렌더한다', () => {
+    it('"도착함" 라벨을 렌더하지 않는다 (결함 #30 — 12회 반복 제거)', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      const arrivedLabels = screen.getAllByText('도착함')
-      // 전체 items 10개 중 closest 3개를 제외한 7개
-      expect(arrivedLabels.length).toBe(7)
+      expect(screen.queryByText('도착함')).toBeNull()
     })
   })
 
-  describe('closest 강조 스타일', () => {
+  describe('과거/미래 구분 — 잉크 2단(결함 #30, 유령 글씨 금지)', () => {
     it('closest 셀은 accent 배지 클래스를 갖는다', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
       const closestCell = screen.getByText('07:45').parentElement
@@ -95,10 +111,25 @@ describe('ArrivalHistory', () => {
       expect(closestCell.className).toMatch(/text-accent-ink/)
     })
 
-    it('past 셀은 opacity 클래스를 갖는다', () => {
+    it('past 셀은 opacity가 아니라 ink-2 톤 클래스를 갖는다', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      const pastCell = screen.getByText('07:15').parentElement
-      expect(pastCell.className).toMatch(/opacity-35/)
+      const pastCell = screen.getByText('07:15')
+      expect(pastCell.className).toMatch(/text-ink-2/)
+      expect(pastCell.className).not.toMatch(/opacity-/)
+    })
+
+    it('after 셀은 기본 ink 톤 클래스를 갖는다', () => {
+      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const afterCell = screen.getByText('08:00')
+      expect(afterCell.className).toMatch(/\btext-ink\b/)
+    })
+
+    it('opacity 클래스가 문서 전체에 없다(유령 글씨 금지)', () => {
+      const { container } = render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
+      const allClasses = Array.from(container.querySelectorAll('[class]'))
+        .map((el) => el.className)
+        .join(' ')
+      expect(allClasses).not.toMatch(/opacity-\d/)
     })
   })
 
@@ -119,17 +150,25 @@ describe('ArrivalHistory', () => {
     })
   })
 
-  describe('하단 안내문', () => {
-    it('과거 도착 시각을 참고해 직접 가늠 안내문이 정확히 1회만 렌더된다', () => {
-      render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      const matches = screen.getAllByText(/과거 도착 시각을 참고해 직접 가늠/)
-      expect(matches.length).toBe(1)
+  describe('하단 결론 — 기록 기반 배차 간격(결함 #30)', () => {
+    it('columns가 있고 now 근처 간격을 계산할 수 있으면 "N~M분 간격" 문장을 렌더한다', () => {
+      const now = new Date('2026-08-01T07:40:00')
+      render(
+        <ArrivalHistory
+          rows={sampleRows}
+          routeNumber="33"
+          columns={sampleColumns}
+          dayLabel="토요일"
+          now={now}
+        />
+      )
+      expect(screen.getByText(/토요일 이 시간대엔 보통/)).toBeInTheDocument()
+      expect(screen.getByText(/분 간격/)).toBeInTheDocument()
     })
 
-    it('안내문에 현재 시각이 병기된다', () => {
+    it('columns가 없으면 계산 불가 안내 문구로 대체된다', () => {
       render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
-      const el = screen.getByText(/과거 도착 시각을 참고해 직접 가늠/)
-      expect(el.textContent).toMatch(/현재 \d{2}:\d{2}/)
+      expect(screen.getByText(/과거 도착 시각을 참고해 직접 가늠해보세요/)).toBeInTheDocument()
     })
 
     it('"이전 시간을 기반으로 한 예정치" 문구가 없다', () => {
@@ -137,9 +176,10 @@ describe('ArrivalHistory', () => {
       expect(screen.queryByText(/이전 시간을 기반으로 한 예정치/)).toBeNull()
     })
 
-    it('안내문이 rows가 없을 때는 렌더되지 않는다', () => {
+    it('결론 문장이 rows가 없을 때는 렌더되지 않는다', () => {
       render(<ArrivalHistory rows={[]} routeNumber="33" />)
       expect(screen.queryByText(/과거 도착 시각을 참고해/)).toBeNull()
+      expect(screen.queryByText(/분 간격/)).toBeNull()
     })
   })
 
@@ -166,7 +206,7 @@ describe('ArrivalHistory', () => {
       const allClasses = Array.from(container.querySelectorAll('[class]'))
         .map((el) => el.className)
         .join(' ')
-      expect(allClasses).not.toMatch(/text-\[(9|10|11)px\]/)
+      expect(allClasses).not.toMatch(/text-\[(9|10|11)(\.\d+)?px\]/)
       expect(allClasses).not.toMatch(/\btext-micro\b/)
       expect(allClasses).not.toMatch(/\btext-meta\b/)
       expect(allClasses).not.toMatch(/\btext-sub\b/)
@@ -190,6 +230,13 @@ describe('ArrivalHistory', () => {
       const { container } = render(<ArrivalHistory rows={sampleRows} routeNumber="33" />)
       const html = container.innerHTML
       expect(html).not.toMatch(/#[0-9a-fA-F]{3,6}/)
+    })
+
+    it('em-dash(—)가 렌더 텍스트에 없어야 한다', () => {
+      const { container } = render(
+        <ArrivalHistory rows={sampleRows} routeNumber="33" columns={sampleColumns} dayLabel="평일" />
+      )
+      expect(container.textContent).not.toMatch(/—/)
     })
   })
 

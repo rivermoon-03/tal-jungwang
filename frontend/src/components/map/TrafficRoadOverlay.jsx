@@ -50,7 +50,7 @@ function createOverlayDOM() {
     `bottom:${PILL_H + 8}px`,
     'left:50%',
     'transform:translateX(-50%)',
-    'background:#fff',
+    'background:var(--tj-surface)',
     'border-radius:8px',
     'padding:8px 12px',
     'box-shadow:0 4px 14px rgba(0,0,0,0.22)',
@@ -65,8 +65,8 @@ function createOverlayDOM() {
     `height:${PILL_H}px`,
     'padding:0 10px',
     'border-radius:9999px',
-    'background:#fff',
-    'border:2px solid #cbd5e1',
+    'background:var(--tj-surface)',
+    'border:2px solid var(--tj-line)',
     'box-shadow:0 2px 6px rgba(0,0,0,0.22)',
     'display:inline-flex',
     'align-items:center',
@@ -75,7 +75,7 @@ function createOverlayDOM() {
   ].join(';')
 
   const label = document.createElement('span')
-  label.style.cssText = 'font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:-0.3px;line-height:1'
+  label.style.cssText = 'font-size:12px;font-weight:700;color:var(--tj-mute);letter-spacing:-0.3px;line-height:1'
   circle.appendChild(label)
 
   wrapper.appendChild(tooltip)
@@ -84,20 +84,20 @@ function createOverlayDOM() {
   return { wrapper, tooltip, circle, label }
 }
 
-/** 방향별 한 줄 HTML. road가 없으면 '—' 표시. */
+/** 방향별 한 줄 HTML. road가 없으면 "정보 없음" 표시(자리표시 대시 대신 말로 설명). */
 function directionRow(directionCode, road) {
   const name = DIRECTION_LABEL[directionCode] ?? directionCode
   if (!road) {
     return `
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:12px;margin-top:3px">
-        <span style="color:#64748b">${esc(name)}</span>
-        <span style="color:#cbd5e1">—</span>
+        <span style="color:var(--tj-mute)">${esc(name)}</span>
+        <span style="color:var(--tj-mute)">정보 없음</span>
       </div>`
   }
-  const color = CONGESTION_COLOR[road.congestion] ?? '#94a3b8'
+  const color = CONGESTION_COLOR[road.congestion] ?? 'var(--tj-mute)'
   return `
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:12px;margin-top:3px">
-      <span style="color:#64748b">${esc(name)}</span>
+      <span style="color:var(--tj-mute)">${esc(name)}</span>
       <span style="font-weight:600;color:${esc(color)}">${esc(road.speed)}km/h · ${esc(road.congestion_label)}</span>
     </div>`
 }
@@ -105,13 +105,13 @@ function directionRow(directionCode, road) {
 /** 툴팁 HTML 전체를 갱신한다. */
 function renderTooltip(tooltip, roadName, entry) {
   tooltip.innerHTML = `
-    <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:4px">${esc(roadName)}</div>
+    <div style="font-weight:700;font-size:13px;color:var(--tj-ink);margin-bottom:4px">${esc(roadName)}</div>
     ${directionRow('to_school', entry.to_school)}
     ${directionRow('to_station', entry.to_station)}
-    <div style="font-size:11px;color:#94a3b8;margin-top:6px">${esc(entry.updatedAt)} 기준</div>
+    <div style="font-size:12px;color:var(--tj-mute);margin-top:6px">${esc(entry.updatedAt)} 기준</div>
     <div style="
       position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);
-      width:10px;height:5px;background:#fff;
+      width:10px;height:5px;background:var(--tj-surface);
       clip-path:polygon(0 0,100% 0,50% 100%)
     "></div>
   `
@@ -192,7 +192,7 @@ export default function TrafficRoadOverlay({ map }) {
 
     const updatedAt = data.updated_at
       ? new Date(data.updated_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-      : '—'
+      : '-'
 
     Object.entries(byRoad).forEach(([roadName, dirs]) => {
       const entry = {

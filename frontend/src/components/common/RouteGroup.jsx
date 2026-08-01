@@ -8,7 +8,7 @@ export default function RouteGroup({ heading, children, className = '' }) {
       className={`rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none overflow-hidden ${className}`}
     >
       {heading && (
-        <header className="px-3 pt-[7px] pb-[3px] text-ghdr uppercase text-mute dark:text-mute">
+        <header className="px-3 pt-[7px] pb-[3px] text-dest font-bold uppercase text-mute dark:text-mute">
           {heading}
         </header>
       )}

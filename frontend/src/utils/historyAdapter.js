@@ -6,9 +6,9 @@
  * API 응답 형태:
  *   {
  *     columns: [
- *       { label: '어제',    date, day_label, times: string[], totalCount },
- *       { label: '이틀 전', date, day_label, times: string[], totalCount },
- *       { label: '7일 전',  date, day_label, times: string[], totalCount },
+ *       { label: '지난주',  date, day_label, times: string[], totalCount },
+ *       { label: '2주 전',  date, day_label, times: string[], totalCount },
+ *       { label: '3주 전',  date, day_label, times: string[], totalCount },
  *     ],
  *     realtime_eta: { primary: { arrive_at_hhmm }, secondary } | null,
  *     predicted_eta: { hhmm, sample_size, day_label } | null,
@@ -24,11 +24,11 @@
  * 설계 원칙:
  *   - today(예정) 시각은 절대 포함하지 않는다. 사용자가 직접 예측하게 한다.
  *   - delta(예측 비교 verdict)는 제공하지 않는다.
- *   - 각 컬럼(어제/이틀 전/7일 전)은 서로 독립적으로 selectHistoryWindow를 적용한다.
+ *   - 각 컬럼(지난주/2주 전/3주 전)은 서로 독립적으로 selectHistoryWindow를 적용한다.
  *     날짜별 기록 개수가 달라도 컬럼마다 자기 자신의 창(최대 6건)을 갖는다.
- *   - yesterday: columns[0] (어제)
- *   - dayBefore: columns[1] (이틀 전)
- *   - lastWeek:  columns[2] (7일 전)
+ *   - yesterday: columns[0] (지난주)
+ *   - dayBefore: columns[1] (2주 전)
+ *   - lastWeek:  columns[2] (3주 전)
  */
 
 const COLUMN_KEYS = ['yesterday', 'dayBefore', 'lastWeek']

@@ -1,11 +1,13 @@
 /**
- * stats/ 컴포넌트 AI티 제거 토큰 준수 테스트
+ * stats/ 컴포넌트 고유 회귀 테스트
+ *
+ * text-[10px]/[11px] 등 12px 미만 폰트 금지와 text/bg-slate-*·gray-* 생색
+ * 금지는 src/tokenRules.test.js가 src/ 전체를 순회하며 이미 검사한다(이
+ * 파일이 예전에 따로 두던 중복 검사는 제거했다). 여기엔 그 전역 규칙으로
+ * 커버되지 않는 stats/ 고유 검증만 남긴다.
  *
  * 검증 항목:
  * - 인라인 다크 그라데이션 (#0f172a, #111827, #1e293b) 미사용
- * - text-[10px] / text-[11px] 미사용 (12px 미만 폰트 금지)
- * - text-slate-* / text-gray-* 생색 미사용
- * - bg-slate-* / bg-gray-* 생색 미사용
  * - 핵심 텍스트 식별자 존재 여부
  */
 import { describe, it, expect } from 'vitest'
@@ -24,12 +26,6 @@ const TARGET_FILES = [
   'TrafficFlowCard.jsx',
   'StatusChips.jsx',
   'ChartSkeleton.jsx',
-]
-
-// 차트 SVG 전용 파일 (라벨만 검사)
-const CHART_FILES = [
-  'CrowdingChart.jsx',
-  'FlowChart.jsx',
 ]
 
 function readFile(name) {
@@ -67,47 +63,7 @@ describe('stats/ 토큰 준수 — 인라인 다크 그라데이션 색상 금�
   })
 })
 
-// ── 2. 12px 미만 인라인 폰트 금지 ──────────────────────────────────────
-describe('stats/ 토큰 준수 — 12px 미만 폰트 금지', () => {
-  TARGET_FILES.forEach((file) => {
-    it(`${file}: text-[10px] / text-[11px] 없음`, () => {
-      const src = readFile(file)
-      const matches = src.match(/text-\[(10|11)px\]/g)
-      expect(matches, `${file}에 ${matches} 남아있음 (12px 미만)`).toBeNull()
-    })
-  })
-
-  CHART_FILES.forEach((file) => {
-    it(`${file}: 툴팁 라벨 text-[10px] / text-[11px] 없음`, () => {
-      const src = readFile(file)
-      const matches = src.match(/text-\[(10|11)px\]/g)
-      expect(matches, `${file}에 ${matches} 남아있음 (12px 미만)`).toBeNull()
-    })
-  })
-})
-
-// ── 3. slate / gray 생색 금지 ──────────────────────────────────────────
-describe('stats/ 토큰 준수 — text-slate-*/text-gray-* 생색 금지', () => {
-  TARGET_FILES.forEach((file) => {
-    it(`${file}: text-slate-* / text-gray-* 없음`, () => {
-      const src = readFile(file)
-      const matches = src.match(/text-(slate|gray)-\d+/g)
-      expect(matches, `${file}에 생색 ${matches} 남아있음`).toBeNull()
-    })
-  })
-})
-
-describe('stats/ 토큰 준수 — bg-slate-*/bg-gray-* 생색 금지', () => {
-  TARGET_FILES.forEach((file) => {
-    it(`${file}: bg-slate-* / bg-gray-* 없음`, () => {
-      const src = readFile(file)
-      const matches = src.match(/bg-(slate|gray)-\d+/g)
-      expect(matches, `${file}에 생색 bg-* ${matches} 남아있음`).toBeNull()
-    })
-  })
-})
-
-// ── 4. 인라인 그라데이션 style 금지 (카드 배경용) ─────────────────────
+// ── 2. 인라인 그라데이션 style 금지 (카드 배경용) ─────────────────────
 describe('stats/ 토큰 준수 — 카드 배경 인라인 그라데이션 금지', () => {
   // 차트 내부 SVG fill gradient (wc-fill, flowArea 등)는 data 시각화이므로 허용
   // 카드 article/div 레벨 배경 그라데이션만 금지
@@ -129,7 +85,7 @@ describe('stats/ 토큰 준수 — 카드 배경 인라인 그라데이션 금�
   })
 })
 
-// ── 5. 핵심 텍스트 식별자 존재 ─────────────────────────────────────────
+// ── 3. 핵심 텍스트 식별자 존재 ─────────────────────────────────────────
 describe('stats/ 핵심 텍스트 식별자 존재', () => {
   it('CrowdingCard.jsx: 노선별 혼잡도 텍스트 존재', () => {
     const src = readFile('CrowdingCard.jsx')

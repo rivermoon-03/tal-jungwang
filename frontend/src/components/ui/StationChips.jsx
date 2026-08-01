@@ -3,15 +3,16 @@
  * 정류장/방향 선택에 사용하는 가로 스크롤 칩 리스트 컴포넌트.
  *
  * Props:
- *   items    {id, label}[]            칩 목록
- *   active   string                   활성 칩 id
- *   onChange (id) => void             칩 클릭 핸들러
- *   variant  'station' | 'direction'  스타일 변형 (예약, 현재 동일 처리)
+ *   items     {id, label}[]            칩 목록
+ *   active    string                   활성 칩 id
+ *   onChange  (id) => void             칩 클릭 핸들러
+ *   variant   'station' | 'direction'  스타일 변형 (예약, 현재 동일 처리)
+ *   className string                   컨테이너 추가 클래스 (예: no-scrollbar)
  */
-export default function StationChips({ items = [], active, onChange, variant = 'station' }) {
+export default function StationChips({ items = [], active, onChange, variant = 'station', className = '' }) {
   return (
     <div
-      className="flex items-center gap-2 overflow-x-auto"
+      className={`flex items-center gap-2 overflow-x-auto no-scrollbar ${className}`.trim()}
       data-variant={variant}
     >
       {items.map((item) => {

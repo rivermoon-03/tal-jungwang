@@ -68,15 +68,20 @@ export default function PCStationPicker() {
 
   const handleDirection = (dir) => setDirectionOverride(dir)
 
-  const distLabel = nearestInfo
-    ? (nearestInfo.distanceM < 1000
-        ? `${nearestInfo.distanceM}m`
-        : `${(nearestInfo.distanceM / 1000).toFixed(1)}km`)
-    : null
+  // 거리 표기는 "걸어갈 수 있는 거리"일 때만 의미가 있다. 위치가 없거나
+  // 최근접이 5km를 넘으면(정왕 생활권 밖 — 위치 이상/원거리) 숨긴다.
+  // 과거엔 "자동 · 42.0km"처럼 쓰레기 값이 그대로 노출됐다(Before 점검 #29).
+  const DIST_SHOW_MAX_M = 5000
+  const distLabel =
+    nearestInfo && nearestInfo.distanceM <= DIST_SHOW_MAX_M
+      ? (nearestInfo.distanceM < 1000
+          ? `${nearestInfo.distanceM}m`
+          : `${(nearestInfo.distanceM / 1000).toFixed(1)}km`)
+      : null
 
   const stationLabel = getBusStationDisplay(selectedBusStation) || selectedBusStation
   const statusLabel = autoMode
-    ? (coords ? `자동${distLabel ? ' · ' + distLabel : ''}` : 'GPS 대기 중')
+    ? (coords ? `자동${distLabel ? ' · ' + distLabel : ''}` : '위치 꺼짐')
     : '수동'
 
   return (
@@ -91,7 +96,9 @@ export default function PCStationPicker() {
             {stationLabel}
           </div>
           <div className="text-label font-semibold text-mute dark:text-mute mt-1">
-            {autoMode ? '가장 가까운 정류장' : '수동 선택됨'}
+            {autoMode
+              ? (coords ? '가장 가까운 정류장' : '정류장을 직접 선택해 주세요')
+              : '수동 선택됨'}
           </div>
         </div>
         <DirectionToggle direction={direction} onPick={handleDirection} />

@@ -37,16 +37,13 @@
 }
 .cafe-status-pill.is-closing .dot { background: var(--tj-imminent); }
 
-/* 영업 종료 / 휴무 / 영업 전 — 톤다운 적색(회색 대신) */
+/* 영업 종료 / 휴무 / 영업 전 — 톤다운 적색(회색 대신).
+   --tj-delayed가 라이트/다크 각각 다른 hex(#dc2626 / #ff6369)로 이미 정의돼
+   있어(index.css), 하드코딩 hex 두 벌 대신 이 토큰 하나만 쓰면 .dark 스코프
+   오버라이드 없이도 자동으로 다크 톤이 적용된다. */
 .cafe-status-pill.is-closed {
-  background: color-mix(in srgb, #dc2626 11%, var(--tj-surface-2));
-  color: color-mix(in srgb, #dc2626 62%, var(--tj-ink));
-  border: 1px solid color-mix(in srgb, #dc2626 20%, var(--tj-line));
+  background: color-mix(in srgb, var(--tj-delayed) 11%, var(--tj-surface-2));
+  color: color-mix(in srgb, var(--tj-delayed) 62%, var(--tj-ink));
+  border: 1px solid color-mix(in srgb, var(--tj-delayed) 20%, var(--tj-line));
 }
-.cafe-status-pill.is-closed .dot { background: #dc2626; }
-.dark .cafe-status-pill.is-closed {
-  background: color-mix(in srgb, #f87171 16%, var(--tj-surface-2));
-  color: color-mix(in srgb, #f87171 72%, var(--tj-ink));
-  border-color: color-mix(in srgb, #f87171 26%, var(--tj-line));
-}
-.dark .cafe-status-pill.is-closed .dot { background: #f87171; }
+.cafe-status-pill.is-closed .dot { background: var(--tj-delayed); }

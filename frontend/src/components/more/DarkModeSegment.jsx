@@ -38,7 +38,9 @@ export default function DarkModeSegment() {
               ...(active ? { background: 'var(--tj-accent)' } : {}),
             }}
           >
-            <Icon size={13} color={active ? '#FFFFFF' : undefined} />
+            {/* color 지정 없이 currentColor를 따르게 두면 active일 때 버튼의
+                text-white 클래스가 그대로 아이콘에도 적용된다(하드코딩 hex 제거). */}
+            <Icon size={13} />
             {label}
           </button>
         )

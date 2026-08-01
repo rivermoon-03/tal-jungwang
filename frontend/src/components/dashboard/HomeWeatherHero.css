@@ -4,16 +4,45 @@
 .whero {
   position: relative;
   overflow: hidden;
-  /* 홈 세로 공간의 약 45%를 차지(사용자 요청 — 40%는 위쪽이 답답하다는 피드백으로 확장).
-     작은 폰(667px)에서 너무 얕지 않게, 큰 화면에서 과하게 크지 않게 clamp. */
-  flex: 0 0 45%;
-  min-height: 192px;
-  max-height: 348px;
-  /* 자식(상단바 / 메인블록)을 세로로 흘려 45% 공간을 활용 */
+  /* 결함 #31 — 예전엔 뷰포트의 45%를 영구 점유해 대시보드가 내부 스크롤에 갇혔다.
+     이제 기본은 한 줄 스트립(auto 높이)만 차지하고, 펼쳤을 때만 아래 .whero-panel이
+     기존 콘텐츠(인사말/예보 상세) 높이만큼 자연스럽게 늘어난다. */
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   border-radius: 0;
   transition: background 400ms ease;
+}
+
+/* 접힌 상태: 배경 그라데이션은 유지하되 강조 이펙트(rays/night-sky/rain/snow/grain 등)는
+   .whero-panel 내부에서만 렌더되므로 자연히 숨는다 — 별도 규칙 불필요. */
+
+/* 한 줄 스트립 — 항상 보이는 행. 펼침 토글 + 온도/하늘/바람 요약 + 검색 진입. */
+.whero-strip {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+/* 펼침 패널 — 기존 상단바/메인블록/이펙트를 모두 담는다. 진입 시 살짝 페이드+슬라이드. */
+.whero-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 192px;
+  max-height: 348px;
+  animation: whero-panel-in 220ms var(--e-out, ease-out) both;
+}
+@keyframes whero-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .whero-panel { animation: none; }
 }
 
 /* 하단 seam — 히어로(mood 색)를 대시보드 배경(var(--tj-bg))으로 얇게 블렌드.

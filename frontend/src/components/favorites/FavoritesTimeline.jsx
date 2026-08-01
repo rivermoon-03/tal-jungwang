@@ -79,7 +79,7 @@ export default function FavoritesTimeline({ items = [], onOpenDetail }) {
               }}
             />
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              {hasMin ? (
+              {hasMin && (
                 <span
                   className={urgent ? 'tj-urgent' : ''}
                   style={{
@@ -93,25 +93,15 @@ export default function FavoritesTimeline({ items = [], onOpenDetail }) {
                 >
                   {m}
                 </span>
-              ) : (
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: 'var(--tj-mute)',
-                    lineHeight: 1,
-                  }}
-                >
-                  —
-                </span>
               )}
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tj-mute)' }}>
+              {/* 분 없음일 땐 자리표시 대시 없이 "정보 없음" 텍스트만 남긴다(UI 렌더 텍스트에 em-dash 금지) */}
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tj-mute)' }}>
                 {hasMin ? '분 뒤' : '정보 없음'}
               </span>
               {item.lastTrain && (
                 <span
                   style={{
-                    fontSize: 9,
+                    fontSize: 12,
                     fontWeight: 900,
                     padding: '1px 5px',
                     borderRadius: 4,
@@ -130,7 +120,7 @@ export default function FavoritesTimeline({ items = [], onOpenDetail }) {
               {direction && (
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: 'var(--tj-mute)',
                     fontWeight: 600,
                     whiteSpace: 'nowrap',

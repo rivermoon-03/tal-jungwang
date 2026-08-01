@@ -95,7 +95,7 @@ export default function MorePCLayout({ initialNav = 'academic' }) {
                     className="flex items-center gap-2 px-3 py-1.5 rounded-mini bg-surface-2 dark:bg-surface-2"
                   >
                     <span
-                      className={`text-micro font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 tabular-nums ${
+                      className={`text-dest font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 tabular-nums ${
                         isNext
                           ? 'bg-accent dark:bg-accent text-white'
                           : 'bg-surface-3 dark:bg-surface-3 text-ink-2 dark:text-ink-2'
@@ -106,7 +106,7 @@ export default function MorePCLayout({ initialNav = 'academic' }) {
                     <span className="text-caption font-semibold text-ink dark:text-ink truncate max-w-[160px]">
                       {item.title}
                     </span>
-                    <span className="text-micro font-semibold text-mute dark:text-mute flex-shrink-0 whitespace-nowrap tabular-nums">
+                    <span className="text-dest font-semibold text-mute dark:text-mute flex-shrink-0 whitespace-nowrap tabular-nums">
                       {formatDateOrRange(item.start_date, item.end_date)}
                     </span>
                   </div>

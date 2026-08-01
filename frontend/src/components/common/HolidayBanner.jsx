@@ -14,12 +14,12 @@ export default function HolidayBanner({ isHoliday, holidayName }) {
   return (
     <div
       role="status"
-      className="mx-4 mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 px-4 py-2.5 flex items-start gap-2"
+      className="mx-4 mt-3 rounded-card bg-imminent-bg dark:bg-imminent-bg border border-imminent/30 dark:border-imminent/30 px-4 py-2.5 flex items-start gap-2"
     >
       <span aria-hidden="true" className="text-base leading-none mt-0.5">📅</span>
-      <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+      <p className="text-caption text-imminent dark:text-imminent leading-relaxed">
         <span className="font-bold">{label}</span>
-        {' — '}
+        {' · '}
         일요일 시간표가 적용됩니다.
       </p>
     </div>

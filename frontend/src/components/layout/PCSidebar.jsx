@@ -3,9 +3,49 @@ import { Bell, Settings as SettingsIcon, Sun, Moon, Bus, Train, Info, Shield } f
 import useAppStore from '../../stores/useAppStore'
 import usePathname from '../../hooks/usePathname'
 import { useNotices } from '../../hooks/useMore'
+import { useWeather } from '../../hooks/useWeather'
+import { SKY_ICON, SKY_TEXT } from '../stats/skyDisplay'
+import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import { PC_TABS, getActivePcTabId, navigateToPcTab } from '../common/pcNavTabs'
 import NoticesPopover from '../common/NoticesPopover'
-import PCWeatherSummary from '../dashboard/PCWeatherSummary'
+
+// "값 없음"으로 취급하는 미세먼지 등급 표기 — 백엔드가 측정 실패 시 null이
+// 아니라 이 문자열 그대로를 내려줄 때가 있다(결함 #10: "미세먼지 알수없음"
+// 원문 노출). 값이 없으면 항목 자체를 숨긴다(빈 라벨을 보여주는 대신).
+const PM10_UNKNOWN = '알수없음'
+
+/**
+ * PCWeatherStrip — 사이드바 전용 한 줄 날씨 스트립.
+ *
+ * components/dashboard/PCWeatherSummary(글귀+큰 온도+메타 3단 카드)를 그대로
+ * 사이드바에 넣으면 중복 날씨 카드처럼 보이고 세로 공간도 많이 차지한다
+ * (결함 #10). dashboard/ 소유 파일은 건드릴 수 없어(파일 소유권), 같은
+ * useWeather 훅과 표시 헬퍼(SKY_ICON/SKY_TEXT/describeJeongwangWind)만
+ * 재사용해 사이드바 쪽에 훨씬 가벼운 한 줄 표기를 새로 둔다.
+ */
+function PCWeatherStrip() {
+  const { weather } = useWeather()
+  if (!weather) {
+    return <div className="h-4 w-3/4 rounded-button tj-skeleton" aria-hidden="true" />
+  }
+
+  const icon = weather.icon ?? 'sunny'
+  const Icon = SKY_ICON[icon] ?? Sun
+  const wind = describeJeongwangWind(weather.windSpeed ?? null)
+  const hasDust = weather.pm10Grade != null && weather.pm10Grade !== PM10_UNKNOWN
+
+  return (
+    <div className="flex items-center gap-1.5 text-caption font-semibold text-ink-2 dark:text-mute">
+      <Icon size={16} className="flex-none text-ink-2 dark:text-mute" aria-hidden="true" />
+      <span className="tabular-nums text-ink dark:text-ink font-bold flex-none">
+        {weather.currentTemp != null ? `${weather.currentTemp}°` : '--'}
+      </span>
+      <span className="truncate">{SKY_TEXT[icon] ?? ''}</span>
+      {wind && <span className="truncate">· 바람 {wind.value}</span>}
+      {hasDust && <span className="truncate">· 미세먼지 {weather.pm10Grade}</span>}
+    </div>
+  )
+}
 
 // 컨텍스트 서브내비 — 현재 활성 상위 탭에 딸린 콘텐츠성 하위 항목만 둔다.
 // 설정성 항목(설정/앱 정보/개인정보처리방침)은 하단 "설정" 섹션이 전담한다.
@@ -21,8 +61,8 @@ const MORE_SUBNAV = [
 /**
  * PCSidebar — 데스크톱 전용 좌측 반투명 사이드바(폭 약 236px).
  *
- * pc-mockup.html의 .sidebar(반투명 A) 구성을 그대로 옮긴다: 브랜드 → 날씨 위젯
- * (PCWeatherSummary 재사용) → 4탭 네비(PCDock과 동일한 pcNavTabs 공유) →
+ * pc-mockup.html의 .sidebar(반투명 A) 구성을 그대로 옮긴다: 브랜드 → 날씨 한 줄
+ * 스트립(PCWeatherStrip, 결함 #10 — 중복되던 큰 날씨 카드를 압축) → 4탭 네비(PCDock과 동일한 pcNavTabs 공유) →
  * 컨텍스트 서브내비(활성 탭이 학식/더보기일 때만, macOS Finder식) →
  * 즐겨찾기 요약(useAppStore.favorites) → 설정 진입 3항목 → footer(다크모드
  * 토글 + 공지 벨 — 이전에 PCDock이 갖던 기능을 이관).
@@ -101,13 +141,14 @@ export default function PCSidebar() {
         </div>
         <div className="min-w-0">
           <p className="truncate text-caption font-extrabold tracking-[-0.02em] text-ink">탈것:정왕</p>
-          <p className="truncate text-micro font-semibold text-mute">정왕 교통 · 실시간</p>
+          <p className="truncate text-dest font-semibold text-mute">정왕 교통 · 실시간</p>
         </div>
       </div>
 
-      {/* 날씨 위젯 */}
+      {/* 날씨 한 줄 스트립 — 예전엔 사이드바에도 홈과 같은 큰 날씨 카드가
+          그대로 들어가 중복돼 보였다(결함 #10). 사이드바에서는 요약 한 줄로 충분하다. */}
       <div className="mb-2 rounded-card border border-line bg-surface px-3 py-2.5">
-        <PCWeatherSummary />
+        <PCWeatherStrip />
       </div>
 
       {/* 4탭 네비 + 컨텍스트 서브내비.
@@ -169,7 +210,7 @@ export default function PCSidebar() {
       {/* 즐겨찾기 */}
       {favoriteRoutes.length > 0 && (
         <div className="mt-3">
-          <p className="px-3 pb-1 text-micro font-bold uppercase tracking-[.07em] text-mute">즐겨찾기</p>
+          <p className="px-3 pb-1 text-dest font-bold uppercase tracking-[.07em] text-mute">즐겨찾기</p>
           <ul className="flex flex-col gap-0.5">
             {favoriteRoutes.map((routeKey) => {
               const isSubway = routeKey.startsWith('subway:')
@@ -195,7 +236,7 @@ export default function PCSidebar() {
 
       {/* 설정 — 알림/화면 설정 + 앱 정보 + 개인정보처리방침 (더보기의 설정 서브페이지로 라우팅) */}
       <div className="mt-3">
-        <p className="px-3 pb-1 text-micro font-bold uppercase tracking-[.07em] text-mute">설정</p>
+        <p className="px-3 pb-1 text-dest font-bold uppercase tracking-[.07em] text-mute">설정</p>
         <a
           href="/more/settings"
           onClick={goMoreSub('/more/settings', 'settings')}
@@ -255,7 +296,7 @@ export default function PCSidebar() {
         </button>
         <div className="min-w-0 flex-1 text-right">
           <p className="truncate text-caption font-semibold text-ink-2">한국공학대</p>
-          <p className="truncate text-micro font-semibold text-mute">TIP · 정왕</p>
+          <p className="truncate text-dest font-semibold text-mute">TIP · 정왕</p>
         </div>
       </div>
       <NoticesPopover open={noticesOpen} onClose={() => setNoticesOpen(false)} anchorRef={bellRef} />

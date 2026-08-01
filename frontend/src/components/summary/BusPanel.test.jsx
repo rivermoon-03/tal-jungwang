@@ -1,7 +1,7 @@
 /**
  * BusPanel — 등교/하교 정류장 표기 + 빈 상태 카피 + 방향 필터 테스트
  */
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getOriginLabel } from '../dashboard/busStationConfig'
 import BusPanel from './BusPanel'
@@ -32,6 +32,11 @@ vi.mock('../../hooks/useBus', () => ({
   useBusArrivals: (...args) => mockUseBusArrivals(...args),
   useBusRoutesByCategory: (...args) => mockUseBusRoutesByCategory(...args),
   useBusTimetable: vi.fn(() => ({ data: null, loading: false, error: null, refetch: vi.fn() })),
+  // 결함 #17/#27 — 실시간 미연결/완전 미운행 카드가 쓰는 시간표 폴백 훅.
+  // 이 테스트 파일의 시나리오는 모두 실시간 값이 채워져 있어 실제로 호출되지
+  // 않지만(오늘 미운행 섹션은 기본 접힘), 향후 시나리오 추가 시 크래시를 막기 위해
+  // 항상 빈 시간표를 반환하도록 미리 모킹해 둔다.
+  useBusTimetableByRoute: vi.fn(() => ({ data: { times: [] }, loading: false, error: null, refetch: vi.fn() })),
 }))
 
 // 기본 routesQuery (서울 탭용 — 시흥시청는 GBIS이므로 실제로 쓰이지 않음)
@@ -176,5 +181,83 @@ describe('BusPanel — GBIS arrivals 방향 필터', () => {
   it('허용 방향(등교)의 노선(5602)은 표시한다', () => {
     const { container } = render(<BusPanel />)
     expect(container.textContent).toMatch(/5602/)
+  })
+})
+
+// ────────────────────────────────────────────────────────────
+// 5. BusPanel — TransitCard 리디자인: 섹션 + 풀네임 제목 검증
+// ────────────────────────────────────────────────────────────
+describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
+  it('ETA 5분 이하 노선은 "곧 도착" 섹션에 표시된다', () => {
+    mockUseBusArrivals.mockReturnValue({
+      data: {
+        arrivals: [
+          {
+            route_no: '5602',
+            category: '등교',
+            arrival_type: 'realtime',
+            destination: '이마트(학교)',
+            arrive_in_seconds: 200, // 3분20초 → 5분 이하
+            is_tomorrow: false,
+            crowded: 0,
+          },
+        ],
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    render(<BusPanel />)
+    expect(screen.getByText('곧 도착')).toBeInTheDocument()
+  })
+
+  it('카드 제목은 행선지 풀네임을 그대로 쓰고 말줄임 클래스를 쓰지 않는다', () => {
+    // 시흥시청(등교)의 5602는 ROUTE_PATH상 label='학교행'
+    mockUseBusArrivals.mockReturnValue({
+      data: {
+        arrivals: [
+          {
+            route_no: '5602',
+            category: '등교',
+            arrival_type: 'realtime',
+            destination: '이마트(학교)',
+            arrive_in_seconds: 600,
+            is_tomorrow: false,
+            crowded: 0,
+          },
+        ],
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    render(<BusPanel />)
+    const title = screen.getByText('학교행')
+    expect(title.className).not.toMatch(/truncate/)
+  })
+
+  it('완전 미운행 노선이 있으면 "오늘 미운행 · N" 접힘 섹션이 기본 접힘 상태로 보인다', () => {
+    // 5602만 실시간 응답에 있고, 시흥시청 설정상 시흥33/3401은 응답에 없음 → 미운행 후보
+    mockUseBusArrivals.mockReturnValue({
+      data: {
+        arrivals: [
+          {
+            route_no: '5602',
+            category: '등교',
+            arrival_type: 'realtime',
+            destination: '이마트(학교)',
+            arrive_in_seconds: 600,
+            is_tomorrow: false,
+            crowded: 0,
+          },
+        ],
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    render(<BusPanel />)
+    const toggle = screen.getByRole('button', { name: /오늘 미운행 · 2/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })
 })

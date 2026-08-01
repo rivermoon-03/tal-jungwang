@@ -161,7 +161,7 @@ describe('BusEtaCard', () => {
     it('renders dash and prose only', () => {
       render(<BusEtaCard realtimeEta={null} predictedEta={null} />)
       expect(screen.getByText('도착 정보 없음')).toBeInTheDocument()
-      expect(screen.getByText('—')).toBeInTheDocument()
+      expect(screen.getByText('·')).toBeInTheDocument()
       // prose
       expect(
         screen.getByText(/같은 요일·시간대 과거 기록도 충분하지 않아/)
@@ -174,7 +174,7 @@ describe('BusEtaCard', () => {
     it('falls back to state 3 when both props are undefined', () => {
       render(<BusEtaCard />)
       expect(screen.getByText('도착 정보 없음')).toBeInTheDocument()
-      expect(screen.getByText('—')).toBeInTheDocument()
+      expect(screen.getByText('·')).toBeInTheDocument()
     })
   })
 })

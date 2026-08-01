@@ -2,51 +2,75 @@ import { useEffect, useRef } from 'react'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useBusStationAutoSelect from '../../hooks/useBusStationAutoSelect'
+import SegmentedControl from '../ui/SegmentedControl.jsx'
 import ModeTabs from './ModeTabs'
 import StationPills from './StationPills'
 import BusPanel from '../summary/BusPanel'
 import SubwayPanel from '../summary/SubwayPanel'
 import ShuttlePanel from '../summary/ShuttlePanel'
 import TaxiPanel from '../summary/TaxiPanel'
-import StationChips from '../ui/StationChips.jsx'
 import { BUS_STATION_LABELS, getAllowedDirections } from './busStationConfig'
 
 /**
- * Dashboard — 스냅 하단 영역. 모드 탭 + 정류장 chip + 활성 패널 렌더.
+ * Dashboard — 스냅 하단 영역. 모드 탭 + 방향 행 + 정류장 chip + 활성 패널 렌더.
  *
  * 스토어에서 selectedMode만 구독한다. 패널들은 자체적으로
  * selectedBusStation/selectedBusDirection / selectedSubwayStation 등을 구독한다.
  *
  * 높이는 부모(MainShell)가 제어하므로 자체적으로 overflow-auto 한다.
  */
-const DIRECTION_ITEMS = [
-  { id: '등교', label: '등교' },
-  { id: '하교', label: '하교' },
+const DIRECTION_OPTIONS = [
+  { value: '등교', label: '등교' },
+  { value: '하교', label: '하교' },
 ]
 
-function DirectionToggle() {
-  const { direction } = useEffectiveDirection()
-  const selectedBusStation  = useAppStore((s) => s.selectedBusStation)
+/**
+ * BusDirectionRow — 결함 #1/#14/#32/#9: 예전엔 정류장 칩과 등하교 토글이 한 행에
+ * 눌려 있어("이마트"가 "이마!"로 잘리는 등) 서로 겹쳤다. 이제 방향 행을 정류장
+ * 칩 행과 완전히 분리된 줄로 뺀다 — SegmentedControl(등교/하교) + 우측 자동/수동
+ * 상태 칩(자동일 땐 시간대 근거, 수동일 땐 탭해서 자동으로 되돌리는 액션).
+ */
+function BusDirectionRow() {
+  const { direction, isOverride } = useEffectiveDirection()
+  const selectedBusStation   = useAppStore((s) => s.selectedBusStation)
   const setDirectionOverride = useAppStore((s) => s.setDirectionOverride)
   const setBusStation        = useAppStore((s) => s.setBusStation)
 
-  function handleSelect(id) {
-    setDirectionOverride(id)
+  function handleChange(value) {
+    setDirectionOverride(value)
     // 현재 정류장이 새 방향을 허용하지 않으면 해당 방향의 첫 번째 정류장으로 이동
-    if (!getAllowedDirections(selectedBusStation).includes(id)) {
-      const next = BUS_STATION_LABELS.find((s) => getAllowedDirections(s).includes(id))
+    if (!getAllowedDirections(selectedBusStation).includes(value)) {
+      const next = BUS_STATION_LABELS.find((s) => getAllowedDirections(s).includes(value))
       if (next) setBusStation(next)
     }
   }
 
+  // 자동 판정 근거 문구 — useEffectiveDirection의 시간 기반 규칙(KST 14시 경계)을 그대로 참고.
+  // (위치 기반 보정까지 재계산하지 않고, 실제 direction 값에 맞춰 오전/오후 문구만 고른다.)
+  const autoReasonText = direction === '등교' ? '자동 · 오전이라 등교' : '자동 · 오후라서 하교'
+
   return (
-    <div className="shrink-0">
-      <StationChips
-        variant="direction"
-        items={DIRECTION_ITEMS}
-        active={direction}
-        onChange={handleSelect}
+    <div className="flex items-center justify-between gap-2 px-4 pb-1.5">
+      <SegmentedControl
+        options={DIRECTION_OPTIONS}
+        value={direction}
+        onChange={handleChange}
+        size="sm"
+        ariaLabel="등하교 방향"
       />
+      {isOverride ? (
+        <button
+          type="button"
+          onClick={() => setDirectionOverride(null)}
+          className="shrink-0 text-[12px] font-bold px-2.5 py-1 rounded-full bg-accent-bg text-accent-ink pressable"
+        >
+          수동 · 자동으로 되돌리기
+        </button>
+      ) : (
+        <span className="shrink-0 text-[12px] font-bold px-2.5 py-1 rounded-full bg-accent-bg text-accent-ink">
+          {autoReasonText}
+        </span>
+      )}
     </div>
   )
 }
@@ -85,16 +109,16 @@ export default function Dashboard() {
     <section
       ref={scrollRef}
       onScroll={(e) => setSavedScroll(e.currentTarget.scrollTop)}
-      className="h-full overflow-auto bg-bg dark:bg-bg"
+      className="h-full overflow-y-auto bg-bg dark:bg-bg"
       aria-label="대시보드"
     >
       <ModeTabs />
 
-      <StationPills
-        mode={selectedMode}
-        value={stationValue}
-        rightAddon={selectedMode === 'bus' ? <DirectionToggle /> : null}
-      />
+      {/* 방향 행(등하교) — 정류장 칩 행과 완전히 분리된 줄. 버스 모드에서만 노출. */}
+      {selectedMode === 'bus' && <BusDirectionRow />}
+
+      {/* 정류장 칩 행 — 다음 줄에서 단독으로 가로 스크롤(전체 이름, 잘림 없음). */}
+      <StationPills mode={selectedMode} value={stationValue} />
 
       <div className="px-4 pb-6">
         {selectedMode === 'bus' && (

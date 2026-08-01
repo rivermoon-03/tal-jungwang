@@ -146,12 +146,12 @@ function FavoriteStarButton({ venueId, size = 15 }) {
         height: 36,
         borderRadius: '50%',
         border: '1px solid var(--tj-line)',
-        background: isFav ? '#FBF4E5' : 'var(--tj-surface)',
+        background: isFav ? 'var(--tj-chip-yellow-bg)' : 'var(--tj-surface)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        color: isFav ? '#C2902E' : 'var(--tj-mute)',
+        color: isFav ? 'var(--tj-chip-yellow-fg)' : 'var(--tj-mute)',
         touchAction: 'manipulation',
       }}
     >
@@ -548,13 +548,11 @@ function OpenRow({ venue, statusInfo, onVenueClick }) {
         <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--tj-ink)' }}>
           {venue.name}
         </div>
+        {/* 결함 #8: "언제든 열려 있어요" 문구가 위치 칩과 한 줄을 다투다 88px
+            컨테이너에서 2px 잘렸다. 우측에 이미 "24시간 영업"이 같은 뜻을
+            보여주므로 중복 문구를 없애 잘림과 중복 둘 다 해결한다. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, minWidth: 0 }}>
           <LocationChip location={venue.location} />
-          {(venue.alwaysOpen || venue.is24h) && (
-            <span style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              언제든 열려 있어요
-            </span>
-          )}
         </div>
       </div>
 
@@ -746,8 +744,8 @@ function FavoriteOpenSection({ nowDate, onVenueClick }) {
             fontSize: 14,
             fontWeight: 800,
             letterSpacing: '-0.02em',
-            color: '#C2902E',
-            background: '#FBF4E5',
+            color: 'var(--tj-chip-yellow-fg)',
+            background: 'var(--tj-chip-yellow-bg)',
             borderRadius: 8,
             padding: '3px 10px',
           }}
@@ -825,8 +823,11 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {/* 주 탭 (지금 영업중 / 운영시간)
-              maxWidth 없이 flex:1만 두면 PC에서 버튼 하나가 460px까지 늘어난다. */}
-          <div style={{ flex: 1, minWidth: 0, maxWidth: 420 }}>
+              maxWidth 없이 flex:1만 두면 PC에서 버튼 하나가 460px까지 늘어난다.
+              결함 #8: minWidth:0이면 좁은 폭에서 정렬 스위치와 한 줄을 다투다
+              라벨이 찌그러졌다 — 두 라벨이 읽히는 최소폭을 줘서, 공간이 부족하면
+              스위치 그룹이 아예 다음 줄로 깔끔하게 내려가게(의도된 2줄) 한다. */}
+          <div style={{ flex: 1, minWidth: 180, maxWidth: 420 }}>
             <SegmentTabs
               items={TABS}
               active={activeTab}
@@ -865,7 +866,11 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
                     fontWeight: isActive ? 800 : 600,
                     letterSpacing: '-0.01em',
                     background: isActive ? (isDark ? 'var(--tj-accent)' : 'var(--tj-ink)') : 'transparent',
-                    color: isActive ? (isDark ? '#06201E' : '#fff') : 'var(--tj-ink-2)',
+                    // active 배경(라이트: ink=거의 검정, 다크: accent=밝은 틸) 위에서
+                    // 대비를 맞추려면 반대쪽 극단의 텍스트가 필요하다 — 전용 토큰은 없지만
+                    // --tj-bg가 라이트에서 거의 흰색, 다크에서 거의 검정이라 그대로 재사용하면
+                    // hex를 하드코딩하지 않고도 두 모드 모두에서 대비가 맞는다.
+                    color: isActive ? 'var(--tj-bg)' : 'var(--tj-ink-2)',
                     transition: 'background 0.15s, color 0.15s',
                     whiteSpace: 'nowrap',
                   }}

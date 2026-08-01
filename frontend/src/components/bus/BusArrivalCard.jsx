@@ -98,7 +98,7 @@ function computeDisplay(arrivals) {
   )
   const shown = valid.slice(0, 2)
   if (shown.length === 0) {
-    return { etaText: '—', etaSub: null, imminent: false, stats: null }
+    return { etaText: '·', etaSub: null, imminent: false, stats: null }
   }
 
   if (isTimetable) {
@@ -163,7 +163,7 @@ function BusArrivalCard({ arrivals, onTimetableClick, selectedStation = null, in
   const favKey = first.route_no
   const { isFavorite, toggle: toggleFav } = useFavorites(favKey)
 
-  const muted = etaText === '—'
+  const muted = etaText === '·'
 
   const wrapperBase =
     'relative rounded-card bg-surface shadow-card dark:bg-surface dark:border dark:border-line dark:shadow-none'

@@ -102,7 +102,7 @@ export function getFirstBusLabel(allTimes, now = new Date()) {
     return !Number.isNaN(h) && h >= 4
   })
   const firstStr = morningFirst ?? allTimes[0]
-  if (!firstStr) return '—'
+  if (!firstStr) return '·'
   const [fh, fm] = firstStr.split(':').map(Number)
 
   // 서비스 날짜 기준: 새벽 4시 이전은 아직 '어제'의 연장선으로 취급할 수 있음.

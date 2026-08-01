@@ -149,7 +149,7 @@ function ArrivalTime({ item, timetableTrains }) {
   }
   return (
     <div className="flex flex-col items-end justify-center w-16 flex-shrink-0 border-l border-line dark:border-line pl-3">
-      <span className="text-2xl font-bold leading-none tabular-nums text-line-strong dark:text-line-strong">—</span>
+      <span className="text-2xl font-bold leading-none tabular-nums text-line-strong dark:text-line-strong">·</span>
       <span className="text-caption font-semibold text-mute dark:text-mute mt-0.5">운행중</span>
     </div>
   )

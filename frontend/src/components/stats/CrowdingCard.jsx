@@ -32,7 +32,7 @@ export default function CrowdingCard() {
   const points    = useMemo(() => data?.points ?? [], [data])
   const sampleDays = data?.sample_days ?? 0
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
-  const accent     = ROUTE_ACCENTS[routeNo] ?? '#38bdf8'
+  const accent     = ROUTE_ACCENTS[routeNo] ?? 'var(--tj-accent)'
 
   const currentPoint = useMemo(() => {
     if (!points.length) return null
@@ -72,53 +72,52 @@ export default function CrowdingCard() {
         style={{ background: `radial-gradient(120% 60% at 50% -10%, ${accent}18 0%, transparent 70%)` }}
       />
 
-      <div className="relative p-5">
-        {/* 헤더 */}
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-head text-ink">노선별 혼잡도</div>
-            <div className="mt-0.5 text-caption text-mute leading-snug">
-              {data?.stop_name && data?.route_direction
-                ? `${data.stop_name} 출발 · ${data.route_direction}`
-                : `${dayType === 'weekday' ? '평일' : '주말'}${sampleDays > 0 ? ` · 최근 ${sampleDays}일` : ''}`
-              }
-            </div>
-          </div>
-
-          {/* 노선 탭 */}
-          <div
-            className="flex gap-0.5 rounded-full p-0.5 bg-surface-2 ring-1 ring-line shrink-0"
-            role="tablist"
-          >
-            {ROUTE_TABS.map((tab) => {
-              const active = tab.id === routeNo
-              const color = ROUTE_ACCENTS[tab.id] ?? accent
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setRouteNo(tab.id)}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-label font-semibold rounded-full transition ${
-                    active ? 'bg-accent text-accent-ink shadow-sm' : 'text-mute hover:text-ink'
-                  }`}
-                >
-                  {active && (
-                    <span
-                      className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: color }}
-                    />
-                  )}
-                  {tab.label}
-                </button>
-              )
-            })}
+      <div className="relative p-4">
+        {/* 헤더 — 전체 폭 한 줄(칩 행과 경쟁해 78px 컬럼에 갇히던 문제 수정).
+            노선 탭은 헤더 아래 별도 행에서 가로 스크롤로 처리한다. */}
+        <header>
+          <div className="text-head text-ink">노선별 혼잡도</div>
+          <div className="mt-0.5 text-caption text-mute leading-snug">
+            {data?.stop_name && data?.route_direction
+              ? `${data.stop_name} 출발 · ${data.route_direction}`
+              : `${dayType === 'weekday' ? '평일' : '주말'}${sampleDays > 0 ? ` · 최근 ${sampleDays}일` : ''}`
+            }
           </div>
         </header>
 
+        {/* 노선 탭 — 헤더 아래 전체 폭, 필요 시 가로 스크롤 */}
+        <div
+          className="mt-2.5 flex gap-0.5 rounded-full p-0.5 bg-surface-2 ring-1 ring-line overflow-x-auto"
+          role="tablist"
+        >
+          {ROUTE_TABS.map((tab) => {
+            const active = tab.id === routeNo
+            const color = ROUTE_ACCENTS[tab.id] ?? accent
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setRouteNo(tab.id)}
+                className={`flex items-center gap-1 px-2.5 py-1 text-label font-semibold rounded-full transition whitespace-nowrap ${
+                  active ? 'bg-accent text-accent-ink shadow-sm' : 'text-mute hover:text-ink'
+                }`}
+              >
+                {active && (
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: color }}
+                  />
+                )}
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
         {/* 현재 상태 */}
-        <div className="mt-4 flex items-end justify-between gap-4">
+        <div className="mt-3 flex items-end justify-between gap-4">
           <div>
             <div className="text-caption text-mute mb-1">지금</div>
             {currentPoint ? (

@@ -153,7 +153,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
 
   // ─── 특수 상태 ────────────────────────────────────────────────────────────────
 
-  it('arrivals 없으면(arrive_in_seconds null) "—" 표시', () => {
+  it('arrivals 없으면(arrive_in_seconds null) "·" 표시', () => {
     render(
       <BusArrivalCard
         arrivals={[{ route_no: '11-A', route_id: 11, destination: '정왕역', category: '하교', arrival_type: 'realtime' }]}
@@ -161,7 +161,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.getByText('·')).toBeInTheDocument()
   })
 
   it('arrive_in_seconds <= 0 버스는 건너뛰고 다음 버스를 primary로', () => {
@@ -179,7 +179,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
     expect(screen.queryByText('곧')).not.toBeInTheDocument()
   })
 
-  it('모든 arrival이 <=0이면 "—" 표시', () => {
+  it('모든 arrival이 <=0이면 "·" 표시', () => {
     render(
       <BusArrivalCard
         arrivals={[baseRealtime({ arrive_in_seconds: 0 })]}
@@ -187,7 +187,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.getByText('·')).toBeInTheDocument()
   })
 
   it('stats.tolerance_min 있을 때 "보통 ±N분" 표시', () => {

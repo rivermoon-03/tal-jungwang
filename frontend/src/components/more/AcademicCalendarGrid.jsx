@@ -1,13 +1,15 @@
 /**
  * AcademicCalendarGrid — 학사일정 월간/주간 캘린더.
  *
- * 상단 작은 세그먼트 탭(월/주)으로 전환한다.
- * - 월(month): 요일 헤더 + 7열 날짜 그리드. 이벤트(start_date~end_date, 양끝 포함)
- *   범위에 걸리는 날짜엔 점 마커를 표시하고, 날짜를 탭하면 그 날의 이벤트를 아래에 보여준다.
- * - 주(week): 상단에 요일 스트립(일~토 날짜 숫자, 요일 탭으로 선택일 변경) +
+ * 상단 작은 세그먼트 탭(이번 주/월 전체보기)으로 전환한다.
+ * 결함 #34 — 예전엔 거대한 월간 그리드가 기본이라 화면의 절반을 차지했다.
+ * 기본값을 주간 스트립 1줄로 낮추고, 월간 전체 뷰는 필요할 때만 토글해서 본다.
+ * - 주(week, 기본): 상단에 요일 스트립(일~토 날짜 숫자, 요일 탭으로 선택일 변경) +
  *   그 아래 7열 색 레인 그리드(기간 일정이 하루당 한 줄이 아니라 가로로 이어진
  *   막대 하나로 보임) + 하단 선택일 상세 목록. 레인 배치는 utils/academicWeekLanes.js의
  *   buildWeekLanes로 위임한다(겹치는 일정은 그리디로 행을 나눠 배치).
+ * - 월(month): 요일 헤더 + 7열 날짜 그리드. 이벤트(start_date~end_date, 양끝 포함)
+ *   범위에 걸리는 날짜엔 점 마커를 표시하고, 날짜를 탭하면 그 날의 이벤트를 아래에 보여준다.
  *
  * 탭을 전환해도 같은 날짜 기준(선택했던 날짜 ↔ 그 날짜가 속한 달)을 유지한다.
  *
@@ -31,9 +33,10 @@ import {
 import { buildWeekLanes, categorizeEvent, formatDayRangeLabel } from '../../utils/academicWeekLanes'
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+// 주간 스트립이 기본(우선순위 높음)이라 탭 순서도 주 → 월로 둔다.
 const VIEW_TABS = [
-  { id: 'month', label: '월' },
-  { id: 'week', label: '주' },
+  { id: 'week', label: '이번 주' },
+  { id: 'month', label: '월 전체보기' },
 ]
 
 // 카테고리 → 칩 팔레트 매핑(표시 헬퍼 상수). laneBg/laneText는 주간 레인 막대,
@@ -69,7 +72,7 @@ export default function AcademicCalendarGrid({ events = [], initialDate = null, 
   const startDate = initialDate || today
   const [initY, initM] = startDate.split('-').map(Number)
 
-  const [viewMode, setViewMode] = useState('month')
+  const [viewMode, setViewMode] = useState('week')
   const [cursor, setCursor] = useState({ year: initY, month: initM })
   const [selectedDate, setSelectedDate] = useState(startDate)
   // 주간 뷰 기준 날짜(그 주에 속하기만 하면 됨 — buildWeekGrid/weekRangeLabel이
@@ -146,7 +149,7 @@ export default function AcademicCalendarGrid({ events = [], initialDate = null, 
         <>
           <div data-testid="cal-weekday-header" className="grid grid-cols-7 gap-1 mb-1">
             {WEEKDAY_LABELS.map((w) => (
-              <div key={w} className="text-micro font-semibold text-mute dark:text-mute text-center py-1">
+              <div key={w} className="text-dest font-semibold text-mute dark:text-mute text-center py-1">
                 {w}
               </div>
             ))}
@@ -253,7 +256,7 @@ function WeekLaneView({ weekGrid, today, selectedDate, onSelectDate, lanes, dayE
               } ${isSelected ? 'border border-accent dark:border-accent' : ''}`}
             >
               <span
-                className={`text-micro font-semibold ${
+                className={`text-dest font-semibold ${
                   isSunday ? 'text-delayed dark:text-delayed' : 'text-mute dark:text-mute'
                 }`}
               >
@@ -278,14 +281,14 @@ function WeekLaneView({ weekGrid, today, selectedDate, onSelectDate, lanes, dayE
             data-testid="week-lane"
             title={lane.title}
             style={{ gridColumn: `${lane.colStart} / span ${lane.span}`, gridRow: lane.row + 1 }}
-            className={`rounded-mini px-1.5 flex items-center text-micro font-semibold truncate ${CATEGORY_STYLE[lane.category].laneBg} ${CATEGORY_STYLE[lane.category].laneText}`}
+            className={`rounded-mini px-1.5 flex items-center text-dest font-semibold truncate ${CATEGORY_STYLE[lane.category].laneBg} ${CATEGORY_STYLE[lane.category].laneText}`}
           >
             {lane.title}
           </div>
         ))}
       </div>
       {hiddenCount > 0 && (
-        <p className="text-micro font-semibold text-mute dark:text-mute text-right mt-1">+{hiddenCount}개</p>
+        <p className="text-dest font-semibold text-mute dark:text-mute text-right mt-1">+{hiddenCount}개</p>
       )}
 
       <div data-testid="week-day-detail" className="mt-3 pt-3 border-t border-line dark:border-line">

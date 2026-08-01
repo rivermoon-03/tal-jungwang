@@ -18,7 +18,7 @@ import DataBadge from '../ui/DataBadge'
 
 // arrive_in_seconds → 표시 문자열 + imminent 여부
 function formatEtaLocal(sec) {
-  if (sec == null) return { text: '—', imminent: false }
+  if (sec == null) return { text: '·', imminent: false }
   if (sec < 0) return { text: '이미 도착', imminent: true }
   if (sec < 60) return { text: '곧 도착', imminent: true }
   const mins = Math.ceil(sec / 60)
@@ -145,7 +145,7 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
         <StatusChip kind="last">도착 정보 없음</StatusChip>
       </div>
       <div className="px-3.5 pb-3.5 pt-0.5">
-        <div className="text-eta-mob font-bold text-mute dark:text-mute">—</div>
+        <div className="text-eta-mob font-bold text-mute dark:text-mute">·</div>
         <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
           지금 실시간 도착 정보가 들어오지 않고, 같은 요일·시간대 과거 기록도 충분하지 않아 평소
           도착 시각을 알려드리기 어려워요.

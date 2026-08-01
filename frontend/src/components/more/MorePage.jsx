@@ -1,6 +1,9 @@
 /**
  * MorePage — 더보기 탭.
- *   - 세그먼트 탭 2개: [학사공지] [설정 & 앱공지] (AcademicNoticesTab / AppNoticesSettingsTab)
+ *   - 세그먼트 탭 2개: [학사공지] [앱 공지] (AcademicNoticesTab / AppNoticesSettingsTab)
+ *   - "설정"(개인화/알림/데이터 등)은 별도 탭이 아니라 앱 공지 탭 하단의 전용
+ *     "설정" 진입 섹션으로 존재한다(PC의 PCSidebar 하단 설정 섹션과 동일한 구성) —
+ *     탭 자체를 3개로 늘리지 않고 PC와 라벨을 맞춘다("앱 공지").
  *   - Made by 소공 푸터는 앱공지 탭 쪽 서브트리에 남아 있음
  *
  * Sub-pages: notices, info, settings.
@@ -26,7 +29,7 @@ const SUB_PAGE_PATHS = { 'app-info': '/more/app-info', settings: '/more/settings
 
 const TOP_TABS = [
   { id: 'academic', label: '학사공지' },
-  { id: 'settings', label: '설정 & 앱공지' },
+  { id: 'settings', label: '앱 공지' },
 ]
 
 export default function MorePage() {

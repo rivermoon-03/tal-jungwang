@@ -78,10 +78,10 @@ function mockAllMoreHooks() {
   useAcademicCalendar.mockReturnValue({ data: MOCK_CALENDAR, loading: false, error: null })
 }
 
-// "설정 & 앱공지" 탭(예전 기본 화면)으로 전환해 렌더링 — 히어로 카드 등은 이 탭에 있다.
+// "앱 공지" 탭(예전 기본 화면)으로 전환해 렌더링 — 히어로 카드 등은 이 탭에 있다.
 function renderOnSettingsTab() {
   const utils = render(<MorePageContent />)
-  fireEvent.click(screen.getByRole('tab', { name: '설정 & 앱공지' }))
+  fireEvent.click(screen.getByRole('tab', { name: '앱 공지' }))
   return utils
 }
 
@@ -188,7 +188,7 @@ describe('NoticeHighlights 시안1 — 히어로 강조 변형', () => {
 })
 
 // ─── 세그먼트 탭 전환 · 학사공지 탭 통합 확인 ────────────────────────────────
-describe('MorePage — 세그먼트 탭 [학사공지] [설정 & 앱공지]', () => {
+describe('MorePage — 세그먼트 탭 [학사공지] [앱 공지]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAllMoreHooks()
@@ -203,20 +203,20 @@ describe('MorePage — 세그먼트 탭 [학사공지] [설정 & 앱공지]', ()
     expect(screen.getByText('2026학년도 2학기 수강신청 및 교과시간표 안내')).toBeInTheDocument()
   })
 
-  it('"설정 & 앱공지" 탭 클릭 시 학사공지 콘텐츠는 사라지고 설정/앱공지 콘텐츠가 보인다', () => {
+  it('"앱 공지" 탭 클릭 시 학사공지 콘텐츠는 사라지고 설정/앱공지 콘텐츠가 보인다', () => {
     render(<MorePageContent />)
-    fireEvent.click(screen.getByRole('tab', { name: '설정 & 앱공지' }))
+    fireEvent.click(screen.getByRole('tab', { name: '앱 공지' }))
 
-    expect(screen.getByRole('tab', { name: '설정 & 앱공지' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '앱 공지' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByRole('combobox', { name: '학과 선택' })).not.toBeInTheDocument()
     expect(screen.getByText('설정')).toBeInTheDocument()
     expect(screen.getByText('앱 정보')).toBeInTheDocument()
     expect(screen.getByText('개인정보처리방침')).toBeInTheDocument()
   })
 
-  it('"설정 & 앱공지" 탭에는 예전 "빠른 설정"(알림/다크모드) 그리드가 없다 — SettingsPage와 중복 제거', () => {
+  it('"앱 공지" 탭에는 예전 "빠른 설정"(알림/다크모드) 그리드가 없다 — SettingsPage와 중복 제거', () => {
     render(<MorePageContent />)
-    fireEvent.click(screen.getByRole('tab', { name: '설정 & 앱공지' }))
+    fireEvent.click(screen.getByRole('tab', { name: '앱 공지' }))
     expect(screen.queryByText('빠른 설정')).not.toBeInTheDocument()
   })
 

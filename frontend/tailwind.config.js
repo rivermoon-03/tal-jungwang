@@ -133,17 +133,19 @@ export default {
         'panel-ttl':  ['calc(16px * var(--tj-font-scale,1))', { lineHeight: '1.1',  fontWeight: '900', letterSpacing: '-0.03em' }],
 
         // 본문
+        // 12px 미만 폰트 금지 정책(2026-08 tokenRules.test.js 전역화) — dest-mob은
+        // 11px→12px로 상향해 dest와 같아졌지만, 모바일 전용 의미 구분을 위해 키는 유지한다.
         'dest':       ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
-        'dest-mob':   ['calc(11px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
+        'dest-mob':   ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
 
-        // 라벨 / 캡션
-        'ghdr':       ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.1em' }],
-        'sub':        ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.04em' }],
-        'meta':       ['calc(11px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
+        // 라벨 / 캡션 (아래 3개 모두 10~11px → 12px로 상향, 자간/굵기는 유지)
+        'ghdr':       ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.1em' }],
+        'sub':        ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '700', letterSpacing: '0.04em' }],
+        'meta':       ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
 
-        // 칩 (노선 번호)
-        'chip':       ['calc(11px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
-        'chip-pc':    ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
+        // 칩 (노선 번호) — 11/10px → 12px로 상향
+        'chip':       ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
+        'chip-pc':    ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
 
         // ── Warm Daylight 타이포 스케일(2026-06) — text-caption/body/label/head 사용처가
         //    각각 98/43/67/11곳이라 값(특히 weight) 전수 교체는 화면별 회귀 위험 큼.
@@ -168,7 +170,8 @@ export default {
         hero:    ['calc(26px * var(--tj-font-scale,1))', { lineHeight: '1.1',  fontWeight: '900' }],
         bigMin:  ['calc(30px * var(--tj-font-scale,1))', { lineHeight: '1.05', fontWeight: '900' }],
         display: ['calc(18px * var(--tj-font-scale,1))', { lineHeight: '1.2',  fontWeight: '900' }],
-        micro:   ['calc(10px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
+        // 12px 미만 폰트 금지 정책 — 10px → 12px로 상향
+        micro:   ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
       },
       fontFamily: {
         sans: ['"SUIT Variable"', 'SUIT', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],

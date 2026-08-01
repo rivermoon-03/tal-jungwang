@@ -1,9 +1,12 @@
 /**
  * PCStationPicker 토큰 준수 테스트
  *
+ * text-[9px], [10px], [11px] 등 12px 미만 폰트 금지와 text-gray-*, text-slate-*
+ * 생색 금지는 src/tokenRules.test.js가 src/ 전체를 순회하며 이미 검사한다
+ * (이 파일이 예전에 따로 두던 중복 검사는 제거했다). 여기엔 그 전역 규칙
+ * 으로 커버되지 않는 PCStationPicker 고유 검증만 남긴다.
+ *
  * 검증 항목:
- * - text-[9px]/[10px]/[11px] 미사용 (12px 미만 하드코딩 금지)
- * - text-gray-* / text-slate-* 미사용 (생색 제거)
  * - uppercase 클래스 미사용 (AI티 제거)
  * - tracking-[0.15em] 등 과도한 자간 미사용
  */
@@ -19,25 +22,6 @@ const SRC = fs.readFileSync(
   path.resolve(__dirname, 'PCStationPicker.jsx'),
   'utf8',
 )
-
-describe('PCStationPicker 토큰 준수 — 12px 미만 폰트 금지', () => {
-  it('text-[9px]/[10px]/[11px] 없음', () => {
-    const matches = SRC.match(/text-\[(9|10|11)px\]/g)
-    expect(matches, `PCStationPicker.jsx에 ${matches} 남아있음 (12px 미만 하드코딩)`).toBeNull()
-  })
-})
-
-describe('PCStationPicker 토큰 준수 — 생색 클래스 금지', () => {
-  it('text-gray-* 없음', () => {
-    const matches = SRC.match(/text-gray-\d+/g)
-    expect(matches, `PCStationPicker.jsx에 text-gray-* 남아있음`).toBeNull()
-  })
-
-  it('text-slate-* 없음', () => {
-    const matches = SRC.match(/text-slate-\d+/g)
-    expect(matches, `PCStationPicker.jsx에 text-slate-* 남아있음`).toBeNull()
-  })
-})
 
 describe('PCStationPicker 토큰 준수 — uppercase AI티 금지', () => {
   it('uppercase 클래스 없음', () => {

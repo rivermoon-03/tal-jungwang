@@ -1,16 +1,16 @@
 /**
- * ScheduleSection — 토큰 정리 검증 테스트
- * TDD: 구현 전 FAIL → 토큰화 후 PASS
+ * ScheduleSection — 행 규격 리디자인(시간열 56px + 본문 + ★) 검증 테스트
  *
  * 핵심 단언:
- *  1. text-[9px] / text-[10px] / text-[11px] 극소 글자 미사용
- *  2. bg-chip-blue-bg / bg-chip-red-bg 인라인 색칩 클래스 미사용
- *  3. 베타/막차 배지가 StatusChip 구조 (rounded-full span)
- *  4. text-slate- / text-gray- 하드코딩 색 미사용
- *  5. 핵심 텍스트 렌더
+ *  1. text-[9px] / text-[10px] / text-[11px] 극소 글자 클래스 미사용, em-dash("—") 미사용
+ *  2. 행선지 title이 말줄임(overflow/ellipsis) 없이 그대로 렌더된다
+ *  3. 시간열: "N분" + hhmm, 임박(imminent)이면 "곧"
+ *  4. 미운행(disabled)/금일종료(endOfDay) 상태 문구
+ *  5. 즐겨찾기 토글 버튼 동작
+ *  6. 베타/막차/실시간 배지가 StatusChip 구조(rounded-full span)
  */
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import ScheduleSection from './ScheduleSection'
 
 vi.mock('../common/Skeleton', () => ({
@@ -25,121 +25,135 @@ vi.mock('../bus/BusArrivalCard', () => ({
   CrowdedBadge: ({ level }) => <span data-testid="crowded-badge">{level}</span>,
 }))
 
-vi.mock('../../utils/trainTime', () => ({
-  formatRelAbs: (minutes, hhmm) => `${minutes}분 뒤 · ${hhmm}`,
-}))
-
 const BASE_PROPS = {
-  title: '301번',
-  subtitle: '정왕역 방면',
+  title: '강남행',
+  routeCode: '3400',
   type: 'bus',
-  routeCode: '301',
-  next: '5분 뒤',
-  afterNext: '15분 뒤',
+  minutesUntil: 5,
+  hhmm: '14:52',
 }
 
-describe('ScheduleSection — 극소 글자 미사용', () => {
+describe('ScheduleSection — 극소 글자·em-dash 미사용', () => {
   it('text-[9px]/[10px]/[11px] 클래스가 없어야 한다', () => {
     const { container } = render(<ScheduleSection {...BASE_PROPS} />)
     expect(container.innerHTML).not.toMatch(/text-\[(?:8|9|10|11)px\]/)
   })
-})
 
-describe('ScheduleSection — 인라인 색칩(bg-chip-*) 클래스 미사용', () => {
-  it('bg-chip-blue-bg 클래스가 없어야 한다', () => {
-    const { container } = render(
-      <ScheduleSection {...BASE_PROPS} testBadge={true} realtimeOnly={true} />
-    )
-    expect(container.innerHTML).not.toMatch(/bg-chip-blue-bg/)
+  it('em-dash("—")를 렌더하지 않는다', () => {
+    const { container } = render(<ScheduleSection {...BASE_PROPS} />)
+    expect(container.textContent).not.toContain('—')
   })
 
-  it('bg-chip-red-bg 클래스가 없어야 한다', () => {
-    const { container } = render(
-      <ScheduleSection {...BASE_PROPS} lastBus={true} />
-    )
-    expect(container.innerHTML).not.toMatch(/bg-chip-red-bg/)
-  })
-
-  it('text-chip-blue-fg 클래스가 없어야 한다', () => {
-    const { container } = render(
-      <ScheduleSection {...BASE_PROPS} testBadge={true} />
-    )
-    expect(container.innerHTML).not.toMatch(/text-chip-blue-fg/)
-  })
-
-  it('text-chip-red-fg 클래스가 없어야 한다', () => {
-    const { container } = render(
-      <ScheduleSection {...BASE_PROPS} lastBus={true} />
-    )
-    expect(container.innerHTML).not.toMatch(/text-chip-red-fg/)
+  it('데이터 없음 상태에서도 em-dash 대신 텍스트로 표시한다', () => {
+    render(<ScheduleSection {...BASE_PROPS} minutesUntil={null} hhmm={null} />)
+    expect(screen.getByText('정보 없음')).toBeInTheDocument()
   })
 })
 
-describe('ScheduleSection — slate/gray 하드코딩 색 미사용', () => {
-  it('text-slate- 클래스가 없어야 한다', () => {
-    const { container } = render(<ScheduleSection {...BASE_PROPS} onClick={vi.fn()} />)
-    expect(container.innerHTML).not.toMatch(/text-slate-/)
+describe('ScheduleSection — 행선지 제목은 말줄임되지 않는다', () => {
+  it('긴 행선지 문자열이 그대로 텍스트로 존재한다(overflow/ellipsis 스타일 없음)', () => {
+    render(<ScheduleSection {...BASE_PROPS} title="아이파크아파트행" />)
+    const titleEl = screen.getByText('아이파크아파트행')
+    expect(titleEl.style.textOverflow).not.toBe('ellipsis')
+    expect(titleEl.style.whiteSpace).not.toBe('nowrap')
   })
 })
 
-describe('ScheduleSection — 베타/막차 배지 StatusChip 구조', () => {
-  it('testBadge=true 이면 "베타" 텍스트가 rounded-full span 으로 렌더된다', () => {
-    const { container } = render(
-      <ScheduleSection {...BASE_PROPS} testBadge={true} />
-    )
-    const chips = [...container.querySelectorAll('span')].filter(
-      (el) => el.textContent.trim() === '베타' && el.className.includes('rounded-full'),
-    )
-    expect(chips.length).toBeGreaterThan(0)
+describe('ScheduleSection — 시간열 규격', () => {
+  it('"N분"과 hhmm이 렌더된다', () => {
+    render(<ScheduleSection {...BASE_PROPS} />)
+    expect(screen.getByText('5분')).toBeInTheDocument()
+    expect(screen.getByText('14:52')).toBeInTheDocument()
   })
 
-  it('lastBus=true 이면 "막차" 텍스트가 rounded-full span 으로 렌더된다', () => {
-    const { container } = render(
-      <ScheduleSection {...BASE_PROPS} lastBus={true} />
-    )
-    const chips = [...container.querySelectorAll('span')].filter(
-      (el) => el.textContent.trim() === '막차' && el.className.includes('rounded-full'),
-    )
-    expect(chips.length).toBeGreaterThan(0)
+  it('imminent=true 이면 "곧"이 렌더되고 --tj-imminent 색을 쓴다', () => {
+    render(<ScheduleSection {...BASE_PROPS} imminent minutesUntil={0} />)
+    const soon = screen.getByText('곧')
+    expect(soon.style.color).toBe('var(--tj-imminent)')
   })
 
-  it('realtimeOnly=true 이면 "실시간" 텍스트가 rounded-full span 으로 렌더된다', () => {
-    const { container } = render(
-      <ScheduleSection {...BASE_PROPS} realtimeOnly={true} />
+  it('60분 이상이면 시간 단위로 표시한다', () => {
+    render(<ScheduleSection {...BASE_PROPS} minutesUntil={90} hhmm="16:20" />)
+    expect(screen.getByText('1시간 30분')).toBeInTheDocument()
+  })
+})
+
+describe('ScheduleSection — 미운행/금일종료 상태', () => {
+  it('disabled=true + timeLines 두 줄 + disabledLabel이 렌더된다', () => {
+    render(
+      <ScheduleSection
+        {...BASE_PROPS}
+        disabled
+        timeLines={['주말', '미운행']}
+        disabledLabel="월요일 첫차 06:30 · 시화터미널 출발"
+      />
     )
+    expect(screen.getByText('월요일 첫차 06:30 · 시화터미널 출발')).toBeInTheDocument()
+  })
+
+  it('timeLines=["금일","종료"] 이면 시간열에 해당 문구가 렌더된다', () => {
+    const { container } = render(
+      <ScheduleSection {...BASE_PROPS} timeLines={['금일', '종료']} minutesUntil={null} />
+    )
+    expect(container.textContent).toContain('금일')
+    expect(container.textContent).toContain('종료')
+  })
+})
+
+describe('ScheduleSection — 배지 StatusChip 구조', () => {
+  it('liveChip=true 이면 "실시간" 텍스트가 rounded-full span 으로 렌더된다', () => {
+    const { container } = render(<ScheduleSection {...BASE_PROPS} liveChip />)
     const chips = [...container.querySelectorAll('span')].filter(
       (el) => el.textContent.trim() === '실시간' && el.className.includes('rounded-full'),
     )
     expect(chips.length).toBeGreaterThan(0)
   })
+
+  it('lastBus=true 이면 "막차" 텍스트가 rounded-full span 으로 렌더된다', () => {
+    const { container } = render(<ScheduleSection {...BASE_PROPS} lastBus />)
+    const chips = [...container.querySelectorAll('span')].filter(
+      (el) => el.textContent.trim() === '막차' && el.className.includes('rounded-full'),
+    )
+    expect(chips.length).toBeGreaterThan(0)
+  })
 })
 
-describe('ScheduleSection — 핵심 텍스트 렌더', () => {
-  it('title 이 렌더된다', () => {
-    render(<ScheduleSection {...BASE_PROPS} />)
-    expect(screen.getByText('301번')).toBeTruthy()
+describe('ScheduleSection — 즐겨찾기 토글', () => {
+  it('onToggleFavorite이 있으면 별 버튼이 렌더되고 클릭 시 호출된다(행 onClick과 분리)', () => {
+    const onToggleFavorite = vi.fn()
+    const onClick = vi.fn()
+    render(
+      <ScheduleSection
+        {...BASE_PROPS}
+        isFavorite={false}
+        onToggleFavorite={onToggleFavorite}
+        onClick={onClick}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('즐겨찾기 추가'))
+    expect(onToggleFavorite).toHaveBeenCalledTimes(1)
+    expect(onClick).not.toHaveBeenCalled()
   })
+})
 
-  it('다음 도착 시간 next 가 렌더된다', () => {
-    render(<ScheduleSection {...BASE_PROPS} />)
-    const matches = screen.getAllByText(/5분 뒤/)
-    expect(matches.length).toBeGreaterThan(0)
+describe('ScheduleSection — 선택(desktop master-detail) 하이라이트', () => {
+  it('selected=true 이면 accent 보더를 적용한다', () => {
+    const { container } = render(<ScheduleSection {...BASE_PROPS} selected onClick={vi.fn()} />)
+    const row = container.firstChild
+    expect(row.style.border).toContain('var(--tj-accent)')
   })
+})
 
-  it('loading=true 이면 Skeleton 이 렌더된다', () => {
-    render(<ScheduleSection {...BASE_PROPS} loading={true} />)
-    expect(screen.getByTestId('skeleton')).toBeTruthy()
-  })
-
-  it('endOfDay=true 이면 "금일 종료" 문구가 렌더된다', () => {
-    render(<ScheduleSection {...BASE_PROPS} endOfDay={true} />)
-    const endOfDayText = screen.queryAllByText(/오늘 버스가 끊겼어요/)
-    const kinilText = screen.queryAllByText(/금일/)
-    expect(endOfDayText.length + kinilText.length).toBeGreaterThan(0)
-  })
-
-  it('disabled=true 이면 disabledLabel 이 렌더된다', () => {
-    render(<ScheduleSection {...BASE_PROPS} disabled={true} disabledLabel="지원 예정" />)
-    expect(screen.getByText('지원 예정')).toBeTruthy()
+describe('ScheduleSection — 아랫줄 경유 텍스트(출발 정류장 bold)', () => {
+  it('boldPrefix + subtitle이 함께 렌더된다', () => {
+    render(
+      <ScheduleSection
+        {...BASE_PROPS}
+        boldPrefix="시화터미널"
+        subtitle=" → 사당 → 강남 · 다음 15:22"
+      />
+    )
+    expect(screen.getByText('시화터미널')).toBeInTheDocument()
+    expect(screen.getByText(/사당 → 강남 · 다음 15:22/)).toBeInTheDocument()
   })
 })

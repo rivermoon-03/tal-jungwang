@@ -14,7 +14,18 @@ const SHUTTLE_CAMPUS_OPTIONS = [
   { id: 'second', label: '2캠' },
 ]
 
-export default function StationPills({ mode, value, onChange, options, rightAddon = null }) {
+/**
+ * StationPills — 정류장/역/캠퍼스 칩 전용 행. 결함 #1/#14/#32/#9 리디자인으로
+ * 등하교 방향 토글(rightAddon)을 완전히 제거했다 — 방향은 Dashboard.jsx의
+ * BusDirectionRow가 별도 줄에서 SegmentedControl로 담당한다. 이 컴포넌트는
+ * 이제 칩 행 하나만 그린다(다른 요소와 절대 겹치지 않음).
+ *
+ * ui/StationChips.jsx가 className을 받지 않아 이 파일에서 `.no-scrollbar`를
+ * 직접 주입할 수 없다 — 칩 자체는 whitespace-nowrap이라 텍스트가 잘리지는
+ * 않지만, 가로 스크롤바 자체를 숨기려면 StationChips에 className passthrough가
+ * 필요하다(통합자에게 요청: ui/StationChips.jsx에 className prop 추가).
+ */
+export default function StationPills({ mode, value, onChange, options }) {
   const selectedBusStation    = useAppStore((s) => s.selectedBusStation)
   const selectedShuttleCampus = useAppStore((s) => s.selectedShuttleCampus)
   const setBusStation         = useAppStore((s) => s.setBusStation)
@@ -72,20 +83,17 @@ export default function StationPills({ mode, value, onChange, options, rightAddo
     }
 
     return (
-      <div className="flex items-center gap-2 px-4 pb-1.5">
-        <div
-          role="group"
-          aria-label="정류장 선택"
-          className="flex-1 min-w-0"
-        >
-          <StationChips
-            variant="station"
-            items={stationItems}
-            active={stationValue}
-            onChange={handleSelectStation}
-          />
-        </div>
-        {rightAddon && <div className="shrink-0">{rightAddon}</div>}
+      <div
+        role="group"
+        aria-label="정류장 선택"
+        className="px-4 pb-1.5"
+      >
+        <StationChips
+          variant="station"
+          items={stationItems}
+          active={stationValue}
+          onChange={handleSelectStation}
+        />
       </div>
     )
   }
@@ -102,20 +110,17 @@ export default function StationPills({ mode, value, onChange, options, rightAddo
   }
 
   return (
-    <div className="flex items-center gap-2 px-4 pb-1.5">
-      <div
-        role="group"
-        aria-label="역 선택"
-        className="flex-1 min-w-0"
-      >
-        <StationChips
-          variant="station"
-          items={subwayItems}
-          active={value}
-          onChange={handleSelect}
-        />
-      </div>
-      {rightAddon && <div className="shrink-0">{rightAddon}</div>}
+    <div
+      role="group"
+      aria-label="역 선택"
+      className="px-4 pb-1.5"
+    >
+      <StationChips
+        variant="station"
+        items={subwayItems}
+        active={value}
+        onChange={handleSelect}
+      />
     </div>
   )
 }

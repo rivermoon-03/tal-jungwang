@@ -22,8 +22,16 @@ import HomeWeatherHero from '../dashboard/HomeWeatherHero'
  * (닫기 버튼 자체는 height:0 컨테이너의 overflow-hidden에 의해 축소 상태에서
  * 자연히 가려지므로 여기서 mapExpanded로 다시 감쌀 필요가 없다).
  *
- * md:hidden — 모바일 전용. PC는 PCMainShell에서 별도 처리.
+ * 하단 예약 여백(DOCK_RESERVED_PX, 결함 #7): FloatingDock은 bottom-14px에
+ * 떠 있고, 자체 높이는 상하 padding 18px + (아이콘 22px + gap 4px + 라벨
+ * 12px) ≈ 56px다. 즉 화면 하단에서 실제로 콘텐츠를 가리는 총 높이는
+ * 14(dock의 bottom 오프셋) + 56(dock 자체 높이) ≈ 70px이고, 여유를 조금 두어
+ * 76px로 잡는다 — 이 값보다 작으면 리스트 마지막 줄이 dock 밑에 깔린다
+ * (safe-area는 별도로 env()로 더한다). 각 페이지가 저마다 pb-28 같은 값을
+ * 임의로 붙이는 대신 이 셸 한 곳에서만 계산해 콘텐츠 하단 패딩을 보장한다.
  */
+const DOCK_RESERVED_PX = 76
+
 export default function MainShell() {
   const mapExpanded     = useAppStore((s) => s.mapExpanded)
   const toggleMapExpanded = useAppStore((s) => s.toggleMapExpanded)
@@ -31,15 +39,15 @@ export default function MainShell() {
   return (
     <div
       className="h-dvh w-full flex flex-col md:hidden bg-bg dark:bg-bg overflow-hidden"
-      // mapExpanded일 땐 지도 자체 높이 계산이 이미 60px+safe-area를 뺀다 —
+      // mapExpanded일 땐 지도 자체 높이 계산이 이미 DOCK_RESERVED_PX+safe-area를 뺀다 —
       // 여기서도 같은 여백을 padding으로 또 빼면 지도 하단이 이중으로 잘려 보인다(#지도잘림).
-      style={{ paddingBottom: mapExpanded ? undefined : 'calc(60px + env(safe-area-inset-bottom))' }}
+      style={{ paddingBottom: mapExpanded ? undefined : `calc(${DOCK_RESERVED_PX}px + env(safe-area-inset-bottom))` }}
     >
       {/* 지도 전체화면 — 평소엔 height 0으로 마운트만 유지, 확장 시 전체 */}
       <div
         className="relative w-full shrink-0 overflow-hidden"
         style={{
-          height: mapExpanded ? 'calc(100% - 60px - env(safe-area-inset-bottom))' : '0px',
+          height: mapExpanded ? `calc(100% - ${DOCK_RESERVED_PX}px - env(safe-area-inset-bottom))` : '0px',
           transition: 'height 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >

@@ -1,270 +1,221 @@
 /**
- * ScheduleSection — 시간표 카드 (디자인 번들 ScheduleA 정렬).
- * 즐겨찾기·지도에서 보기 액션은 상세 모달 내부로 이동.
+ * ScheduleSection — 시간표 행 규격 (2026-08 리디자인)
+ *
+ * 행 구조: grid [시간열 56px 고정][본문][★]
+ *  - 시간열: 큰 숫자("4분") + 아래 절대시각("14:48") mute, 본문과 1px 보더로 구분.
+ *    임박(--tj-imminent)은 색만 바꾼다(배경/보더/펄스 없음 — DESIGN.md "색만으로 강조").
+ *    미운행/데이터 없음 행은 두 줄 안내 텍스트로 대체한다.
+ *  - 본문: [노선배지][행선지 풀네임 15px bold, 말줄임 금지][실시간/막차/혼잡 칩] 한 줄 +
+ *    아랫줄 경유/안내 텍스트 12.5px(출발 정류장만 bold).
+ *  - ★: 즐�겨찾기 토글(선택적) — utils/favKey 스키마 사용은 호출부(SchedulePage) 책임.
+ *
+ * 버스(실시간/시간표)·지하철·셔틀 세 모드가 이 컴포넌트 하나로 통일된다 — 이전에는
+ * 버스만 별도로 components/bus/BusArrivalCard를 썼는데, 그 카드는 행 클릭 시 자체
+ * pushState 네비게이트를 내장하고 있어 PC master-detail(우측 인라인 패널) 레이아웃을
+ * 깨뜨렸다(결함 #19/#33). 이 컴포넌트는 항상 onClick 콜백만 호출하고 라우팅은
+ * 호출부(SchedulePage)가 데스크톱/모바일 분기로 결정한다.
  */
-import { ChevronRight } from 'lucide-react'
+import { Star } from 'lucide-react'
 import Skeleton from '../common/Skeleton'
 import RouteBadge from '../common/RouteBadge'
 import { CrowdedBadge } from '../bus/BusArrivalCard'
-import { formatRelAbs } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
-import DataBadge from '../ui/DataBadge'
 
-/**
- * next/afterNext 프롭은 아래 두 가지 형태를 모두 허용한다.
- *  - string: 기존 호환 ("곧 도착", "금일 종료", "수시운행 중" 등 상태 라벨)
- *  - { minutes, hhmm }: 상대(분)/절대(HH:MM) 값을 함께 표시 → `${minutes}분 뒤 · ${hhmm}`
- */
-function renderTimeValue(value) {
-  if (value == null) return '—'
-  if (typeof value === 'object') return formatRelAbs(value.minutes, value.hhmm)
-  return value
+function TimeColumn({ loading, timeLines, minutesUntil, hhmm, imminent }) {
+  if (loading) {
+    return <Skeleton width="2.5rem" height="1.4rem" rounded="rounded-md" />
+  }
+
+  // timeLines: 숫자 카운트다운 대신 짧은 문구 1~2줄을 시간열에 표시한다.
+  // 미운행("주말"/"미운행"), 금일종료("금일"/"종료"), 수시운행("수시"/"운행") 등
+  // 상태성 문구를 한 자리에서 처리 — em-dash 없이 단어로만 구성한다.
+  if (timeLines?.length) {
+    return (
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 800,
+          color: 'var(--tj-mute)',
+          textAlign: 'center',
+          lineHeight: 1.25,
+          whiteSpace: 'pre-line',
+        }}
+      >
+        {timeLines.join('\n')}
+      </span>
+    )
+  }
+
+  if (minutesUntil == null && !imminent) {
+    return (
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tj-mute)', textAlign: 'center' }}>
+        정보 없음
+      </span>
+    )
+  }
+
+  return (
+    <>
+      <span
+        style={{
+          fontSize: 22,
+          fontWeight: 900,
+          letterSpacing: '-0.03em',
+          fontVariantNumeric: 'tabular-nums',
+          lineHeight: 1.05,
+          color: imminent ? 'var(--tj-imminent)' : 'var(--tj-ink)',
+        }}
+        className={!imminent ? 'dark:text-ink' : undefined}
+      >
+        {imminent ? '곧' : minutesUntil >= 60
+          ? `${Math.floor(minutesUntil / 60)}시간${minutesUntil % 60 > 0 ? ` ${minutesUntil % 60}분` : ''}`
+          : `${minutesUntil}분`}
+      </span>
+      {hhmm && (
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+          {hhmm}
+        </span>
+      )}
+    </>
+  )
 }
 
 export default function ScheduleSection({
-  title,
-  subtitle,
   type = 'bus',
   routeCode,
-  destLabel = null,
-  next,
-  afterNext,
-  onClick,
-  loading = false,
-  realtimeOnly = false,
-  disabled = false,
-  disabledLabel = '일부 역 정보는 지원 예정',
-  // eslint-disable-next-line no-unused-vars
-  lineColor = null,
-  minutesUntil = null,
-  extraTimes = null,
-  testBadge = false,
-  footer = null,
-  order = 0,
+  title,
+  liveChip = false,
   crowded = 0,
-  endOfDay = false,
   lastBus = false,
+  testBadge = false,
+  subtitle = null,
+  boldPrefix = null,
+  timeLines = null,
+  minutesUntil = null,
+  hhmm = null,
+  imminent = false,
+  disabled = false,
+  disabledLabel = null,
+  isFavorite = false,
+  onToggleFavorite = null,
+  onClick = null,
+  selected = false,
+  loading = false,
+  footer = null,
 }) {
-  // 노선명을 RouteBadge에 그대로 전달 (지하철/셔틀/버스 모두 처리)
   const badgeRoute = routeCode || (type === 'shuttle' ? '셔틀' : title)
 
   return (
     <div
-      className={`pressable transition-all duration-150 ${
-        disabled ? 'opacity-50' : ''
-      } ${
-        onClick && !disabled ? 'cursor-pointer hoverable' : ''
-      }`}
       style={{
-        padding: 12,
         borderRadius: 14,
-        border: '1px solid var(--tj-line)',
-        background: 'transparent',
-        order,
+        border: selected ? '1.5px solid var(--tj-accent)' : '1px solid var(--tj-line)',
+        background: selected ? 'var(--tj-accent-bg)' : 'transparent',
+        overflow: 'hidden',
       }}
-      onClick={!disabled && onClick ? onClick : undefined}
-      role={!disabled && onClick ? 'button' : undefined}
-      tabIndex={!disabled && onClick ? 0 : undefined}
-      onKeyDown={!disabled && onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
     >
-      {/* top row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <RouteBadge route={badgeRoute} variant="badge" size="sm" />
+      <div
+        className={`pressable transition-all duration-150 relative ${onClick && !disabled ? 'cursor-pointer hoverable' : ''}`}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '56px 1fr auto',
+          alignItems: 'stretch',
+          opacity: disabled ? 0.75 : 1,
+        }}
+        onClick={!disabled && onClick ? onClick : undefined}
+        role={!disabled && onClick ? 'button' : undefined}
+        tabIndex={!disabled && onClick ? 0 : undefined}
+        onKeyDown={!disabled && onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onClick()) : undefined}
+      >
+        {/* 시간열 56px */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '10px 4px',
+            borderRight: '1px solid var(--tj-line)',
+          }}
+        >
+          <TimeColumn
+            loading={loading}
+            timeLines={timeLines}
+            minutesUntil={minutesUntil}
+            hhmm={hhmm}
+            imminent={imminent}
+          />
+        </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
+        {/* 본문 */}
+        <div style={{ minWidth: 0, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+            <RouteBadge route={badgeRoute} variant="badge" size="md" />
             <span
               style={{
-                fontSize: 13,
+                fontSize: 15,
                 fontWeight: 800,
-                color: 'var(--tj-ink)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                color: disabled ? 'var(--tj-mute)' : 'var(--tj-ink)',
                 letterSpacing: '-0.01em',
-                flexShrink: 1,
+                lineHeight: 1.3,
                 minWidth: 0,
               }}
               className="dark:text-ink"
             >
               {title}
             </span>
-            {destLabel && (
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--tj-line-strong)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  flexShrink: 999,
-                  minWidth: 0,
-                }}
-              >
-                {destLabel}
-              </span>
-            )}
+            {!disabled && liveChip && <StatusChip kind="realtime">실시간</StatusChip>}
+            {!disabled && crowded > 0 && <CrowdedBadge level={crowded} />}
+            {!disabled && lastBus && <StatusChip kind="last">막차</StatusChip>}
+            {!disabled && testBadge && <StatusChip kind="beta">베타</StatusChip>}
           </div>
-          {(subtitle || (!disabled && !loading && testBadge)) && (
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--tj-mute)',
-                fontWeight: 500,
-                marginTop: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                minWidth: 0,
-              }}
-            >
-              {subtitle && (
-                <span
-                  style={{
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    minWidth: 0,
-                  }}
-                >
-                  {subtitle}
-                </span>
-              )}
-              {!disabled && !loading && testBadge && (
-                <StatusChip kind="beta">베타</StatusChip>
-              )}
-              {!disabled && !loading && lastBus && (
-                <StatusChip kind="last">막차</StatusChip>
-              )}
-            </div>
+
+          {disabled && disabledLabel && (
+            <p style={{ fontSize: 12.5, color: 'var(--tj-mute)', fontWeight: 600, lineHeight: 1.4, margin: 0 }}>
+              {disabledLabel}
+            </p>
           )}
-          {/* 시간 라인 */}
-          <div style={{ marginTop: 4, fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', minHeight: 16 }}>
-            {disabled ? (
-              <span style={{ color: 'var(--tj-line-strong)' }}>{disabledLabel}</span>
-            ) : endOfDay ? (
-              <span style={{ color: 'var(--tj-line-strong)', fontWeight: 600 }}>오늘 버스가 끊겼어요</span>
-            ) : realtimeOnly ? (
-              <DataBadge state="live" />
-            ) : loading ? (
-              <Skeleton width="9rem" height="0.95rem" rounded="rounded-md" />
-            ) : (
-              <>
-                <span style={{ fontWeight: 800, color: 'var(--tj-ink)' }} className="dark:text-ink">
-                  다음 {renderTimeValue(next)}
-                </span>
-                {afterNext && (
-                  <span style={{ color: 'var(--tj-line-strong)', fontWeight: 500, marginLeft: 8 }}>
-                    그 다음 {renderTimeValue(afterNext)}
-                  </span>
-                )}
-              </>
-            )}
-          </div>
+
+          {!disabled && subtitle && (
+            <p style={{ fontSize: 12.5, color: 'var(--tj-mute)', fontWeight: 500, lineHeight: 1.4, margin: 0 }}>
+              {boldPrefix && (
+                <b style={{ color: 'var(--tj-ink-2)', fontWeight: 800 }} className="dark:text-ink-2">
+                  {boldPrefix}
+                </b>
+              )}
+              {subtitle}
+            </p>
+          )}
         </div>
 
-        {/* 오른쪽 display 크기 분 표시 — 고정 폭으로 행간 아이콘 정렬 유지 */}
-        {!disabled && !loading && endOfDay && (
-          <div
+        {/* 즐겨찾기 */}
+        {onToggleFavorite ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite() }}
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            className="pressable"
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
+              alignItems: 'center',
               justifyContent: 'center',
-              marginLeft: 8,
-              flexShrink: 0,
-              color: 'var(--tj-mute)',
-              textAlign: 'right',
+              width: 44,
+              padding: '0 10px',
             }}
-            className="dark:text-mute"
           >
-            <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.2 }}>금일</span>
-            <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.2 }}>종료</span>
-          </div>
-        )}
-        {!disabled && !loading && !endOfDay && minutesUntil != null && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-              marginLeft: 8,
-              minWidth: 56,
-              flexShrink: 0,
-              fontVariantNumeric: 'tabular-nums',
-              color: minutesUntil <= 3 ? 'var(--tj-accent)' : 'var(--tj-ink)',
-            }}
-            className={minutesUntil <= 3 ? 'tj-urgent dark:text-ink' : 'dark:text-ink'}
-          >
-            {minutesUntil <= 0 ? (
-              <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
-                곧 도착
-              </span>
-            ) : minutesUntil >= 60 ? (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
-                  {Math.floor(minutesUntil / 60)}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '-0.01em' }}>시간</span>
-                {minutesUntil % 60 > 0 && (
-                  <>
-                    <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1, marginLeft: 3 }}>
-                      {minutesUntil % 60}
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '-0.01em' }}>분</span>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                <span style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}>
-                  {minutesUntil}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '-0.02em' }}>분</span>
-              </div>
-            )}
-            {crowded > 0 && (
-              <div style={{ marginTop: 3 }}>
-                <CrowdedBadge level={crowded} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {onClick && (
-          <ChevronRight size={14} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
+            <Star
+              size={18}
+              fill={isFavorite ? 'var(--tj-imminent)' : 'none'}
+              style={{ color: isFavorite ? 'var(--tj-imminent)' : 'var(--tj-mute)' }}
+            />
+          </button>
+        ) : (
+          <span style={{ width: 8 }} />
         )}
       </div>
-
-      {footer}
-
-      {/* 추가 시간 (셔틀) */}
-      {!disabled && !loading && Array.isArray(extraTimes) && extraTimes.length > 0 && (
-        <div
-          style={{
-            marginTop: 8,
-            paddingTop: 8,
-            borderTop: '1px solid var(--tj-line-soft)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '2px 12px',
-          }}
-        >
-          {extraTimes.map((t, i) => (
-            <span
-              key={`${t}-${i}`}
-              style={{
-                fontSize: 12,
-                color: 'var(--tj-mute)',
-                fontWeight: 600,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {t}
-            </span>
-          ))}
+      {!disabled && footer && (
+        <div style={{ padding: '6px 12px 10px 68px', borderTop: '1px solid var(--tj-line)' }}>
+          {footer}
         </div>
       )}
     </div>

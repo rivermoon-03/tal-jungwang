@@ -3,11 +3,13 @@ import { Home, Clock, Utensils, MoreHorizontal } from 'lucide-react'
 import usePathname from '../../hooks/usePathname'
 import DockQuickAccess from './DockQuickAccess'
 
-// 모바일 floating dock. 아이콘만(시각 텍스트 라벨 없음).
+// 모바일 floating dock. 아이콘 + 12px 라벨(아이콘 아래).
 // 활성 = accent, 비활성 = white/60.
 // 위치: bottom 14px / left 14px / right 14px. radius 22px.
 // 4탭: 홈/시간표/학식/더보기 (frontend/test/Screens.jsx 시안 확정).
 // 시간표 탭 롱프레스(500ms) → 즐겨찾기 팝오버.
+// 결함 #31: 라벨 없이 아이콘만으로는 초행 사용자가 탭 의미를 알기 어려웠다
+// — 아이콘 아래 12px 라벨을 추가하되 터치 타깃(44px)은 그대로 유지한다.
 
 const TABS = [
   { id: 'home',      Icon: Home,           href: '/',          label: '홈'     },
@@ -71,7 +73,7 @@ export default function FloatingDock() {
       aria-label="하단 탭 메뉴"
       className="fixed left-[14px] right-[14px] bottom-[14px] z-50 flex justify-around items-center py-[9px] rounded-sheet shadow-dock"
       style={{
-        background: 'var(--tj-dock-bg, #1a211e)',
+        background: 'var(--tj-dock-bg)',
         marginBottom: 'env(safe-area-inset-bottom)',
       }}
     >
@@ -93,11 +95,12 @@ export default function FloatingDock() {
             aria-label={label}
             aria-current={active ? 'page' : undefined}
             style={isSchedule ? { touchAction: 'none' } : undefined}
-            className={`flex items-center justify-center min-w-[44px] min-h-[44px] pressable transition-colors duration-snap ease-out ${
+            className={`flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] pressable transition-colors duration-snap ease-out ${
               active ? 'text-accent' : 'text-white/60'
             }`}
           >
             <Icon size={22} strokeWidth={active ? 2.2 : 1.9} aria-hidden="true" />
+            <span className="text-[12px] leading-none font-semibold">{label}</span>
           </a>
         )
       })}

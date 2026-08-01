@@ -359,6 +359,17 @@ body {
   display: none;
 }
 
+/* 칩 행(정류장 선택·TransitCard chips 등) 가로 스크롤용 별칭.
+   .scrollbar-hide와 동일 규칙이지만 이름이 더 짧고 관용적이라 리디자인
+   컴포넌트들이 이 이름을 참조한다(기능은 완전히 동일, 값 중복 없음). */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Global scrollbar — 얇고 둥글게, 다크 모드 대응 ─── */
 /* Firefox */
 * {

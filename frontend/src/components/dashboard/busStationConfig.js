@@ -197,6 +197,31 @@ export function getRoutePath(routeNo, category) {
   return ROUTE_PATH[routeNo]?.[category] ?? null
 }
 
+/**
+ * 결함 #3/#16 — TransitCard 제목(title)은 행선지 풀네임이어야 한다("시흥시청행",
+ * "아이파크아파트행" 등, 절대 말줄임 금지). 기존 getRouteCardDisplay/perRouteDisplay는
+ * origin+경유+행선지를 한 문장으로 합쳐 카드 부제로 쓰기엔 좋지만, 그대로 title에
+ * 쓰면 "정왕역 경유 아이파크아파트행"처럼 경유 정보까지 제목에 섞여버린다.
+ *
+ * 이 헬퍼는 title(순수 행선지)과 viaChip(경유 정보, 있으면)을 분리해 반환한다 —
+ * 칩 순서 규칙(실시간→혼잡→경유)에 맞춰 경유는 칩으로, 제목은 행선지만.
+ *
+ * @param {string} routeNo
+ * @param {string} category  '등교' | '하교'
+ * @param {string} [fallbackDestination]  ROUTE_PATH에 정의 없을 때 API의 destination 등으로 폴백
+ * @returns {{title: string, viaChip: string|null}}
+ */
+export function getRouteTitleAndVia(routeNo, category, fallbackDestination) {
+  const path = getRoutePath(routeNo, category)
+  if (path?.label) {
+    return {
+      title: path.label,
+      viaChip: path.waypoints?.length ? `${path.waypoints.join(' · ')} 경유` : null,
+    }
+  }
+  return { title: fallbackDestination || routeNo, viaChip: null }
+}
+
 // 노선별 경유 정류장 순서 (내부 stop PK 기준).
 // 버스가 이 순서대로 정류장을 지나침. RouteProgressStrip에서 사용.
 export const ROUTE_WAYPOINTS = {

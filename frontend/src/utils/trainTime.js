@@ -124,7 +124,7 @@ export function nextTimetableSeconds(trains, now = new Date()) {
 export function formatRelAbs(minutes, hhmm) {
   const hasMin = minutes != null && !Number.isNaN(minutes)
   const hasAbs = typeof hhmm === 'string' && hhmm.length > 0
-  if (!hasMin && !hasAbs) return '—'
+  if (!hasMin && !hasAbs) return '·'
   if (hasMin && hasAbs) return `${minutes}분 뒤 · ${hhmm}`
   return hasMin ? `${minutes}분 뒤` : hhmm
 }

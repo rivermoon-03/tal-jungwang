@@ -46,13 +46,9 @@ export default function DirectionAutoToast({ message, previousDirection, visible
 
   return (
     <div
-      className={`fixed bottom-20 left-4 right-4 z-50 flex items-center justify-between gap-3 rounded-card px-4 py-3 text-caption font-semibold transition-opacity duration-160 ${
+      className={`fixed bottom-20 left-4 right-4 z-50 flex items-center justify-between gap-3 rounded-card bg-dock-bg px-4 py-3 text-caption font-semibold text-dock-text transition-opacity duration-160 ${
         isLeaving ? 'opacity-0' : 'opacity-100'
       }`}
-      style={{
-        backgroundColor: 'var(--tj-dock-bg)',
-        color: '#eceeed',
-      }}
     >
       <span className="flex-1">{message}</span>
       <button

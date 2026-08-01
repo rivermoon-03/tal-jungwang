@@ -51,7 +51,7 @@ function buildRows(arrivalsData, direction) {
     } else if (a.is_tomorrow) {
       minutesLabel = `내일 ${a.depart_at}`
     } else {
-      minutesLabel = formatArrivalFromTime(a.depart_at) ?? '—'
+      minutesLabel = formatArrivalFromTime(a.depart_at) ?? '·'
     }
 
     rows.push({
@@ -91,7 +91,10 @@ export default function NearestStopCard({
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
       >
         <MapPin size={16} className="text-accent flex-shrink-0" aria-hidden="true" />
-        <span className="truncate">내 위치를 켜면 가까운 정류장을 보여드려요</span>
+        <span className="flex-1 min-w-0 truncate text-left">내 위치를 켜면 가까운 정류장을 보여드려요</span>
+        <span className="flex-shrink-0 rounded-pill bg-accent px-2.5 py-1 text-caption font-bold text-white">
+          위치 켜기
+        </span>
       </button>
     )
   }

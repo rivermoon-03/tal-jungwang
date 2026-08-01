@@ -503,7 +503,9 @@ export default function MarkerSheet({
                                 </span>
                               </>
                             ) : (
-                              (min ?? '—')
+                              // 숫자가 아니면 상태 문자열 그대로, 값이 없으면 짧은 하이픈
+                              // 자리표시(UI 렌더 텍스트에 em-dash 금지 — nextShuttleBus.js와 동일 관례)
+                              (min ?? '-')
                             )}
                           </span>
                         ))}

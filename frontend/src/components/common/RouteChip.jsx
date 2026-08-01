@@ -35,7 +35,9 @@ function getTone(route) {
 export default function RouteChip({ route, label, size = 'mob', className = '' }) {
   const display = label ?? route ?? ''
   const tone = getTone(route)
-  const sizeClass = size === 'pc' ? 'text-chip-pc min-w-[32px] px-1.5 py-[1px]' : 'text-chip min-w-[36px] px-2 py-[3px]'
+  // text-chip/text-chip-pc(11px/10px)는 12px 미만이라 정책상 쓸 수 없다 —
+  // text-dest(12px)로 통일하고 굵기/줄간격만 칩 톤에 맞게 유지한다.
+  const sizeClass = size === 'pc' ? 'text-dest font-extrabold leading-none min-w-[32px] px-1.5 py-[1px]' : 'text-dest font-extrabold leading-none min-w-[36px] px-2 py-[3px]'
   return (
     <span
       className={`inline-flex items-center justify-center rounded-chip tabular-nums whitespace-nowrap shrink-0 ${sizeClass} ${TONE_CLASS[tone]} ${className}`}

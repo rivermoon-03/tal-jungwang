@@ -20,13 +20,14 @@ describe('FloatingDock', () => {
     vi.unstubAllGlobals()
   })
 
-  it('탭 4개(홈/시간표/학식/더보기) aria-label, 시각 텍스트 라벨 없음', () => {
+  it('탭 4개(홈/시간표/학식/더보기) aria-label + 시각 텍스트 라벨(12px)', () => {
     render(<FloatingDock />)
     expect(screen.getByLabelText('홈')).toBeInTheDocument()
     expect(screen.getByLabelText('시간표')).toBeInTheDocument()
     expect(screen.getByLabelText('학식')).toBeInTheDocument()
     expect(screen.getByLabelText('더보기')).toBeInTheDocument()
-    expect(screen.queryByText('시간표')).toBeNull()
+    // 결함 #31 수정 — 아이콘 아래 시각 텍스트 라벨이 보여야 한다.
+    expect(screen.getAllByText('시간표').length).toBeGreaterThan(0)
     expect(screen.queryByText('지도')).toBeNull()
   })
 

@@ -5,7 +5,7 @@ import { useApi } from '../../hooks/useApi'
 import { SkeletonPanelRow } from '../common/Skeleton'
 import ErrorState from '../ui/ErrorState'
 import EmptyState from '../ui/EmptyState'
-import DualDirectionCard from '../common/DualDirectionCard'
+import TransitCard from '../ui/TransitCard.jsx'
 import { RealtimeCompactCard } from '../subway/SubwayRealtimeCard'
 
 const LINE_META = {
@@ -26,6 +26,10 @@ const STATION_LINES = {
     { name: '서해선',    upKey: 'siheung_up', downKey: 'siheung_dn' },
   ],
 }
+
+// 결함 #26 — 버스 패널(BusPanel.jsx)과 동일한 "5분 이하 = 임박(색만)" 규칙.
+// utils/**가 읽기 전용이라 공용 상수로 승격하지 않고 각 파일에 로컬로 둔다.
+const SOON_THRESHOLD_SEC = 5 * 60
 
 function offsetDate(days) {
   const d = new Date()
@@ -118,8 +122,10 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
         )
       )}
 
+      {/* 결함 #26 — 방향별 TransitCard로 교체(2열 정적 카드 + 진행바 폐기). 탭하면
+          기존 전역 지하철 상세 시트(GlobalSubwayDetailSheet, useAppStore.subwayDetailSheet)를 그대로 연다. */}
       {dataMode === 'timetable' && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {lines.map((line) => {
             const meta = LINE_META[line.name] ?? { symbol: line.name[0], color: '#6b7280', darkColor: '#6b7280', lightColor: '#f8f8f8' }
             const up = data[line.upKey]
@@ -128,19 +134,26 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
             const downFirst = isOvernight ? (down?.depart_at ?? null) : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
 
             return (
-              <DualDirectionCard
-                key={line.name}
-                symbol={meta.symbol}
-                symbolColor={meta.color}
-                lineName={line.name}
-                sub="다음 열차"
-                left={trainToSlot(up, '상행', upFirst)}
-                right={trainToSlot(down, '하행', downFirst)}
-                onLeftClick={() => openDetail(line.name, '상행', line.upKey)}
-                onRightClick={() => openDetail(line.name, '하행', line.downKey)}
-                emptyTitle={emptyTitle}
-                firstLabel={firstLabel}
-              />
+              <div key={line.name} className="space-y-2">
+                <SubwayDirectionCard
+                  meta={meta}
+                  train={up}
+                  fallbackDir="상행"
+                  firstTomorrow={upFirst}
+                  emptyTitle={emptyTitle}
+                  firstLabel={firstLabel}
+                  onClick={() => openDetail(line.name, '상행', line.upKey)}
+                />
+                <SubwayDirectionCard
+                  meta={meta}
+                  train={down}
+                  fallbackDir="하행"
+                  firstTomorrow={downFirst}
+                  emptyTitle={emptyTitle}
+                  firstLabel={firstLabel}
+                  onClick={() => openDetail(line.name, '하행', line.downKey)}
+                />
+              </div>
             )
           })}
         </div>
@@ -149,23 +162,51 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
   )
 }
 
-function trainToSlot(train, fallbackDir, firstTomorrow = null) {
-  if (!train) return { variant: 'empty', dir: fallbackDir, firstTomorrow }
-  const sec = train.arrive_in_seconds
+/**
+ * SubwayDirectionCard — 상행/하행 각각 독립된 TransitCard 한 장.
+ * badge=노선 심볼(수인/4/서), title="OO 방면", subtitle=상행|하행,
+ * eta.primary=N분(5분 이하만 imminent 색), secondary="다음 M분".
+ */
+function SubwayDirectionCard({ meta, train, fallbackDir, firstTomorrow, emptyTitle, firstLabel, onClick }) {
+  const sec = trainToSeconds(train)
   const minutes = trainToMinutes(sec)
-  const nextMinutes = trainToMinutes(train.next_arrive_in_seconds)
-  if (minutes == null && nextMinutes == null) return { variant: 'empty', dir: fallbackDir, firstTomorrow }
-  const route = train.destination ? `${train.destination} 방면` : fallbackDir
-  const imminent = sec != null && sec >= 0 && sec < 60
-  return {
-    variant: 'normal',
-    dir: fallbackDir,
-    route,
-    minutes,
-    nextMinutes,
-    imminentLabel: imminent ? '곧 도착' : null,
-    isUrgent: imminent || (minutes != null && minutes <= 3),
+  const nextMinutes = trainToMinutes(train?.next_arrive_in_seconds)
+
+  if (minutes == null && nextMinutes == null) {
+    return (
+      <TransitCard
+        badge={{ label: meta.symbol, bgVar: meta.color }}
+        title={emptyTitle}
+        subtitle={fallbackDir}
+        muted
+        eta={{
+          primary: { text: '운행 없음', tone: 'muted' },
+          secondary: firstTomorrow ? { text: `${firstLabel} ${firstTomorrow}` } : undefined,
+        }}
+      />
+    )
   }
+
+  const imminent = sec != null && sec <= SOON_THRESHOLD_SEC
+  const title = train?.destination ? `${train.destination} 방면` : fallbackDir
+
+  return (
+    <TransitCard
+      badge={{ label: meta.symbol, bgVar: meta.color }}
+      title={title}
+      subtitle={fallbackDir}
+      eta={{
+        primary: { text: minutes != null ? `${minutes}분` : '정보 없음', tone: minutes == null ? 'muted' : imminent ? 'imminent' : 'default' },
+        secondary: nextMinutes != null ? { text: `다음 ${nextMinutes}분` } : undefined,
+      }}
+      onClick={onClick}
+    />
+  )
+}
+
+function trainToSeconds(train) {
+  if (!train) return null
+  return train.arrive_in_seconds ?? null
 }
 
 function trainToMinutes(seconds) {

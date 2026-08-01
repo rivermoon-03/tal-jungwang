@@ -48,7 +48,7 @@ export default function MapBottomCard({
         <h3 className="text-[14px] font-extrabold text-ink">{stationName}</h3>
         <div className="flex flex-none items-center gap-[6px]">
           {live && (
-            <span className="inline-flex items-center gap-[6px] rounded-pill bg-accent px-[10px] py-[3px] text-[11px] font-bold text-white">
+            <span className="inline-flex items-center gap-[6px] rounded-pill bg-accent px-[10px] py-[3px] text-[12px] font-bold text-white">
               <span aria-hidden="true" className="h-[6px] w-[6px] rounded-pill bg-white animate-dot-blink" />
               실시간
             </span>
@@ -105,7 +105,7 @@ export default function MapBottomCard({
                 <span
                   aria-hidden="true"
                   style={{ background: route.color }}
-                  className="grid h-5 w-[26px] flex-none place-items-center rounded-badge text-[11px] font-extrabold text-white"
+                  className="grid h-5 w-[26px] flex-none place-items-center rounded-badge text-[12px] font-extrabold text-white"
                 >
                   {route.badge}
                 </span>
@@ -118,7 +118,7 @@ export default function MapBottomCard({
               >
                 {route.etaText}
               </span>
-              {route.sub && <span className="block text-[11px] text-mute">{route.sub}</span>}
+              {route.sub && <span className="block text-[12px] text-mute">{route.sub}</span>}
             </button>
           ))}
         </div>

@@ -270,7 +270,8 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
     <div
       className={`relative rounded-card-pc tabular-nums transition-opacity duration-200 ${paddingClass} ${borderClass} ${bgClass}`}
       style={{
-        boxShadow: !demoted && isUrgent ? '0 0 0 1.5px #4f9fff inset' : 'none',
+        // 인라인 hex 금지 — 임박 강조 링은 --tj-imminent 토큰을 쓴다.
+        boxShadow: !demoted && isUrgent ? '0 0 0 1.5px var(--tj-imminent) inset' : 'none',
         opacity: demoted && isTimeStale ? 0.7 : 1,
       }}
     >
