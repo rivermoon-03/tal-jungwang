@@ -1,9 +1,26 @@
+import re
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.bus import BusCommuteContext, BusInformationSource
 from app.schemas.bus import BusCommuteContextResponse, BusInformationSourceResponse
+
+
+BOARDING_SOURCE_ROLES = {"departure", "boarding_arrival"}
+BOARDING_LABEL_SUFFIX = re.compile(r"\s+(?:출발|도착)$")
+
+
+def _normalize_source_display_label(source_role: str, display_label: str) -> str:
+    """승차 지점 정보는 정보 방식과 무관하게 같은 용어로 표시한다."""
+    if source_role not in BOARDING_SOURCE_ROLES:
+        return display_label
+
+    station_label = BOARDING_LABEL_SUFFIX.sub("", display_label).rstrip()
+    if station_label == display_label:
+        return display_label
+    return f"{station_label} 승차"
 
 
 async def get_commute_contexts(
@@ -45,7 +62,10 @@ async def get_commute_contexts(
                     role=source.source_role,
                     stop_id=source.bus_stop_id,
                     station_label=source.stop.name,
-                    display_label=source.display_label,
+                    display_label=_normalize_source_display_label(
+                        source.source_role,
+                        source.display_label,
+                    ),
                     travel_direction=source.travel_direction,
                 )
                 for source in context.sources

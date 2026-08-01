@@ -18,6 +18,10 @@ async def test_get_commute_contexts_serializes_each_information_station():
         id=2, name="이마트", sub_name=None,
         gbis_station_id="224000513", lat=Decimal("37.2"), lng=Decimal("126.2"),
     )
+    city_hall = BusStop(
+        id=18, name="시흥시청역(서울방향)", sub_name=None,
+        gbis_station_id="224000739", lat=Decimal("37.3"), lng=Decimal("126.3"),
+    )
     context = BusCommuteContext(
         id=1, bus_route_id=1, group_key="to-seoul",
         origin_label="시흥터미널", destination_label="강남역",
@@ -35,6 +39,11 @@ async def test_get_commute_contexts_serializes_each_information_station():
             bus_stop_id=2, display_label="이마트 도착",
             travel_direction="to-seoul", sort_order=2, stop=emart,
         ),
+        BusInformationSource(
+            id=3, context_id=1, source_type="realtime", source_role="downstream_arrival",
+            bus_stop_id=18, display_label="시흥시청 도착",
+            travel_direction="to-seoul", sort_order=3, stop=city_hall,
+        ),
     ]
     scalars = MagicMock()
     scalars.all.return_value = [context]
@@ -50,4 +59,10 @@ async def test_get_commute_contexts_serializes_each_information_station():
     assert [(source.type, source.stop_id) for source in contexts[0].sources] == [
         ("timetable", 17),
         ("realtime", 2),
+        ("realtime", 18),
+    ]
+    assert [source.display_label for source in contexts[0].sources] == [
+        "시흥터미널 승차",
+        "이마트 승차",
+        "시흥시청 도착",
     ]

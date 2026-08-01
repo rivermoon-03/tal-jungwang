@@ -159,8 +159,8 @@ describe('ScheduleDetailModal — 실시간 전용 버스 상세', () => {
       destination_label: '월곶역',
       journey_labels: ['시흥터미널', '이마트', '월곶역'],
       sources: [
-        { id: 1, type: 'realtime', stop_id: 17, display_label: '시흥터미널 도착', station_label: '한국공학대학교 시흥터미널' },
-        { id: 2, type: 'realtime', stop_id: 2, display_label: '이마트 도착', station_label: '이마트' },
+        { id: 1, type: 'realtime', role: 'boarding_arrival', stop_id: 17, display_label: '시흥터미널 승차', station_label: '한국공학대학교 시흥터미널' },
+        { id: 2, type: 'realtime', role: 'boarding_arrival', stop_id: 2, display_label: '이마트 승차', station_label: '이마트' },
       ],
     }
 

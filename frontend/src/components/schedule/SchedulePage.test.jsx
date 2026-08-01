@@ -85,42 +85,48 @@ const ROUTES = [
 const COMMUTE_CONTEXTS = {
   '하교:to-jeongwang': [
     makeContext(1, '20-1', 'to-jeongwang', '학교', '정왕역', [
-      timetable(10, '학교 출발', 'to-jeongwang'),
-      realtime(10, '학교 도착', 'to-jeongwang'),
+      timetable(10, '학교 승차', 'to-jeongwang'),
+      realtime(10, '학교 승차', 'to-jeongwang'),
     ]),
   ],
   '하교:to-siheung-city-hall': [
-    makeContext(4, '3401', 'to-siheung-city-hall', '이마트', '시흥시청', [realtime(2, '이마트 도착')]),
-    makeContext(5, '5602', 'to-siheung-city-hall', '이마트', '시흥시청', [realtime(2, '이마트 도착')]),
+    makeContext(4, '3401', 'to-siheung-city-hall', '이마트', '시흥시청', [
+      timetable(2, '이마트 승차'),
+      realtime(13, '시흥시청 도착', 'to-seoul', 'downstream_arrival'),
+    ]),
+    makeContext(5, '5602', 'to-siheung-city-hall', '이마트', '시흥시청', [
+      timetable(2, '이마트 승차'),
+      realtime(13, '시흥시청 도착', 'to-seoul', 'downstream_arrival'),
+    ]),
   ],
   '하교:to-seoul': [
     makeContext(2, '3400', 'to-seoul', '시흥터미널', '강남역', [
-      timetable(11, '시흥터미널 출발'),
-      realtime(2, '이마트 도착'),
+      timetable(11, '시흥터미널 승차'),
+      realtime(2, '이마트 승차'),
     ]),
-    makeContext(3, '5200', 'to-seoul', '시흥터미널', '신도림역', [realtime(12, '시흥터미널 도착')]),
+    makeContext(3, '5200', 'to-seoul', '시흥터미널', '신도림역', [realtime(12, '시흥터미널 승차')]),
     makeContext(4, '3401', 'to-seoul', '이마트', '석수역', [
-      timetable(2, '이마트 출발'),
-      realtime(13, '시흥시청 도착'),
+      timetable(2, '이마트 승차'),
+      realtime(13, '시흥시청 도착', 'to-seoul', 'downstream_arrival'),
     ]),
-    makeContext(5, '5602', 'to-seoul', '이마트', '구로디지털단지역', [timetable(2, '이마트 출발')]),
-    makeContext(8, '6502', 'to-seoul', '이마트', '사당역', [timetable(2, '이마트 출발')]),
-    makeContext(9, '시흥1', 'to-seoul', '이마트', '개봉', [realtime(2, '이마트 도착')]),
+    makeContext(5, '5602', 'to-seoul', '이마트', '구로디지털단지역', [timetable(2, '이마트 승차')]),
+    makeContext(8, '6502', 'to-seoul', '이마트', '사당역', [timetable(2, '이마트 승차')]),
+    makeContext(9, '시흥1', 'to-seoul', '이마트', '개봉', [realtime(2, '이마트 승차')]),
   ],
   '하교:to-wolgot': [],
   '등교:from-seoul': [
-    makeContext(6, '3400', 'from-seoul', '강남역', '학교', [timetable(6, '강남역 출발')], '등교'),
-    makeContext(7, '6502', 'from-seoul', '사당역', '학교', [timetable(5, '사당역 출발')], '등교'),
+    makeContext(6, '3400', 'from-seoul', '강남역', '학교', [timetable(6, '강남역 승차')], '등교'),
+    makeContext(7, '6502', 'from-seoul', '사당역', '학교', [timetable(5, '사당역 승차')], '등교'),
   ],
   '등교:from-siheung-city-hall': [],
 }
 
 function timetable(stopId, displayLabel, travelDirection = 'to-seoul') {
-  return { id: stopId * 10, type: 'timetable', role: 'departure', stop_id: stopId, station_label: displayLabel.replace(' 출발', ''), display_label: displayLabel, travel_direction: travelDirection }
+  return { id: stopId * 10, type: 'timetable', role: 'departure', stop_id: stopId, station_label: displayLabel.replace(/ (?:출발|도착|승차)$/, ''), display_label: displayLabel, travel_direction: travelDirection }
 }
 
-function realtime(stopId, displayLabel, travelDirection = 'to-seoul') {
-  return { id: stopId * 10 + 1, type: 'realtime', role: 'boarding_arrival', stop_id: stopId, station_label: displayLabel.replace(' 도착', ''), display_label: displayLabel, travel_direction: travelDirection }
+function realtime(stopId, displayLabel, travelDirection = 'to-seoul', role = 'boarding_arrival') {
+  return { id: stopId * 10 + 1, type: 'realtime', role, stop_id: stopId, station_label: displayLabel.replace(/ (?:출발|도착|승차)$/, ''), display_label: displayLabel, travel_direction: travelDirection }
 }
 
 function makeContext(routeId, routeNumber, groupKey, origin, destination, sources, category = '하교') {
@@ -132,7 +138,7 @@ vi.mock('../../hooks/useBus', () => ({
   useBusRoutesByCategory: (category) => ({ data: ROUTES.filter((route) => route.category === category), loading: false }),
   useBusTimetable: () => ({ data: null, loading: false }),
   useBusTimetableByRoute: (routeNumber) => {
-    const future = new Date(Date.now() + 30 * 60 * 1000)
+    const future = new Date(2026, 7, 3, 12, 30, 0)
     const hhmm = `${String(future.getHours()).padStart(2, '0')}:${String(future.getMinutes()).padStart(2, '0')}`
     const hasTestTimetable = ['20-1', '3400', '3401', '5602', '6502'].includes(routeNumber)
     return { data: hasTestTimetable ? { times: [hhmm] } : null, loading: false }
@@ -149,6 +155,10 @@ vi.mock('../../hooks/useBus', () => ({
   }),
   useBusHistoryPreview: () => ({ data: null, loading: false }),
   useBusArrivalStats: () => ({ data: null, loading: false }),
+}))
+
+vi.mock('../../hooks/useNow', () => ({
+  useNow: () => new Date(2026, 7, 3, 12, 0, 0).getTime(),
 }))
 
 vi.mock('../../hooks/useMapMarkers', () => ({
@@ -280,6 +290,10 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     expect(screen.getAllByText('3401').length).toBeGreaterThan(0)
     expect(screen.getAllByText('5602').length).toBeGreaterThan(0)
     expect(screen.getAllByText('3400').length).toBeGreaterThan(0)
+
+    const route3401 = screen.getByTestId('bus-context-3401')
+    expect(route3401).toHaveTextContent('이마트 승차')
+    expect(route3401).toHaveTextContent('시흥시청 도착')
   })
 
   it('3401 상세는 현재 방면만 열고 상세 안에서 다른 방면으로 전환할 수 있다', async () => {
@@ -314,18 +328,18 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
 
     const card = screen.getByTestId('bus-context-3400')
-    expect(card).toHaveTextContent('시흥터미널 출발')
+    expect(card).toHaveTextContent('시흥터미널 승차')
     expect(card).toHaveTextContent('시간표')
-    expect(card).toHaveTextContent('이마트 도착')
+    expect(card).toHaveTextContent('이마트 승차')
     expect(card).toHaveTextContent('실시간')
   })
 
-  it('6502 하교는 이마트 출발 시간표만 표시한다', () => {
+  it('6502 하교는 이마트 승차 시간표만 표시한다', () => {
     render(<SchedulePage />)
     fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
 
     const card = screen.getByTestId('bus-context-6502')
-    expect(card).toHaveTextContent('이마트 출발')
+    expect(card).toHaveTextContent('이마트 승차')
     expect(card).toHaveTextContent('시간표')
     expect(card).not.toHaveTextContent('실시간')
   })
@@ -355,6 +369,7 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
     const card = screen.getByTestId('bus-context-20-1')
     expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent('3분')
+    expect(within(card).getAllByText('학교 승차')).toHaveLength(2)
   })
 
   it('같은 정류장의 실시간 값이 없으면 20-1 카드 왼쪽은 시간표로 폴백한다', () => {

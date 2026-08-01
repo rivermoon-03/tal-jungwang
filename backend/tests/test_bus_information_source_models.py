@@ -22,7 +22,7 @@ def test_information_source_keeps_timetable_and_realtime_stops_separate():
             source_type="timetable",
             source_role="departure",
             bus_stop_id=17,
-            display_label="시흥터미널 출발",
+            display_label="시흥터미널 승차",
             travel_direction="to-seoul",
         ),
         bus_models.BusInformationSource(

@@ -38,9 +38,9 @@ INSERT INTO bus_information_sources
 SELECT context.id, seed.source_type, seed.source_role, stop.id,
        seed.display_label, seed.travel_direction, seed.sort_order
 FROM (VALUES
-  ('시흥33','to-siheung-city-hall','realtime','boarding_arrival','224000639','한국공학대학교 도착','to-city-hall',10),
-  ('99-2','to-wolgot','realtime','boarding_arrival','224000861','시흥터미널 도착','to-wolgot',10),
-  ('99-2','to-wolgot','realtime','boarding_arrival','224000513','이마트 도착','to-wolgot',20)
+  ('시흥33','to-siheung-city-hall','realtime','boarding_arrival','224000639','한국공학대학교 승차','to-city-hall',10),
+  ('99-2','to-wolgot','realtime','boarding_arrival','224000861','시흥터미널 승차','to-wolgot',10),
+  ('99-2','to-wolgot','realtime','boarding_arrival','224000513','이마트 승차','to-wolgot',20)
 ) AS seed(route_number, group_key, source_type, source_role, gbis_station_id, display_label, travel_direction, sort_order)
 JOIN bus_routes route
   ON route.route_number = seed.route_number AND route.category = '하교'
