@@ -74,7 +74,48 @@ const ROUTES = [
   },
 ]
 
+const COMMUTE_CONTEXTS = {
+  '하교:to-jeongwang': [
+    makeContext(1, '20-1', 'to-jeongwang', '학교', '정왕역', [realtime(10, '학교 출발')]),
+  ],
+  '하교:to-siheung-city-hall': [
+    makeContext(4, '3401', 'to-siheung-city-hall', '이마트', '시흥시청', [realtime(2, '이마트 도착')]),
+    makeContext(5, '5602', 'to-siheung-city-hall', '이마트', '시흥시청', [realtime(2, '이마트 도착')]),
+  ],
+  '하교:to-seoul': [
+    makeContext(2, '3400', 'to-seoul', '시흥터미널', '강남역', [
+      timetable(11, '시흥터미널 출발'),
+      realtime(2, '이마트 도착'),
+    ]),
+    makeContext(3, '5200', 'to-seoul', '시흥터미널', '신도림역', [realtime(12, '시흥터미널 도착')]),
+    makeContext(4, '3401', 'to-seoul', '이마트', '석수역', [
+      timetable(2, '이마트 출발'),
+      realtime(13, '시흥시청 도착'),
+    ]),
+    makeContext(5, '5602', 'to-seoul', '이마트', '구로디지털단지역', [timetable(2, '이마트 출발')]),
+    makeContext(8, '6502', 'to-seoul', '이마트', '사당역', [timetable(2, '이마트 출발')]),
+  ],
+  '등교:from-seoul': [
+    makeContext(6, '3400', 'from-seoul', '강남역', '학교', [timetable(6, '강남역 출발')], '등교'),
+    makeContext(7, '6502', 'from-seoul', '사당역', '학교', [timetable(5, '사당역 출발')], '등교'),
+  ],
+  '등교:from-siheung-city-hall': [],
+}
+
+function timetable(stopId, displayLabel) {
+  return { id: stopId * 10, type: 'timetable', role: 'departure', stop_id: stopId, station_label: displayLabel.replace(' 출발', ''), display_label: displayLabel, travel_direction: 'to-seoul' }
+}
+
+function realtime(stopId, displayLabel) {
+  return { id: stopId * 10 + 1, type: 'realtime', role: 'boarding_arrival', stop_id: stopId, station_label: displayLabel.replace(' 도착', ''), display_label: displayLabel, travel_direction: 'to-seoul' }
+}
+
+function makeContext(routeId, routeNumber, groupKey, origin, destination, sources, category = '하교') {
+  return { id: routeId * 100 + groupKey.length, route_id: routeId, route_number: routeNumber, category, group_key: groupKey, origin_label: origin, destination_label: destination, journey_labels: [origin, destination], sources }
+}
+
 vi.mock('../../hooks/useBus', () => ({
+  useBusCommuteContexts: (category, group) => ({ data: COMMUTE_CONTEXTS[`${category}:${group}`] ?? [], loading: false }),
   useBusRoutesByCategory: (category) => ({ data: ROUTES.filter((route) => route.category === category), loading: false }),
   useBusTimetable: () => ({ data: null, loading: false }),
   useBusTimetableByRoute: (routeNumber, options) => {
@@ -242,5 +283,26 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     expect(screen.getAllByText('6502').length).toBeGreaterThan(0)
     expect(screen.getAllByText('시간표').length).toBeGreaterThanOrEqual(2)
     expect(screen.queryByText('실시간 도착 정보가 없어요')).not.toBeInTheDocument()
+  })
+
+  it('3400은 시흥터미널 시간표와 다음 정류장 이마트 실시간을 별도 행으로 표시한다', () => {
+    render(<SchedulePage />)
+    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
+
+    const card = screen.getByTestId('bus-context-3400')
+    expect(card).toHaveTextContent('시흥터미널 출발')
+    expect(card).toHaveTextContent('시간표')
+    expect(card).toHaveTextContent('이마트 도착')
+    expect(card).toHaveTextContent('실시간')
+  })
+
+  it('6502 하교는 이마트 출발 시간표만 표시한다', () => {
+    render(<SchedulePage />)
+    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
+
+    const card = screen.getByTestId('bus-context-6502')
+    expect(card).toHaveTextContent('이마트 출발')
+    expect(card).toHaveTextContent('시간표')
+    expect(card).not.toHaveTextContent('실시간')
   })
 })

@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from app.core.cache import get_redis
 from app.core.database import AsyncSessionLocal
-from app.models.bus import BusArrivalHistory, BusCrowdingLog, BusRoute, BusStop
+from app.models.bus import BusArrivalHistory, BusCrowdingLog, BusRealtimeTarget, BusRoute
 from app.services.external.gbis import fetch_arrivals
 
 from sqlalchemy import select
@@ -73,22 +73,34 @@ def _day_type(dt: datetime) -> str:
 
 
 async def _load_realtime_stations(db) -> list[dict]:
-    """실시간 노선이 연결된 정류장 목록 로드."""
-    stmt = select(BusStop).options(selectinload(BusStop.routes))
+    """명시적으로 등록된 노선·방향별 GBIS 관측 정류장 목록 로드."""
+    stmt = (
+        select(BusRealtimeTarget)
+        .where(BusRealtimeTarget.enabled.is_(True))
+        .options(
+            selectinload(BusRealtimeTarget.route),
+            selectinload(BusRealtimeTarget.stop),
+        )
+    )
     result = await db.execute(stmt)
-    stops = result.scalars().all()
+    bindings = result.scalars().all()
 
-    targets = []
-    for stop in stops:
-        rt_routes = [r for r in stop.routes if r.is_realtime and r.gbis_route_id]
-        if rt_routes and stop.gbis_station_id:
-            targets.append({
-                "stop_id": stop.id,
-                "stop_name": stop.name,
-                "gbis_station_id": stop.gbis_station_id,
-                "routes": {r.gbis_route_id: r for r in rt_routes},
-            })
-    return targets
+    grouped: dict[int, dict] = {}
+    for binding in bindings:
+        route = binding.route
+        stop = binding.stop
+        if not route.gbis_route_id or not stop.gbis_station_id:
+            continue
+        target = grouped.setdefault(stop.id, {
+            "stop_id": stop.id,
+            "stop_name": stop.name,
+            "gbis_station_id": stop.gbis_station_id,
+            "routes": {},
+            "travel_directions": {},
+        })
+        target["routes"][route.gbis_route_id] = route
+        target["travel_directions"][route.gbis_route_id] = binding.travel_direction
+    return list(grouped.values())
 
 
 async def poll_and_collect():
@@ -116,6 +128,7 @@ async def poll_and_collect():
             # ── 1. Redis 캐시 저장 (프론트 응답용) ─────────────────────
             # route 매칭 후 프론트에 내려줄 형태로 변환
             gbis_id_to_route: dict[str, BusRoute] = target["routes"]
+            travel_directions: dict[str, str] = target["travel_directions"]
             arrivals_for_cache = []
 
             # 이번 사이클에 실제로 처리할 노선 (간격 미달 노선 제외)
@@ -138,6 +151,7 @@ async def poll_and_collect():
                         "route_no": route.route_number,
                         "destination": route.direction_name,
                         "category": route.category,
+                        "travel_direction": travel_directions[item["route_id"]],
                         "arrival_type": "realtime",
                         "depart_at": None,
                         "arrive_in_seconds": sec1,
@@ -151,6 +165,7 @@ async def poll_and_collect():
                         "route_no": route.route_number,
                         "destination": route.direction_name,
                         "category": route.category,
+                        "travel_direction": travel_directions[item["route_id"]],
                         "arrival_type": "realtime",
                         "depart_at": None,
                         "arrive_in_seconds": sec2,

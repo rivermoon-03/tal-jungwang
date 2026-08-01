@@ -91,6 +91,48 @@ CREATE INDEX idx_bus_tt_stop_day
     ON bus_timetable_entries (stop_id, day_type, departure_time);
 
 -- ────────────────────────────────────────────────────────────
+-- 4-1. 통학 목적과 정보 기준점
+-- 시간표 출발점과 GBIS 실시간 관측점이 다를 수 있으므로 별도 source로 저장한다.
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE bus_commute_contexts (
+    id                SERIAL       PRIMARY KEY,
+    bus_route_id      INTEGER      NOT NULL REFERENCES bus_routes(id) ON DELETE CASCADE,
+    group_key         VARCHAR(40)  NOT NULL,
+    origin_label      VARCHAR(100) NOT NULL,
+    destination_label VARCHAR(100) NOT NULL,
+    journey_labels    JSONB        NOT NULL DEFAULT '[]'::jsonb,
+    sort_order        INTEGER      NOT NULL DEFAULT 0,
+    CONSTRAINT uq_bus_commute_route_group UNIQUE (bus_route_id, group_key)
+);
+
+CREATE TABLE bus_information_sources (
+    id               SERIAL       PRIMARY KEY,
+    context_id       INTEGER      NOT NULL REFERENCES bus_commute_contexts(id) ON DELETE CASCADE,
+    source_type      VARCHAR(20)  NOT NULL CHECK (source_type IN ('timetable', 'realtime')),
+    source_role      VARCHAR(30)  NOT NULL CHECK (source_role IN ('departure', 'boarding_arrival', 'downstream_arrival')),
+    bus_stop_id      INTEGER      NOT NULL REFERENCES bus_stops(id),
+    display_label    VARCHAR(100) NOT NULL,
+    travel_direction VARCHAR(30) NOT NULL,
+    sort_order       INTEGER      NOT NULL DEFAULT 0,
+    CONSTRAINT uq_bus_info_source_context_type_role_stop
+        UNIQUE (context_id, source_type, source_role, bus_stop_id)
+);
+
+CREATE TABLE bus_realtime_targets (
+    id               SERIAL      PRIMARY KEY,
+    bus_route_id     INTEGER     NOT NULL REFERENCES bus_routes(id) ON DELETE CASCADE,
+    bus_stop_id      INTEGER     NOT NULL REFERENCES bus_stops(id) ON DELETE CASCADE,
+    travel_direction VARCHAR(30) NOT NULL,
+    enabled          BOOLEAN     NOT NULL DEFAULT TRUE,
+    CONSTRAINT uq_bus_realtime_route_stop_direction
+        UNIQUE (bus_route_id, bus_stop_id, travel_direction)
+);
+
+CREATE INDEX idx_bus_commute_context_group ON bus_commute_contexts (group_key, sort_order);
+CREATE INDEX idx_bus_information_source_context ON bus_information_sources (context_id, sort_order);
+CREATE INDEX idx_bus_realtime_target_stop ON bus_realtime_targets (bus_stop_id) WHERE enabled;
+
+-- ────────────────────────────────────────────────────────────
 -- 5. bus_arrival_history — 실시간 버스 도착 이력
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE bus_arrival_history (

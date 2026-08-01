@@ -18,6 +18,19 @@ export function useBusRoutes() {
   return useApi('/bus/routes', { enabled: true })
 }
 
+export function useBusCommuteContexts(category, groupKey) {
+  const ready = (category === '등교' || category === '하교') && Boolean(groupKey)
+  const params = new URLSearchParams()
+  if (ready) {
+    params.set('category', category)
+    params.set('group', groupKey)
+  }
+  return useApi(ready ? `/bus/commute-contexts?${params.toString()}` : null, {
+    enabled: ready,
+    ttl: 10 * 60_000,
+  })
+}
+
 // tickMs: 카운트다운 갱신 주기. 초 단위 표시가 필요한 카드는 기본 1000,
 // 분 단위로만 쓰는 지도 마커는 60_000을 넘겨 매초 재계산 연쇄를 피한다.
 export function useBusArrivals(stationId, { tickMs = 1000 } = {}) {

@@ -127,8 +127,8 @@ export default function AcademicNoticesTab() {
       {!calLoading && upcomingList.length > 0 && (
         <div>
           <div
-            className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest mb-2"
-            style={{ letterSpacing: '0.14em' }}
+            className="text-label font-semibold text-mute dark:text-mute uppercase mb-2"
+            style={{ letterSpacing: '-0.02em' }}
           >
             다가오는 학사일정
           </div>

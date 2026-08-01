@@ -1,7 +1,7 @@
 from datetime import datetime, time
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -41,6 +41,12 @@ class BusRoute(Base):
     stops: Mapped[list["BusStop"]] = relationship(
         secondary="bus_stop_routes", back_populates="routes"
     )
+    commute_contexts: Mapped[list["BusCommuteContext"]] = relationship(
+        back_populates="route", cascade="all, delete-orphan"
+    )
+    realtime_targets: Mapped[list["BusRealtimeTarget"]] = relationship(
+        back_populates="route", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("route_number", "category", name="uq_bus_routes_number_category"),
@@ -73,6 +79,86 @@ class BusTimetableEntry(Base):
 
     __table_args__ = (
         Index("idx_bus_tt_route_stop_day", "route_id", "stop_id", "day_type"),
+    )
+
+
+class BusCommuteContext(Base):
+    """사용자가 선택하는 통학 목적. 정보 source의 기준점과는 독립적이다."""
+
+    __tablename__ = "bus_commute_contexts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bus_route_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_routes.id", ondelete="CASCADE"), nullable=False
+    )
+    group_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    origin_label: Mapped[str] = mapped_column(String(100), nullable=False)
+    destination_label: Mapped[str] = mapped_column(String(100), nullable=False)
+    journey_labels: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    route: Mapped["BusRoute"] = relationship(back_populates="commute_contexts")
+    sources: Mapped[list["BusInformationSource"]] = relationship(
+        back_populates="context",
+        cascade="all, delete-orphan",
+        order_by="BusInformationSource.sort_order",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("bus_route_id", "group_key", name="uq_bus_commute_route_group"),
+    )
+
+
+class BusInformationSource(Base):
+    """시간표 또는 실시간 정보가 의미하는 구체 정류장과 역할."""
+
+    __tablename__ = "bus_information_sources"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    context_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_commute_contexts.id", ondelete="CASCADE"), nullable=False
+    )
+    source_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    source_role: Mapped[str] = mapped_column(String(30), nullable=False)
+    bus_stop_id: Mapped[int] = mapped_column(ForeignKey("bus_stops.id"), nullable=False)
+    display_label: Mapped[str] = mapped_column(String(100), nullable=False)
+    travel_direction: Mapped[str] = mapped_column(String(30), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    context: Mapped["BusCommuteContext"] = relationship(back_populates="sources")
+    stop: Mapped["BusStop"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "context_id", "source_type", "source_role", "bus_stop_id",
+            name="uq_bus_info_source_context_type_role_stop",
+        ),
+    )
+
+
+class BusRealtimeTarget(Base):
+    """GBIS 수집기가 폴링할 노선·정류장·진행방향의 명시적 binding."""
+
+    __tablename__ = "bus_realtime_targets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bus_route_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_routes.id", ondelete="CASCADE"), nullable=False
+    )
+    bus_stop_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_stops.id", ondelete="CASCADE"), nullable=False
+    )
+    travel_direction: Mapped[str] = mapped_column(String(30), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    route: Mapped["BusRoute"] = relationship(back_populates="realtime_targets")
+    stop: Mapped["BusStop"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "bus_route_id", "bus_stop_id", "travel_direction",
+            name="uq_bus_realtime_route_stop_direction",
+        ),
     )
 
 

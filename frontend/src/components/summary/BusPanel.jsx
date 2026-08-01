@@ -33,13 +33,24 @@ const CROWDED_META = {
   4: { label: '혼잡', tone: 'warn' },
 }
 
-/** 카드 탭 시 노선 상세로 이동 — 기존 ArrivalRow.handleClick과 동일 네비게이션 패턴. */
-function navigateToBusRoute(routeNumber, station) {
-  const routeId = `bus:${routeNumber}`
-  const stopQuery = station ? `?stop=${encodeURIComponent(station)}` : ''
-  const url = `/route/${routeId}${stopQuery}`
-  window.history.pushState({ routeId }, '', url)
-  window.dispatchEvent(new PopStateEvent('popstate', { state: { routeId } }))
+function getCommuteGroup(station, category, routeNumber) {
+  if (category === '등교') return station === '서울' ? 'from-seoul' : 'from-siheung-city-hall'
+  if (station === '한국공학대') {
+    return ['11-A', '20-1'].includes(routeNumber) ? 'to-jeongwang' : 'to-siheung-city-hall'
+  }
+  return 'to-seoul'
+}
+
+function openBusDetail(setDetailModal, { routeNumber, routeId = null, station, category, title }) {
+  setDetailModal({
+    type: 'bus',
+    routeCode: routeNumber,
+    routeId,
+    category,
+    commuteGroup: getCommuteGroup(station, category, routeNumber),
+    title: title || `${routeNumber}번 버스`,
+    favCode: `${category}:${routeNumber}`,
+  })
 }
 
 /**
@@ -56,6 +67,7 @@ function navigateToBusRoute(routeNumber, station) {
  */
 export default function BusPanel() {
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
+  const setDetailModal = useAppStore((s) => s.setDetailModal)
   const { direction: selectedBusDirection } = useEffectiveDirection()
   const gbisStationId = getGbisStationId(selectedBusStation)
 
@@ -93,6 +105,7 @@ export default function BusPanel() {
             route={route}
             selectedBusStation={selectedBusStation}
             selectedBusDirection={selectedBusDirection}
+            onOpenDetail={setDetailModal}
           />
         ))}
       </div>
@@ -132,7 +145,7 @@ export default function BusPanel() {
     if (sec == null && !a.is_tomorrow) {
       fallbackGroups.push(group)
     } else {
-      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection }))
+      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal }))
     }
   }
 
@@ -191,7 +204,7 @@ export default function BusPanel() {
 }
 
 /** 실시간 ETA가 확보된 그룹 하나 → {sec, node(TransitCard)}. */
-function buildLiveRow(group, { station, direction }) {
+function buildLiveRow(group, { station, direction, onOpenDetail }) {
   const a = group[0]
   const a2 = group[1] ?? null
   const sec = arrivalEntryToSeconds(a)
@@ -225,7 +238,13 @@ function buildLiveRow(group, { station, direction }) {
           primary: { text: etaResult.text, tone: imminent ? 'imminent' : 'default' },
           secondary: minutes2 != null ? { text: `다음 ${minutes2}분` } : undefined,
         }}
-        onClick={() => navigateToBusRoute(a.route_no, station)}
+        onClick={() => openBusDetail(onOpenDetail, {
+          routeNumber: a.route_no,
+          routeId: a.route_id ?? null,
+          station,
+          category: a.category ?? direction,
+          title: `${a.route_no} · ${title}`,
+        })}
       />
     ),
   }
@@ -235,7 +254,7 @@ function buildLiveRow(group, { station, direction }) {
  * 서울 정류장(시간표 전용) 카드 — useBusTimetable을 노선별로 구독하는 서브컴포넌트.
  * 서울 정류장은 항상 등교 전용·실시간 없음이라 곧 도착/운행 중 구분 없이 한 목록에 둔다.
  */
-function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection }) {
+function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpenDetail }) {
   const { route_id, route_number } = route
   const timetable = useBusTimetable(route_id)
 
@@ -268,7 +287,13 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection }) {
         primary: { text: etaResult.text, tone: nextSec == null ? 'muted' : imminent ? 'imminent' : 'default' },
         secondary: secondMinutes != null ? { text: `다음 ${secondMinutes}분` } : undefined,
       }}
-      onClick={() => navigateToBusRoute(route_number, selectedBusStation)}
+      onClick={() => openBusDetail(onOpenDetail, {
+        routeNumber: route_number,
+        routeId: route_id,
+        station: selectedBusStation,
+        category: selectedBusDirection,
+        title: `${route_number} · ${title}`,
+      })}
     />
   )
 }

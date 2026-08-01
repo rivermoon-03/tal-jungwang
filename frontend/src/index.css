@@ -12,20 +12,20 @@
 
   --ease-ios:  cubic-bezier(0.16, 1, 0.3, 1);
   --ease-snap: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-press: 120ms;
-  --dur-snap:  240ms;
-  --dur-page:  260ms;
-  --dur-sheet: 280ms;
-  --dur-slot:  400ms;
+  --dur-press: 90ms;
+  --dur-snap:  110ms;
+  --dur-page:  120ms;
+  --dur-sheet: 140ms;
+  --dur-slot:  120ms;
 
   /* ── 모션 이징(DESIGN.md §4) — Apple 스타일, 결정적 ease-out/스프링/크로스페이드 */
   --e-out:    cubic-bezier(0.32, 0.72, 0, 1);
   --e-spring: cubic-bezier(0.5, 1.35, 0.5, 1);
   --e-inout:  cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-motion-press: 120ms;
-  --dur-motion-base:  200ms;
-  --dur-motion-enter: 300ms;
-  --dur-motion-sheet: 440ms;
+  --dur-motion-press: 90ms;
+  --dur-motion-base:  110ms;
+  --dur-motion-enter: 120ms;
+  --dur-motion-sheet: 140ms;
 
   /* ── 디자인 시스템 v1 semantic 토큰 (DESIGN.md §2, Radix sage+teal) ── */
   --tj-bg:          #fbfdfc;  /* sage1 */
@@ -221,7 +221,7 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.18s var(--e-inout) both;
+  animation: fadeIn var(--dur-motion-base) var(--e-inout) both;
 }
 
 @keyframes fadeInUp {
@@ -234,11 +234,11 @@
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.2s var(--e-out) both;
+  animation: slideInRight var(--dur-motion-enter) var(--e-out) both;
 }
 
 /* ── 탭 / 카드 press 피드백 ─────────────────── */
-/* Phase C: press 패턴(DESIGN.md §4) — scale(0.94) + spring 이징, 120ms 즉각 반응 */
+/* press 패턴 — scale(0.94) + spring 이징, 90ms 즉각 반응 */
 .pressable {
   transition: transform var(--dur-motion-press) var(--e-spring), opacity var(--dur-motion-press) var(--e-spring);
   -webkit-tap-highlight-color: transparent;
@@ -321,7 +321,7 @@ body {
 /* ── 카카오맵 다크모드 ──────────────────────────────────── */
 .dark #kakao-map-canvas {
   filter: invert(93%) hue-rotate(180deg) brightness(0.82) saturate(0.85) contrast(0.92);
-  transition: filter 0.3s var(--e-out);
+  transition: filter var(--dur-motion-base) var(--e-out);
 }
 
 /* 마커 이미지 역필터 — 원래 SVG 색상 유지 */

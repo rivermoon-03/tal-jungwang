@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -37,6 +38,28 @@ class BusRouteSummary(BaseModel):
     stops: list[BusRouteStop] = []
 
 
+class BusInformationSourceResponse(BaseModel):
+    id: int
+    type: Literal["timetable", "realtime"]
+    role: str
+    stop_id: int
+    station_label: str
+    display_label: str
+    travel_direction: str
+
+
+class BusCommuteContextResponse(BaseModel):
+    id: int
+    route_id: int
+    route_number: str
+    category: str
+    group_key: str
+    origin_label: str
+    destination_label: str
+    journey_labels: list[str]
+    sources: list[BusInformationSourceResponse]
+
+
 class ArrivalStats(BaseModel):
     # 사전 집계(bus_arrival_stats) 풀 페이로드는 분위수·tolerance까지 모두 채운다.
     # ±2시간 윈도우 fallback(bus_arrival_history)은 mean_min + sample_size만 채우고
@@ -56,6 +79,7 @@ class BusArrival(BaseModel):
     route_no: str
     destination: str | None = None
     category: str | None = None  # "등교" | "하교" | "기타"
+    travel_direction: str | None = None  # 명시적인 GBIS 관측 진행 방향
     arrival_type: str  # "realtime" | "timetable"
     depart_at: str | None = None  # "HH:MM" (timetable)
     arrive_in_seconds: int | None = None

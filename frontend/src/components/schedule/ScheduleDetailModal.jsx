@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom'
 import { Drawer } from 'vaul'
 import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
+import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats, useBusCommuteContexts } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
@@ -29,7 +29,7 @@ import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
 import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
 import { buildDisplayList, DIRECTION_LABELS } from '../shuttle/shuttleSchedule'
 import SegmentedControl from '../ui/SegmentedControl'
-import { BUS_COMMUTE_GROUPS, getCommuteContext } from '../../utils/busCommuteContext'
+import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -925,7 +925,39 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, commuteGroup = null, realtimeStationId = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null, pcMode = 'overlay' }) {
+function BusContextDetail({ context, routeCode, routeId, category, color, viewMode, scrollContainerRef }) {
+  if (!context?.sources?.length) {
+    return <BusContent routeCode={routeCode} routeId={routeId} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="rounded-xl border border-line dark:border-line bg-surface-2/60 dark:bg-bg px-4 py-3">
+        <p className="text-sm font-extrabold text-ink dark:text-ink">{context.origin_label} → {context.destination_label}</p>
+        <p className="mt-1 text-xs font-medium text-mute">{(context.journey_labels ?? []).join(' → ')}</p>
+      </div>
+      {context.sources.map((source) => (
+        <section key={source.id} aria-label={`${source.display_label} ${source.type === 'timetable' ? '시간표' : '실시간'}`}>
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <h3 className="text-sm font-extrabold text-ink dark:text-ink">{source.display_label}</h3>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${source.type === 'timetable' ? 'bg-surface-3 text-mute' : 'bg-accent/10 text-accent-ink dark:text-accent'}`}>
+              {source.type === 'timetable' ? '시간표' : '실시간'}
+            </span>
+          </div>
+          <div className="rounded-xl border border-line dark:border-line p-2">
+            {source.type === 'timetable' ? (
+              <BusContent routeCode={routeCode} routeId={routeId} stopId={source.stop_id} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
+            ) : (
+              <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={source.stop_id} scrollContainerRef={scrollContainerRef} />
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, commuteGroup = null, commuteContext = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null, pcMode = 'overlay' }) {
   const isPC =
     typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
@@ -945,9 +977,21 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
     setScheduleViewMode(mode)
   }
 
-  const commuteOptions = type === 'bus'
-    ? (BUS_COMMUTE_GROUPS[category] ?? []).filter((group) => getCommuteContext(routeCode, category, group.id))
-    : []
+  const groupDefinitions = type === 'bus' ? (BUS_COMMUTE_GROUPS[category] ?? []) : []
+  const group0 = useBusCommuteContexts(category, groupDefinitions[0]?.id)
+  const group1 = useBusCommuteContexts(category, groupDefinitions[1]?.id)
+  const group2 = useBusCommuteContexts(category, groupDefinitions[2]?.id)
+  const groupResults = [group0.data, group1.data, group2.data]
+  const contextByGroup = new Map()
+  groupDefinitions.forEach((group, index) => {
+    const match = (Array.isArray(groupResults[index]) ? groupResults[index] : [])
+      .find((context) => context.route_number === routeCode)
+    if (match) contextByGroup.set(group.id, match)
+  })
+  if (commuteContext?.group_key && commuteContext.route_number === routeCode) {
+    contextByGroup.set(commuteContext.group_key, commuteContext)
+  }
+  const commuteOptions = groupDefinitions.filter((group) => contextByGroup.has(group.id))
   const defaultCommuteGroup = commuteOptions.some((group) => group.id === commuteGroup)
     ? commuteGroup
     : commuteOptions[0]?.id ?? null
@@ -958,11 +1002,10 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
     setSeenCommuteKey(commuteKey)
     setActiveCommuteGroup(defaultCommuteGroup)
   }
-  const activeContext = getCommuteContext(routeCode, category, activeCommuteGroup)
-  const activeStopId = activeContext?.stopId ?? stopId
-  const activeRealtimeStationId = activeContext?.realtimeStationId ?? realtimeStationId
-  const activeIsRealtime = Boolean(isRealtime && activeRealtimeStationId)
-  const supportsGridToggle = (type === 'bus' && !activeIsRealtime) || type === 'subway'
+  const activeContext = contextByGroup.get(activeCommuteGroup) ?? commuteContext
+  const activeStopId = activeContext?.sources?.[0]?.stop_id ?? stopId
+  const hasTimetableSource = activeContext?.sources?.some((source) => source.type === 'timetable') ?? !isRealtime
+  const supportsGridToggle = (type === 'bus' && hasTimetableSource) || type === 'subway'
 
   // 이 컴포넌트는 GlobalDetailModal 등에서 앱 생명주기 내내 마운트된 채 `open`만
   // 토글되는 경우가 있어(unmount/remount 아님), 설정 화면에서 기본값을 바꾼 뒤에도
@@ -1086,8 +1129,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
             <RouteProgressStrip routeNo={routeCode} stationId={activeStopId} hasArrival={false} />
           </div>
         )}
-        {type === 'bus' && activeIsRealtime && <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={activeRealtimeStationId} scrollContainerRef={scrollContainerRef} />}
-        {type === 'bus' && !activeIsRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={activeStopId} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
+        {type === 'bus' && <BusContextDetail context={activeContext} routeCode={routeCode} routeId={routeId} category={category} color={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
         {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
         {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} scrollContainerRef={scrollContainerRef} />}
       </div>

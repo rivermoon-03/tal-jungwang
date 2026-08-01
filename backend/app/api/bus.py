@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -11,6 +12,7 @@ from app.models.bus import BusArrivalHistory, BusRoute, BusStop, BusStopRoute
 from app.schemas.common import ApiResponse
 from app.schemas.bus import (
     BusArrivalsResponse,
+    BusCommuteContextResponse,
     BusRouteStop,
     BusRouteSummary,
     BusStationResponse,
@@ -19,6 +21,7 @@ from app.schemas.bus import (
 from app.schemas.traffic import CrowdingFlowResponse
 from app.core.cache import get_cached_json, get_or_fetch_with_lock, set_cached_json
 from app.services.bus import get_arrivals, get_stations, get_timetable, get_timetable_by_route_number
+from app.services.bus_context import get_commute_contexts
 from app.services.crowding_flow import compute_crowding_flow
 from app.services.external.gbis import fetch_bus_locations
 
@@ -26,6 +29,26 @@ router = APIRouter(prefix="/api/v1/bus", tags=["bus"])
 
 _LOCATIONS_CACHE_TTL = 30  # 초 — 버스 폴링 간격과 동일
 _ROUTES_CACHE_TTL = 3600   # 노선 목록은 정적 데이터 — 1시간 캐시
+
+
+@router.get("/commute-contexts")
+@limiter.limit("30/minute")
+async def bus_commute_contexts(
+    request: Request,
+    response: Response,
+    category: Literal["등교", "하교"],
+    group_key: Literal[
+        "to-jeongwang",
+        "to-siheung-city-hall",
+        "to-seoul",
+        "from-seoul",
+        "from-siheung-city-hall",
+    ] = Query(alias="group"),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_commute_contexts(db, category=category, group_key=group_key)
+    response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=3600"
+    return ApiResponse[list[BusCommuteContextResponse]].ok(result)
 
 
 @router.get("/routes")
