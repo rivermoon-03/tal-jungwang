@@ -269,9 +269,11 @@ async def bus_history_preview(
 ):
     """실시간 노선 과거 도착 이력 조회 — 모달 예측 데이터용.
 
-    요일 무관 항상 고정 2개 날짜를 반환:
-    - columns[0]: 어제 (today - 1)
-    - columns[1]: 일주일 전 같은 요일 (today - 7)
+    항상 "오늘과 같은 요일" 3개 날짜를 반환한다 (통학 패턴은 요일 종속이라
+    어제/이틀 전보다 같은 요일 비교가 예측에 유효):
+    - columns[0]: 지난주 (today - 7)
+    - columns[1]: 2주 전 (today - 14)
+    - columns[2]: 3주 전 (today - 21)
     데이터가 없는 날짜도 빈 컬럼으로 포함.
 
     응답에 `realtime_eta`(GBIS 캐시 기반 1~2건)와 `predicted_eta`(과거 이력 median)
@@ -292,15 +294,12 @@ async def bus_history_preview(
 
     WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
 
-    # 요일 무관: 어제(today-1) + 이틀 전(today-2) + 7일 전(today-7) 고정 3개
-    yesterday = today - timedelta(days=1)
-    day_before = today - timedelta(days=2)
-    last_week = today - timedelta(days=7)
-
+    # 같은 요일 3개: 지난주(-7) / 2주 전(-14) / 3주 전(-21).
+    # 요일이 같으므로 라벨에 요일을 반복하지 않아도 day_label이 이를 드러낸다.
     target_dates_labeled: list[tuple[date, str]] = [
-        (yesterday, "어제"),
-        (day_before, "이틀 전"),
-        (last_week, "7일 전"),
+        (today - timedelta(days=7), "지난주"),
+        (today - timedelta(days=14), "2주 전"),
+        (today - timedelta(days=21), "3주 전"),
     ]
 
     target_dates = [d for d, _ in target_dates_labeled]
