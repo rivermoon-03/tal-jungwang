@@ -145,6 +145,7 @@ describe('AcademicNoticesTab — 다가오는 학사일정 리스트', () => {
 
   it('D-N 칩과 제목, 날짜 범위를 표시한다', () => {
     render(<AcademicNoticesTab />)
+    expect(screen.getByText('다가오는 학사일정')).toHaveStyle({ letterSpacing: '-0.02em' })
     expect(screen.getAllByText(/^D[-+]\d+$/).length).toBeGreaterThan(0)
     // 선택된 캘린더 날짜 아래에도 같은 제목/날짜범위가 표시될 수 있어 getAllByText로 확인.
     expect(screen.getAllByText('기말고사').length).toBeGreaterThan(0)

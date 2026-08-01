@@ -49,6 +49,10 @@ export default function GlobalDetailModal() {
       routeCode={displayed?.routeCode}
       routeId={displayed?.routeId ?? null}
       stopId={displayed?.stopId ?? null}
+      category={displayed?.category ?? null}
+      commuteGroup={displayed?.commuteGroup ?? null}
+      realtimeStationId={displayed?.realtimeStationId ?? null}
+      commuteContext={displayed?.commuteContext ?? null}
       direction={displayed?.direction}
       subwayKey={displayed?.subwayKey}
       accentColor={displayed?.accentColor}

@@ -1,12 +1,14 @@
 /**
  * BusPanel — 등교/하교 정류장 표기 + 빈 상태 카피 + 방향 필터 테스트
  */
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getOriginLabel } from '../dashboard/busStationConfig'
 import BusPanel from './BusPanel'
 
 // ── 스토어 모킹 ──
+const mockSetDetailModal = vi.fn()
+
 vi.mock('../../stores/useAppStore', () => ({
   default: vi.fn((selector) =>
     selector({
@@ -15,6 +17,7 @@ vi.mock('../../stores/useAppStore', () => ({
       selectedMode: 'bus',
       dashboardScrollTop: 0,
       setDashboardScrollTop: vi.fn(),
+      setDetailModal: mockSetDetailModal,
     })
   ),
 }))
@@ -41,6 +44,7 @@ vi.mock('../../hooks/useBus', () => ({
 
 // 기본 routesQuery (서울 탭용 — 시흥시청는 GBIS이므로 실제로 쓰이지 않음)
 beforeEach(() => {
+  mockSetDetailModal.mockClear()
   mockUseBusRoutesByCategory.mockReturnValue({
     data: [],
     loading: false,
@@ -259,5 +263,24 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
     render(<BusPanel />)
     const toggle = screen.getByRole('button', { name: /오늘 미운행 · 2/ })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('홈 노선 카드는 별도 페이지 대신 공용 상세 모달을 연다', () => {
+    mockUseBusArrivals.mockReturnValue({
+      data: { arrivals: [{ route_no: '5602', route_id: 12, category: '등교', arrival_type: 'realtime', destination: '학교', arrive_in_seconds: 600, is_tomorrow: false, crowded: 0 }] },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+
+    render(<BusPanel />)
+    fireEvent.click(screen.getByText('학교행'))
+
+    expect(mockSetDetailModal).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'bus',
+      routeCode: '5602',
+      category: '등교',
+      commuteGroup: 'from-siheung-city-hall',
+    }))
   })
 })
