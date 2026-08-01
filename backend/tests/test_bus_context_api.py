@@ -38,7 +38,7 @@ async def test_commute_context_api_keeps_3400_source_stations_separate(client):
                     "role": "departure",
                     "stop_id": 17,
                     "station_label": "한국공학대학교 시흥터미널",
-                    "display_label": "시흥터미널 출발",
+                    "display_label": "시흥터미널 승차",
                     "travel_direction": "to-seoul",
                 },
                 {
@@ -47,7 +47,7 @@ async def test_commute_context_api_keeps_3400_source_stations_separate(client):
                     "role": "boarding_arrival",
                     "stop_id": 2,
                     "station_label": "이마트",
-                    "display_label": "이마트 도착",
+                    "display_label": "이마트 승차",
                     "travel_direction": "to-seoul",
                 },
             ],
@@ -65,6 +65,10 @@ async def test_commute_context_api_keeps_3400_source_stations_separate(client):
     assert [(source["type"], source["stop_id"]) for source in data[0]["sources"]] == [
         ("timetable", 17),
         ("realtime", 2),
+    ]
+    assert [source["display_label"] for source in data[0]["sources"]] == [
+        "시흥터미널 승차",
+        "이마트 승차",
     ]
 
 
