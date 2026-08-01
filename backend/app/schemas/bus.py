@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -35,6 +36,28 @@ class BusRouteSummary(BaseModel):
     is_realtime: bool
     gbis_route_id: str | None = None
     stops: list[BusRouteStop] = []
+
+
+class BusInformationSourceResponse(BaseModel):
+    id: int
+    type: Literal["timetable", "realtime"]
+    role: str
+    stop_id: int
+    station_label: str
+    display_label: str
+    travel_direction: str
+
+
+class BusCommuteContextResponse(BaseModel):
+    id: int
+    route_id: int
+    route_number: str
+    category: str
+    group_key: str
+    origin_label: str
+    destination_label: str
+    journey_labels: list[str]
+    sources: list[BusInformationSourceResponse]
 
 
 class ArrivalStats(BaseModel):
