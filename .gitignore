@@ -1,5 +1,6 @@
 # 로컬 어드민 (커밋 제외)
 manage/
+key.txt
 
 # Git worktrees
 .worktrees/
@@ -52,3 +53,6 @@ docker-compose.override.yml
 
 # 테스트용 디렉토리
 test/
+
+# 프로덕션 DB 덤프·노선 자료 (로컬 참고용, 절대 커밋 금지)
+db_docs/
