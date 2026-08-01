@@ -201,3 +201,13 @@ def test_predicted_eta_picks_first_after_now_per_column():
     # firsts: [21:10, 21:15] → median = (21:10 + 21:15)//2 = 21:12
     assert result["hhmm"] == "21:12"
     assert result["sample_size"] == 2
+
+
+def test_history_rows_statement_scopes_history_to_requested_source_stop():
+    stmt = bus_api._build_history_rows_statement(
+        route_ids=[15],
+        target_dates=[datetime(2026, 7, 25).date()],
+        requested_stop_id=2,
+    )
+
+    assert "bus_arrival_history.stop_id =" in str(stmt)
