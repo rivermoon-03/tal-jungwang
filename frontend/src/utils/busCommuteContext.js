@@ -5,6 +5,7 @@ export const BUS_COMMUTE_GROUPS = {
     { id: 'to-jeongwang', label: '정왕역 방면' },
     { id: 'to-siheung-city-hall', label: '시흥시청 방면' },
     { id: 'to-seoul', label: '서울 방면' },
+    { id: 'to-wolgot', label: '월곶역 방면' },
   ],
   등교: [
     { id: 'from-seoul', label: '서울 출발' },

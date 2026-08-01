@@ -19,6 +19,7 @@ import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 import { describeArrival } from '../../utils/arrivalTime'
+import { selectRepresentativeBusSource } from '../../utils/busInformationSource'
 import { makeFavKey, matchesLegacy } from '../../utils/favKey'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
 import EmptyState from '../common/EmptyState'
@@ -113,16 +114,23 @@ function timeStrToMinutes(timeStr, now) {
 // master-detail 레이아웃이 우측 패널 대신 전체 페이지 이동으로 깨졌다(결함 #19/#33).
 // 이 컴포넌트는 항상 onCardClick 콜백만 호출하고, 라우팅 여부는 상위(SchedulePage)의
 // handleCardClick이 데스크톱/모바일로 분기해 결정한다.
-function BusSourceRow({ source, routeCode, category }) {
-  const isTimetable = source.type === 'timetable'
+function formatClock(date) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function useBusSourceState(source, routeCode, category) {
+  const isTimetable = source?.type === 'timetable'
   const timetable = useBusTimetableByRoute(isTimetable ? routeCode : null, {
-    stopId: source.stop_id,
+    stopId: source?.stop_id,
     category,
   })
-  const arrivals = useBusArrivals(!isTimetable ? source.stop_id : null)
-  const now = new Date()
+  const arrivals = useBusArrivals(source && !isTimetable ? source.stop_id : null)
+  const now = new Date(useNow(30_000))
+
+  if (!source) return { value: null, snapshot: null }
 
   let value
+  let snapshot
   if (isTimetable) {
     const next = (timetable.data?.times ?? []).find((time) => {
       const [hour, minute] = time.split(':').map(Number)
@@ -130,7 +138,17 @@ function BusSourceRow({ source, routeCode, category }) {
       departure.setHours(hour, minute, 0, 0)
       return departure > now
     })
+    const minutesUntil = next ? timeStrToMinutes(next, now) : null
     value = next ? `다음 ${next}` : (timetable.data?.times?.length ? '금일 종료' : '운행일 확인')
+    snapshot = {
+      sourceId: source.id,
+      type: source.type,
+      loading: timetable.loading,
+      minutesUntil,
+      hhmm: next ?? null,
+      imminent: false,
+      timeLines: next ? null : (timetable.data?.times?.length ? ['금일', '종료'] : ['운행일', '확인']),
+    }
   } else {
     const list = Array.isArray(arrivals.data) ? arrivals.data : arrivals.data?.arrivals ?? []
     const next = list
@@ -140,10 +158,36 @@ function BusSourceRow({ source, routeCode, category }) {
     if (next?.arrive_in_seconds != null) {
       const described = describeArrival(next.arrive_in_seconds)
       value = described.imminent ? '곧 도착' : `${described.minutes}분 후`
+      const arrivalAt = new Date(now.getTime() + next.arrive_in_seconds * 1000)
+      snapshot = {
+        sourceId: source.id,
+        type: source.type,
+        loading: arrivals.loading,
+        minutesUntil: described.minutes,
+        hhmm: formatClock(arrivalAt),
+        imminent: described.imminent,
+        timeLines: null,
+      }
     } else {
       value = '도착 정보 확인 중'
+      snapshot = {
+        sourceId: source.id,
+        type: source.type,
+        loading: arrivals.loading,
+        minutesUntil: null,
+        hhmm: null,
+        imminent: false,
+        timeLines: arrivals.loading ? null : ['도착', '정보 없음'],
+      }
     }
   }
+
+  return { value, snapshot }
+}
+
+function BusSourceRow({ source, routeCode, category }) {
+  const isTimetable = source.type === 'timetable'
+  const { value } = useBusSourceState(source, routeCode, category)
 
   return (
     <div className="flex items-center gap-2 min-h-8 py-1">
@@ -161,6 +205,23 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHas
   const journey = commuteContext.journey_labels ?? []
   const primarySource = commuteContext.sources?.[0] ?? null
   const realtimeSource = commuteContext.sources?.find((source) => source.type === 'realtime') ?? null
+  const sources = useMemo(() => commuteContext.sources ?? [], [commuteContext.sources])
+  const representativeSource = useMemo(() => selectRepresentativeBusSource(sources), [sources])
+  const { snapshot: representativeSnapshot } = useBusSourceState(representativeSource, routeCode, busGroup)
+  const fallbackTimetableSource = useMemo(() => {
+    if (representativeSource?.type !== 'realtime') return null
+    return sources.find((source) =>
+      source.type === 'timetable' && source.stop_id === representativeSource.stop_id,
+    ) ?? null
+  }, [representativeSource, sources])
+  const { snapshot: fallbackTimetableSnapshot } = useBusSourceState(fallbackTimetableSource, routeCode, busGroup)
+  const useTimetableFallback = Boolean(
+    fallbackTimetableSnapshot?.hhmm &&
+    !representativeSnapshot?.loading &&
+    representativeSnapshot?.minutesUntil == null &&
+    !representativeSnapshot?.imminent
+  )
+  const displaySnapshot = useTimetableFallback ? fallbackTimetableSnapshot : representativeSnapshot
 
   useEffect(() => {
     onHasDataChange?.(favCode, (commuteContext.sources?.length ?? 0) > 0)
@@ -189,7 +250,13 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHas
         type="bus"
         routeCode={routeCode}
         title={`${commuteContext.destination_label} 방면`}
-        timeLines={['정보', '보기']}
+        timeLines={displaySnapshot?.timeLines ?? null}
+        minutesUntil={displaySnapshot?.minutesUntil ?? null}
+        hhmm={displaySnapshot?.hhmm ?? null}
+        imminent={displaySnapshot?.imminent ?? false}
+        loading={Boolean(displaySnapshot?.loading)}
+        liveChip={sources.some((source) => source.type === 'realtime')}
+        timetableChip={sources.some((source) => source.type === 'timetable')}
         boldPrefix={journey[0] ?? commuteContext.origin_label}
         subtitle={journey.length > 1 ? ` → ${journey.slice(1).join(' → ')}` : null}
         isFavorite={isFavorite}
@@ -198,7 +265,7 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHas
         selected={selected}
         footer={
           <div className="divide-y divide-line dark:divide-line">
-            {(commuteContext.sources ?? []).map((source) => (
+            {sources.map((source) => (
               <BusSourceRow key={source.id} source={source} routeCode={routeCode} category={busGroup} />
             ))}
           </div>
