@@ -1,7 +1,7 @@
 # 통학 버스 정보 기준점 분리 및 화면 개선
 
 작성일: 2026-08-01
-상태: 로컬 구현 완료, 프로덕션 DB 마이그레이션·배포 전
+상태: 프로덕션 배포 및 DB 마이그레이션 완료
 
 ## 문제 상황
 
@@ -72,7 +72,7 @@
 - 수집기는 더 이상 `bus_stop_routes`와 공유 GBIS route ID만으로 대상을 추론하지 않는다.
 - 실시간 응답에 `travel_direction`을 포함해 같은 노선의 반대 진행 방향을 거를 수 있게 했다.
 
-프로덕션 적용 SQL은 `scripts/prod_migration_20260801_bus_information_sources.sql`이다. 이 문서 작성 시점에는 프로덕션에 실행하지 않았다.
+프로덕션 적용 SQL은 `scripts/prod_migration_20260801_bus_information_sources.sql`이다. 2026-08-01 배포 직후 코드가 DB보다 먼저 반영되어 `UndefinedTableError`가 발생했고, 같은 날 이 SQL을 단일 트랜잭션으로 적용했다.
 
 ### 정보 구조와 UI
 
@@ -106,7 +106,15 @@
 - 90~140ms 모션 토큰과 reduced-motion
 - 학사일정 제목 자간
 
-프로덕션에서 해결됐다고 단정할 수는 없다. 마이그레이션과 애플리케이션 배포 후 모바일·태블릿·PC에서 실제 API 응답과 화면을 다시 확인해야 한다.
+프로덕션 DB에는 context 19개, information source 29개, enabled realtime target 12개가 반영됐다. 6502 하교 realtime target은 0개이며, 하교 서울 방면과 등교 서울 출발 API가 실제 데이터와 함께 HTTP 200을 반환하는 것을 확인했다.
+
+### 배포 직후 장애와 운영 후속 조치
+
+- 증상: `GET /api/v1/bus/commute-contexts`가 `relation "bus_commute_contexts" does not exist`로 500을 반환했다.
+- 직접 원인: 새 백엔드 코드가 새 테이블을 조회했지만 프로덕션 SQL이 아직 적용되지 않았다.
+- 구조적 원인: `backend/migrate.py`는 이름과 달리 DB 연결만 확인하고 Alembic 또는 SQL migration을 실행하지 않는다.
+- 복구: 프로덕션 SQL을 `ON_ERROR_STOP=1`과 내부 트랜잭션으로 적용하고 DB seed와 실제 API를 검증했다.
+- 남은 위험: 향후 스키마 변경도 코드와 DB의 배포 순서가 어긋날 수 있다. 자동 migration 도입 전에는 배포 체크리스트에서 DB migration을 백엔드 배포보다 먼저 수행해야 한다.
 
 ## 배포 전·후 확인 순서
 
