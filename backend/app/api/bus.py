@@ -3,7 +3,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -282,6 +282,28 @@ def _compute_predicted_eta(
     }
 
 
+def _build_history_rows_statement(
+    route_ids: list[int],
+    target_dates: list[date],
+    requested_stop_id: int | None = None,
+):
+    """Build the history query, scoped to one information source when requested."""
+    arrived_kst = func.timezone("Asia/Seoul", BusArrivalHistory.arrived_at)
+    stmt = (
+        select(
+            func.date(arrived_kst).label("arr_date"),
+            func.to_char(arrived_kst, "HH24:MI").label("arr_time"),
+            BusStop.name.label("stop_name"),
+        )
+        .join(BusStop, BusStop.id == BusArrivalHistory.stop_id)
+        .where(BusArrivalHistory.route_id.in_(route_ids))
+        .where(func.date(arrived_kst).in_(target_dates))
+    )
+    if requested_stop_id is not None:
+        stmt = stmt.where(BusArrivalHistory.stop_id == requested_stop_id)
+    return stmt.order_by("arr_date", "arr_time")
+
+
 @router.get("/history-preview/{route_number}")
 @limiter.limit("30/minute")
 async def bus_history_preview(
@@ -304,7 +326,7 @@ async def bus_history_preview(
     필드를 포함한다. realtime_eta가 있으면 predicted_eta는 항상 null.
 
     `stop_id` 쿼리: 카드가 보는 GBIS 추적 정류장(gbis_station_id 또는 internal PK).
-    주어지면 realtime_eta 계산에 우선 사용 — 카드와 모달이 같은 정류장 ETA를 보게 한다.
+    주어지면 과거 이력, 통계 기준점, realtime_eta를 모두 그 정류장으로 한정한다.
     """
     # stop_id는 GBIS station id 문자열로 올 수 있어 캐시 키에 그대로 포함
     cache_key = f"bus:history_preview:{route_number}:{stop_id or 'auto'}"
@@ -337,21 +359,25 @@ async def bus_history_preview(
 
     arrived_kst = func.timezone("Asia/Seoul", BusArrivalHistory.arrived_at)
 
-    stmt = (
-        select(
-            func.date(arrived_kst).label("arr_date"),
-            func.to_char(arrived_kst, "HH24:MI").label("arr_time"),
-            BusStop.name.label("stop_name"),
-        )
-        .join(BusStop, BusStop.id == BusArrivalHistory.stop_id)
-        .where(BusArrivalHistory.route_id.in_(route_ids))
-        .where(func.date(arrived_kst).in_(target_dates))
-        .order_by("arr_date", "arr_time")
-    )
+    requested_stop_id: int | None = None
+    requested_stop_name: str | None = None
+    if stop_id is not None:
+        numeric_stop_id = int(stop_id) if stop_id.isdigit() else None
+        filters = [BusStop.gbis_station_id == stop_id]
+        if numeric_stop_id is not None:
+            filters.append(BusStop.id == numeric_stop_id)
+        stop_lookup = select(BusStop.id, BusStop.name).where(or_(*filters))
+        if numeric_stop_id is not None:
+            stop_lookup = stop_lookup.order_by(case((BusStop.id == numeric_stop_id, 0), else_=1))
+        requested_stop = (await db.execute(stop_lookup.limit(1))).first()
+        if requested_stop is not None:
+            requested_stop_id, requested_stop_name = requested_stop
+
+    stmt = _build_history_rows_statement(route_ids, target_dates, requested_stop_id)
     rows = (await db.execute(stmt)).all()
 
     times_by_date: dict[str, list[str]] = {}
-    stop_name: str | None = None
+    stop_name: str | None = requested_stop_name
     for arr_date, arr_time, sname in rows:
         times_by_date.setdefault(str(arr_date), []).append(arr_time)
         if stop_name is None:
@@ -382,8 +408,8 @@ async def bus_history_preview(
     # 통계 조회용 primary (route_id, stop_id) — 매칭 routes 중 첫 번째 + 이 노선군에서
     # 같은 target_dates 윈도우 안에 가장 빈도 높은 stop_id (단일 정류장 통계 단위).
     primary_route_id = route_ids[0] if route_ids else None
-    primary_stop_id: int | None = None
-    if route_ids and rows:
+    primary_stop_id: int | None = requested_stop_id
+    if primary_stop_id is None and route_ids and rows:
         sid_stmt = (
             select(BusArrivalHistory.stop_id, func.count().label("c"))
             .where(BusArrivalHistory.route_id.in_(route_ids))
@@ -400,7 +426,9 @@ async def bus_history_preview(
     now_kst = datetime.now(KST)
     # 카드와 모달이 같은 정류장 ETA를 보도록, 명시된 stop_id(GBIS 추적 정류장)를 우선 사용.
     # 미전달 시 fallback으로 history 빈도 기반 primary_stop_id 사용.
-    realtime_stop = stop_id if stop_id is not None else primary_stop_id
+    realtime_stop = requested_stop_id if requested_stop_id is not None else (
+        stop_id if stop_id is not None else primary_stop_id
+    )
     realtime_eta = await _compute_realtime_eta(db, route_ids, realtime_stop, now_kst)
     predicted_eta = None
     if realtime_eta is None:

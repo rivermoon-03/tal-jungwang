@@ -11,6 +11,25 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import ScheduleDetailModal from './ScheduleDetailModal'
 
+vi.mock('../../hooks/useBus', () => ({
+  useBusTimetable: () => ({ data: null, loading: false, error: null }),
+  useBusTimetableByRoute: () => ({ data: null, loading: false, error: null }),
+  useBusCommuteContexts: () => ({ data: [], loading: false, error: null }),
+  useBusHistoryPreview: (_routeNumber, stopId) => ({
+    data: {
+      route_id: 15,
+      stop_id: stopId,
+      stop_name: '잘못 재사용된 첫 정류장',
+      columns: [{ label: '지난주', day_label: '7/25(토)', times: ['22:10'], totalCount: 1 }],
+      realtime_eta: null,
+      predicted_eta: null,
+    },
+    loading: false,
+    error: null,
+  }),
+  useBusArrivalStats: () => ({ data: null, loading: false, error: null }),
+}))
+
 vi.mock('../../stores/useAppStore', () => ({
   default: vi.fn((selector) =>
     selector({ scheduleViewMode: 'list', setScheduleViewMode: vi.fn() })
@@ -128,5 +147,42 @@ describe('ScheduleDetailModal — 좁은 폰(< 360px) 가로 스크롤 스트립
     fireEvent.click(screen.getByLabelText('08:30 셔틀 알림 설정'))
     fireEvent.click(screen.getByText('알림 켜기'))
     expect(addAlarm).toHaveBeenCalledWith('08:30', 10, 0)
+  })
+})
+
+describe('ScheduleDetailModal — 실시간 전용 버스 상세', () => {
+  it('시간표 제목을 숨기고 각 source의 정류장명을 독립적으로 표시한다', () => {
+    const commuteContext = {
+      route_number: '99-2',
+      group_key: 'to-wolgot',
+      origin_label: '시흥터미널·이마트',
+      destination_label: '월곶역',
+      journey_labels: ['시흥터미널', '이마트', '월곶역'],
+      sources: [
+        { id: 1, type: 'realtime', stop_id: 17, display_label: '시흥터미널 도착', station_label: '한국공학대학교 시흥터미널' },
+        { id: 2, type: 'realtime', stop_id: 2, display_label: '이마트 도착', station_label: '이마트' },
+      ],
+    }
+
+    render(
+      <ScheduleDetailModal
+        open
+        onClose={() => {}}
+        type="bus"
+        routeCode="99-2"
+        routeId={15}
+        category="하교"
+        commuteGroup="to-wolgot"
+        commuteContext={commuteContext}
+        title="99-2 · 월곶역 방면"
+        isRealtime
+      />
+    )
+
+    expect(screen.getByText('버스 실시간 정보')).toBeInTheDocument()
+    expect(screen.queryByText('버스 시간표')).not.toBeInTheDocument()
+    expect(screen.getByText(/실시간 GBIS 기반 · 한국공학대학교 시흥터미널/)).toBeInTheDocument()
+    expect(screen.getByText(/실시간 GBIS 기반 · 이마트/)).toBeInTheDocument()
+    expect(screen.queryByText(/잘못 재사용된 첫 정류장/)).not.toBeInTheDocument()
   })
 })

@@ -807,7 +807,7 @@ function EmptyMsg({ text }) {
 
 // ─── realtime bus history ────────────────────────────────────────────────
 
-function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTrackedStopId = null, scrollContainerRef }) {
+function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTrackedStopId = null, stationLabel = null, scrollContainerRef }) {
   // 카드(SchedulePage → useBusArrivals)가 보는 GBIS 추적 정류장과 동일한 stop을
   // backend에도 명시해 realtime_eta 응답이 카드와 같은 정류장 기준이 되게 한다.
   // 시흥33처럼 양방향 실시간 추적이 있는 노선은 카테고리에 따라 stop이 갈린다.
@@ -838,7 +838,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
     return <EmptyMsg text="아직 쌓인 이력 데이터가 없어요" />
   }
 
-  const stopName = data?.stop_name
+  const stopName = stationLabel || data?.stop_name
 
   const MAX_PAST = 4
 
@@ -865,7 +865,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
       <BusEtaCard realtimeEta={data?.realtime_eta} predictedEta={data?.predicted_eta} />
       <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
       <p className="text-caption text-mute dark:text-mute mb-3 leading-relaxed">
-        실시간 GBIS 기반 노선 · 시간표 없음{stopName ? ` · ${stopName}` : ''}
+        실시간 GBIS 기반{stopName ? ` · ${stopName}` : ''}
         <br />과거 실제 도착 기록을 날짜별로 표시합니다
       </p>
 
@@ -948,7 +948,7 @@ function BusContextDetail({ context, routeCode, routeId, category, color, viewMo
             {source.type === 'timetable' ? (
               <BusContent routeCode={routeCode} routeId={routeId} stopId={source.stop_id} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
             ) : (
-              <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={source.stop_id} scrollContainerRef={scrollContainerRef} />
+              <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={source.stop_id} stationLabel={source.station_label} scrollContainerRef={scrollContainerRef} />
             )}
           </div>
         </section>
@@ -981,7 +981,8 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   const group0 = useBusCommuteContexts(category, groupDefinitions[0]?.id)
   const group1 = useBusCommuteContexts(category, groupDefinitions[1]?.id)
   const group2 = useBusCommuteContexts(category, groupDefinitions[2]?.id)
-  const groupResults = [group0.data, group1.data, group2.data]
+  const group3 = useBusCommuteContexts(category, groupDefinitions[3]?.id)
+  const groupResults = [group0.data, group1.data, group2.data, group3.data]
   const contextByGroup = new Map()
   groupDefinitions.forEach((group, index) => {
     const match = (Array.isArray(groupResults[index]) ? groupResults[index] : [])
@@ -1048,6 +1049,9 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   // 마커 진입 등 title이 아직 없는 경로에서도 헤더가 빈 줄로 찌그러지지 않도록
   // routeCode → typeLabel 순으로 폴백한다(제목 잘림 버그와 함께 확인된 방어 로직).
   const displayTitle = title || routeCode || typeLabel || '시간표'
+  const detailTypeLabel = type === 'bus'
+    ? (hasTimetableSource ? '버스 시간표' : '버스 실시간 정보')
+    : `${typeLabel} 시간표`
 
   const header = (
     <div className="flex items-center gap-3 px-5 pt-3 md:pt-4 pb-3 flex-shrink-0 border-b border-line dark:border-line">
@@ -1059,7 +1063,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
         <p className="text-display text-ink dark:text-ink truncate" style={{ letterSpacing: '-0.03em' }}>
           {displayTitle}
         </p>
-        <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{typeLabel} 시간표</p>
+        <p className="text-caption text-mute" style={{ fontWeight: 600 }}>{detailTypeLabel}</p>
       </div>
       {onShowMap && (
         <button
@@ -1156,7 +1160,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
         className="fixed inset-0 z-[100] left-0 right-auto w-[38%] bottom-[68px] flex items-stretch justify-stretch pointer-events-none"
         aria-modal="true"
         role="dialog"
-        aria-label={`${displayTitle} 시간표`}
+        aria-label={`${displayTitle} ${detailTypeLabel}`}
       >
         <div
           className="relative z-10 w-full bg-surface dark:bg-surface flex flex-col pointer-events-auto h-full animate-panel-swap"
@@ -1186,7 +1190,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           className="fixed bottom-0 left-0 right-0 z-[100] bg-surface dark:bg-surface rounded-t-sheet shadow-2xl flex flex-col overflow-hidden outline-none"
           style={{ maxHeight: '88dvh' }}
         >
-          <Drawer.Title className="sr-only">{displayTitle} 시간표</Drawer.Title>
+          <Drawer.Title className="sr-only">{displayTitle} {detailTypeLabel}</Drawer.Title>
           {/* 드래그 핸들 — vaul이 전체 시트 드래그를 처리하므로 시각적 표시만 담당 */}
           <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
             <span className="w-12 h-1.5 rounded-full bg-line dark:bg-line" />
