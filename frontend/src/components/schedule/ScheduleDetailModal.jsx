@@ -28,6 +28,8 @@ import { scrollToCenter } from '../../utils/scrollToCenter'
 import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
 import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
 import { buildDisplayList, DIRECTION_LABELS } from '../shuttle/shuttleSchedule'
+import SegmentedControl from '../ui/SegmentedControl'
+import { BUS_COMMUTE_GROUPS, getCommuteContext } from '../../utils/busCommuteContext'
 
 // ─── helpers ────────────────────────────────────────────────────────────
 
@@ -218,11 +220,15 @@ function ViewModeToggle({ value, onChange }) {
 
 // ─── per-type content ───────────────────────────────────────────────────
 
-function BusContent({ routeCode, routeId = null, stopId = null, accentColor, viewMode = 'list', scrollContainerRef }) {
+function BusContent({ routeCode, routeId = null, stopId = null, category = null, accentColor, viewMode = 'list', scrollContainerRef }) {
   // routeId가 있으면 방향 정확한 /bus/timetable/{route_id} 사용 (등교/하교 분리 route에 필수)
-  const byId    = useBusTimetable(routeId)
-  const byRoute = useBusTimetableByRoute(routeId == null ? routeCode : null, stopId != null ? { stopId } : undefined)
-  const { data, loading, error } = routeId != null ? byId : byRoute
+  const useScopedRoute = stopId != null || category != null
+  const byId    = useBusTimetable(useScopedRoute ? null : routeId)
+  const byRoute = useBusTimetableByRoute(useScopedRoute || routeId == null ? routeCode : null, {
+    stopId: stopId ?? undefined,
+    category: category ?? undefined,
+  })
+  const { data, loading, error } = useScopedRoute || routeId == null ? byRoute : byId
   const nextRef = useRef(null)
   const now = new Date()
   const allTimes = data?.times ?? []
@@ -801,11 +807,11 @@ function EmptyMsg({ text }) {
 
 // ─── realtime bus history ────────────────────────────────────────────────
 
-function BusHistoryContent({ routeNumber, category, scrollContainerRef }) {
+function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTrackedStopId = null, scrollContainerRef }) {
   // 카드(SchedulePage → useBusArrivals)가 보는 GBIS 추적 정류장과 동일한 stop을
   // backend에도 명시해 realtime_eta 응답이 카드와 같은 정류장 기준이 되게 한다.
   // 시흥33처럼 양방향 실시간 추적이 있는 노선은 카테고리에 따라 stop이 갈린다.
-  const trackedStopId = getGbisStationIdForRoute(routeNumber, category)
+  const trackedStopId = scopedTrackedStopId ?? getGbisStationIdForRoute(routeNumber, category)
   const { data, loading, error } = useBusHistoryPreview(routeNumber, trackedStopId)
   const routeId = data?.route_id
   const stopId = data?.stop_id
@@ -919,7 +925,7 @@ function BusHistoryContent({ routeNumber, category, scrollContainerRef }) {
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
-export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null, pcMode = 'overlay' }) {
+export default function ScheduleDetailModal({ open, onClose, type, routeCode, routeId = null, stopId = null, category = null, commuteGroup = null, realtimeStationId = null, direction, subwayKey, title, accentColor, isRealtime = false, isFavorite = false, onToggleFav = null, onShowMap = null, pcMode = 'overlay' }) {
   const isPC =
     typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
@@ -938,7 +944,25 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
     setViewModeState(mode)
     setScheduleViewMode(mode)
   }
-  const supportsGridToggle = (type === 'bus' && !isRealtime) || type === 'subway'
+
+  const commuteOptions = type === 'bus'
+    ? (BUS_COMMUTE_GROUPS[category] ?? []).filter((group) => getCommuteContext(routeCode, category, group.id))
+    : []
+  const defaultCommuteGroup = commuteOptions.some((group) => group.id === commuteGroup)
+    ? commuteGroup
+    : commuteOptions[0]?.id ?? null
+  const [activeCommuteGroup, setActiveCommuteGroup] = useState(defaultCommuteGroup)
+  const [seenCommuteKey, setSeenCommuteKey] = useState(`${routeCode}:${category}:${commuteGroup}`)
+  const commuteKey = `${routeCode}:${category}:${commuteGroup}`
+  if (commuteKey !== seenCommuteKey) {
+    setSeenCommuteKey(commuteKey)
+    setActiveCommuteGroup(defaultCommuteGroup)
+  }
+  const activeContext = getCommuteContext(routeCode, category, activeCommuteGroup)
+  const activeStopId = activeContext?.stopId ?? stopId
+  const activeRealtimeStationId = activeContext?.realtimeStationId ?? realtimeStationId
+  const activeIsRealtime = Boolean(isRealtime && activeRealtimeStationId)
+  const supportsGridToggle = (type === 'bus' && !activeIsRealtime) || type === 'subway'
 
   // 이 컴포넌트는 GlobalDetailModal 등에서 앱 생명주기 내내 마운트된 채 `open`만
   // 토글되는 경우가 있어(unmount/remount 아님), 설정 화면에서 기본값을 바꾼 뒤에도
@@ -1030,6 +1054,16 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
   const body = (
     <>
+      {type === 'bus' && commuteOptions.length > 1 && (
+        <div className="px-5 pt-3 flex-shrink-0">
+          <SegmentedControl
+            options={commuteOptions.map((group) => ({ value: group.id, label: group.label }))}
+            value={activeCommuteGroup}
+            onChange={setActiveCommuteGroup}
+            ariaLabel={category === '하교' ? '상세 방면 선택' : '상세 출발지 선택'}
+          />
+        </div>
+      )}
       <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 min-w-0">
           <Clock size={12} className="text-mute flex-shrink-0" />
@@ -1049,11 +1083,11 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
         {type === 'bus' && ROUTE_WAYPOINTS[routeCode] && (
           <div className="-mx-4 mb-4 border-b border-line dark:border-line pb-2">
             <p className="text-caption font-semibold text-mute dark:text-mute px-4 mb-3 uppercase tracking-wide">경유 노선</p>
-            <RouteProgressStrip routeNo={routeCode} stationId={stopId} hasArrival={false} />
+            <RouteProgressStrip routeNo={routeCode} stationId={activeStopId} hasArrival={false} />
           </div>
         )}
-        {type === 'bus' && isRealtime && <BusHistoryContent routeNumber={routeCode} category={category} scrollContainerRef={scrollContainerRef} />}
-        {type === 'bus' && !isRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={stopId} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
+        {type === 'bus' && activeIsRealtime && <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={activeRealtimeStationId} scrollContainerRef={scrollContainerRef} />}
+        {type === 'bus' && !activeIsRealtime && <BusContent routeCode={routeCode} routeId={routeId} stopId={activeStopId} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
         {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
         {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} scrollContainerRef={scrollContainerRef} />}
       </div>

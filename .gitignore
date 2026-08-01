@@ -23,6 +23,7 @@ env.txt
 .agent/
 .playwright-mcp/
 .superpowers/
+.superdesign/tmp/
 CLAUDE.md
 docs/
 docs_log/

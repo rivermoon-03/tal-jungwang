@@ -13,11 +13,12 @@ import SegmentTabs from '../ui/SegmentTabs'
 import SegmentedControl from '../ui/SegmentedControl'
 import useAppStore from '../../stores/useAppStore'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
-import { useBusTimetable, useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
+import { useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory } from '../../hooks/useBus'
 import { useShuttleSchedule } from '../../hooks/useShuttle'
 import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
-import { getGbisStationIdForRoute, getRouteCategory, getRoutePath, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
+import { getRouteCategory, getRoutePath, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
+import { BUS_COMMUTE_GROUPS, getCommuteContext, getRoutesForCommuteGroup } from '../../utils/busCommuteContext'
 import { describeArrival } from '../../utils/arrivalTime'
 import { makeFavKey, matchesLegacy } from '../../utils/favKey'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
@@ -160,29 +161,27 @@ function nextOperatingDayLabel(now = new Date()) {
 // master-detail 레이아웃이 우측 패널 대신 전체 페이지 이동으로 깨졌다(결함 #19/#33).
 // 이 컴포넌트는 항상 onCardClick 콜백만 호출하고, 라우팅 여부는 상위(SchedulePage)의
 // handleCardClick이 데스크톱/모바일로 분기해 결정한다.
-function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLabel, mapLat, mapLng, isRealtime, onCardClick, onHasDataChange, isFavorite, onToggleFavorite, selected }) {
+function BusRouteSection({ busGroup, commuteContext, routeCode, routeId, favCode, destLabel, mapLat, mapLng, isRealtime, onCardClick, onHasDataChange, isFavorite, onToggleFavorite, selected }) {
   const now = new Date()
 
-  const stationId = isRealtime ? getGbisStationIdForRoute(routeCode, busGroup) : null
-  const { data: timetableByIdData } = useBusTimetable(routeId ?? null)
-  const { data: timetableByRouteData } = useBusTimetableByRoute(
-    routeId == null ? routeCode : null,
-    stopId ? { stopId } : undefined,
+  const stationId = commuteContext?.realtimeStationId ?? null
+  const canUseRealtime = Boolean(isRealtime && stationId)
+  const { data: timetableData } = useBusTimetableByRoute(
+    routeCode,
+    { stopId: commuteContext?.stopId, category: busGroup },
   )
-  const timetableData = routeId != null ? timetableByIdData : timetableByRouteData
   const { data: arrivalsData } = useBusArrivals(stationId)
 
   // 실시간/시간표 모두 hasData 정렬을 위해 분기 이전에 한 번 계산.
   const arrivalsList = Array.isArray(arrivalsData) ? arrivalsData : arrivalsData?.arrivals ?? []
-  const realtimeMatches = isRealtime
+  const realtimeMatches = canUseRealtime
     ? arrivalsList
         .filter((a) => a.route_no === routeCode && a.arrival_type === 'realtime')
         .sort((a, b) => (a.arrive_in_seconds ?? 0) - (b.arrive_in_seconds ?? 0))
     : []
 
-  const allTimes = !isRealtime ? (timetableData?.times ?? []) : []
-  const future = !isRealtime
-    ? allTimes
+  const allTimes = timetableData?.times ?? []
+  const future = allTimes
         .map((t) => {
           const [h, m] = (t ?? '00:00').split(':').map(Number)
           const today = new Date(now)
@@ -196,39 +195,43 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
         })
         .filter((d) => (d - now) < 12 * 60 * 60 * 1000)
         .sort((a, b) => a - b)
-    : []
 
   // 오늘 시간표가 통째로 비어있을 때(미운행일)만 평일 폴백을 실제로 조회한다.
   // routeNumber 인자를 null로 넘기면 useBusTimetableByRoute 내부 ready 계산이
   // false가 되어 fetch 자체가 일어나지 않는다(훅 호출 순서는 항상 동일하게
   // 유지 — 인자만 조건부로 바꿔 불필요한 네트워크 호출을 막는다).
-  const needsWeekdayFallback = !isRealtime && allTimes.length === 0
+  const needsWeekdayFallback = allTimes.length === 0
   const { data: weekdayFallbackData } = useBusTimetableByRoute(
     needsWeekdayFallback ? routeCode : null,
-    stopId ? { stopId, scheduleType: 'weekday' } : { scheduleType: 'weekday' },
+    { stopId: commuteContext?.stopId, scheduleType: 'weekday', category: busGroup },
   )
 
-  const hasData = isRealtime ? realtimeMatches.length > 0 : future.length > 0
+  const hasData = realtimeMatches.length > 0 || future.length > 0
   useEffect(() => {
     onHasDataChange?.(favCode, hasData)
   }, [favCode, hasData, onHasDataChange])
 
   const path = getRoutePath(routeCode, busGroup)
-  const title = path?.label || destLabel || `${routeCode}번 버스`
-  const originLabel = path?.origin ?? null
-  const chainRest = path ? [...path.waypoints, path.terminus] : []
+  const title = commuteContext?.destination
+    ? `${commuteContext.destination}행`
+    : path?.label || destLabel || `${routeCode}번 버스`
+  const journey = commuteContext?.journey ?? (path ? [path.origin, ...path.waypoints, path.terminus] : [])
+  const originLabel = journey[0] ?? null
+  const chainRest = journey.slice(1)
 
   function handleClick() {
     onCardClick({
       type: 'bus',
       routeCode,
       routeId,
-      stopId,
+      stopId: commuteContext?.stopId ?? null,
       category: busGroup,
+      commuteGroup: commuteContext?.id ?? null,
+      realtimeStationId: stationId,
       favCode,
       mapLat,
       mapLng,
-      isRealtime,
+      isRealtime: canUseRealtime,
       title: destLabel ? `${routeCode} · ${destLabel}` : `${routeCode}번 버스`,
       accentColor: (['3400', '5200', '6502', '3401'].includes(routeCode)) ? '#DC2626' : undefined,
     })
@@ -244,18 +247,9 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
     selected,
   }
 
-  if (isRealtime) {
+  if (canUseRealtime && realtimeMatches.length > 0) {
     const first = realtimeMatches[0] ?? null
     const second = realtimeMatches[1] ?? null
-
-    if (!first) {
-      return (
-        <ScheduleSection
-          {...rowProps}
-          subtitle="실시간 도착 정보가 없어요"
-        />
-      )
-    }
 
     const { imminent, minutes } = describeArrival(first.arrive_in_seconds)
     const hhmm = first.arrive_in_seconds != null
@@ -289,7 +283,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
     )
   }
 
-  // 시간표 기반(비실시간) 버스
+  // 선택한 승차점에 실시간이 없거나 현재 도착 데이터가 비었으면 정적 시간표로 폴백한다.
   if (future.length > 0) {
     const first = future[0]
     const second = future[1] ?? null
@@ -299,6 +293,7 @@ function BusRouteSection({ busGroup, routeCode, routeId, stopId, favCode, destLa
     return (
       <ScheduleSection
         {...rowProps}
+        timetableChip
         minutesUntil={minutesUntil}
         hhmm={toStr(first)}
         imminent={minutesUntil <= 1}
@@ -733,7 +728,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
 }
 
 // ─── bus group content (동적 API 로드) ─────────────────────────────────────
-function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, isFav, onToggleFav, selectedFavCode, isDesktop }) {
+function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = false, isFav, onToggleFav, selectedFavCode, isDesktop }) {
   const { data: routes, loading } = useBusRoutesByCategory(busGroup)
   const { data: markersData } = useMapMarkers()
   const markers = markersData?.markers ?? []
@@ -763,7 +758,10 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, isFav, 
     )
   }
 
-  const routeList = Array.isArray(routes) ? routes : []
+  const rawRouteList = Array.isArray(routes) ? routes : []
+  const routeList = BUS_COMMUTE_GROUPS[busGroup]
+    ? getRoutesForCommuteGroup(rawRouteList, busGroup, commuteGroup)
+    : rawRouteList
 
   const entries = routeList.map((route) => {
     const stop = route.stops?.[0] ?? null
@@ -776,6 +774,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, isFav, 
     const stopLat = stop?.lat ?? null
     const stopLng = stop?.lng ?? null
     const markerCoord = findMarkerCoord(markers, route.route_number, stop?.stop_id ?? null, stopLat, stopLng)
+    const commuteContext = getCommuteContext(route.route_number, busGroup, commuteGroup)
     return {
       code: route.route_number,
       routeId: route.route_id ?? null,
@@ -786,6 +785,7 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, isFav, 
       mapLat: markerCoord?.lat ?? stopLat,
       mapLng: markerCoord?.lng ?? stopLng,
       isRealtime: route.is_realtime ?? false,
+      commuteContext,
     }
   })
 
@@ -836,9 +836,9 @@ function BusGroupContent({ busGroup, onCardClick, favoritesOnly = false, isFav, 
         <BusRouteSection
           key={e.favCode}
           busGroup={busGroup}
+          commuteContext={e.commuteContext}
           routeCode={e.code}
           routeId={e.routeId}
-          stopId={e.stopId}
           favCode={e.favCode}
           destLabel={e.destLabel}
           originLabel={e.originLabel}
@@ -897,6 +897,7 @@ export default function SchedulePage() {
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
   const [busGroup, setBusGroup] = useState('하교')
+  const [busCommuteGroup, setBusCommuteGroup] = useState(BUS_COMMUTE_GROUPS.하교[0].id)
   const [subwayGroup, setSubwayGroup] = useState('정왕')
   const [selectedDetail, setSelectedDetail] = useState(null)
 
@@ -937,6 +938,9 @@ export default function SchedulePage() {
   function handleModeChange(next) {
     if (next === mode) return
     setMode(next)
+    // replaceState는 popstate를 발생시키지 않는다. URL만 바꾸고 query state를
+    // 갱신하지 않으면 아래 URL→mode 동기화가 이전 query.type으로 탭을 되돌린다.
+    setQuery({ type: next, route: null, stop: null })
     setStoredMode(next)
     // PC 2단에서는 우측 상세가 이전 모드의 노선을 계속 보여주는 문제가 있었다
     // (버스에서 지하철 상세를 연 뒤 셔틀 탭으로 가면 지하철 상세가 남음).
@@ -956,16 +960,10 @@ export default function SchedulePage() {
     return matchesLegacy(favorites.routes ?? [], { routeNumber: legacyRouteNumber, favKey })
   }
   const handleToggleFav = (favKey) => toggleFavoriteKey(favKey)
-  // 버스 행 클릭: 모바일은 기존처럼(BusArrivalCard가 하던 것과 동일하게) 전체
-  // 페이지(/route/bus:번호)로 이동하고, 데스크톱은 우측 인라인 패널에 렌더한다
-  // (라우팅 이동 금지) — 결함 #19/#33 PC master-detail.
+  // 시간표에서 연 상세는 모바일 바텀시트/PC 우측 패널이 같은 통학 맥락 데이터를
+  // 사용한다. 별도 RouteDetailPage로 보내면 category/commuteGroup이 유실돼 한 화면에
+  // 다른 출발지·방면 데이터가 다시 섞이므로 이 화면 안에서만 상세를 전환한다.
   function handleCardClick(detail) {
-    if (!isDesktop && detail?.type === 'bus' && detail?.routeCode) {
-      const routeId = `bus:${detail.routeCode}`
-      window.history.pushState({ routeId }, '', `/route/${routeId}`)
-      window.dispatchEvent(new PopStateEvent('popstate', { state: { routeId } }))
-      return
-    }
     setSelectedDetail(detail)
   }
   const handleModalClose = () => setSelectedDetail(null)
@@ -989,7 +987,14 @@ export default function SchedulePage() {
   // 들고 있어 좌우가 어긋났다. 모드 전환과 같은 이유로 선택을 비운다.
   const setActiveGroup = (next) => {
     setSelectedDetail(null)
+    if (mode === 'bus') {
+      setBusCommuteGroup(BUS_COMMUTE_GROUPS[next]?.[0]?.id ?? null)
+    }
     setGroupRaw(next)
+  }
+  const setActiveCommuteGroup = (next) => {
+    setSelectedDetail(null)
+    setBusCommuteGroup(next)
   }
   const handleFavoritesOnlyChange = (next) => {
     setSelectedDetail(null)
@@ -1004,6 +1009,8 @@ export default function SchedulePage() {
     routeId: selectedDetail?.routeId ?? null,
     stopId: selectedDetail?.stopId ?? null,
     category: selectedDetail?.category ?? null,
+    commuteGroup: selectedDetail?.commuteGroup ?? null,
+    realtimeStationId: selectedDetail?.realtimeStationId ?? null,
     direction: selectedDetail?.direction,
     subwayKey: selectedDetail?.subwayKey,
     accentColor: selectedDetail?.accentColor,
@@ -1050,6 +1057,8 @@ export default function SchedulePage() {
     activeGroupId,
     setActiveGroup,
     busGroup,
+    busCommuteGroup,
+    setActiveCommuteGroup,
     subwayGroup,
     shuttleCampus,
     handleCardClick,
@@ -1107,6 +1116,8 @@ function ScheduleSectionView({
   activeGroupId,
   setActiveGroup,
   busGroup,
+  busCommuteGroup,
+  setActiveCommuteGroup,
   subwayGroup,
   shuttleCampus,
   handleCardClick,
@@ -1193,6 +1204,17 @@ function ScheduleSectionView({
         </div>
       )}
 
+      {mode === 'bus' && (BUS_COMMUTE_GROUPS[busGroup]?.length ?? 0) > 0 && (
+        <div className="px-4 pb-1.5 flex-shrink-0">
+          <SegmentedControl
+            options={BUS_COMMUTE_GROUPS[busGroup].map((group) => ({ value: group.id, label: group.label }))}
+            value={busCommuteGroup}
+            onChange={setActiveCommuteGroup}
+            ariaLabel={busGroup === '하교' ? '하교 방면 선택' : '등교 출발지 선택'}
+          />
+        </div>
+      )}
+
       {/* content */}
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6">
         {(mode === 'subway' || mode === 'shuttle') && (
@@ -1202,6 +1224,7 @@ function ScheduleSectionView({
           {mode === 'bus' && (
             <BusGroupContent
               busGroup={busGroup}
+              commuteGroup={busCommuteGroup}
               onCardClick={handleCardClick}
               favoritesOnly={favoritesOnly}
               isFav={isFav}

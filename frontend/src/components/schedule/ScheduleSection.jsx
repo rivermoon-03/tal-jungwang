@@ -85,6 +85,7 @@ export default function ScheduleSection({
   routeCode,
   title,
   liveChip = false,
+  timetableChip = false,
   crowded = 0,
   lastBus = false,
   testBadge = false,
@@ -165,6 +166,7 @@ export default function ScheduleSection({
               {title}
             </span>
             {!disabled && liveChip && <StatusChip kind="realtime">실시간</StatusChip>}
+            {!disabled && timetableChip && <StatusChip kind="neutral">시간표</StatusChip>}
             {!disabled && crowded > 0 && <CrowdedBadge level={crowded} />}
             {!disabled && lastBus && <StatusChip kind="last">막차</StatusChip>}
             {!disabled && testBadge && <StatusChip kind="beta">베타</StatusChip>}
