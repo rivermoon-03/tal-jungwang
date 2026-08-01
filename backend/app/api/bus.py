@@ -41,6 +41,7 @@ async def bus_commute_contexts(
         "to-jeongwang",
         "to-siheung-city-hall",
         "to-seoul",
+        "to-wolgot",
         "from-seoul",
         "from-siheung-city-hall",
     ] = Query(alias="group"),

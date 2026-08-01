@@ -76,3 +76,16 @@ async def test_commute_context_api_rejects_unknown_group(client):
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_commute_context_api_accepts_wolgot_direction(client):
+    with patch("app.api.bus.get_commute_contexts", new=AsyncMock(return_value=[]), create=True) as get_contexts:
+        response = await client.get(
+            "/api/v1/bus/commute-contexts",
+            params={"category": "하교", "group": "to-wolgot"},
+        )
+
+    assert response.status_code == 200
+    get_contexts.assert_awaited_once()
+    assert get_contexts.await_args.kwargs == {"category": "하교", "group_key": "to-wolgot"}

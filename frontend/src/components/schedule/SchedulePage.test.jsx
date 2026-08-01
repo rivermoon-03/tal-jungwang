@@ -7,7 +7,7 @@
  * 없어요"가 떴다. 이 테스트는 신규 favKey(utils/favKey.js) 저장값과 레거시
  * 저장값(순수 route_number) 양쪽 모두 필터가 인식하는지 검증한다.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import SchedulePage from './SchedulePage'
 import { makeFavKey } from '../../utils/favKey'
@@ -72,11 +72,22 @@ const ROUTES = [
     is_realtime: true,
     stops: [{ stop_id: 5, name: '사당역', lat: 37.47, lng: 126.98 }],
   },
+  {
+    route_id: 9,
+    route_number: '시흥1',
+    direction_name: '개봉방면',
+    category: '하교',
+    is_realtime: true,
+    stops: [{ stop_id: 2, name: '이마트', lat: 37.34, lng: 126.73 }],
+  },
 ]
 
 const COMMUTE_CONTEXTS = {
   '하교:to-jeongwang': [
-    makeContext(1, '20-1', 'to-jeongwang', '학교', '정왕역', [realtime(10, '학교 출발')]),
+    makeContext(1, '20-1', 'to-jeongwang', '학교', '정왕역', [
+      timetable(10, '학교 출발', 'to-jeongwang'),
+      realtime(10, '학교 도착', 'to-jeongwang'),
+    ]),
   ],
   '하교:to-siheung-city-hall': [
     makeContext(4, '3401', 'to-siheung-city-hall', '이마트', '시흥시청', [realtime(2, '이마트 도착')]),
@@ -94,7 +105,9 @@ const COMMUTE_CONTEXTS = {
     ]),
     makeContext(5, '5602', 'to-seoul', '이마트', '구로디지털단지역', [timetable(2, '이마트 출발')]),
     makeContext(8, '6502', 'to-seoul', '이마트', '사당역', [timetable(2, '이마트 출발')]),
+    makeContext(9, '시흥1', 'to-seoul', '이마트', '개봉', [realtime(2, '이마트 도착')]),
   ],
+  '하교:to-wolgot': [],
   '등교:from-seoul': [
     makeContext(6, '3400', 'from-seoul', '강남역', '학교', [timetable(6, '강남역 출발')], '등교'),
     makeContext(7, '6502', 'from-seoul', '사당역', '학교', [timetable(5, '사당역 출발')], '등교'),
@@ -102,12 +115,12 @@ const COMMUTE_CONTEXTS = {
   '등교:from-siheung-city-hall': [],
 }
 
-function timetable(stopId, displayLabel) {
-  return { id: stopId * 10, type: 'timetable', role: 'departure', stop_id: stopId, station_label: displayLabel.replace(' 출발', ''), display_label: displayLabel, travel_direction: 'to-seoul' }
+function timetable(stopId, displayLabel, travelDirection = 'to-seoul') {
+  return { id: stopId * 10, type: 'timetable', role: 'departure', stop_id: stopId, station_label: displayLabel.replace(' 출발', ''), display_label: displayLabel, travel_direction: travelDirection }
 }
 
-function realtime(stopId, displayLabel) {
-  return { id: stopId * 10 + 1, type: 'realtime', role: 'boarding_arrival', stop_id: stopId, station_label: displayLabel.replace(' 도착', ''), display_label: displayLabel, travel_direction: 'to-seoul' }
+function realtime(stopId, displayLabel, travelDirection = 'to-seoul') {
+  return { id: stopId * 10 + 1, type: 'realtime', role: 'boarding_arrival', stop_id: stopId, station_label: displayLabel.replace(' 도착', ''), display_label: displayLabel, travel_direction: travelDirection }
 }
 
 function makeContext(routeId, routeNumber, groupKey, origin, destination, sources, category = '하교') {
@@ -118,13 +131,22 @@ vi.mock('../../hooks/useBus', () => ({
   useBusCommuteContexts: (category, group) => ({ data: COMMUTE_CONTEXTS[`${category}:${group}`] ?? [], loading: false }),
   useBusRoutesByCategory: (category) => ({ data: ROUTES.filter((route) => route.category === category), loading: false }),
   useBusTimetable: () => ({ data: null, loading: false }),
-  useBusTimetableByRoute: (routeNumber, options) => {
+  useBusTimetableByRoute: (routeNumber) => {
     const future = new Date(Date.now() + 30 * 60 * 1000)
     const hhmm = `${String(future.getHours()).padStart(2, '0')}:${String(future.getMinutes()).padStart(2, '0')}`
-    const hasTestTimetable = (options?.category === '등교' && ['3400', '6502'].includes(routeNumber)) || routeNumber === '3401'
+    const hasTestTimetable = ['20-1', '3400', '3401', '5602', '6502'].includes(routeNumber)
     return { data: hasTestTimetable ? { times: [hhmm] } : null, loading: false }
   },
-  useBusArrivals: () => ({ data: null, loading: false }),
+  useBusArrivals: (stopId) => ({
+    data: stopId == null ? null : [
+      ...(realtime20_1Available
+        ? [{ route_no: '20-1', arrival_type: 'realtime', travel_direction: 'to-jeongwang', arrive_in_seconds: 180 }]
+        : []),
+      { route_no: '5200', arrival_type: 'realtime', travel_direction: 'to-seoul', arrive_in_seconds: 420 },
+      { route_no: '시흥1', arrival_type: 'realtime', travel_direction: 'to-seoul', arrive_in_seconds: 300 },
+    ],
+    loading: false,
+  }),
   useBusHistoryPreview: () => ({ data: null, loading: false }),
   useBusArrivalStats: () => ({ data: null, loading: false }),
 }))
@@ -139,6 +161,7 @@ const favKeyFor20_1 = makeFavKey({ mode: 'bus', id: 1, direction: '하교' })
 
 let favoritesState = { routes: ['3400'], stations: [], venues: [], keys: [favKeyFor20_1] }
 const toggleFavoriteKey = vi.fn()
+let realtime20_1Available = true
 
 vi.mock('../../stores/useAppStore', () => ({
   default: (selector) =>
@@ -161,6 +184,7 @@ vi.mock('../../stores/useAppStore', () => ({
 beforeEach(() => {
   window.history.replaceState({}, '', '/schedule?type=bus')
   stubMatchMedia(false)
+  realtime20_1Available = true
 })
 
 describe('SchedulePage — 모드 탭 URL 동기화 회귀', () => {
@@ -304,5 +328,40 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     expect(card).toHaveTextContent('이마트 출발')
     expect(card).toHaveTextContent('시간표')
     expect(card).not.toHaveTextContent('실시간')
+  })
+
+  it('실시간 전용 시흥1은 시간표를 숨기고 카드 왼쪽에 실제 도착 시간을 표시한다', () => {
+    render(<SchedulePage />)
+    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
+
+    const card = screen.getByTestId('bus-context-시흥1')
+    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent('5분')
+    expect(card).toHaveTextContent('실시간')
+    expect(card).not.toHaveTextContent('시간표')
+    expect(card).not.toHaveTextContent('정보보기')
+  })
+
+  it('다른 정류장 혼합형 3400은 카드 왼쪽에 시흥터미널 다음 출발 시간을 표시한다', () => {
+    render(<SchedulePage />)
+    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
+
+    const card = screen.getByTestId('bus-context-3400')
+    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent(/(?:29|30)분/)
+    expect(card).not.toHaveTextContent('정보보기')
+  })
+
+  it('같은 정류장 혼합형 20-1은 카드 왼쪽에 실시간 도착을 우선 표시한다', () => {
+    render(<SchedulePage />)
+
+    const card = screen.getByTestId('bus-context-20-1')
+    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent('3분')
+  })
+
+  it('같은 정류장의 실시간 값이 없으면 20-1 카드 왼쪽은 시간표로 폴백한다', () => {
+    realtime20_1Available = false
+    render(<SchedulePage />)
+
+    const card = screen.getByTestId('bus-context-20-1')
+    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent(/(?:29|30)분/)
   })
 })

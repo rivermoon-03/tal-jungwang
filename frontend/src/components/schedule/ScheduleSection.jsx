@@ -130,6 +130,7 @@ export default function ScheduleSection({
       >
         {/* 시간열 56px */}
         <div
+          data-testid="schedule-time-column"
           style={{
             display: 'flex',
             flexDirection: 'column',
