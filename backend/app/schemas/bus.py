@@ -56,6 +56,7 @@ class BusArrival(BaseModel):
     route_no: str
     destination: str | None = None
     category: str | None = None  # "등교" | "하교" | "기타"
+    travel_direction: str | None = None  # 명시적인 GBIS 관측 진행 방향
     arrival_type: str  # "realtime" | "timetable"
     depart_at: str | None = None  # "HH:MM" (timetable)
     arrive_in_seconds: int | None = None
