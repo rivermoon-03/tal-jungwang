@@ -9,7 +9,7 @@
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import ScheduleDetailModal from './ScheduleDetailModal'
+import ScheduleDetailModal, { SHUTTLE_ALARM_ENABLED } from './ScheduleDetailModal'
 
 // 버스 시간표는 테스트별로 바꿔야 해서(운행 종료 케이스) mock 함수로 둔다.
 const busTimetable = vi.fn(() => ({ data: null, loading: false, error: null }))
@@ -110,7 +110,11 @@ function renderShuttle(direction = 0) {
   )
 }
 
-describe('ScheduleDetailModal — 셔틀 리스트 뷰 알림 종 버튼', () => {
+// 셔틀 알림은 실기기 동작이 안 돼 화면에서 내렸다(SHUTTLE_ALARM_ENABLED=false).
+// 코드를 지우지 않았으므로 테스트도 남기고 플래그로만 건너뛴다 — 복구 시 자동으로 다시 돈다.
+const describeAlarm = SHUTTLE_ALARM_ENABLED ? describe : describe.skip
+
+describeAlarm('ScheduleDetailModal — 셔틀 리스트 뷰 알림 종 버튼', () => {
   it('다음 편에 알림 종 버튼이 있고 클릭하면 해당 시각의 시트가 열린다', () => {
     renderShuttle(0)
     const bell = screen.getByLabelText('08:30 셔틀 알림 설정')
@@ -146,7 +150,7 @@ describe('ScheduleDetailModal — 좁은 폰(< 360px) 가로 스크롤 스트립
     expect(screen.getByText('밀어서 이후 시간 보기')).toBeInTheDocument()
   })
 
-  it('스트립 안에서도 알림 종 버튼이 동작한다', () => {
+  it.skipIf(!SHUTTLE_ALARM_ENABLED)('스트립 안에서도 알림 종 버튼이 동작한다', () => {
     renderShuttle(0)
     fireEvent.click(screen.getByLabelText('08:30 셔틀 알림 설정'))
     fireEvent.click(screen.getByText('알림 켜기'))
@@ -223,6 +227,38 @@ describe('ScheduleDetailModal — 헤더 점 색은 카드 배지와 같은 출�
   it('호출부가 accentColor를 명시하면 그 값이 우선한다', () => {
     renderBus('시흥33', { accentColor: '#DC2626' })
     expect(dotColor()).toBe('rgb(220, 38, 38)')
+  })
+})
+
+// 제보: 셔틀 상세를 열면 그 방향만 보이고 등하교를 바꿀 수 없었다(닫았다 다시 열어야 함).
+describe('ScheduleDetailModal — 셔틀 방향 전환', () => {
+  it('시트 안에 등교/하교 세그먼트가 있고 전환하면 제목이 따라간다', () => {
+    render(
+      <ScheduleDetailModal open onClose={() => {}} type="shuttle" direction={0} title="셔틀버스 등교" />
+    )
+    expect(screen.getByRole('tablist', { name: '셔틀 방향 선택' })).toBeInTheDocument()
+    expect(screen.getByText('셔틀버스 등교')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: '하교' }))
+    expect(screen.getByText('셔틀버스 하교')).toBeInTheDocument()
+    // 하교(direction 1) 시간표가 그려진다 — SHUTTLE_DATA 기준 17:00
+    expect(screen.getByText('17:00')).toBeInTheDocument()
+  })
+
+  it('2캠은 2캠 방향(2·3) 안에서 전환한다', () => {
+    render(
+      <ScheduleDetailModal open onClose={() => {}} type="shuttle" direction={2} title="2캠 셔틀버스 등교" />
+    )
+    expect(screen.getByText('2캠 셔틀버스 등교')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: '하교' }))
+    expect(screen.getByText('2캠 셔틀버스 하교')).toBeInTheDocument()
+  })
+
+  it('알림 종 버튼은 렌더하지 않는다(기능 비활성)', () => {
+    render(
+      <ScheduleDetailModal open onClose={() => {}} type="shuttle" direction={0} title="셔틀버스 등교" />
+    )
+    expect(screen.queryByLabelText(/셔틀 알림 설정/)).not.toBeInTheDocument()
   })
 })
 
