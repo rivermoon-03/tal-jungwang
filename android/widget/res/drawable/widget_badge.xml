@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 수단 배지(셔/버/철) — accent-bg 알약. 앱 카드의 노선 배지와 같은 규격. -->
+<!--
+  D-day 알약(기본) — accent 채움. 글자색은 레이아웃에서 @color/tj_bg(녹아웃)로 둔다.
+  임박한 일정은 같은 규격의 widget_badge_alert 로 배경만 바꿔 끼운다
+  (RemoteViews 는 shape 의 solid 색을 런타임에 못 바꿔서 drawable 을 두 벌 둔다).
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/tj_badge_bg" />
-    <corners android:radius="8dp" />
+    <solid android:color="@color/tj_accent" />
+    <corners android:radius="100dp" />
 </shape>

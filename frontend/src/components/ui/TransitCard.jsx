@@ -26,12 +26,17 @@
  *   onClick?  () => void  있으면 카드 전체가 button(포커스링/press 모션 포함),
  *             없으면 순수 div.
  *   muted?    boolean  미운행 등 — title을 mute 색으로.
+ *   sleeping? {label?}  지금이 운행 시간대 밖(막차 이후·첫차 이전)일 때 제목 아래
+ *             한 줄로 달 아이콘 + "Zzz"를 붙인다. 칩으로 넣지 않는 이유: 칩 행은
+ *             폭이 좁아지면 잘려 숨는데(overflow-hidden), 이 상태는 숨으면 안 된다.
  *
  * 카드 셸: bg-surface, border-line, rounded-card(14px), p-3(12px). 그림자는
  * 절대 추가하지 않는다(DESIGN.md §4 "보더+그림자 동시 사용 금지").
  * 그리드 가운데 열(본문)에는 min-w-0을 둬 긴 텍스트가 그리드 트랙을 밀어
  * ETA 열을 밀어내는 오버플로를 막는다.
  */
+
+import { Moon } from 'lucide-react'
 
 const CHIP_TONE_CLASS = {
   realtime: 'bg-accent-bg text-accent-ink',
@@ -53,6 +58,7 @@ export default function TransitCard({
   eta,
   onClick,
   muted = false,
+  sleeping = null,
   className = '',
 }) {
   const Tag = onClick ? 'button' : 'div'
@@ -101,6 +107,14 @@ export default function TransitCard({
             <span className="min-w-0 truncate text-[12.5px] text-mute">{subtitle}</span>
           )}
         </div>
+
+        {sleeping && (
+          <div className="flex items-center gap-1 text-[12px] font-bold text-mute">
+            <Moon size={12} aria-hidden="true" className="shrink-0" />
+            <span>Zzz</span>
+            {sleeping.label && <span className="font-semibold truncate">· {sleeping.label}</span>}
+          </div>
+        )}
 
         {chips.length > 0 && (
           // overflow-hidden(줄바꿈 없음) — 폭이 좁아지면 칩이 잘려 숨고, title의

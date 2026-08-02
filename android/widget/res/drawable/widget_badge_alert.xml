@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D-day 알약(임박: D-3 이내 / 진행 중) — widget_badge 와 같은 규격, 채움만 delayed. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/tj_delayed" />
+    <corners android:radius="100dp" />
+</shape>

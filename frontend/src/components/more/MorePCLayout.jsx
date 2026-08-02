@@ -26,12 +26,14 @@ import AcademicNoticesPCContent from './AcademicNoticesPCContent'
 import NoticesPage from './NoticesPage'
 import SettingsPage from './SettingsPage'
 import AppInfoPage from './AppInfoPage'
+import HelpPage from './HelpPage'
 
 const NAV_LABEL = {
   academic: '학사공지',
   notices: '앱 공지',
   settings: '설정',
   'app-info': '앱 정보',
+  help: '도움말',
 }
 
 // 다가오는 일정에서 보여줄 최대 개수(가장 임박한 일정 next 1개 + upcoming).
@@ -137,6 +139,11 @@ export default function MorePCLayout({ initialNav = 'academic' }) {
           {activeNav === 'settings' && (
             <div className="h-full px-8 py-6">
               <SettingsPage embedded onBack={noop} onOpenAppInfo={() => selectNav('app-info')} />
+            </div>
+          )}
+          {activeNav === 'help' && (
+            <div className="h-full px-8 py-6 max-w-[720px]">
+              <HelpPage embedded onBack={noop} />
             </div>
           )}
           {activeNav === 'app-info' && (

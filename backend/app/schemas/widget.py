@@ -28,9 +28,9 @@ class WidgetColumn(BaseModel):
 
 
 class WidgetSelector(BaseModel):
-    """헤더 세그먼트(셔틀 캠퍼스 / 지하철 역)."""
+    """헤더 세그먼트(셔틀 캠퍼스 / 지하철 역 / 식단 식당)."""
 
-    kind: str            # campus | station
+    kind: str            # campus | station | place
     value: str
     options: list[str]
 

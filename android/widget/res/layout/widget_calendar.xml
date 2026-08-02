@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  학사일정 위젯 (4×2, 4×1 로 줄이면 아래 줄부터 잘린다).
+
+  D-day 알약은 배경 drawable 을 두 벌(widget_badge / widget_badge_alert) 준비해
+  코드에서 setBackgroundResource 로 갈아 끼운다 — RemoteViews 로는 shape 의 채움색을
+  직접 못 바꾼다. 글자색이 @color/tj_bg 인 이유는 values/colors.xml 주석 참고.
+  구분선을 <View> 대신 ImageView 로 그리는 이유는 widget_transit.xml 주석 참고.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/cal_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_ink"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="학사일정" />
+
+        <ImageView
+            android:id="@+id/cal_refresh"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:padding="3dp"
+            android:src="@drawable/ic_widget_refresh"
+            android:contentDescription="@string/widget_refresh_desc" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="7dp"
+        android:layout_marginBottom="7dp"
+        android:background="@color/tj_line"
+        android:importantForAccessibility="no" />
+
+    <FrameLayout
+        android:id="@+id/cal_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/cal_items"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/cal_row_0"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp">
+
+                <TextView
+                    android:id="@+id/cal_badge_0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="46dp"
+                    android:gravity="center"
+                    android:paddingStart="7dp"
+                    android:paddingEnd="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:background="@drawable/widget_badge_alert"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_bg"
+                    android:maxLines="1"
+                    android:text="D-2" />
+
+                <TextView
+                    android:id="@+id/cal_label_0"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_ink"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="2학기 수강신청" />
+
+                <TextView
+                    android:id="@+id/cal_sub_0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:gravity="end"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:text="8/4 ~ 8/6" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cal_row_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp">
+
+                <TextView
+                    android:id="@+id/cal_badge_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="46dp"
+                    android:gravity="center"
+                    android:paddingStart="7dp"
+                    android:paddingEnd="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:background="@drawable/widget_badge"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_bg"
+                    android:maxLines="1"
+                    android:text="D-9" />
+
+                <TextView
+                    android:id="@+id/cal_label_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_ink"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="개강" />
+
+                <TextView
+                    android:id="@+id/cal_sub_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:gravity="end"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:text="9/1" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cal_row_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp">
+
+                <TextView
+                    android:id="@+id/cal_badge_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="46dp"
+                    android:gravity="center"
+                    android:paddingStart="7dp"
+                    android:paddingEnd="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:background="@drawable/widget_badge"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_bg"
+                    android:maxLines="1"
+                    android:text="D-16" />
+
+                <TextView
+                    android:id="@+id/cal_label_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_ink"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="수강신청 정정" />
+
+                <TextView
+                    android:id="@+id/cal_sub_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:gravity="end"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:text="9/8 ~ 9/10" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/cal_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:textSize="13sp"
+            android:textColor="@color/tj_mute"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:visibility="gone"
+            android:text="@string/widget_loading" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/cal_updated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="end"
+        android:textSize="12sp"
+        android:textColor="@color/tj_mute"
+        android:maxLines="1"
+        android:text="" />
+</LinearLayout>

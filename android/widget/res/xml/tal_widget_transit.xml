@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  교통 위젯 메타 (4×2).
+  - minWidth/minHeight 는 AOSP 셀 공식(70dp×n − 30dp) 기준 4×2 값이다.
+  - 세로로는 줄이지 못하게 막았다(resizeMode=horizontal). 2열 본문은 값 26sp +
+    라벨 + 부제라 4×1 높이에서는 값이 잘려 "몇 분"이 안 보인다.
+  - updatePeriodMillis 는 안드로이드가 30분 미만을 무시한다. 체감 신선도는
+    잠금 해제(USER_PRESENT)와 칩 탭이 담당한다.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="250dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_transit"
+    android:previewLayout="@layout/widget_transit"
+    android:resizeMode="horizontal"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_transit_description" />

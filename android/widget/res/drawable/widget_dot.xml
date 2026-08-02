@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  운영정보 줄머리 점. "영업 중"의 보조 신호일 뿐이고 1차 신호는 옆의 마감 시각 텍스트다
+  (색만으로 상태를 구분하지 않는다 — DESIGN.md 접근성 원칙).
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/tj_accent" />
+    <size android:width="6dp" android:height="6dp" />
+</shape>

@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import case, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -507,6 +507,65 @@ async def _next_departures(
     return out
 
 
+async def _routes_off_service(
+    db: AsyncSession,
+    route_ids: list[int],
+    d: date,
+    day: str,
+    now_time: time,
+) -> dict[int, tuple[str | None, str]]:
+    """지금이 운행 시간대 밖인 노선 → (다음 첫차 "HH:MM", "today"|"tomorrow").
+
+    노선 전체 시간표(정류장 무관)의 첫차·막차로 판정한다. 이 정류장이 그 노선의
+    시간표 승차점이 아니어도 "노선이 지금 운행 중인가"는 답할 수 있기 때문이다.
+    시간표가 한 행도 없는 노선은 결과에 넣지 않는다 — 판정 불가는 판정하지 않는다.
+    """
+    if not route_ids:
+        return {}
+
+    stmt = (
+        select(
+            BusTimetableEntry.route_id,
+            func.min(BusTimetableEntry.departure_time),
+            func.max(BusTimetableEntry.departure_time),
+        )
+        .where(
+            BusTimetableEntry.route_id.in_(route_ids),
+            BusTimetableEntry.day_type == day,
+        )
+        .group_by(BusTimetableEntry.route_id)
+    )
+    today_window = {rid: (first, last) for rid, first, last in (await db.execute(stmt)).all()}
+
+    # 막차가 지난 노선은 "다음 운행일"의 첫차를 붙여준다. 요일이 바뀌면 시간표
+    # 종류(weekday/saturday/sunday)도 바뀌므로 내일 기준으로 다시 조회한다.
+    after_last = [
+        rid for rid, (_, last) in today_window.items() if last is not None and now_time > last
+    ]
+    tomorrow_first: dict[int, time] = {}
+    if after_last:
+        stmt_tmr = (
+            select(BusTimetableEntry.route_id, func.min(BusTimetableEntry.departure_time))
+            .where(
+                BusTimetableEntry.route_id.in_(after_last),
+                BusTimetableEntry.day_type == _day_type(d + timedelta(days=1)),
+            )
+            .group_by(BusTimetableEntry.route_id)
+        )
+        tomorrow_first = {rid: first for rid, first in (await db.execute(stmt_tmr)).all()}
+
+    out: dict[int, tuple[str | None, str]] = {}
+    for rid, (first, last) in today_window.items():
+        if first is None or last is None:
+            continue
+        if now_time < first:
+            out[rid] = (first.strftime("%H:%M"), "today")
+        elif now_time > last:
+            nxt = tomorrow_first.get(rid)
+            out[rid] = (nxt.strftime("%H:%M") if nxt else None, "tomorrow")
+    return out
+
+
 async def get_arrivals(
     db: AsyncSession, station_id: int, d: date, now_time: time
 ) -> dict | None:
@@ -741,6 +800,42 @@ async def get_arrivals(
                 "arrive_in_seconds": arrive_in_seconds,
                 "is_tomorrow": True,
             })
+
+    # ── 2-2. 운행 시간대 밖 판정 ───────────────────────────────────────────
+    # 실시간 노선에 차가 안 잡히는 이유는 두 가지고, 화면에서 할 말이 정반대다:
+    # 아직 안 왔으면 "잠시 후 다시", 막차가 끊겼으면 "내일 첫차". GBIS 부재만으로는
+    # 구분이 안 되므로 노선 시간표의 막차 시각으로 판정한다. 이 정류장 시간표가
+    # 아니라 노선 전체 시간표를 쓰는 이유: 3400·시흥1처럼 이 정류장이 시간표
+    # 승차점이 아닌 노선도 "노선이 지금 운행 시간대인가"는 답할 수 있어서다.
+    # (여기서 이 정류장 출발 시각을 지어내지는 않는다 — 운행 시간대만 말한다.)
+    # 캐시에서 온 항목은 이 필드를 모르므로 여기서 기본값을 채운다(응답 형태 고정).
+    for a in arrivals:
+        a.setdefault("off_service", False)
+        a.setdefault("next_first_at", None)
+        a.setdefault("next_first_day", None)
+
+    unresolved = [
+        a for a in arrivals
+        if a["arrival_type"] == "realtime"
+        and a["arrive_in_seconds"] is None
+        and not a["depart_at"]
+    ]
+    if unresolved:
+        off = await _routes_off_service(
+            db, [a["route_id"] for a in unresolved], d, day, now_time
+        )
+        for a in unresolved:
+            state = off.get(a["route_id"])
+            if state is not None:
+                a["off_service"] = True
+                a["next_first_at"], a["next_first_day"] = state
+
+    # 내일 첫차로 대체된 시간표 노선은 정의상 오늘 운행이 끝난 것이다.
+    for a in arrivals:
+        if a.get("is_tomorrow"):
+            a["off_service"] = True
+            a["next_first_at"] = a.get("depart_at")
+            a["next_first_day"] = "tomorrow"
 
     # ── 3. 정렬: arrive_in_seconds 기준 오름차순 (None은 뒤로) ─────────────
     arrivals.sort(key=lambda x: (x["arrive_in_seconds"] is None, x["arrive_in_seconds"] or 0))

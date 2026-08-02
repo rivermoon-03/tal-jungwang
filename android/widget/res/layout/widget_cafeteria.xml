@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  학식 위젯 (2×2) — 식단(TIP/E동)과 운영정보를 하단 탭으로 오간다.
+
+  2×2 는 좁아서 식당 이름을 제목으로 놓을 자리가 없다. 그래서 식단 탭에서는
+  선택 칩(TIP/E동)이 곧 제목이고, 제목 TextView 는 빈 문자열로 두어 오른쪽 끼니 칩을
+  밀어내는 스페이서 역할만 한다(가중치를 가진 뷰를 GONE 하면 밀어내기가 사라진다 —
+  그래서 숨기는 게 아니라 텍스트를 비운다).
+
+  한 줄은 세 가지 모습을 가진다: 메뉴(굵게) / 나머지메뉴(작고 흐리게) / 매장(점+마감시각).
+  RemoteViews 는 폰트 크기를 런타임에 못 바꾸므로 굵은 줄과 흐린 줄을 두 개의 TextView 로
+  깔아두고 가시성으로 고른다. 둘 다 weight=1 이지만 항상 하나만 보이므로 폭은 같다.
+  구분선/점을 <View> 대신 ImageView 로 그리는 이유는 widget_transit.xml 주석 참고.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <!-- 헤더: (식단) TIP/E동 세그 + 끼니 칩 / (운영정보) 제목 + "N곳" 칩 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/cafe_seg_tip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/widget_chip_on"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_chip_on_ink"
+            android:maxLines="1"
+            android:text="TIP" />
+
+        <TextView
+            android:id="@+id/cafe_seg_edong"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/widget_chip_off"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_mute"
+            android:maxLines="1"
+            android:text="E동" />
+
+        <TextView
+            android:id="@+id/cafe_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_ink"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="" />
+
+        <TextView
+            android:id="@+id/cafe_meal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/widget_chip_off"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_ink"
+            android:maxLines="1"
+            android:text="중식" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/cafe_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="7dp">
+
+        <LinearLayout
+            android:id="@+id/cafe_items"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/cafe_row_0"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp">
+
+                <ImageView
+                    android:id="@+id/cafe_dot_0"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/widget_dot"
+                    android:visibility="gone"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    android:id="@+id/cafe_label_0"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="13.5sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_ink"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="돈까스" />
+
+                <TextView
+                    android:id="@+id/cafe_dim_0"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:visibility="gone"
+                    android:text="" />
+
+                <TextView
+                    android:id="@+id/cafe_sub_0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:gravity="end"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:visibility="gone"
+                    android:text="" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cafe_row_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp">
+
+                <ImageView
+                    android:id="@+id/cafe_dot_1"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/widget_dot"
+                    android:visibility="gone"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    android:id="@+id/cafe_label_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="13.5sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_ink"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="미역국" />
+
+                <TextView
+                    android:id="@+id/cafe_dim_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:visibility="gone"
+                    android:text="" />
+
+                <TextView
+                    android:id="@+id/cafe_sub_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:gravity="end"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:visibility="gone"
+                    android:text="" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cafe_row_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp">
+
+                <ImageView
+                    android:id="@+id/cafe_dot_2"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/widget_dot"
+                    android:visibility="gone"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    android:id="@+id/cafe_label_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="13.5sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_ink"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:visibility="gone"
+                    android:text="" />
+
+                <TextView
+                    android:id="@+id/cafe_dim_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="쌀밥 · 배추김치 · 요구르트" />
+
+                <TextView
+                    android:id="@+id/cafe_sub_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:gravity="end"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:visibility="gone"
+                    android:text="" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/cafe_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:textSize="13sp"
+            android:textColor="@color/tj_mute"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:visibility="gone"
+            android:text="@string/widget_loading" />
+    </FrameLayout>
+
+    <!-- 하단 탭 칩 — 가로 반반. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/cafe_tab_menu"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:background="@drawable/widget_chip_on"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_chip_on_ink"
+            android:maxLines="1"
+            android:text="식단" />
+
+        <TextView
+            android:id="@+id/cafe_tab_venues"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:background="@drawable/widget_chip_off"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_mute"
+            android:maxLines="1"
+            android:text="운영정보" />
+    </LinearLayout>
+</LinearLayout>

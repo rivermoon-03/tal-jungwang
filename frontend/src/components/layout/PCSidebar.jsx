@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Bell, Settings as SettingsIcon, Sun, Moon, Bus, Train, Info, Shield } from 'lucide-react'
+import { Bell, Settings as SettingsIcon, Sun, Moon, Bus, Train, Info, Shield, HelpCircle } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import usePathname from '../../hooks/usePathname'
 import { useNotices } from '../../hooks/useMore'
@@ -252,6 +252,14 @@ export default function PCSidebar() {
         >
           <Info size={18} className="text-mute" aria-hidden="true" />
           앱 정보
+        </a>
+        <a
+          href="/more/help"
+          onClick={goMoreSub('/more/help', 'help')}
+          className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+        >
+          <HelpCircle size={18} className="text-mute" aria-hidden="true" />
+          도움말
         </a>
         <a
           href="/privacy"

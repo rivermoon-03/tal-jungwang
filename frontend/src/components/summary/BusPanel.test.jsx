@@ -290,3 +290,62 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
     }))
   })
 })
+
+
+// ────────────────────────────────────────────────────────────
+// 운행 시간대 밖 노선 — 달 + Zzz
+// 자정 직후 프로덕션에서 막차가 끊긴 노선이 "실시간 연결 중 · 잠시 후 다시 확인"
+// 으로 떠 있었다. 오지 않을 차를 기다리게 만드는 화면이라 상태를 먼저 말한다.
+// ────────────────────────────────────────────────────────────
+describe('BusPanel — 운행 시간대 밖', () => {
+  function arrivalsWith(extra) {
+    mockUseBusArrivals.mockReturnValue({
+      data: {
+        arrivals: [
+          {
+            route_id: 12,
+            route_no: '5602',
+            destination: '이마트(학교)',
+            category: '등교',
+            arrival_type: 'realtime',
+            depart_at: null,
+            arrive_in_seconds: null,
+            is_tomorrow: false,
+            crowded: 0,
+            ...extra,
+          },
+        ],
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+  }
+
+  it('막차가 끊긴 노선은 "오늘 운행 종료"로 묶고 내일 첫차를 알려준다', () => {
+    arrivalsWith({ off_service: true, next_first_at: '05:30', next_first_day: 'tomorrow' })
+    render(<BusPanel />)
+
+    expect(screen.getByText('오늘 운행 종료')).toBeInTheDocument()
+    expect(screen.getByText('Zzz')).toBeInTheDocument()
+    expect(screen.getByText('· 내일 첫차 05:30')).toBeInTheDocument()
+    // 기다리라는 말이 남아 있으면 안 된다
+    expect(screen.queryByText('실시간 연결 중')).not.toBeInTheDocument()
+  })
+
+  it('첫차 전이면 "종료"가 아니라 "지금은 운행 안 함"이다', () => {
+    arrivalsWith({ off_service: true, next_first_at: '05:30', next_first_day: 'today' })
+    render(<BusPanel />)
+
+    expect(screen.getByText('지금은 운행 안 함')).toBeInTheDocument()
+    expect(screen.getByText('· 오늘 첫차 05:30')).toBeInTheDocument()
+  })
+
+  it('판정 불가(off_service 없음)면 기존 실시간 연결 중 카드를 유지한다', () => {
+    arrivalsWith({})
+    render(<BusPanel />)
+
+    expect(screen.queryByText('Zzz')).not.toBeInTheDocument()
+    expect(screen.getByText('실시간 연결 중')).toBeInTheDocument()
+  })
+})

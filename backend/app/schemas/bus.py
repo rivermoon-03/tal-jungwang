@@ -84,6 +84,14 @@ class BusArrival(BaseModel):
     depart_at: str | None = None  # "HH:MM" (timetable)
     arrive_in_seconds: int | None = None
     is_tomorrow: bool = False  # 오늘 시간표 소진 후 내일 첫차인 경우 True
+    # 지금이 이 노선의 운행 시간대 밖이면 True(막차 이후 또는 첫차 이전).
+    # GBIS 차량이 안 잡히는 것과 운행이 끝난 것은 화면에서 정반대의 말이 되는데
+    # ("잠시 후 다시" vs "내일 첫차") 실시간 부재만으로는 구분되지 않아, 노선
+    # 시간표의 첫차·막차로 판정한다. 시간표가 없는 노선은 판정 불가라 False로
+    # 남는다 — 모르는 것을 아는 척하지 않는다.
+    off_service: bool = False
+    next_first_at: str | None = None   # 다음 운행 시작 시각 "HH:MM"
+    next_first_day: str | None = None  # "today"(첫차 전) | "tomorrow"(막차 후)
     crowded: int = 0  # 혼잡도 (0=정보없음, 1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
     # bus_crowding_calibrations 의 표시 하한이 crowded 를 올린 경우 true.
     # 관측값이 아니라는 뜻이므로 화면이 "경험 기준"으로 구분해 표기한다.

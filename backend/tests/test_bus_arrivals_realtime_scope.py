@@ -58,14 +58,27 @@ def _timetable_row(route_id, route_no, departure_time):
 
 
 def _db_returning(*result_rows):
-    """db.execute 를 호출 순서대로 .all() 결과로 응답하는 mock."""
+    """db.execute 를 호출 순서대로 .all() 결과로 응답하는 mock.
+
+    지정한 개수를 넘는 호출은 빈 결과로 답한다. get_arrivals 에 조회가 하나
+    추가될 때마다 모든 테스트가 StopAsyncIteration 으로 무너지는 것을 막는다 —
+    각 테스트는 자기가 관심 있는 앞쪽 쿼리만 지정하면 된다.
+    """
     db = MagicMock()
-    results = []
+    pending = []
     for rows in result_rows:
         r = MagicMock()
         r.all = MagicMock(return_value=list(rows))
-        results.append(r)
-    db.execute = AsyncMock(side_effect=results)
+        pending.append(r)
+
+    def _next(*_args, **_kwargs):
+        if pending:
+            return pending.pop(0)
+        empty = MagicMock()
+        empty.all = MagicMock(return_value=[])
+        return empty
+
+    db.execute = AsyncMock(side_effect=_next)
     return db
 
 
@@ -432,3 +445,76 @@ async def test_realtime_routes_at_stop_queries_enabled_targets_only():
     assert "bus_realtime_targets" in stmt
     assert "bus_realtime_targets.enabled" in stmt
     assert "bus_routes.gbis_route_id IS NOT NULL" in stmt
+
+
+# ── 운행 시간대 밖 판정 ────────────────────────────────────────────────────
+# GBIS에 차가 안 잡히는 이유는 "아직 안 왔다"와 "오늘 끝났다" 두 가지고, 화면에서
+# 할 말이 정반대다. 자정 직후 프로덕션에서 3400·시흥1이 "실시간 연결 중 · 잠시 후
+# 다시 확인"으로 떠 있던 게 이 구분이 없어서였다.
+
+
+@pytest.mark.asyncio
+async def test_운행_시간대_안이면_종료로_보지_않는다():
+    """09시의 무응답은 배차 공백이지 운행 종료가 아니다."""
+    now = datetime.now(_KST).replace(hour=9, minute=0, second=0, microsecond=0)
+    db = _db_returning([], [], [(20, time(6, 12), time(21, 48))])
+
+    result = await _run_get_arrivals(db, realtime_routes=[_route(20, "시흥1")], now=now)
+
+    sihung = next(a for a in result["arrivals"] if a["route_no"] == "시흥1")
+    assert sihung["off_service"] is False
+    assert sihung["next_first_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_막차_이후에는_내일_첫차를_붙인다():
+    now = datetime.now(_KST).replace(hour=23, minute=0, second=0, microsecond=0)
+    db = _db_returning(
+        [], [], [(20, time(6, 12), time(21, 48))], [(20, time(6, 12))]
+    )
+
+    result = await _run_get_arrivals(db, realtime_routes=[_route(20, "시흥1")], now=now)
+
+    sihung = next(a for a in result["arrivals"] if a["route_no"] == "시흥1")
+    assert sihung["off_service"] is True
+    assert sihung["next_first_at"] == "06:12"
+    assert sihung["next_first_day"] == "tomorrow"
+
+
+@pytest.mark.asyncio
+async def test_첫차_전에는_오늘_첫차를_붙인다():
+    """자정 직후는 '끝났다'가 아니라 '아직 안 시작했다' — 첫차가 오늘이다."""
+    now = datetime.now(_KST).replace(hour=0, minute=30, second=0, microsecond=0)
+    db = _db_returning([], [], [(20, time(6, 12), time(21, 48))])
+
+    result = await _run_get_arrivals(db, realtime_routes=[_route(20, "시흥1")], now=now)
+
+    sihung = next(a for a in result["arrivals"] if a["route_no"] == "시흥1")
+    assert sihung["off_service"] is True
+    assert sihung["next_first_at"] == "06:12"
+    assert sihung["next_first_day"] == "today"
+
+
+@pytest.mark.asyncio
+async def test_시간표가_없는_노선은_판정하지_않는다():
+    """운행 시간을 모르는 노선까지 '종료'라고 말하면 없는 사실을 지어내는 것이다."""
+    now = datetime.now(_KST).replace(hour=23, minute=0, second=0, microsecond=0)
+    db = _db_returning([], [], [])
+
+    result = await _run_get_arrivals(db, realtime_routes=[_route(20, "시흥1")], now=now)
+
+    sihung = next(a for a in result["arrivals"] if a["route_no"] == "시흥1")
+    assert sihung["off_service"] is False
+
+
+@pytest.mark.asyncio
+async def test_내일_첫차로_대체된_시간표_노선도_종료로_표시된다():
+    now = datetime.now(_KST).replace(hour=23, minute=50, second=0, microsecond=0)
+    db = _db_returning([], [_timetable_row(6, "6502", time(5, 30))], [])
+
+    result = await _run_get_arrivals(db, realtime_routes=[_route(20, "시흥1")], now=now)
+
+    bus6502 = next(a for a in result["arrivals"] if a["route_no"] == "6502")
+    assert bus6502["off_service"] is True
+    assert bus6502["next_first_at"] == "05:30"
+    assert bus6502["next_first_day"] == "tomorrow"

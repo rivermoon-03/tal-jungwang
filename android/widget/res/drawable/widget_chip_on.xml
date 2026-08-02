@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 선택된 칩 — 민트 틴트 채움. 글자색은 코드에서 tj_chip_on_ink 로 함께 바꾼다. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/tj_chip_on" />
+    <corners android:radius="100dp" />
+</shape>

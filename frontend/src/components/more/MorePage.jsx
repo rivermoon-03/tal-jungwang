@@ -16,6 +16,7 @@ import PageHeader from '../layout/PageHeader'
 import SegmentTabs from '../ui/SegmentTabs.jsx'
 import NoticesPage from './NoticesPage'
 import AppInfoPage from './AppInfoPage'
+import HelpPage from './HelpPage'
 import SettingsPage from './SettingsPage'
 import AcademicNoticesTab from './AcademicNoticesTab'
 import AppNoticesSettingsTab from './AppNoticesSettingsTab'
@@ -24,9 +25,9 @@ import { useIsDesktop } from '../../hooks/useMediaQuery'
 
 // subPage 상태(모바일 서브페이지 id) → MorePCLayout의 rail nav id 매핑.
 // null(더보기 루트)은 PC에서 기본 진입 탭인 학사공지로 매핑한다.
-const SUB_PAGE_TO_NAV = { settings: 'settings', 'app-info': 'app-info', notices: 'notices' }
+const SUB_PAGE_TO_NAV = { settings: 'settings', 'app-info': 'app-info', notices: 'notices', help: 'help' }
 
-const SUB_PAGE_PATHS = { 'app-info': '/more/app-info', settings: '/more/settings' }
+const SUB_PAGE_PATHS = { 'app-info': '/more/app-info', settings: '/more/settings', help: '/more/help' }
 
 const TOP_TABS = [
   { id: 'academic', label: '학사공지' },
@@ -57,6 +58,7 @@ export default function MorePage() {
     setSubPage(id)
   }
   const openAppInfo = () => openSubPageWithPath('app-info')
+  const openHelp = () => openSubPageWithPath('help')
   const openSettings = () => openSubPageWithPath('settings')
 
   // PC(≥768px)에서는 세그먼트 탭 기반 모바일 흐름 대신 rail 레이아웃을 쓴다.
@@ -66,6 +68,7 @@ export default function MorePage() {
 
   if (subPage === 'notices')       return <NoticesPage         onBack={() => setSubPage(null)} />
   if (subPage === 'app-info')      return <AppInfoPage         onBack={closeSubPage} />
+  if (subPage === 'help')          return <HelpPage            onBack={closeSubPage} />
   if (subPage === 'settings') {
     return (
       <SettingsPage
@@ -106,6 +109,7 @@ export default function MorePage() {
             onOpenNotices={() => setSubPage('notices')}
             onOpenSettings={openSettings}
             onOpenAppInfo={openAppInfo}
+            onOpenHelp={openHelp}
             onOpenPrivacy={() => {
               window.history.pushState({}, '', '/privacy')
               window.dispatchEvent(new PopStateEvent('popstate'))

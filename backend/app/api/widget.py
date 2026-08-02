@@ -8,7 +8,7 @@
 type 파라미터로 세 위젯이 같은 엔드포인트를 공유한다:
   transit(기본) — mode=shuttle|subway (하단 칩) + campus/station (헤더 칩).
                   좌우 2열로 등교·하교 / 상행·하행을 나눠 담는다.
-  cafeteria     — view=menu|venues (하단 탭): 오늘 끼니 메뉴 / 지금 문 연 매장
+  cafeteria     — view=menu|venues (하단 탭) + place=tip|edong (식단 식당 선택)
   calendar      — 다가오는 학사일정 D-day
 """
 
@@ -197,22 +197,34 @@ def _venues_payload(now: datetime) -> dict:
     }
 
 
-def _cafeteria_payload(menu: Any, now: datetime) -> dict:
+def _cafeteria_payload(menu: Any, now: datetime, place: str = "tip") -> dict:
+    """식단 탭 — 식당(TIP 지하 / E동)을 골라 그 식당의 오늘 끼니를 보여준다.
+
+    두 식당은 운영 시간대도 메뉴도 달라서(E동은 조식이 없다) 한쪽만 보여주면
+    "오늘 학식 뭐지"의 답이 반쪽이 된다.
+    """
     meal_type = _current_meal(now)
     # 크롤 실패·주말 등으로 cafeterias가 아예 비어 올 수 있다(빈 리스트 인덱싱 금지).
     cafeterias = (menu or {}).get("cafeterias") or [] if isinstance(menu, dict) else []
-    cafeteria = cafeterias[0] if cafeterias else {}
+    keyword = "E동" if place == "edong" else "TIP"
+    cafeteria = next(
+        (c for c in cafeterias if keyword in (c.get("name") or "")),
+        cafeterias[0] if cafeterias else {},
+    )
     meals = cafeteria.get("meals") or []
     day_key = str(now.day)
 
     meal = next((m for m in meals if meal_type in (m.get("type") or "")), None)
     items = [i for i in ((meal or {}).get("by_day", {}).get(day_key) or []) if i]
 
+    selector = {"kind": "place", "value": place, "options": ["tip", "edong"]}
+
     if not items:
         return {
-            "title": "학식",
+            "title": cafeteria.get("name") or "학식",
             "meal": meal_type,
             "items": [],
+            "selector": selector,
             "empty_text": "오늘은 등록된 식단이 없어요",
         }
 
@@ -224,6 +236,7 @@ def _cafeteria_payload(menu: Any, now: datetime) -> dict:
         "title": cafeteria.get("name") or "TIP 학생식당",
         "meal": meal_type,
         "items": rows,
+        "selector": selector,
         "empty_text": None,
         "sub": (meal or {}).get("time") or "",
     }
@@ -282,6 +295,7 @@ async def widget_summary(
     campus: str = Query("main", pattern="^(main|second)$", description="셔틀 캠퍼스"),
     station: str = Query("정왕", description="지하철 역 — 정왕 | 초지 | 시흥시청"),
     view: str = Query("menu", pattern="^(menu|venues)$", description="학식 탭"),
+    place: str = Query("tip", pattern="^(tip|edong)$", description="식단 식당 — TIP 지하 / E동"),
     db: AsyncSession = Depends(get_db),
 ):
     """위젯 한 화면(최대 3줄)에 필요한 문자열만 반환한다."""
@@ -292,7 +306,7 @@ async def widget_summary(
             payload = _venues_payload(now)
         else:
             # get_menu는 DB를 쓰지 않는다(외부 크롤 + Redis cache-aside)
-            payload = _cafeteria_payload(await _safe(get_menu(), "cafeteria"), now)
+            payload = _cafeteria_payload(await _safe(get_menu(), "cafeteria"), now, place)
         payload["view"] = view
     elif type == "calendar":
         payload = _calendar_payload(await _safe(get_calendar(db), "calendar"), now.date())

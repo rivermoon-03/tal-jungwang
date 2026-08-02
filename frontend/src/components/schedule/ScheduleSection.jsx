@@ -15,7 +15,7 @@
  * 깨뜨렸다(결함 #19/#33). 이 컴포넌트는 항상 onClick 콜백만 호출하고 라우팅은
  * 호출부(SchedulePage)가 데스크톱/모바일 분기로 결정한다.
  */
-import { Star } from 'lucide-react'
+import { Star, Moon } from 'lucide-react'
 import Skeleton from '../common/Skeleton'
 import RouteBadge from '../common/RouteBadge'
 import { CrowdedBadge } from '../bus/BusArrivalCard'
@@ -92,6 +92,11 @@ export default function ScheduleSection({
   subtitle = null,
   boldPrefix = null,
   timeLines = null,
+  // 지금이 운행 시간대 밖일 때(막차 이후·첫차 이전) 노선명 아래에 붙는 한 줄.
+  // 시간열의 "금일 종료"는 56px 안에서 두 단어로 끝나 눈에 잘 안 들어온다 —
+  // 본문 쪽에 달 아이콘을 하나 두면 목록을 훑을 때 상태가 먼저 읽힌다.
+  sleeping = false,
+  sleepingLabel = null,
   minutesUntil = null,
   hhmm = null,
   imminent = false,
@@ -176,6 +181,17 @@ export default function ScheduleSection({
           {disabled && disabledLabel && (
             <p style={{ fontSize: 12.5, color: 'var(--tj-mute)', fontWeight: 600, lineHeight: 1.4, margin: 0 }}>
               {disabledLabel}
+            </p>
+          )}
+
+          {sleeping && (
+            <p
+              style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 700, lineHeight: 1.3, margin: 0,
+                       display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              <Moon size={12} aria-hidden="true" style={{ flexShrink: 0 }} />
+              <span>Zzz</span>
+              {sleepingLabel && <span style={{ fontWeight: 600 }}>· {sleepingLabel}</span>}
             </p>
           )}
 
