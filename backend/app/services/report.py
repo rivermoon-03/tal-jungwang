@@ -8,6 +8,7 @@ install_discord_logging(settings.DISCORD_ERROR_WEBHOOK_URL)을 호출해 루트 
 않으므로 logger.warning 호출은 표준 로깅으로만 남고 자동으로 "로깅만" 동작이 된다.
 """
 import logging
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -33,6 +34,12 @@ _CATEGORY_LABELS: dict[str, str] = {
 _SIGNAL_TTL = 1800
 _SIGNAL_KINDS = {"bus_full", "bus_no_show"}
 
+# 사용자 입력이 Redis 키·scan 패턴에 들어가므로 엄격한 화이트리스트로 막는다.
+# ':'(키 구분자 위조), '*?['(glob 인젝션)이 통과하면 키스페이스 스캔/위조가 가능해진다.
+# station_key는 GBIS 정류장 id(숫자) 계열, route_no는 "20-1"/"시흥33" 형태만 실존한다.
+_STATION_KEY_RE = re.compile(r"^[0-9A-Za-z_-]{1,40}$")
+_ROUTE_NO_RE = re.compile(r"^[0-9A-Za-z가-힣-]{1,20}$")
+
 
 def _signal_key(station_key: str, route_no: str, kind: str) -> str:
     return f"report:bus:{station_key}:{route_no}:{kind}"
@@ -53,6 +60,10 @@ async def _record_bus_signal(payload: ReportCreate, received_at: datetime) -> No
 async def get_active_bus_reports(station_key: str) -> list[dict]:
     """정류장의 활성(30분 내) 만차·결행 신호 목록 — 도착 카드 경고 뱃지용."""
     from app.core.cache import get_redis
+
+    # scan 패턴 glob 인젝션 방지 — 화이트리스트 불일치는 빈 목록으로 종료
+    if not _STATION_KEY_RE.match(station_key or ""):
+        return []
 
     now = datetime.now(_KST)
     items: list[dict] = []
@@ -104,8 +115,16 @@ async def submit_report(payload: ReportCreate, client_hint: str | None = None) -
     received_at = datetime.now(_KST)
     content = _format_report(payload, client_hint, received_at)
 
-    # F6 — 만차·결행 신호는 Discord 릴레이에 더해 Redis 카운터로 30분간 공유
-    if payload.category in _SIGNAL_KINDS and payload.route_no and payload.station_key:
+    # F6 — 만차·결행 신호는 Discord 릴레이에 더해 Redis 카운터로 30분간 공유.
+    # 키 인젝션 방지: 화이트리스트를 통과한 컨텍스트만 기록한다(불일치는 조용히 무시 —
+    # 일반 제보 릴레이는 그대로 진행).
+    if (
+        payload.category in _SIGNAL_KINDS
+        and payload.route_no
+        and payload.station_key
+        and _ROUTE_NO_RE.match(payload.route_no)
+        and _STATION_KEY_RE.match(payload.station_key)
+    ):
         try:
             await _record_bus_signal(payload, received_at)
         except Exception:
