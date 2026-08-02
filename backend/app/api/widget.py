@@ -6,14 +6,13 @@
   - 표기 규칙(분 반올림·막차 표시·끼니 선택)이 앱과 위젯에서 갈라지지 않는다
 
 type 파라미터로 세 위젯이 같은 엔드포인트를 공유한다:
-  transit(기본) — mode=bus|shuttle|subway 로 전환. 위젯 하단 칩이 이 값을 바꾼다.
-  cafeteria     — 시각에 맞는 끼니의 대표 메뉴
+  transit(기본) — mode=shuttle|subway (하단 칩) + campus/station (헤더 칩).
+                  좌우 2열로 등교·하교 / 상행·하행을 나눠 담는다.
+  cafeteria     — view=menu|venues (하단 탭): 오늘 끼니 메뉴 / 지금 문 연 매장
   calendar      — 다가오는 학사일정 D-day
 """
 
-import asyncio
 import logging
-import re
 from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -25,7 +24,6 @@ from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.widget import WidgetResponse
-from app.services.bus import get_arrivals
 from app.services.cafeteria import get_menu
 from app.services.school import get_calendar
 from app.services.shuttle import get_next as shuttle_get_next
@@ -37,21 +35,20 @@ KST = ZoneInfo("Asia/Seoul")
 
 router = APIRouter(prefix="/api/v1/widget", tags=["widget"])
 
-_DEFAULT_BUS_STATION_ID = 3  # 한국공학대학교
+# 지하철 역별 (상행 키, 하행 키, 노선 배지). 위젯은 좌우 2열로 상행·하행을 나눠
+# 담으므로 역마다 방향 한 쌍만 있으면 된다. 정왕역은 수인분당·4호선이 함께 서지만
+# 위젯 폭상 승객이 실제로 많이 쓰는 수인분당을 기본으로 둔다.
+_SUBWAY_STATIONS = {
+    "정왕": {"label": "정왕역", "up": ("up", "수"), "down": ("down", "수")},
+    "초지": {"label": "초지역", "up": ("choji_up", "서"), "down": ("choji_dn", "서")},
+    "시흥시청": {"label": "시흥시청역", "up": ("siheung_up", "서"), "down": ("siheung_dn", "서")},
+}
 
-# 지하철 위젯에 싣는 방향 — 정왕역 수인분당(상·하행) + 4호선 상행.
-_SUBWAY_ROWS = [
-    ("up", "수", "상행"),
-    ("line4_down", "4", "하행"),
-    ("line4_up", "4", "상행"),
-]
-
-# 셔틀 위젯 행: (direction, 배지, 라벨)
-_SHUTTLE_ROWS = [
-    (0, "등", "정왕역 → 학교"),
-    (1, "하", "학교 → 정왕역"),
-    (2, "2캠", "본교 → 제2캠"),
-]
+# 셔틀 캠퍼스별 (등교 direction, 하교 direction, 등교 라벨, 하교 라벨)
+_SHUTTLE_CAMPUS = {
+    "main": (0, 1, "정왕역 → 학교", "학교 → 정왕역"),
+    "second": (2, 3, "본교 → 2캠", "2캠 → 본교"),
+}
 
 
 # ── 공통 포맷터 ────────────────────────────────────────────────────────
@@ -76,105 +73,88 @@ def _row(kind: str, badge: str, label: str, value: str, sub: str = "") -> dict:
 # ── 교통 ───────────────────────────────────────────────────────────────
 
 
-_DIGITS_RE = re.compile(r"\d+")
+def _direction_col(kind: str, badge: str, dir_label: str, data: Any, dest: str = "") -> dict:
+    """좌우 2열 중 한 열. 데이터가 없으면 '운행 종료'로 그 열만 저하시킨다.
 
-
-def _bus_badge(route_no: str) -> str:
-    """노선번호 → 배지(좁은 칸용 짧은 식별자).
-
-    단순 슬라이스는 의미를 깨뜨린다("20-1"→"20-", "시흥33"→"시흥3").
-    노선번호의 첫 숫자 덩어리를 쓰면 "20-1"→"20", "시흥33"→"33", "11-A"→"11"로
-    사람이 부르는 이름과 맞는다. 숫자가 없으면 앞 두 글자.
+    위젯이 통째로 비는 것보다 반대 방향이라도 보이는 편이 낫다(열 단위 저하).
     """
-    m = _DIGITS_RE.search(route_no)
-    return m.group(0) if m else route_no[:2]
+    if not isinstance(data, dict) or not data.get("depart_at"):
+        return {"kind": kind, "badge": badge, "label": dir_label, "dest": dest,
+                "value": "", "sub": "오늘 운행 종료", "empty": True}
+
+    depart = data["depart_at"][:5]
+    sub = f"{depart} 출발"
+    if data.get("is_last"):
+        sub = f"{sub} · 막차"
+    elif data.get("next_depart_at"):
+        sub = f"{sub} · 다음 {data['next_depart_at'][:5]}"
+    elif data.get("last_depart_at"):
+        sub = f"막차 {data['last_depart_at']}"
+    return {
+        "kind": kind,
+        "badge": badge,
+        "label": dir_label,
+        "dest": dest,
+        "value": _minutes_text(data.get("arrive_in_seconds")) or depart,
+        "sub": sub,
+        "empty": False,
+    }
 
 
-def _bus_rows(result: Any) -> list[dict]:
-    arrivals = result.get("arrivals") if isinstance(result, dict) else None
-    rows: list[dict] = []
-    seen: set[str] = set()
-    for a in arrivals or []:
-        sec = a.get("arrive_in_seconds")
-        if sec is None or a.get("is_tomorrow"):
-            continue
-        route = a.get("route_no") or "버스"
-        # 같은 노선의 두 번째 차로 세 줄을 채우면 선택지가 줄어든다 — 노선별 첫 차만.
-        if route in seen:
-            continue
-        seen.add(route)
-        rows.append(
-            _row("bus", _bus_badge(route), route, _minutes_text(sec) or "-", a.get("destination") or "")
-        )
-        if len(rows) == 3:
-            break
-    return rows
+def _subway_cols(result: Any, station: str) -> list[dict]:
+    meta = _SUBWAY_STATIONS[station]
+    cols = []
+    for dir_key, dir_label in (("up", "↑ 상행"), ("down", "↓ 하행")):
+        key, badge = meta[dir_key]
+        train = result.get(key) if isinstance(result, dict) else None
+        dest = f"{train.get('destination', '')}" if isinstance(train, dict) else ""
+        col = _direction_col("subway", badge, dir_label, train, dest)
+        # 지하철은 "다음 차"보다 막차가 급하다(밤에 위젯을 보는 이유).
+        if not col["empty"] and isinstance(train, dict) and train.get("last_depart_at"):
+            col["sub"] = f"막차 {train['last_depart_at']}"
+        cols.append(col)
+    return cols
 
 
-def _shuttle_rows(results: list[Any], schedule: Any) -> list[dict]:
-    period = schedule.get("schedule_name") if isinstance(schedule, dict) else None
-    rows: list[dict] = []
-    for (_, badge, label), res in zip(_SHUTTLE_ROWS, results, strict=True):
-        if not isinstance(res, dict) or not res.get("depart_at"):
-            continue
-        depart = res["depart_at"][:5]
-        sub = f"{depart} 출발"
-        if res.get("is_last"):
-            sub = f"{sub} · 막차"
-        rows.append(_row("shuttle", badge, label, _minutes_text(res.get("arrive_in_seconds")) or depart, sub))
-    if rows and period:
-        rows[0]["period"] = period  # 헤더에 기간명을 얹기 위한 힌트
-    return rows
+async def _transit_payload(db: AsyncSession, mode: str, campus: str, station: str, now: datetime) -> dict:
+    """교통 위젯 — 좌우 2열(등교·하교 / 상행·하행) 페이로드.
 
-
-def _subway_rows(result: Any) -> list[dict]:
-    if not isinstance(result, dict):
-        return []
-    rows: list[dict] = []
-    for key, badge, direction_label in _SUBWAY_ROWS:
-        train = result.get(key)
-        if not train:
-            continue
-        sub = direction_label
-        if train.get("last_depart_at"):
-            sub = f"{sub} · 막차 {train['last_depart_at']}"
-        rows.append(
-            _row(
-                "subway",
-                badge,
-                f"{train.get('destination', '')} 방면".strip(),
-                _minutes_text(train.get("arrive_in_seconds")) or "-",
-                sub,
-            )
-        )
-        if len(rows) == 3:
-            break
-    return rows
-
-
-async def _transit_payload(db: AsyncSession, mode: str, station_id: int, now: datetime) -> dict:
+    버스는 싣지 않는다: GBIS 실시간은 노선·정류장별 편차가 크고(시간표 폴백 포함),
+    위젯에는 "실시간/시간표 기준" 같은 단서를 붙일 자리가 없다. 확인 없이 믿는
+    자리에는 신뢰도가 확보된 데이터만 올린다(버스는 앱 홈에서 근거와 함께 본다).
+    """
     d, t = now.date(), now.time()
 
-    if mode == "shuttle":
-        tasks = [shuttle_get_next(db, d, t, dir_) for dir_, _, _ in _SHUTTLE_ROWS]
-        tasks.append(shuttle_get_schedule(db, d))
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        rows = _shuttle_rows(list(results[:-1]), results[-1])
-        period = rows[0].pop("period", None) if rows else None
-        title = f"셔틀버스 · {period}" if period else "셔틀버스"
-        empty = "지금은 운행하는 셔틀이 없어요"
-    elif mode == "subway":
+    if mode == "subway":
+        station = station if station in _SUBWAY_STATIONS else "정왕"
         result = await _safe(subway_get_next(db, d, t), "subway")
-        rows = _subway_rows(result)
-        title = "정왕역"
-        empty = "지금은 도착 정보가 없어요"
-    else:  # bus
-        result = await _safe(get_arrivals(db, station_id, d, t), "bus")
-        rows = _bus_rows(result)
-        title = (result or {}).get("station_name", "버스") if isinstance(result, dict) else "버스"
-        empty = "지금은 도착 정보가 없어요"
+        cols = _subway_cols(result, station)
+        return {
+            "title": "지하철",
+            "selector": {"kind": "station", "value": station, "options": list(_SUBWAY_STATIONS)},
+            "columns": cols,
+            "empty_text": None if any(not c["empty"] for c in cols) else "오늘 운행이 끝났어요",
+        }
 
-    return {"title": title, "items": rows, "empty_text": None if rows else empty}
+    campus = campus if campus in _SHUTTLE_CAMPUS else "main"
+    up_dir, down_dir, up_label, down_label = _SHUTTLE_CAMPUS[campus]
+    # 한 AsyncSession을 gather로 동시에 쓰면 안 된다 — 셋 중 하나가 조용히 실패해
+    # 2캠에서만 기간명이 사라지는 증상이 실제로 났다. 셋 다 Redis 캐시 히트라
+    # 순차로 돌려도 비용 차이가 없다.
+    up = await _safe(shuttle_get_next(db, d, t, up_dir), "shuttle_up")
+    down = await _safe(shuttle_get_next(db, d, t, down_dir), "shuttle_down")
+    schedule = await _safe(shuttle_get_schedule(db, d), "shuttle_schedule")
+    period = schedule.get("schedule_name") if isinstance(schedule, dict) else None
+    cols = [
+        _direction_col("shuttle", "등", f"↑ {up_label}", up),
+        _direction_col("shuttle", "하", f"↓ {down_label}", down),
+    ]
+    return {
+        "title": f"셔틀 · {period}" if period else "셔틀",
+        "selector": {"kind": "campus", "value": campus, "options": ["main", "second"]},
+        "columns": cols,
+        "empty_text": None if any(not c["empty"] for c in cols) else "오늘은 셔틀이 운행하지 않아요",
+    }
 
 
 async def _safe(coro, name: str):
@@ -196,6 +176,25 @@ def _current_meal(now: datetime) -> str:
     if hour < 14:
         return "중식"
     return "석식"
+
+
+def _venues_payload(now: datetime) -> dict:
+    """운영정보 탭 — 지금 문 연 매장 3곳(마감 임박 순).
+
+    학식이 없는 주말·방학에도 위젯이 쓸모를 유지하는 축이다.
+    """
+    from app.services.venues import open_venues_now
+
+    # 셔틀 기간과 달리 매장은 학기/방학 스케줄이 따로다 — 3~8월/9~2월 학기 근사.
+    season = "semester" if now.month in (3, 4, 5, 6, 9, 10, 11, 12) else "vacation"
+    venues = open_venues_now(now, season=season)
+    items = [_row("venue", "", v["name"], "", v["close_text"]) for v in venues]
+    return {
+        "title": "지금 영업 중",
+        "meal": f"{len(items)}곳" if items else "",
+        "items": items,
+        "empty_text": None if items else "지금 문 연 곳이 없어요",
+    }
 
 
 def _cafeteria_payload(menu: Any, now: datetime) -> dict:
@@ -279,24 +278,33 @@ async def widget_summary(
     request: Request,
     response: Response,
     type: str = Query("transit", pattern="^(transit|cafeteria|calendar)$"),
-    mode: str = Query("bus", pattern="^(bus|shuttle|subway)$", description="transit 전용"),
-    station_id: int = Query(_DEFAULT_BUS_STATION_ID),
+    mode: str = Query("shuttle", pattern="^(shuttle|subway)$", description="transit 전용"),
+    campus: str = Query("main", pattern="^(main|second)$", description="셔틀 캠퍼스"),
+    station: str = Query("정왕", description="지하철 역 — 정왕 | 초지 | 시흥시청"),
+    view: str = Query("menu", pattern="^(menu|venues)$", description="학식 탭"),
     db: AsyncSession = Depends(get_db),
 ):
     """위젯 한 화면(최대 3줄)에 필요한 문자열만 반환한다."""
     now = datetime.now(KST)
 
     if type == "cafeteria":
-        # get_menu는 DB를 쓰지 않는다(외부 크롤 + Redis cache-aside)
-        payload = _cafeteria_payload(await _safe(get_menu(), "cafeteria"), now)
+        if view == "venues":
+            payload = _venues_payload(now)
+        else:
+            # get_menu는 DB를 쓰지 않는다(외부 크롤 + Redis cache-aside)
+            payload = _cafeteria_payload(await _safe(get_menu(), "cafeteria"), now)
+        payload["view"] = view
     elif type == "calendar":
         payload = _calendar_payload(await _safe(get_calendar(db), "calendar"), now.date())
     else:
-        payload = await _transit_payload(db, mode, station_id, now)
+        payload = await _transit_payload(db, mode, campus, station, now)
 
     payload["updated_at"] = now.strftime("%H:%M")
     payload["type"] = type
     payload.setdefault("mode", mode if type == "transit" else "")
+    payload.setdefault("columns", [])
+    payload.setdefault("items", [])
+    payload.setdefault("selector", None)
 
     # 위젯은 30분 주기 갱신이라 짧은 캐시로 충분하다(동시 요청 폭주 완충).
     response.headers["Cache-Control"] = "public, max-age=20, stale-while-revalidate=60"

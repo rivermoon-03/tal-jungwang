@@ -7,13 +7,13 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from app.api.widget import (
-    _bus_rows,
     _cafeteria_payload,
     _calendar_payload,
     _current_meal,
+    _direction_col,
     _minutes_text,
-    _shuttle_rows,
-    _subway_rows,
+    _subway_cols,
+    _venues_payload,
 )
 
 KST = ZoneInfo("Asia/Seoul")
@@ -38,53 +38,54 @@ def test_한시간_넘으면_시간으로_접는다():
 # ── 교통 ───────────────────────────────────────────────────────────────
 
 
-def test_버스는_실시간_있는_노선만_최대_3개():
+def test_방향_열은_다음차와_출발시각을_담는다():
+    col = _direction_col("shuttle", "등", "↑ 등교",
+                         {"depart_at": "08:41:00", "arrive_in_seconds": 240,
+                          "next_depart_at": "08:59:00"})
+    assert col["value"] == "4분"
+    assert col["sub"] == "08:41 출발 · 다음 08:59"
+    assert col["empty"] is False
+
+
+def test_막차면_막차로_표시한다():
+    col = _direction_col("shuttle", "하", "↓ 하교",
+                         {"depart_at": "20:10:00", "arrive_in_seconds": 600, "is_last": True})
+    assert col["sub"] == "20:10 출발 · 막차"
+
+
+def test_한_방향이_끊겨도_그_열만_저하된다():
+    """열 단위 저하 — 위젯 전체가 비지 않는다."""
+    col = _direction_col("subway", "서", "↓ 하행", None)
+    assert col["empty"] is True
+    assert col["sub"] == "오늘 운행 종료"
+    assert col["value"] == ""
+
+
+def test_조회_예외가_들어와도_열은_만들어진다():
+    col = _direction_col("shuttle", "등", "↑ 등교", RuntimeError("boom"))
+    assert col["empty"] is True
+
+
+def test_지하철은_역별_상하행_두_열이고_막차를_보여준다():
     result = {
-        "arrivals": [
-            {"route_no": "11-A", "arrive_in_seconds": None, "destination": "정왕역"},
-            {"route_no": "시흥33", "arrive_in_seconds": 30, "destination": "시흥시청방면"},
-            {"route_no": "20-1", "arrive_in_seconds": 420, "destination": "아이파크"},
-            {"route_no": "5602", "arrive_in_seconds": 900, "destination": "서울"},
-            {"route_no": "3400", "arrive_in_seconds": 1200, "destination": "강남"},
-        ]
+        "up": {"depart_at": "23:00:00", "arrive_in_seconds": 540,
+               "destination": "왕십리", "last_depart_at": "23:33"},
+        "down": {"depart_at": "23:05:00", "arrive_in_seconds": 30,
+                 "destination": "오이도", "last_depart_at": "00:01"},
     }
-    rows = _bus_rows(result)
-    assert [r["label"] for r in rows] == ["시흥33", "20-1", "5602"]
-    assert rows[0]["value"] == "곧"
+    cols = _subway_cols(result, "정왕")
+    assert [c["label"] for c in cols] == ["↑ 상행", "↓ 하행"]
+    assert cols[0]["dest"] == "왕십리"
+    assert cols[0]["sub"] == "막차 23:33"
+    assert cols[1]["value"] == "곧"
 
 
-def test_내일_첫차는_버스_행에서_제외된다():
-    result = {"arrivals": [{"route_no": "20-1", "arrive_in_seconds": 0, "is_tomorrow": True}]}
-    assert _bus_rows(result) == []
-
-
-def test_셔틀은_방향별_행과_기간명을_싣는다():
-    results = [
-        {"depart_at": "08:41:00", "arrive_in_seconds": 240},
-        {"depart_at": "09:10:00", "arrive_in_seconds": 1980, "is_last": True},
-        None,
-    ]
-    schedule = {"schedule_name": "여름방학 · 단축근무"}
-    rows = _shuttle_rows(results, schedule)
-    assert [r["label"] for r in rows] == ["정왕역 → 학교", "학교 → 정왕역"]
-    assert rows[0]["value"] == "4분"
-    assert rows[1]["sub"] == "09:10 출발 · 막차"
-    assert rows[0]["period"] == "여름방학 · 단축근무"  # 헤더용 힌트
-
-
-def test_지하철은_막차를_부제에_붙인다():
-    result = {"up": {"arrive_in_seconds": 540, "destination": "왕십리", "last_depart_at": "23:52"}}
-    rows = _subway_rows(result)
-    assert rows[0]["label"] == "왕십리 방면"
-    assert rows[0]["value"] == "9분"
-    assert rows[0]["sub"] == "상행 · 막차 23:52"
-
-
-def test_조회_실패는_빈_행으로_흡수된다():
-    """한 소스가 죽어도 위젯이 통째로 비지 않아야 한다."""
-    assert _bus_rows(None) == []
-    assert _subway_rows(None) == []
-    assert _shuttle_rows([None, None, None], None) == []
+def test_서해선_역은_서해선_키를_읽는다():
+    result = {"siheung_up": {"depart_at": "22:00:00", "arrive_in_seconds": 600, "destination": "일산"}}
+    cols = _subway_cols(result, "시흥시청")
+    assert cols[0]["badge"] == "서"
+    assert cols[0]["dest"] == "일산"
+    assert cols[1]["empty"] is True  # 하행 데이터 없음 → 그 열만 저하
 
 
 # ── 학식 ───────────────────────────────────────────────────────────────
@@ -119,6 +120,24 @@ def test_학식은_메인_2개와_나머지_한줄로_접는다():
         "후랑크볶음 · 락교 · 배추김치",
     ]
     assert payload["sub"] == "11:00~14:00"
+
+
+def test_운영정보_탭은_지금_문_연_곳을_마감순으로_준다():
+    """학식이 없는 주말·방학에도 위젯이 쓸모를 유지하는 축."""
+    # 평일 12시 — 학기 스케줄 기준
+    payload = _venues_payload(datetime(2026, 5, 11, 12, tzinfo=KST))
+    assert payload["title"] == "지금 영업 중"
+    assert payload["items"], "평일 점심엔 최소 한 곳은 열려 있어야 한다"
+    # 24시간 매장은 마감이 없어 목록 끝으로 밀린다
+    close_texts = [i["sub"] for i in payload["items"]]
+    timed = [c for c in close_texts if c.endswith("마감")]
+    assert timed == sorted(timed), "마감 임박 순 정렬"
+
+
+def test_운영정보_탭_새벽에는_24시간_매장만_남는다():
+    payload = _venues_payload(datetime(2026, 5, 11, 4, tzinfo=KST))
+    subs = [i["sub"] for i in payload["items"]]
+    assert all(s == "24시간" for s in subs)
 
 
 def test_식단이_없으면_빈_문장을_준다():
