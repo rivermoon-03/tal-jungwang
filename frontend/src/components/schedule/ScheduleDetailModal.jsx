@@ -787,7 +787,7 @@ function LoadingList() {
   return (
     <div className="flex flex-col gap-2 mt-1">
       {Array.from({ length: 8 }).map((_, i) => (
-        <Skeleton key={i} width="100%" height="3rem" rounded="rounded-xl" />
+        <Skeleton key={i} width="100%" height="3rem" rounded="rounded-card" />
       ))}
     </div>
   )
@@ -900,7 +900,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
                   <div
                     key={`${t}-${i}`}
                     ref={isAnchor ? anchorRef : undefined}
-                    className={`py-0.5 text-center tabular-nums text-sm rounded-md
+                    className={`py-0.5 text-center tabular-nums text-sm rounded-mini
                       ${isNext
                         ? 'font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : isPast
@@ -930,27 +930,41 @@ function BusContextDetail({ context, routeCode, routeId, category, color, viewMo
     return <BusContent routeCode={routeCode} routeId={routeId} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
   }
 
+  // 여정 요약의 두 줄이 같은 내용이면 한 줄만 남긴다. origin → destination 이
+  // journey_labels 의 양 끝과 겹치는 경우가 많아 같은 문장을 두 번 읽게 했다.
+  const journey = (context.journey_labels ?? []).filter(Boolean)
+  const headline = `${context.origin_label} → ${context.destination_label}`
+  const journeyLine = journey.join(' → ')
+  const showJourney = journey.length > 2 && journeyLine !== headline
+
   return (
-    <div className="flex flex-col gap-5">
-      <div className="rounded-xl border border-line dark:border-line bg-surface-2/60 dark:bg-bg px-4 py-3">
-        <p className="text-sm font-extrabold text-ink dark:text-ink">{context.origin_label} → {context.destination_label}</p>
-        <p className="mt-1 text-xs font-medium text-mute">{(context.journey_labels ?? []).join(' → ')}</p>
+    <div className="flex flex-col">
+      <div className="pb-4">
+        <p className="text-sm font-extrabold text-ink dark:text-ink">{headline}</p>
+        {showJourney && (
+          <p className="mt-1 text-xs font-medium text-mute">{journeyLine}</p>
+        )}
       </div>
+      {/* source 블록은 테두리 대신 구분선과 여백으로 나눈다. 지하철 상세와 같은 규칙이며,
+          시트 폭을 그대로 써서 시간표 그리드가 좁아지지 않는다.
+          검증: components/schedule/schedule.token.test.jsx */}
       {context.sources.map((source) => (
-        <section key={source.id} aria-label={`${source.display_label} ${source.type === 'timetable' ? '시간표' : '실시간'}`}>
-          <div className="flex items-center gap-2 mb-2 px-1">
+        <section
+          key={source.id}
+          aria-label={`${source.display_label} ${source.type === 'timetable' ? '시간표' : '실시간'}`}
+          className="border-t border-line dark:border-line pt-4 pb-1"
+        >
+          <div className="flex items-center gap-2 mb-2.5">
             <h3 className="text-sm font-extrabold text-ink dark:text-ink">{source.display_label}</h3>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${source.type === 'timetable' ? 'bg-surface-3 text-mute' : 'bg-accent/10 text-accent-ink dark:text-accent'}`}>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-pill ${source.type === 'timetable' ? 'bg-surface-3 text-mute' : 'bg-accent/10 text-accent-ink dark:text-accent'}`}>
               {source.type === 'timetable' ? '시간표' : '실시간'}
             </span>
           </div>
-          <div className="rounded-xl border border-line dark:border-line p-2">
-            {source.type === 'timetable' ? (
-              <BusContent routeCode={routeCode} routeId={routeId} stopId={source.stop_id} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
-            ) : (
-              <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={source.stop_id} stationLabel={source.station_label} scrollContainerRef={scrollContainerRef} />
-            )}
-          </div>
+          {source.type === 'timetable' ? (
+            <BusContent routeCode={routeCode} routeId={routeId} stopId={source.stop_id} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
+          ) : (
+            <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={source.stop_id} stationLabel={source.station_label} scrollContainerRef={scrollContainerRef} />
+          )}
         </section>
       ))}
     </div>
