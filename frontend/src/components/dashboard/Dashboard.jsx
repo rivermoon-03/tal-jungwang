@@ -32,7 +32,7 @@ const DIRECTION_OPTIONS = [
  * 상태 칩(자동일 땐 시간대 근거, 수동일 땐 탭해서 자동으로 되돌리는 액션).
  */
 function BusDirectionRow() {
-  const { direction, isOverride } = useEffectiveDirection()
+  const { direction, isOverride, reason } = useEffectiveDirection()
   const selectedBusStation   = useAppStore((s) => s.selectedBusStation)
   const setDirectionOverride = useAppStore((s) => s.setDirectionOverride)
   const setBusStation        = useAppStore((s) => s.setBusStation)
@@ -46,9 +46,13 @@ function BusDirectionRow() {
     }
   }
 
-  // 자동 판정 근거 문구 — useEffectiveDirection의 시간 기반 규칙(KST 14시 경계)을 그대로 참고.
-  // (위치 기반 보정까지 재계산하지 않고, 실제 direction 값에 맞춰 오전/오후 문구만 고른다.)
-  const autoReasonText = direction === '등교' ? '자동 · 오전이라 등교' : '자동 · 오후라서 하교'
+  // 자동 판정 근거 문구 — 훅이 알려준 reason을 그대로 쓴다.
+  // 예전엔 direction 값만 보고 "등교면 오전"이라고 역추론했는데, 오후에 위치 보정으로
+  // 등교가 되면 "오전이라 등교"라는 거짓말이 떴다(제보된 버그).
+  const autoReasonText =
+    reason === 'location'
+      ? (direction === '하교' ? '자동 · 학교 근처라 하교' : '자동 · 학교 밖이라 등교')
+      : (direction === '등교' ? '자동 · 오전이라 등교' : '자동 · 오후라서 하교')
 
   return (
     <div className="flex items-center justify-between gap-2 px-4 pb-1.5">

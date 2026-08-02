@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">탈것:정왕</string>
+    <string name="widget_description">다음 셔틀·버스·지하철을 홈 화면에서 바로 봐요</string>
+</resources>

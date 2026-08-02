@@ -90,10 +90,16 @@ describe('HomeBriefing (F1)', () => {
     render(<HomeBriefing />)
     expect(screen.getByText(/기말고사 D-3/)).toBeInTheDocument()
     expect(screen.getByText('자료열람실(3층)')).toBeInTheDocument()
-    expect(screen.getByText('평일 09:00 ~ 22:00')).toBeInTheDocument()
+    expect(screen.getByText('09:00 ~ 22:00')).toBeInTheDocument()
   })
 
-  it('시험이 멀면(7일 초과) 시험 카드는 없다', () => {
+  it('시험이 멀어도 도서관 카드는 상시로 남고 D-day 칩만 사라진다', async () => {
+    const { useLibraryHours } = await import('../../hooks/useMore')
+    useLibraryHours.mockReturnValue({
+      data: [{ room: '자료열람실(3층)', period: '학기', hours: '평일 09:00 ~ 22:00', closed: false }],
+      loading: false,
+      error: null,
+    })
     useAcademicCalendar.mockReturnValue({
       data: { next: { title: '2학기 기말고사', start_date: '2026-10-19', end_date: '2026-10-25' }, upcoming: [] },
       loading: false,
@@ -102,6 +108,17 @@ describe('HomeBriefing (F1)', () => {
     useCafeteriaMenu.mockReturnValue({ data: null, loading: false, error: null })
     render(<HomeBriefing />)
     expect(screen.queryByText(/기말고사 D-/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('도서관 열람실 안내')).toBeInTheDocument()
+    expect(screen.getByText('자료열람실(3층)')).toBeInTheDocument()
+  })
+
+  it('열람실 데이터가 없으면 도서관 카드를 그리지 않는다', async () => {
+    const { useLibraryHours } = await import('../../hooks/useMore')
+    useLibraryHours.mockReturnValue({ data: [], loading: false, error: null })
+    useAcademicCalendar.mockReturnValue({ data: CALENDAR, loading: false, error: null })
+    useCafeteriaMenu.mockReturnValue({ data: null, loading: false, error: null })
+    render(<HomeBriefing />)
+    expect(screen.queryByLabelText('도서관 열람실 안내')).not.toBeInTheDocument()
   })
 })
 

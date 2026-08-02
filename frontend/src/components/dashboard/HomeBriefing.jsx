@@ -13,7 +13,12 @@ import { CalendarDays, UtensilsCrossed, ChevronRight, BookOpen } from 'lucide-re
 import { useAcademicCalendar, useLibraryHours } from '../../hooks/useMore'
 import { useCafeteriaMenu } from '../../hooks/useCafeteria'
 import { formatDday } from '../../utils/academicCalendar'
-import { summarizeTodayMenu, findExamEvent, summarizeLibraryHours } from '../../utils/homeBriefing'
+import {
+  summarizeTodayMenu,
+  findExamEvent,
+  summarizeLibraryHours,
+  roomStateToday,
+} from '../../utils/homeBriefing'
 
 const LIBRARY_GUIDE_URL = 'https://library.tukorea.ac.kr/guide/hours'
 
@@ -44,36 +49,72 @@ function BriefingRow({ icon, label, value, onClick, ariaLabel }) {
   )
 }
 
-// F7 — 시험기간 카드. 학사일정에 시험(중간·기말고사)이 임박(7일)·진행 중일 때만
-// 브리핑 위에 승격된다. 도서관 개관시간은 시험 카드가 뜰 때만 조회한다(enabled).
-function ExamCard({ exam }) {
-  const hoursQuery = useLibraryHours({ enabled: !!exam })
-  const rooms = (Array.isArray(hoursQuery.data) ? hoursQuery.data : []).slice(0, 3)
+// 열람실 상태 배지 — 지금 열림(accent) / 닫힘 / 오늘 미개방.
+const ROOM_STATE_META = {
+  open: { label: '열림', cls: 'bg-accent-bg text-accent-ink dark:text-accent-ink' },
+  closed: { label: '닫힘', cls: 'bg-surface-2 dark:bg-surface-2 text-mute dark:text-mute' },
+  off: { label: '미개방', cls: 'bg-surface-2 dark:bg-surface-2 text-mute dark:text-mute' },
+}
 
+/**
+ * LibraryCard — 도서관 열람실 카드(상시).
+ *
+ * 원래는 시험 임박(D-7) 때만 뜨는 카드였는데, "지금 어디가 열려 있나"는 시험기간이
+ * 아니어도 늘 묻는 질문이라 상시로 올렸다. 시험이 가까우면 D-day 칩이 붙고 카드가
+ * 브리핑 위로 올라간다(그때는 이 정보가 화면에서 제일 급한 정보라서).
+ */
+function LibraryCard({ rooms, summary, exam }) {
+  const now = new Date()
   return (
-    <div className="px-4 pb-2" aria-label="시험기간 안내">
-      <div className="bg-surface dark:bg-surface border border-accent/40 dark:border-accent/40 rounded-card px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-chip-red-bg text-chip-red-fg">
-            {exam.title} {formatDday(exam.start_date)}
+    <div className="px-4 pb-2" aria-label="도서관 열람실 안내">
+      <div
+        className={`bg-surface dark:bg-surface border rounded-card px-4 py-3 ${
+          exam ? 'border-accent/40 dark:border-accent/40' : 'border-line dark:border-line'
+        }`}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          {exam && (
+            <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-chip-red-bg text-chip-red-fg">
+              {exam.title} {formatDday(exam.start_date)}
+            </span>
+          )}
+          <span className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-ink">
+            <BookOpen size={14} aria-hidden className="text-mute dark:text-mute" />
+            도서관 열람실
           </span>
-          <span className="text-caption font-semibold text-mute dark:text-mute ml-auto tabular-nums">
-            {exam.start_date?.slice(5).replace('-', '/')}~{(exam.end_date ?? exam.start_date)?.slice(5).replace('-', '/')}
-          </span>
+          {summary && (
+            <span className="ml-auto text-caption font-semibold text-mute dark:text-mute">
+              {summary.label}
+            </span>
+          )}
         </div>
-        {rooms.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-line dark:border-line space-y-1">
-            {rooms.map((r) => (
-              <p key={r.room} className="flex items-center gap-1.5 text-caption font-medium text-ink-2 dark:text-ink-2">
-                <BookOpen size={13} aria-hidden className="text-mute dark:text-mute flex-shrink-0" />
-                <span className="truncate">{r.room}</span>
-                <span className={`ml-auto font-bold tabular-nums ${r.closed ? 'text-mute dark:text-mute' : ''}`}>
-                  {r.hours}
+
+        <div className="mt-2 pt-2 border-t border-line dark:border-line space-y-1">
+          {rooms.map((r) => {
+            const s = roomStateToday(r, now)
+            const meta = ROOM_STATE_META[s.state]
+            return (
+              <p key={r.room} className="flex items-center gap-2 text-caption font-medium text-ink-2 dark:text-ink-2">
+                <span className="truncate flex-1 min-w-0">{r.room}</span>
+                <span className="font-semibold tabular-nums text-mute dark:text-mute whitespace-nowrap">
+                  {s.state === 'off' ? (r.closed ? '미개방' : '오늘 없음') : `${s.startText} ~ ${s.endText}`}
+                </span>
+                <span className={`text-micro font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${meta.cls}`}>
+                  {meta.label}
                 </span>
               </p>
-            ))}
-          </div>
-        )}
+            )
+          })}
+        </div>
+
+        <a
+          href={LIBRARY_GUIDE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-block text-caption font-semibold text-accent-ink dark:text-accent-ink pressable"
+        >
+          도서관 이용안내 열기
+        </a>
       </div>
     </div>
   )
@@ -90,13 +131,19 @@ export default function HomeBriefing() {
   const exam = findExamEvent(allEvents)
   const event = allEvents[0] ?? null
   const menuLine = summarizeTodayMenu(menuQuery.data)
-  const library = summarizeLibraryHours(libraryQuery.data)
+  const rooms = Array.isArray(libraryQuery.data) ? libraryQuery.data : []
+  const library = summarizeLibraryHours(rooms)
 
   if (!event && !menuLine && !exam && !library) return null
 
+  // 시험이 가까우면 열람실 카드가 브리핑보다 급하다 — 그때만 위로 올린다.
+  const libraryCard = library ? (
+    <LibraryCard rooms={rooms} summary={library} exam={exam} />
+  ) : null
+
   return (
     <div className="pb-6" aria-label="오늘 브리핑 영역">
-      {exam && <ExamCard exam={exam} />}
+      {exam && libraryCard}
       <div className="px-4 space-y-2" aria-label="오늘 브리핑">
       <h3 className="text-[13px] font-bold text-ink dark:text-ink px-0.5">오늘 브리핑</h3>
       {event && (
@@ -117,16 +164,8 @@ export default function HomeBriefing() {
           onClick={() => goTo('/cafeteria')}
         />
       )}
-      {library && (
-        <BriefingRow
-          icon={<BookOpen size={15} aria-hidden />}
-          label={`도서관 열람실 · ${library.label}`}
-          value={library.sub}
-          ariaLabel={`도서관 열람실 ${library.label} · 도서관 안내 열기 (새 탭)`}
-          onClick={() => window.open(LIBRARY_GUIDE_URL, '_blank', 'noopener,noreferrer')}
-        />
-      )}
       </div>
+      {!exam && libraryCard}
     </div>
   )
 }

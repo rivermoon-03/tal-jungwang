@@ -22,25 +22,25 @@ describe('useEffectiveDirection — KST 시간 경계', () => {
   it('KST 13:59는 등교', () => {
     // KST 13:59 == UTC 04:59
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T04:59:00Z')))
-    expect(result.current).toEqual({ direction: '등교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '등교', isOverride: false })
   })
 
   it('KST 14:00은 하교', () => {
     // KST 14:00 == UTC 05:00
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T05:00:00Z')))
-    expect(result.current).toEqual({ direction: '하교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '하교', isOverride: false })
   })
 
   it('KST 자정(00:00) 직후는 등교(자정 넘김 케이스)', () => {
     // KST 00:00 == UTC 전날 15:00
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-16T15:00:00Z')))
-    expect(result.current).toEqual({ direction: '등교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '등교', isOverride: false })
   })
 
   it('KST 23:59는 하교', () => {
     // KST 23:59 == UTC 14:59
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T14:59:00Z')))
-    expect(result.current).toEqual({ direction: '하교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '하교', isOverride: false })
   })
 })
 
@@ -49,14 +49,14 @@ describe('useEffectiveDirection — 우선순위', () => {
     useAppStore.setState({ directionOverride: '하교' })
     // 시간상으로는 등교(오전)여야 하지만 override가 이긴다.
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T00:00:00Z')))
-    expect(result.current).toEqual({ direction: '하교', isOverride: true })
+    expect(result.current).toMatchObject({ direction: '하교', isOverride: true })
   })
 
   it('commuteAutoMode=false면 commuteManualDirection 고정값을 반환한다', () => {
     useAppStore.setState({ commuteAutoMode: false, commuteManualDirection: '하교' })
     // 시간상으로는 등교(오전)여야 하지만 수동 모드가 이긴다.
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T00:00:00Z')))
-    expect(result.current).toEqual({ direction: '하교', isOverride: true })
+    expect(result.current).toMatchObject({ direction: '하교', isOverride: true })
   })
 })
 
@@ -65,7 +65,7 @@ describe('useEffectiveDirection — 위치 기반 보강', () => {
     useAppStore.setState({ userLocation: { lat: DEFAULT_CENTER.lat, lng: DEFAULT_CENTER.lng } })
     // KST 09:00 == UTC 00:00 → 시간만으로는 등교
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T00:00:00Z')))
-    expect(result.current).toEqual({ direction: '하교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '하교', isOverride: false })
   })
 
   it('2캠 근처에 있어도 하교로 보강한다', () => {
@@ -73,20 +73,20 @@ describe('useEffectiveDirection — 위치 기반 보강', () => {
       userLocation: { lat: SECOND_CAMPUS_CENTER.lat, lng: SECOND_CAMPUS_CENTER.lng },
     })
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T00:00:00Z')))
-    expect(result.current).toEqual({ direction: '하교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '하교', isOverride: false })
   })
 
   it('서울(캠퍼스에서 멀리)에 있으면(하교 시간대라도) 등교로 보강한다', () => {
     useAppStore.setState({ userLocation: { lat: 37.5665, lng: 126.9780 } })
     // KST 20:00 == UTC 11:00 → 시간만으로는 하교
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T11:00:00Z')))
-    expect(result.current).toEqual({ direction: '등교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '등교', isOverride: false })
   })
 
   it('userLocation이 null이면 위치 로직을 건너뛰고 시간 기반값을 쓴다', () => {
     useAppStore.setState({ userLocation: null })
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T11:00:00Z')))
-    expect(result.current).toEqual({ direction: '하교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '하교', isOverride: false })
   })
 
   it('캠퍼스와 애매한 거리(근접도 이탈도 아님)면 시간 기반값으로 폴백한다', () => {
@@ -94,6 +94,43 @@ describe('useEffectiveDirection — 위치 기반 보강', () => {
     useAppStore.setState({ userLocation: { lat: 37.3650, lng: 126.7335 } })
     // KST 09:00 == UTC 00:00 → 시간 기반이면 등교
     const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T00:00:00Z')))
-    expect(result.current).toEqual({ direction: '등교', isOverride: false })
+    expect(result.current).toMatchObject({ direction: '등교', isOverride: false })
+  })
+})
+
+// 제보된 버그: 오후인데 방향 칩이 '등교'로 뜨고 라벨은 "오전이라 등교"라고 했다.
+// 위치 보정이 시간 판정을 덮은 경우인데, 화면은 그 사실을 모른 채 결과값만 보고
+// 근거를 역추론했기 때문. 판정 근거(reason)를 훅이 직접 알려줘야 라벨이 정직해진다.
+describe('useEffectiveDirection — 판정 근거(reason)', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      directionOverride: null,
+      commuteAutoMode: true,
+      commuteManualDirection: null,
+      userLocation: null,
+    })
+  })
+
+  it('위치가 없으면 시간 기반(reason=time)', () => {
+    const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T11:00:00Z')))
+    expect(result.current).toEqual({ direction: '하교', isOverride: false, reason: 'time' })
+  })
+
+  it('오후라도 학교에서 멀면 등교로 보강하고 근거는 location이다', () => {
+    useAppStore.setState({ userLocation: { lat: 37.5665, lng: 126.9780 } }) // 서울
+    const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T11:00:00Z')))
+    expect(result.current).toEqual({ direction: '등교', isOverride: false, reason: 'location' })
+  })
+
+  it('캠퍼스 근처면 하교 + location', () => {
+    useAppStore.setState({ userLocation: { lat: 37.3400, lng: 126.7335 } })
+    const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T00:00:00Z')))
+    expect(result.current).toEqual({ direction: '하교', isOverride: false, reason: 'location' })
+  })
+
+  it('사용자 지정(override/수동)은 reason=manual', () => {
+    useAppStore.setState({ directionOverride: '등교' })
+    const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T11:00:00Z')))
+    expect(result.current).toEqual({ direction: '등교', isOverride: true, reason: 'manual' })
   })
 })

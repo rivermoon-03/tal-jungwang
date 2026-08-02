@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  라이트 테마 색 — frontend/DESIGN.md semantic 토큰과 1:1.
+  위젯 전용 색을 새로 만들지 않는다(앱과 위젯의 색이 갈라지면 둘 다 관리가 안 된다).
+-->
+<resources>
+    <color name="tj_bg">#FBFDFC</color>       <!-- --tj-bg -->
+    <color name="tj_surface">#F1F5F3</color>  <!-- --tj-surface -->
+    <color name="tj_line">#DDE5E1</color>     <!-- --tj-line -->
+    <color name="tj_ink">#17211D</color>      <!-- --tj-ink -->
+    <color name="tj_mute">#5F7570</color>     <!-- --tj-mute -->
+    <color name="tj_accent">#12A594</color>   <!-- --tj-accent -->
+    <color name="tj_badge_bg">#E0F8F3</color> <!-- --tj-accent-bg -->
+    <color name="tj_badge_ink">#0D7A6F</color><!-- --tj-accent-ink -->
+</resources>

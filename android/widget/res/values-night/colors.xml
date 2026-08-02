@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 다크 테마 — 앱 다크 토큰과 동일. 단순 반전이 아니라 앱과 같은 sage 사다리를 쓴다. -->
+<resources>
+    <color name="tj_bg">#101211</color>
+    <color name="tj_surface">#181C1A</color>
+    <color name="tj_line">#2A322E</color>
+    <color name="tj_ink">#E8EEEB</color>
+    <color name="tj_mute">#93A8A1</color>
+    <color name="tj_accent">#0BD8B6</color>
+    <color name="tj_badge_bg">#12302A</color>
+    <color name="tj_badge_ink">#4FE0C6</color>
+</resources>

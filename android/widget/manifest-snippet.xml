@@ -1,0 +1,20 @@
+<!--
+  AndroidManifest.xml 의 <application> 안에 붙여넣는다.
+  (TWA 프로젝트에는 INTERNET 권한이 이미 있으므로 별도 권한 추가는 필요 없다.)
+
+  ACTION_USER_PRESENT 를 함께 받는 이유: updatePeriodMillis 최소값이 30분이라
+  "잠금 해제하고 홈에서 위젯을 볼 때"가 가장 중요한 갱신 시점이기 때문.
+-->
+<receiver
+    android:name=".TalWidgetProvider"
+    android:label="@string/widget_label"
+    android:exported="false">
+    <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        <action android:name="android.intent.action.USER_PRESENT" />
+        <action android:name="kr.ac.tukorea.taljungwang.WIDGET_REFRESH" />
+    </intent-filter>
+    <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/tal_widget_info" />
+</receiver>
