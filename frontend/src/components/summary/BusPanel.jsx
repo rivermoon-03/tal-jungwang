@@ -140,13 +140,18 @@ export default function BusPanel() {
 
   const routeGroups = groupArrivalsByRoute(filteredArrivals)
 
-  // 실시간 ETA가 있는 그룹 / 없는 그룹(실시간 미연결 → 시간표 폴백)으로 분리
+  // 실시간 ETA가 있는 그룹 / 없는 그룹(실시간 미연결 → 시간표 폴백) / 운행 시간대
+  // 밖인 그룹으로 분리. 세 번째가 없던 시절엔 막차가 끊긴 노선도 "실시간 연결 중 ·
+  // 잠시 후 다시 확인"으로 떠서, 오지 않을 차를 기다리게 만들었다.
   const liveRows = []
   const fallbackGroups = []
+  const sleepingGroups = []
   for (const group of routeGroups) {
     const a = group[0]
     const sec = arrivalEntryToSeconds(a)
-    if (sec == null && !a.is_tomorrow) {
+    if (a.off_service) {
+      sleepingGroups.push(group)
+    } else if (sec == null && !a.is_tomorrow) {
       fallbackGroups.push(group)
     } else {
       liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal, reportByRoute }))
@@ -164,6 +169,8 @@ export default function BusPanel() {
   const missingRoutes = expectedRoutes.filter((r) => !presentRouteNos.has(r.route_no))
 
   const hasRunning = runningRows.length > 0 || fallbackGroups.length > 0
+  // 첫차 전(자정~새벽)과 막차 후는 둘 다 "지금 안 다닌다"지만 헤더로는 구분한다.
+  const allEndedForToday = sleepingGroups.every((g) => g[0].next_first_day !== 'today')
 
   return (
     <div className="space-y-3">
@@ -192,6 +199,25 @@ export default function BusPanel() {
         </section>
       )}
 
+      {sleepingGroups.length > 0 && (
+        <section>
+          <h3 className="text-[12px] font-bold text-mute mb-1.5">
+            {allEndedForToday ? '오늘 운행 종료' : '지금은 운행 안 함'}
+          </h3>
+          <div className="space-y-2">
+            {sleepingGroups.map((group) => (
+              <SleepingCard
+                key={group[0].route_no}
+                arrival={group[0]}
+                station={selectedBusStation}
+                direction={selectedBusDirection}
+                onOpenDetail={setDetailModal}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {missingRoutes.length > 0 && (
         <NotRunningSection
           routes={missingRoutes}
@@ -201,7 +227,7 @@ export default function BusPanel() {
         />
       )}
 
-      {imminentRows.length === 0 && !hasRunning && missingRoutes.length === 0 && (
+      {imminentRows.length === 0 && !hasRunning && sleepingGroups.length === 0 && missingRoutes.length === 0 && (
         <div className="text-caption text-mute py-6 text-center">
           실시간 정보를 가져오는 중이에요. 잠시 후 다시 확인해 주세요.
         </div>
@@ -333,6 +359,38 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpe
  * 노선번호로 다시 조회하면 source로 연결하지 않은 원본 시간표까지 끌어오게 된다.
  * 값이 비어도 카드는 상세로 진입 가능해야 한다(정보 부재 ≠ 상세 부재).
  */
+/**
+ * 운행 시간대 밖인 노선 카드. 목록에서 지우지 않는 이유: 막차가 끝난 걸 확인하러
+ * 오거나 내일 첫차를 보러 오는 사람이 있다. 대신 달 + Zzz 로 상태를 먼저 말한다.
+ */
+function SleepingCard({ arrival, station, direction, onOpenDetail }) {
+  const category = arrival.category ?? direction
+  const cfg = getRouteDisplayConfig(arrival.route_no)
+  const { title, viaChip } = getRouteTitleAndVia(arrival.route_no, category, arrival.destination)
+
+  const dayWord = arrival.next_first_day === 'today' ? '오늘' : '내일'
+  const firstLabel = arrival.next_first_at ? `${dayWord} 첫차 ${arrival.next_first_at}` : null
+
+  return (
+    <TransitCard
+      badge={{ label: arrival.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
+      title={title}
+      subtitle={boardingLabel(arrival, station, direction) || undefined}
+      sleeping={{ label: firstLabel }}
+      chips={viaChip ? [{ label: viaChip, tone: 'neutral' }] : []}
+      muted
+      eta={{ primary: { text: arrival.next_first_day === 'today' ? '운행 전' : '운행 종료', tone: 'muted' } }}
+      onClick={() => openBusDetail(onOpenDetail, {
+        routeNumber: arrival.route_no,
+        routeId: arrival.route_id ?? null,
+        station,
+        category,
+        title: `${arrival.route_no} · ${title}`,
+      })}
+    />
+  )
+}
+
 function BusFallbackCard({ arrival, station, direction, onOpenDetail }) {
   const category = arrival.category ?? direction
   const cfg = getRouteDisplayConfig(arrival.route_no)

@@ -148,6 +148,12 @@ function useBusSourceState(source, routeCode, category) {
       hhmm: next ?? null,
       imminent: false,
       timeLines: next ? null : (timetable.data?.times?.length ? ['금일', '종료'] : ['운행일', '확인']),
+      // 시간열의 "금일 종료"는 56px 안 두 단어라 목록을 훑을 때 잘 안 읽힌다.
+      // 본문 쪽 달 아이콘이 상태를 먼저 말하고, 첫차 시각이 다음 행동을 준다.
+      sleeping: !next && Boolean(timetable.data?.times?.length),
+      sleepingLabel: !next && timetable.data?.times?.length
+        ? `다음 운행일 첫차 ${timetable.data.times[0]}`
+        : null,
     }
   } else {
     const list = Array.isArray(arrivals.data) ? arrivals.data : arrivals.data?.arrivals ?? []
@@ -251,6 +257,8 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHas
         routeCode={routeCode}
         title={`${commuteContext.destination_label} 방면`}
         timeLines={displaySnapshot?.timeLines ?? null}
+        sleeping={Boolean(displaySnapshot?.sleeping)}
+        sleepingLabel={displaySnapshot?.sleepingLabel ?? null}
         minutesUntil={displaySnapshot?.minutesUntil ?? null}
         hhmm={displaySnapshot?.hhmm ?? null}
         imminent={displaySnapshot?.imminent ?? false}
