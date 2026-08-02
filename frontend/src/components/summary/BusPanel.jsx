@@ -13,6 +13,7 @@ import TransitCard from '../ui/TransitCard.jsx'
 import { formatEta } from '../../utils/eta'
 import { labelFromLevel, toneFromLevel } from '../../utils/crowdingLevel'
 import { arrivalEntryToSeconds, arrivalSecondsToMinutes, groupArrivalsByRoute } from '../../utils/busArrivalRows'
+import { useActiveBusReports, busReportChipLabel } from '../../hooks/useBusReports'
 import {
   getGbisStationId,
   getPerRouteDisplay, getRoutesFor,
@@ -66,6 +67,16 @@ export default function BusPanel() {
 
   // gbis 정류장(한국공학대/이마트/시흥시청): arrivals API 통합 사용
   const arrivalsQuery = useBusArrivals(gbisStationId)
+
+  // F6 — 이 정류장의 활성(30분) 만차·결행 제보 → 노선별 경고 칩
+  const activeReportsQuery = useActiveBusReports(gbisStationId)
+  const reportByRoute = useMemo(() => {
+    const map = {}
+    for (const item of activeReportsQuery.data?.items ?? []) {
+      if (!map[item.route_no]) map[item.route_no] = item
+    }
+    return map
+  }, [activeReportsQuery.data])
 
   // 서울 정류장: 기존 whitelist 방식 유지
   const isSeoulStation = gbisStationId === null
@@ -138,7 +149,7 @@ export default function BusPanel() {
     if (sec == null && !a.is_tomorrow) {
       fallbackGroups.push(group)
     } else {
-      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal }))
+      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal, reportByRoute }))
     }
   }
 
@@ -213,7 +224,7 @@ function boardingLabel(arrival, station, direction) {
 }
 
 /** 실시간 ETA가 확보된 그룹 하나 → {sec, node(TransitCard)}. */
-function buildLiveRow(group, { station, direction, onOpenDetail }) {
+function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute = {} }) {
   const a = group[0]
   const a2 = group[1] ?? null
   const sec = arrivalEntryToSeconds(a)
@@ -231,6 +242,9 @@ function buildLiveRow(group, { station, direction, onOpenDetail }) {
   const chips = []
   if (a.arrival_type === 'realtime') chips.push({ label: '실시간', tone: 'realtime' })
   if (crowdedLabel) chips.push({ label: crowdedLabel, tone: toneFromLevel(a.crowded) })
+  // F6 — 활성 만차·결행 제보 경고(혼잡 칩보다 구체적 정보라 경유 칩보다 앞)
+  const report = reportByRoute[a.route_no]
+  if (report) chips.push({ label: busReportChipLabel(report), tone: 'warn' })
   if (viaChip) chips.push({ label: viaChip, tone: 'neutral' })
 
   const imminent = !a.is_tomorrow && sec != null && sec <= SOON_THRESHOLD_SEC

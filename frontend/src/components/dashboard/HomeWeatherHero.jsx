@@ -322,6 +322,23 @@ export default function HomeWeatherHero({ onOpenMap }) {
           강수 <span className="tabular-nums">{weather.rainProb}%</span>
         </span>
       )}
+      {/* F5 이동 지수 — 걷기 판정 + 미세먼지(에어코리아 승인 전에는 지수만) */}
+      {weather?.walkIndex && (
+        <span
+          className={`whero-windpill ${
+            weather.walkIndex.level === 'transit' || weather.walkIndex.level === 'indoor' ? 'is-strong' : ''
+          } inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-bold`}
+          title={weather.walkIndex.reason}
+        >
+          {weather.walkIndex.label}
+        </span>
+      )}
+      {(weather?.pm25Grade || (weather?.pm10Grade && weather.pm10Grade !== '알수없음')) && (
+        <span className="whero-ink-2 text-caption font-semibold">
+          미세 {weather.pm25Grade ?? weather.pm10Grade}
+          {weather?.pm25 != null && <span className="tabular-nums"> {weather.pm25}</span>}
+        </span>
+      )}
     </>
   )
 

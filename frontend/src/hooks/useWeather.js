@@ -32,6 +32,13 @@ export function useWeather() {
       rainProb:    raw.rain_prob     ?? raw.rainProb      ?? null,
       windSpeed:   raw.wind_speed    ?? raw.windSpeed     ?? null,
       pm10Grade:   raw.pm10_grade    ?? raw.pm10Grade     ?? null,
+      // F5 — 에어코리아 실측 + 이동 지수(없으면 null: 프런트는 조용히 숨김)
+      pm25Grade:   raw.pm25_grade    ?? raw.pm25Grade     ?? null,
+      pm10:        raw.pm10          ?? null,
+      pm25:        raw.pm25          ?? null,
+      walkIndex:   raw.walk_index
+        ? { level: raw.walk_index.level, label: raw.walk_index.label, reason: raw.walk_index.reason }
+        : null,
       warning: w ? {
         type:      w.type      ?? null,
         startHour: w.start_hour ?? w.startHour ?? null,

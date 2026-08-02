@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../../hooks/useMore', () => ({
   useAcademicCalendar: vi.fn(),
+  useLibraryHours: vi.fn(() => ({ data: null, loading: false, error: null })),
 }))
 vi.mock('../../hooks/useCafeteria', () => ({
   useCafeteriaMenu: vi.fn(),
@@ -69,5 +70,37 @@ describe('HomeBriefing (F1)', () => {
   it('오늘 키가 없으면(주말 등) 학식 요약은 null', () => {
     vi.setSystemTime(new Date('2026-08-09T09:00:00+09:00')) // 다음 일요일
     expect(summarizeTodayMenu(MENU)).toBe(null)
+  })
+
+  it('시험 D-7 이내면 시험기간 카드 + 도서관 개관시간이 뜬다(F7)', async () => {
+    const { useLibraryHours } = await import('../../hooks/useMore')
+    useLibraryHours.mockReturnValue({
+      data: [
+        { room: '자료열람실(3층)', period: '학기', hours: '평일 09:00 ~ 22:00', closed: false },
+      ],
+      loading: false,
+      error: null,
+    })
+    useAcademicCalendar.mockReturnValue({
+      data: { next: { title: '2학기 기말고사', start_date: '2026-08-06', end_date: '2026-08-12' }, upcoming: [] },
+      loading: false,
+      error: null,
+    })
+    useCafeteriaMenu.mockReturnValue({ data: null, loading: false, error: null })
+    render(<HomeBriefing />)
+    expect(screen.getByText(/기말고사 D-3/)).toBeInTheDocument()
+    expect(screen.getByText('자료열람실(3층)')).toBeInTheDocument()
+    expect(screen.getByText('평일 09:00 ~ 22:00')).toBeInTheDocument()
+  })
+
+  it('시험이 멀면(7일 초과) 시험 카드는 없다', () => {
+    useAcademicCalendar.mockReturnValue({
+      data: { next: { title: '2학기 기말고사', start_date: '2026-10-19', end_date: '2026-10-25' }, upcoming: [] },
+      loading: false,
+      error: null,
+    })
+    useCafeteriaMenu.mockReturnValue({ data: null, loading: false, error: null })
+    render(<HomeBriefing />)
+    expect(screen.queryByText(/기말고사 D-/)).not.toBeInTheDocument()
   })
 })

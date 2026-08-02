@@ -32,6 +32,32 @@ class DepartmentNotice(Base):
     )
 
 
+class SchoolBoardNotice(Base):
+    """전교 게시판 공지(DS1 — 학사/장학/취업/비교과/생활관).
+
+    목록 페이지에서 제목·게시일·원문링크만 수집한다(본문 저장 금지 —
+    tukorea_boards.py 머리말 참고). (category, external_id) UNIQUE로
+    재수집 시 중복 삽입을 막는다.
+    """
+
+    __tablename__ = "school_board_notices"
+    __table_args__ = (
+        UniqueConstraint(
+            "category", "external_id", name="uq_school_board_notices_category_external_id"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)
+    external_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class AcademicCalendarEvent(Base):
     """학사일정. 학교 사이트가 매 스크레이핑마다 현재 시점 기준 전체 목록을
     권위 있는 스냅샷으로 제공하므로, (title, start_date, end_date) UNIQUE +
