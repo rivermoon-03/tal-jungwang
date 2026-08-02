@@ -68,6 +68,35 @@ export function getTodayDayKey(weekStart, year, dayKeys) {
 }
 
 /**
+ * 식단 주차가 이미 지났는지(오늘이 주차 마지막 날 이후인지) 판정.
+ * 원본(ibook 주간 식단표)이 다음 주차를 늦게 올리는 동안 지난주 식단이
+ * 아무 표시 없이 보이면 이번 주 식단으로 오해한다 — 그때 "지난주 식단" 라벨을
+ * 붙이기 위한 헬퍼. dayKeys가 월 경계를 넘는 주(7/27~8/1)도 처리한다.
+ */
+export function isMenuWeekStale(weekStart, year, dayKeys) {
+  if (!weekStart || !year || !dayKeys?.length) return false
+  const [mStr, dStr] = weekStart.split('.')
+  const m = Number(mStr)
+  const startDay = Number(dStr)
+  if (!m || !startDay) return false
+
+  // 주 시작일부터 최대 2주를 스캔해 dayKeys에 있는 마지막 날짜를 찾는다
+  // (dayKeys는 day-of-month 문자열이라 월 경계를 스스로 알지 못한다).
+  const keySet = new Set(dayKeys.map(String))
+  let lastDate = null
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(Date.UTC(year, m - 1, startDay + i))
+    if (keySet.has(String(d.getUTCDate()))) lastDate = d
+  }
+  if (!lastDate) return false
+
+  // KST 기준 오늘 (getTodayDayKey와 동일 방식)
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const todayUtcMidnight = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate())
+  return todayUtcMidnight > lastDate.getTime()
+}
+
+/**
  * by_day의 첫 번째 키를 반환 (정렬 후). fallback용.
  */
 export function getFirstDayKey(dayKeys) {

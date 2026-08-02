@@ -25,6 +25,7 @@ import {
   isKstWeekend,
   hasDayMenu,
   getNearestMenuDayKey,
+  isMenuWeekStale,
 } from '../utils/cafeteriaDays'
 import { formatUpdated } from '../utils/cafeteriaFormat'
 
@@ -110,6 +111,16 @@ export default function CafeteriaPage() {
         <p className="px-4 -mt-2 mb-2 text-caption text-mute">
           {updatedLabel}
         </p>
+      )}
+
+      {/* 원본(주간 식단표)이 아직 다음 주를 게시하지 않아 지난주 식단이 보이는 상태 —
+          이번 주 식단으로 오해하지 않게 명시한다 */}
+      {mainTab === 'diet' && isMenuWeekStale(data?.week_start, data?.year, dayKeys) && (
+        <div className="px-4 pb-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill bg-imminent-bg text-imminent text-caption font-semibold">
+            지난주 식단 · 새 식단이 아직 게시되지 않았어요
+          </span>
+        </div>
       )}
 
       {/* 메인 탭: 식단 / 운영정보 */}

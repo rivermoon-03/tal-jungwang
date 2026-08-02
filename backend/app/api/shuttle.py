@@ -7,8 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
-from app.schemas.shuttle import ShuttleNextResponse, ShuttleScheduleResponse
-from app.services.shuttle import get_next, get_schedule, get_semester_schedule
+from app.schemas.shuttle import (
+    ShuttleNextResponse,
+    ShuttlePeriodsResponse,
+    ShuttleScheduleResponse,
+)
+from app.services.shuttle import get_next, get_periods, get_schedule, get_semester_schedule
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -33,6 +37,23 @@ async def shuttle_schedule(
         return ApiResponse.fail("NO_SCHEDULE", "해당 날짜에 적용되는 스케줄이 없습니다.")
     response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=3600"
     return ApiResponse[ShuttleScheduleResponse].ok(result)
+
+
+@router.get("/periods")
+@limiter.limit("60/minute")
+async def shuttle_periods(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """오늘 전후의 셔틀 운행 기간 목록 — 시간표 상세의 기간 전환 칩용.
+
+    기간(계절학기/단축근무/정상근무 등)이 없어도 200 + 빈 목록을 반환한다
+    (칩 UI가 조용히 사라지는 게 맞고, 에러 봉투는 과하다).
+    """
+    result = await get_periods(db, datetime.now(KST).date())
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=7200"
+    return ApiResponse[ShuttlePeriodsResponse].ok(result)
 
 
 @router.get("/semester-schedule")

@@ -283,7 +283,10 @@ CREATE TABLE shuttle_timetable_entries (
     shuttle_route_id    INTEGER     NOT NULL REFERENCES shuttle_routes(id)   ON DELETE CASCADE,
     day_type            VARCHAR(10) NOT NULL CHECK (day_type IN ('weekday', 'saturday', 'sunday')),
     departure_time      TIME        NOT NULL,
-    note                VARCHAR(100)
+    note                VARCHAR(100),
+    -- 방학 시간표의 근무제/학사 구분(학교 PDF 색상 구분을 그대로 옮김).
+    -- seasonal=계절학기(빨강) | reduced=단축근무(초록) | normal=정상근무 | NULL=기간 내 공통
+    variant             VARCHAR(20) CHECK (variant IN ('seasonal', 'reduced', 'normal'))
 );
 
 CREATE INDEX idx_shuttle_tt_period_route_day

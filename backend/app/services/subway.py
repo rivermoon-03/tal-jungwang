@@ -135,18 +135,21 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
 
     nexts: dict[str, dict | None] = {}
     for direction in directions:
-        items = sorted(candidates[direction], key=lambda x: x[0])[:2]
-        if not items:
+        remaining = sorted(candidates[direction], key=lambda x: x[0])
+        if not remaining:
             nexts[direction] = None
             continue
-        first = items[0]
-        second = items[1] if len(items) >= 2 else None
+        first = remaining[0]
+        second = remaining[1] if len(remaining) >= 2 else None
         nexts[direction] = {
             "depart_at": first[1],
             "arrive_in_seconds": first[0],
             "destination": first[2],
             "next_depart_at": second[1] if second else None,
             "next_arrive_in_seconds": second[0] if second else None,
+            # 막차 강조(야간 사용 시나리오) — 남은 열차 기준이라 정확히 "오늘의 막차"다.
+            "is_last": len(remaining) == 1,
+            "last_depart_at": remaining[-1][1],
         }
 
     return nexts

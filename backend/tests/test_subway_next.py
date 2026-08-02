@@ -177,3 +177,26 @@ async def test_자정_보정_후_정렬_정확():
     assert r2["up"]["arrive_in_seconds"] == 11 * 60
     assert r2["up"]["next_depart_at"] == "00:10"
     assert r2["up"]["next_arrive_in_seconds"] == 20 * 60
+
+
+# ── 7. 막차 강조 (is_last / last_depart_at) ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_막차_플래그와_막차_시각():
+    """남은 열차가 여러 대면 is_last=False + last_depart_at=마지막 시각,
+    한 대만 남으면 is_last=True."""
+    entries = _entries([
+        ("up", "22:00:00", "왕십리"),
+        ("up", "23:00:00", "왕십리"),
+        ("up", "23:40:00", "왕십리"),
+    ])
+
+    r1 = await _run_get_next(entries, TODAY, time(21, 30))
+    assert r1["up"]["is_last"] is False
+    assert r1["up"]["last_depart_at"] == "23:40"
+
+    r2 = await _run_get_next(entries, TODAY, time(23, 10))
+    assert r2["up"]["is_last"] is True
+    assert r2["up"]["depart_at"] == "23:40"
+    assert r2["up"]["last_depart_at"] == "23:40"

@@ -152,6 +152,23 @@ export default function App() {
     if (initial !== activeTab) setActiveTab(initial)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // F8 — PWA 숏컷 '등교 모드/하교 모드' 딥링크(?commute=up|down).
+  // 세션 전용 퀵토글(directionOverride)만 세팅한다 — persist되는 수동 모드
+  // (commuteAutoMode)를 건드리면 숏컷 한 번에 자동 판정이 영구히 꺼져버린다.
+  // 처리 후 쿼리는 지워 새로고침 시 재적용을 막는다.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const commute = params.get('commute')
+    if (commute !== 'up' && commute !== 'down') return
+    useAppStore.getState().setDirectionOverride(commute === 'up' ? '등교' : '하교')
+    params.delete('commute')
+    const qs = params.toString()
+    window.history.replaceState(
+      null, '',
+      window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash
+    )
+  }, [])
+
   useEffect(() => {
     const onPop = () => {
       const page = pathnameToPage(window.location.pathname)

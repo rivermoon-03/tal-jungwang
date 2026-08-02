@@ -30,7 +30,18 @@ vi.mock('../stores/useAppStore', () => ({
 }))
 
 vi.mock('../components/layout/PageHeader', () => ({
-  default: ({ title }) => <header data-testid="page-header">{title}</header>,
+  default: ({ title, action }) => (
+    <header data-testid="page-header">
+      {title}
+      {action}
+    </header>
+  ),
+}))
+
+// D6 테스트에서 헤더 설정 버튼 → 설정 서브페이지 전환만 검증한다.
+// 실제 SettingsPage는 push/store 의존이 많아 여기서는 스텁으로 충분하다.
+vi.mock('../components/more/SettingsPage', () => ({
+  default: () => <div data-testid="settings-page" />,
 }))
 
 // DarkModeSegment는 useAppStore를 직접 사용하므로 모킹
@@ -218,6 +229,17 @@ describe('MorePage — 세그먼트 탭 [학사공지] [앱 공지]', () => {
     render(<MorePageContent />)
     fireEvent.click(screen.getByRole('tab', { name: '앱 공지' }))
     expect(screen.queryByText('빠른 설정')).not.toBeInTheDocument()
+  })
+
+  it('헤더의 설정 버튼으로 어느 탭에서든 설정에 들어갈 수 있다(D6 — 발견성)', () => {
+    render(<MorePageContent />)
+    // 기본(학사공지) 탭에서도 헤더에 설정 진입점이 보인다
+    fireEvent.click(screen.getByRole('button', { name: '설정' }))
+    expect(screen.getByTestId('settings-page')).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '학사공지' })).not.toBeInTheDocument()
+    // openSettings가 pushState한 /more/settings가 다음 테스트의 초기 subPage를
+    // 오염시키지 않도록 URL을 원복한다(jsdom location은 파일 내에서 공유됨).
+    window.history.pushState(null, '', '/')
   })
 
   it('학사공지 탭의 원문 링크는 새 탭(target=_blank) + rel=noopener noreferrer로 연다', () => {

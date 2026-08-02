@@ -15,7 +15,7 @@ import { Drawer } from 'vaul'
 import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats, useBusCommuteContexts } from '../../hooks/useBus'
-import { useShuttleSchedule } from '../../hooks/useShuttle'
+import { useShuttleSchedule, useShuttlePeriods } from '../../hooks/useShuttle'
 import { useSubwayTimetable } from '../../hooks/useSubway'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
 import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
@@ -28,6 +28,16 @@ import { scrollToCenter } from '../../utils/scrollToCenter'
 import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
 import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
 import { buildDisplayList, DIRECTION_LABELS } from '../shuttle/shuttleSchedule'
+import {
+  PERIOD_VARIANTS,
+  periodVariantKey,
+  periodRangeLabel,
+  pickCurrentPeriod,
+  representativeWeekday,
+  shortPeriodName,
+  variantsInTimes,
+  visiblePeriods,
+} from '../shuttle/shuttlePeriods'
 import SegmentedControl from '../ui/SegmentedControl'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 
@@ -58,9 +68,10 @@ function scheduleTypeLabel(type) {
 
 // ─── shared list row ────────────────────────────────────────────────────
 
-function TimeRow({ time, isNext, isLast, destination, note, rowRef, bell }) {
+function TimeRow({ time, isNext, isLast, destination, note, rowRef, bell, variant = null, hideCountdown = false }) {
   const isHHMM = typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)
-  const mins = isHHMM ? minutesUntil(time) : null
+  const mins = isHHMM && !hideCountdown ? minutesUntil(time) : null
+  const variantMeta = variant ? PERIOD_VARIANTS[variant] : null
   return (
     <div
       ref={rowRef}
@@ -82,6 +93,13 @@ function TimeRow({ time, isNext, isLast, destination, note, rowRef, bell }) {
       >
         {time}
       </span>
+      {variantMeta && (
+        <span
+          aria-label={variantMeta.label}
+          title={variantMeta.label}
+          className={`w-2 h-2 rounded-full flex-shrink-0 ${variantMeta.dotClass}`}
+        />
+      )}
       {(destination || note) && (
         <span className="text-meta font-medium text-mute dark:text-mute truncate">
           {destination || note}
@@ -446,6 +464,15 @@ function lastSaturdayDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// 셔틀 승차 위치 안내 — 학교 시간표 PDF '셔틀버스 탑승 장소 안내' 페이지 기준.
+// 처음 타는 사람이 가장 헤매는 정보라 시간표 위에 상시 노출한다.
+const SHUTTLE_BOARDING_INFO = {
+  0: '정왕역 셔틀 탑승장 승차 · 17시 이후는 파리바게뜨 건너편',
+  1: '학교 하교 탑승장(정왕역 방향)에서 승차',
+  2: '본교 산융관 앞 출발 · 첫차 09:00는 정왕역 꽃집앞 출발',
+  3: '2캠퍼스 정문 승차장 승차 (정왕역·본교 방향 동일)',
+}
+
 function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   const isSecondCampus = direction >= 2
   // 알림 예약 UI(F3-3 실화면 배선) — 이 콘텐츠가 마운트돼 있는 동안(=셔틀 상세
@@ -464,6 +491,26 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   // 등교 회차편의 하교 출발 시각 판정을 위해 양 방향을 한 번에 조회.
   // (direction 쿼리를 생략하면 백엔드가 양 방향을 함께 반환 — 로딩 경합 제거)
   const today = useShuttleSchedule()
+
+  // ── 기간 전환 칩(D1) — 방학 시간표의 계절학기/단축근무/정상근무 색상 분류 ──
+  // 디폴트는 오늘이 속한 기간. 다른 칩을 누르면 그 기간의 평일 시간표를
+  // 미리보기로 조회한다(카운트다운·알림 종은 오늘 시간표에서만 의미가 있어 숨김).
+  const periodsQuery = useShuttlePeriods()
+  const todayStr = (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+  // 칩 노이즈 방지 — 진행 중·미래·최근 종료(2주) 기간만 노출
+  const periods = visiblePeriods(periodsQuery.data?.periods ?? [], todayStr)
+  const currentPeriod = pickCurrentPeriod(periods, todayStr)
+  const [selectedPeriodId, setSelectedPeriodId] = useState(null) // null = 오늘(현재 기간)
+  const previewPeriod =
+    selectedPeriodId != null && selectedPeriodId !== currentPeriod?.id
+      ? periods.find((p) => p.id === selectedPeriodId) ?? null
+      : null
+  const previewing = previewPeriod != null
+  const previewDate = previewing ? representativeWeekday(previewPeriod, todayStr) : null
+  const previewQuery = useShuttleSchedule(undefined, previewDate, { enabled: previewing })
   // 미운행일이면 다음 평일 시간표를 폴백으로 fetch.
   const offDay = isShuttleOffDay(direction)
   const weekdayDate = offDay ? nextWeekdayDateStr() : null
@@ -490,16 +537,21 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   const useSaturday = isSecondCampus && effectiveKind === 'saturday'
   const fallback = useSaturday ? saturdayFallback : weekdayFallback
 
-  const data = usingFallback ? fallback.data : today.data
+  // 미리보기가 켜져 있으면 폴백보다도 우선한다(사용자의 명시적 선택).
+  const data = previewing ? previewQuery.data : (usingFallback ? fallback.data : today.data)
   // 폴백 fetch가 끝나기 전엔 EmptyMsg가 잠깐 깜빡일 수 있으므로,
   // 미운행일이면 폴백 loading도 함께 봐서 모두 끝나야 EmptyMsg를 보여준다.
-  const loading = today.loading || (offDay && (weekdayFallback.loading || (isSecondCampus && saturdayFallback.loading)))
-  const error = today.error && (!offDay || (weekdayFallback.error && (!isSecondCampus || saturdayFallback.error)))
+  const loading = previewing
+    ? previewQuery.loading
+    : today.loading || (offDay && (weekdayFallback.loading || (isSecondCampus && saturdayFallback.loading)))
+  const error = previewing
+    ? previewQuery.error
+    : today.error && (!offDay || (weekdayFallback.error && (!isSecondCampus || saturdayFallback.error)))
 
   const nextRef = useRef(null)
   const now = new Date()
-  // 폴백 모드: 평일 시간표 전체를 보여주기 위해 모든 시각을 "미래"로 취급.
-  const nowStr = usingFallback ? '00:00' : toHHMM(now)
+  // 폴백/미리보기 모드: 시간표 전체를 보여주기 위해 모든 시각을 "미래"로 취급.
+  const nowStr = usingFallback || previewing ? '00:00' : toHHMM(now)
   const dirData = data?.directions?.find((d) => d.direction === direction)
   const times = dirData?.times ?? []
 
@@ -510,9 +562,10 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   const normalizedTimes = times.map((t) => ({
     depart_at: (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5),
     note: typeof t === 'object' ? t?.note ?? null : null,
+    variant: typeof t === 'object' ? t?.variant ?? null : null,
   }))
   const stripDisplayList = buildDisplayList(normalizedTimes)
-  const stripNowMinutes = usingFallback ? 0 : now.getHours() * 60 + now.getMinutes()
+  const stripNowMinutes = usingFallback || previewing ? 0 : now.getHours() * 60 + now.getMinutes()
   const stripNextIndex = stripDisplayList.findIndex((item) =>
     item.type === 'fixed' ? item.minutes > stripNowMinutes : item.endMin > stripNowMinutes
   )
@@ -551,8 +604,9 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   for (const t of times) {
     const timeStr = (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5)
     const note = typeof t === 'object' ? t?.note : null
-    if (timeStr >= nowStr) future.push({ time: timeStr, note })
-    else past.push({ time: timeStr, note })
+    const variant = typeof t === 'object' ? t?.variant ?? null : null
+    if (timeStr >= nowStr) future.push({ time: timeStr, note, variant })
+    else past.push({ time: timeStr, note, variant })
   }
 
   // 마지막 과거 항목이 "회차편 · 학교 수시운행 출발"이면
@@ -593,6 +647,7 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
           key: `fx-${e.time}-${i}`,
           time: e.time,
           note: e.note,
+          variant: e.variant ?? null,
           isReturn,
           isFrequentReturn,
           originTime,
@@ -609,21 +664,65 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
   if (loading) return <LoadingList />
   if (error) return <ErrorMsg />
   // 폴백조차 없는(또는 선택과 무관하게 둘 다 비어있는) 진짜 empty 케이스만 여기서 차단.
-  // usingFallback 상태에서는 배너(셀렉터 포함)를 유지해 사용자가 다른 탭으로 토글할 수 있게 한다.
-  if (!times.length && !usingFallback) {
+  // usingFallback/미리보기 상태에서는 배너·기간 칩을 유지해 사용자가 되돌아갈 수 있게 한다.
+  if (!times.length && !usingFallback && !previewing) {
     const offText = isSecondCampus
       ? '일요일·공휴일에는 2캠 셔틀이 운행하지 않고, 평일·토요일 시간표도 아직 준비되지 않았어요.'
       : '주말·공휴일에는 셔틀이 운행하지 않고, 평일 시간표도 아직 준비되지 않았어요.'
     return <EmptyMsg text={offDay ? offText : '오늘 셔틀 정보가 없어요'} />
   }
 
-  const selectedEmpty = usingFallback && times.length === 0
-  const allDone = !selectedEmpty && displayEntries.length === 0
+  const selectedEmpty = usingFallback && !previewing && times.length === 0
+  const previewEmpty = previewing && times.length === 0
+  const allDone = !selectedEmpty && !previewEmpty && displayEntries.length === 0
+
+  const presentVariants = variantsInTimes(times)
 
   return (
   <>
     <div className="flex flex-col gap-2">
-      {usingFallback && (
+      {periods.length >= 2 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-0.5 mb-1" role="group" aria-label="운행 기간 선택">
+          {periods.map((p) => {
+            const vKey = periodVariantKey(p)
+            const meta = vKey ? PERIOD_VARIANTS[vKey] : null
+            const isCurrent = p.id === currentPeriod?.id
+            const isActive = previewing ? p.id === previewPeriod.id : isCurrent
+            return (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => setSelectedPeriodId(isCurrent ? null : p.id)}
+                className={`px-2.5 py-1.5 rounded-pill text-caption font-semibold pressable transition-colors border ${
+                  isActive
+                    ? `${meta ? meta.chipClass : 'bg-accent-bg text-accent-ink dark:text-accent-ink'} border-transparent ring-1 ring-accent dark:ring-accent`
+                    : 'bg-surface-2 dark:bg-surface-2 text-mute dark:text-mute border-line dark:border-line'
+                }`}
+              >
+                {shortPeriodName(p.name)}
+                <span className="ml-1 font-medium tabular-nums">{periodRangeLabel(p)}</span>
+                {isCurrent && <span className="font-bold"> · 지금</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {previewing && (
+        <div className="mb-1 px-3.5 py-2.5 rounded-card bg-accent-bg dark:bg-accent-bg flex items-center gap-2">
+          <span className="text-caption font-bold text-accent-ink dark:text-accent-ink flex-1 min-w-0">
+            미리보기 · {previewPeriod.name} ({periodRangeLabel(previewPeriod)}) 평일 시간표
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedPeriodId(null)}
+            className="flex-shrink-0 px-2.5 py-1 rounded-pill bg-accent dark:bg-accent text-white dark:text-ink text-caption font-bold pressable"
+          >
+            오늘로
+          </button>
+        </div>
+      )}
+      {usingFallback && !previewing && (
         <div
           className="-mx-4 mb-2 px-5 py-3.5 flex items-start gap-3"
           style={{
@@ -677,17 +776,37 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
           )}
         </div>
       )}
-      {data?.schedule_name && !usingFallback && (
+      {data?.schedule_name && !usingFallback && !previewing && (
         <p className="text-meta font-semibold text-mute dark:text-mute mb-1">
           {data.schedule_name} · 총 {times.length}회 · 남은 {future.length}회
         </p>
       )}
-      {data?.schedule_name && usingFallback && !selectedEmpty && (
+      {data?.schedule_name && (usingFallback || previewing) && !selectedEmpty && !previewEmpty && (
         <p className="text-meta font-semibold text-mute dark:text-mute mb-1">
           {data.schedule_name} · 총 {times.length}회
         </p>
       )}
-      {selectedEmpty ? (
+      {presentVariants.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-1 mb-1">
+          {presentVariants.map((k) => (
+            <span key={k} className="flex items-center gap-1.5 text-caption font-medium text-mute dark:text-mute">
+              <span aria-hidden className={`w-2 h-2 rounded-full ${PERIOD_VARIANTS[k].dotClass}`} />
+              {PERIOD_VARIANTS[k].label} 편
+            </span>
+          ))}
+        </div>
+      )}
+      {SHUTTLE_BOARDING_INFO[direction] && (
+        <p className="flex items-start gap-1.5 px-1 mb-1 text-caption font-medium text-mute dark:text-mute leading-snug">
+          <MapPin size={13} aria-hidden className="mt-0.5 flex-shrink-0" />
+          {SHUTTLE_BOARDING_INFO[direction]}
+        </p>
+      )}
+      {previewEmpty ? (
+        <p className="text-body font-semibold text-mute text-center py-6 px-4 leading-relaxed">
+          이 기간의 평일 시간표가 비어 있어요.
+        </p>
+      ) : selectedEmpty ? (
         <p className="text-body font-semibold text-mute text-center py-6 px-4 leading-relaxed">
           선택한 <span className="font-semibold">{useSaturday ? '토요일' : '평일'}</span> 시간표가 비어 있어요.
           {isSecondCampus && (
@@ -711,17 +830,18 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
         // 좁아 부제까지 넣으면 다시 잘리는 문제(F4-2)로 되돌아가므로 최소만 표시.
         <NarrowPhoneStrip
           displayList={stripDisplayList}
-          nextIndex={stripNextIndex}
+          nextIndex={previewing ? -1 : stripNextIndex}
           nowMinutes={stripNowMinutes}
           isAlarmSet={(time) => isAlarmSet(time, direction)}
           onOpenSheet={openSheet}
           embedded
+          showBell={!previewing}
         />
       ) : (
         <>
           {past.slice(-2).map(({ time }, i) => <PastRow key={`p-${i}`} time={time} />)}
           {displayEntries.map((entry, i) => {
-          const isNext = i === 0
+          const isNext = !previewing && i === 0
           let displayTime
           let displayNote = null
           if (entry.type === 'frequent') {
@@ -753,9 +873,14 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
               isNext={isNext}
               accentColor={accentColor}
               rowRef={isNext ? nextRef : undefined}
+              variant={entry.variant ?? null}
+              // 폴백(주말→평일)·미리보기에선 "N분 뒤/곧 출발" 카운트다운이 오늘 기준이라
+              // 전부 어긋난다 — 시각만 보여준다.
+              hideCountdown={previewing || usingFallback}
               // 수시운행 밴드(entry.type === 'frequent')는 특정 편이 아니라 종을
               // 달 수 없다 — entry.time이 있는 편(회차편 포함)에만 종을 붙인다.
-              bell={entry.type === 'fixed' ? (
+              // 미리보기(다른 기간)에서는 오늘 알림이 어긋나므로 종을 숨긴다.
+              bell={entry.type === 'fixed' && !previewing ? (
                 <BellButton
                   time={entry.time}
                   isSet={isAlarmSet(entry.time, direction)}

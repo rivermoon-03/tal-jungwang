@@ -40,6 +40,12 @@ export function useShuttleSchedule(direction, dateStr, opts = {}) {
   return useApi(`/shuttle/schedule${q}`, { ttl: SCHEDULE_TTL, interval, ...opts })
 }
 
+// 셔틀 운행 기간 목록 — 시간표 상세의 기간 전환 칩(계절학기/단축근무/정상근무)용.
+// 기간 정보는 방학 개편 때나 바뀌므로 1시간 TTL, 폴링 없음.
+export function useShuttlePeriods(opts = {}) {
+  return useApi('/shuttle/periods', { ttl: 60 * 60 * 1000, ...opts })
+}
+
 // 방학 중 학기 시간표 — /shuttle/semester-schedule 엔드포인트 (평일 시간표 고정 반환)
 // direction 필터 가능. TTL 1시간(학기 시간표는 거의 안 바뀜).
 export function useShuttleSemesterSchedule(direction, opts = {}) {
