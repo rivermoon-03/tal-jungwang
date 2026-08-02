@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 class ShuttleTime(BaseModel):
     depart_at: str  # "HH:MM"
     note: str | None = None
+    variant: str | None = None  # seasonal(계절학기) | reduced(단축근무) | normal(정상근무) | None=공통
 
 
 class ShuttleDirection(BaseModel):
@@ -19,6 +20,20 @@ class ShuttleScheduleResponse(BaseModel):
     is_holiday: bool = Field(default=False)
     holiday_name: str | None = Field(default=None)
     directions: list[ShuttleDirection]
+
+
+class ShuttlePeriodItem(BaseModel):
+    id: int
+    period_type: str  # SEMESTER | VACATION | EXAM | HOLIDAY | SUSPENDED | SEASONAL
+    name: str
+    start_date: str  # "YYYY-MM-DD"
+    end_date: str  # "YYYY-MM-DD"
+    priority: int
+    notice_message: str | None = None
+
+
+class ShuttlePeriodsResponse(BaseModel):
+    periods: list[ShuttlePeriodItem]
 
 
 class ShuttleNextResponse(BaseModel):

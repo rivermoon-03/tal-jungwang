@@ -47,6 +47,7 @@ const SHUTTLE_DATA = {
 
 vi.mock('../../hooks/useShuttle', () => ({
   useShuttleSchedule: vi.fn(() => ({ data: SHUTTLE_DATA, loading: false, error: null })),
+  useShuttlePeriods: vi.fn(() => ({ data: { periods: [] }, loading: false, error: null })),
 }))
 
 let isNarrowPhone = false

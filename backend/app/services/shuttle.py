@@ -48,7 +48,9 @@ async def _load_period(db: AsyncSession, d: date) -> dict | None:
 
 async def _load_entries(db: AsyncSession, period_id: int, day: str) -> list[dict]:
     """셔틀 시간표 엔트리를 Redis 캐시에서 읽거나 DB에서 로드 후 캐시."""
-    cache_key = f"shuttle:entries:{period_id}:{day}"
+    # v2: variant 필드 추가(2026-08 방학 시간표). 키 버전을 올려 옛 shape 캐시와 분리
+    # — invalidate_shuttle_cache의 'shuttle:entries:*' 패턴에는 그대로 걸린다.
+    cache_key = f"shuttle:entries:v2:{period_id}:{day}"
     cached = await get_cached_json(cache_key)
     if cached is not None:
         return cached
@@ -70,6 +72,7 @@ async def _load_entries(db: AsyncSession, period_id: int, day: str) -> list[dict
             "direction": route.direction,
             "departure_time": entry.departure_time.strftime("%H:%M:%S"),
             "note": entry.note,
+            "variant": entry.variant,
         }
         for entry, route in rows
     ]
@@ -81,6 +84,53 @@ async def _load_entries(db: AsyncSession, period_id: int, day: str) -> list[dict
 async def get_current_period(db: AsyncSession, d: date) -> SchedulePeriod | None:
     """하위호환용 — 내부적으로 캐시된 _load_period 사용."""
     return await _load_period(db, d)
+
+
+_PERIODS_WINDOW_PAST_DAYS = 45     # 지난 기간도 잠깐 보여줌(방금 끝난 계절학기 등)
+_PERIODS_WINDOW_FUTURE_DAYS = 150  # 다음 학기 시작 기간까지 커버
+
+
+async def get_periods(db: AsyncSession, today: date) -> dict:
+    """오늘 전후의 셔틀 운행 기간 목록.
+
+    프런트 시간표 상세의 '기간 전환 칩'(계절학기/단축근무/정상근무 색상 분류)이
+    이 목록으로 만들어진다. 어떤 기간을 기본 선택할지(오늘 포함 기간)는
+    프런트가 start/end/priority로 계산한다.
+    """
+    cache_key = f"shuttle:periods:{today.isoformat()}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return cached
+
+    stmt = (
+        select(SchedulePeriod)
+        .where(
+            SchedulePeriod.end_date >= today - timedelta(days=_PERIODS_WINDOW_PAST_DAYS),
+            SchedulePeriod.start_date <= today + timedelta(days=_PERIODS_WINDOW_FUTURE_DAYS),
+        )
+        .order_by(SchedulePeriod.start_date.asc(), SchedulePeriod.priority.desc())
+    )
+    result = await db.execute(stmt)
+    periods = result.scalars().all()
+
+    data = {
+        "periods": [
+            {
+                "id": p.id,
+                "period_type": p.period_type,
+                "name": p.name,
+                "start_date": p.start_date.isoformat(),
+                "end_date": p.end_date.isoformat(),
+                "priority": p.priority,
+                "notice_message": p.notice_message,
+            }
+            for p in periods
+        ]
+    }
+    # 빈 목록도 캐시하되 짧게 — 기간 시드 직후 자가회복(_PERIOD_MISS_TTL과 같은 이유)
+    ttl = _PERIOD_TTL if data["periods"] else _PERIOD_MISS_TTL
+    await set_cached_json(cache_key, data, ttl=ttl)
+    return data
 
 
 async def invalidate_shuttle_cache() -> int:
@@ -112,7 +162,9 @@ async def get_schedule(
             continue
         if dir_key not in directions_map:
             directions_map[dir_key] = []
-        directions_map[dir_key].append({"depart_at": e["departure_time"][:5], "note": e["note"]})
+        directions_map[dir_key].append(
+            {"depart_at": e["departure_time"][:5], "note": e["note"], "variant": e.get("variant")}
+        )
 
     return {
         "schedule_type": period["period_type"],
@@ -228,7 +280,9 @@ async def get_semester_schedule(
             continue
         if dir_key not in directions_map:
             directions_map[dir_key] = []
-        directions_map[dir_key].append({"depart_at": e["departure_time"][:5], "note": e["note"]})
+        directions_map[dir_key].append(
+            {"depart_at": e["departure_time"][:5], "note": e["note"], "variant": e.get("variant")}
+        )
 
     return {
         "schedule_type": period_data["period_type"],

@@ -8,6 +8,7 @@ import ErrorState from '../ui/ErrorState'
 import MascotDot from '../ui/MascotDot'
 import TransitCard from '../ui/TransitCard.jsx'
 import { getNextShuttleBusInfo } from '../../utils/nextShuttleBus.js'
+import { PERIOD_VARIANTS, periodVariantKey } from '../shuttle/shuttlePeriods'
 
 // 결함 #4 — 버스/지하철 패널과 동일 규칙: ETA 5분 이하만 임박(색만) 처리.
 // (예전엔 3분 기준이었다 — toSlot()의 isUrgent 판정을 아래에서 5분 기준으로 맞춘다.)
@@ -20,9 +21,11 @@ const SOON_THRESHOLD_MIN = 5
  *   본캠: direction 0(등교) + 1(하교)
  *   2캠 : direction 2(등교) + 3(하교)
  *
- * 주말·방학 처리:
- *   - 본캠: 주말·방학 모두 미운영 안내
- *   - 2캠: 일요일·방학은 미운영, 토요일은 정상 운행 흐름
+ * 미운행 처리(D1 이후):
+ *   - 방학에도 방학 기간 시간표(schedule_periods)가 있으면 정상 흐름이다.
+ *   - NO_SCHEDULE = 등록된 운행 기간 자체가 없음 → "시간표가 없는 기간" + 시내버스 안내
+ *   - 기간은 있지만 오늘 요일 편성이 0건(주말) → "오늘은 운행하지 않아요" + 다음 첫차
+ *   - 2캠: 토요일 편성이 있는 기간(일학습 등)은 토요일도 정상 운행 흐름
  */
 
 // direction: 0=본캠 등교, 1=본캠 하교, 2=2캠 등교, 3=2캠 하교
@@ -144,14 +147,21 @@ export default function ShuttlePanel() {
     !skipNoSchedule &&
     (scheduleError?.code === 'NO_SCHEDULE' || (goNoSchedule && backNoSchedule))
   if (isVacation) {
+    // D1: 방학에도 셔틀은 운행한다(방학 기간 시간표가 DB에 시드됨). 여기 도달하는
+    // 것은 '등록된 운행 기간 자체가 없는' 데이터 공백 — 사실대로 안내하고
+    // 같은 구간 시내버스라는 다음 행동을 제시한다(막다른 화면 금지).
     return (
       <EmptyState
         icon={<CalendarOff size={28} strokeWidth={1.5} />}
-        title="주말·방학에는 셔틀을 운행하지 않아요"
-        desc="학기 중 평일에 다시 확인해 주세요"
+        title="지금은 셔틀 시간표가 없는 기간이에요"
+        desc="시간표가 반영되면 다시 보여드릴게요 · 정왕역은 20-1 · 시흥33 버스로 갈 수 있어요"
       />
     )
   }
+
+  // 운행 기간은 있지만 오늘 요일 편성이 0건(주말 등) — '운행 종료'와 구분한다.
+  const dirTimes = (dir) => schedule?.directions?.find((d) => d.direction === dir)?.times ?? []
+  const todayNoService = !!schedule && dirTimes(goDir).length === 0 && dirTimes(backDir).length === 0
 
   // NO_SHUTTLE: 운행일이지만 오늘 운행 종료 — "답이 있는 빈 상태": 그냥 끝났다고
   // 알리지 않고, 이미 갖고 있는 내일 시간표(goTom/backTom)에서 다음 첫차를 계산해 보여준다.
@@ -159,6 +169,17 @@ export default function ShuttlePanel() {
   const backNoShuttle = backQuery.error?.code === 'NO_SHUTTLE'
   if (goNoShuttle && backNoShuttle) {
     const nextBus = getNextShuttleBusInfo(goFirstTomorrow, backFirstTomorrow)
+    // 오늘 편성이 아예 없는 날(주말)은 "끝났어요"가 아니라 "운행하지 않아요"가 사실.
+    if (todayNoService) {
+      return (
+        <EmptyState
+          icon={<CalendarOff size={28} strokeWidth={1.5} />}
+          title="오늘은 셔틀이 운행하지 않아요"
+          nextInfo={nextBus ? { label: '다음 첫차', time: nextBus.time, sub: nextBus.sub } : null}
+          desc={nextBus ? null : '다음 운행일 첫차 시간을 확인해 주세요'}
+        />
+      )
+    }
     return (
       <EmptyState
         icon={<MascotDot />}
@@ -188,17 +209,25 @@ export default function ShuttlePanel() {
     })
   }
 
-  const isSeasonal = schedule?.schedule_type === 'SEASONAL'
+  // 방학·계절학기 등 비학기 기간이면 기간 배지(계절학기=빨강 · 단축근무=초록 ·
+  // 정상근무=파랑 칩 팔레트, 학교 PDF 색 구분과 동일)를 노출한다.
+  const isOffSemester = schedule?.schedule_type && schedule.schedule_type !== 'SEMESTER'
+  const periodTagKey = isOffSemester ? periodVariantKey({ name: schedule?.schedule_name ?? '' }) : null
+  const periodTagMeta = periodTagKey ? PERIOD_VARIANTS[periodTagKey] : null
 
   return (
     <div className="space-y-2">
-      {isSeasonal && (
+      {isOffSemester && (
         <div className="flex items-center gap-2 px-1">
-          <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-accent/12 text-accent dark:text-accent tracking-wide">
-            계절학기
+          <span
+            className={`text-[12px] font-semibold px-2 py-0.5 rounded-full tracking-wide ${
+              periodTagMeta ? periodTagMeta.chipClass : 'bg-accent/12 text-accent dark:text-accent'
+            }`}
+          >
+            {periodTagMeta ? periodTagMeta.label : '방학'}
           </span>
           <span className="text-caption text-mute dark:text-mute truncate">
-            방학 축소 운행 시간표예요
+            {schedule?.schedule_name ? `${schedule.schedule_name} 시간표예요` : '방학 시간표예요'}
           </span>
         </div>
       )}
@@ -274,7 +303,9 @@ function slotToCardProps(slot) {
   return {
     title,
     subtitle: slot.route,
-    chips: [],
+    // 막차 강조 — /shuttle/next의 is_last를 그대로 칩으로. 밤에 이 카드를 여는
+    // 이유의 대부분이 "이게 막차인가"라서 상시 노출 가치가 있다.
+    chips: slot.isLast ? [{ label: '막차', tone: 'warn' }] : [],
     eta: {
       primary: { text: etaText, tone: slot.isUrgent ? 'imminent' : slot.minutes == null ? 'muted' : 'default' },
       secondary: slot.nextMinutes != null ? { text: `다음 ${slot.nextMinutes}분` } : undefined,
@@ -354,5 +385,6 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
     nextMinutes,
     imminentLabel: imminent ? '곧 출발' : null,
     isUrgent: imminent || (minutes != null && minutes <= SOON_THRESHOLD_MIN),
+    isLast: data.is_last === true,
   }
 }

@@ -9,6 +9,12 @@
  * 검증용으로 남겨둔다 — 삭제하지 말 것.
  */
 import { DIRECTION_LABELS, buildDisplayList } from './shuttleSchedule'
+import { PERIOD_VARIANTS } from './shuttlePeriods'
+
+// 기간 색상 도트(계절학기/단축근무/정상근무) — 좁은 폰 스트립 카드용.
+const VARIANT_DOT_CLASS = Object.fromEntries(
+  Object.entries(PERIOD_VARIANTS).map(([k, v]) => [k, v.dotClass])
+)
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
 import { Bell, BellRing } from 'lucide-react'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
@@ -52,7 +58,7 @@ export function BellButton({ time, isSet, onOpen, size = 'default' }) {
 // embedded=true면 이 컴포넌트가 이미 스크롤 가능한 부모(ScheduleDetailModal의
 // scrollContainerRef) 안에 얹힌다고 가정하고 자체 flex-1/overflow-y-auto/배경/
 // 하단 독 여백을 붙이지 않는다 — 겹중첩 스크롤 영역과 배경 이중 도포를 막는다.
-export function NarrowPhoneStrip({ displayList, nextIndex, nowMinutes, isAlarmSet, onOpenSheet, embedded = false }) {
+export function NarrowPhoneStrip({ displayList, nextIndex, nowMinutes, isAlarmSet, onOpenSheet, embedded = false, showBell = true }) {
   const containerRef = useRef(null)
   const nextRef = useRef(null)
 
@@ -107,8 +113,11 @@ export function NarrowPhoneStrip({ displayList, nextIndex, nowMinutes, isAlarmSe
                 ${isPast ? 'opacity-40' : ''}
                 ${isNext ? 'border-accent bg-accent-bg' : 'border-line dark:border-line bg-surface dark:bg-surface'}`}
             >
-              <span className={`time-num text-body font-bold ${isNext ? 'text-accent-ink dark:text-accent-ink' : 'text-ink dark:text-ink'}`}>
+              <span className={`time-num text-body font-bold flex items-center gap-1 ${isNext ? 'text-accent-ink dark:text-accent-ink' : 'text-ink dark:text-ink'}`}>
                 {item.time}
+                {item.variant && VARIANT_DOT_CLASS[item.variant] && (
+                  <span aria-hidden className={`w-1.5 h-1.5 rounded-full ${VARIANT_DOT_CLASS[item.variant]}`} />
+                )}
               </span>
               {isReturn ? (
                 <span className="text-micro font-semibold text-mute dark:text-mute text-center leading-tight">회차편</span>
@@ -120,7 +129,9 @@ export function NarrowPhoneStrip({ displayList, nextIndex, nowMinutes, isAlarmSe
                   {nextLabel(item.minutes - nowMinutes, isReturn)}
                 </span>
               )}
-              <BellButton time={item.time} isSet={isAlarmSet(item.time)} onOpen={onOpenSheet} size="compact" />
+              {showBell && (
+                <BellButton time={item.time} isSet={isAlarmSet(item.time)} onOpen={onOpenSheet} size="compact" />
+              )}
             </div>
           )
         })}
