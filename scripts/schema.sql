@@ -213,9 +213,39 @@ CREATE TABLE IF NOT EXISTS bus_crowding_stats (
     avg_crowded  NUMERIC(4,2) NOT NULL CHECK (avg_crowded BETWEEN 1 AND 4),
     sample_size  INTEGER      NOT NULL CHECK (sample_size > 0),
     sample_days  INTEGER      NOT NULL CHECK (sample_days > 0),
+    -- 등급별 표본 수. 표시 기준이 평균이 아니라 "혼잡(≥3) 비율"이라서 분포가 필요하다.
+    -- 평균은 하한이 1이라 값 1인 버스와 3인 버스가 섞이면 2("보통")로 뭉개진다.
+    -- 마이그레이션 직후~첫 나이틀리 전까지 NULL이며, 그동안은 "정보 없음"으로 표시한다.
+    c1           INTEGER,
+    c2           INTEGER,
+    c3           INTEGER,
+    c4           INTEGER,
     computed_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     PRIMARY KEY (route_id, stop_id, day_type, bucket)
 );
+
+-- ────────────────────────────────────────────────────────────
+-- 7c. bus_crowding_calibrations — 노선별 표시 보정
+-- ────────────────────────────────────────────────────────────
+-- GBIS crowded 값이 현장과 어긋나는 조합의 표시 하한. 원천 로그와 사전집계는
+-- 건드리지 않고 표시 시점에만 적용한다. 센서 관측이 아니라 사람이 넣은 단언이므로
+-- reason이 NOT NULL이고, 실제로 값을 올린 경우 응답에 estimated 플래그가 붙는다.
+-- 예) 시흥1 하교는 이마트 도착 시점에 이미 만차인데 GBIS는 91~98%를 값 1로 준다.
+CREATE TABLE IF NOT EXISTS bus_crowding_calibrations (
+    id           SERIAL       PRIMARY KEY,
+    bus_route_id INTEGER      NOT NULL REFERENCES bus_routes(id) ON DELETE CASCADE,
+    bus_stop_id  INTEGER      REFERENCES bus_stops(id) ON DELETE CASCADE,
+    day_type     VARCHAR(10)  CHECK (day_type IN ('weekday','weekend')),
+    hour_from    SMALLINT     NOT NULL CHECK (hour_from BETWEEN 0 AND 23),
+    hour_to      SMALLINT     NOT NULL CHECK (hour_to BETWEEN 0 AND 23),
+    min_level    SMALLINT     NOT NULL CHECK (min_level BETWEEN 1 AND 4),
+    reason       TEXT         NOT NULL,
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CHECK (hour_to >= hour_from)
+);
+
+CREATE INDEX IF NOT EXISTS idx_crowding_calibration_route
+    ON bus_crowding_calibrations (bus_route_id, bus_stop_id);
 
 -- ────────────────────────────────────────────────────────────
 -- 8. schedule_periods — 셔틀 운행 기간

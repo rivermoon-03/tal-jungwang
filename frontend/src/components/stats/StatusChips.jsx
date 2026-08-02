@@ -3,7 +3,7 @@ import { Sun, Cloud, CloudSun, CloudRain, CloudSnow } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import { useTrafficLive } from '../../hooks/useTrafficLive'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
-import { crowdedLabel } from '../../utils/crowdingPalette'
+import { labelFromRatio } from '../../utils/crowdingLevel'
 
 const WEATHER_ICONS = {
   sunny: Sun,
@@ -44,7 +44,7 @@ export default function StatusChips() {
     const h = now.getHours()
     const m = now.getMinutes() < 30 ? 0 : 30
     const pt = crowdData.points.find((p) => p.hour === h && p.minute === m)
-    return pt ? crowdedLabel(pt.crowded) : null
+    return pt ? labelFromRatio(pt.ratio, { estimated: pt.estimated, reliable: pt.reliable }) : null
   }, [crowdData])
 
   const WeatherIcon = WEATHER_ICONS[weather?.icon ?? 'sunny'] ?? Sun

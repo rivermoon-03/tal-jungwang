@@ -4,13 +4,26 @@ from datetime import date, datetime, time, timedelta, timezone
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.cache import get_cached_json, get_redis, set_cached_json
-from app.models.bus import BusRoute, BusStop, BusStopRoute, BusTimetableEntry
+from app.models.bus import (
+    BusCommuteContext,
+    BusInformationSource,
+    BusRealtimeTarget,
+    BusRoute,
+    BusStop,
+    BusStopRoute,
+    BusTimetableEntry,
+)
+from app.services.bus_context import (
+    BOARDING_SOURCE_ROLES,
+    _normalize_source_display_label,
+)
 from app.services.bus_stats import get_arrival_stats
+from app.services.crowding_calibration import apply_calibration, load_calibrations
 
 _KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
@@ -360,6 +373,140 @@ async def _get_station_meta(db: AsyncSession, station_id: int) -> dict | None:
     return meta
 
 
+async def resolve_stop_id(db: AsyncSession, stop_id: str | int | None) -> int | None:
+    """GBIS station id 문자열 또는 내부 PK를 내부 PK로 정규화한다.
+
+    프런트는 정류장을 GBIS station id(예: `224000513`)로 식별하므로 시간표 조회에도
+    그 값이 그대로 들어온다. int로만 받으면 타입 검증은 통과하고 매칭만 실패해
+    "시간표 0행"이 조용히 반환된다. `/bus/history-preview`가 쓰는 것과 같은 규칙으로
+    내부 PK를 우선 매칭한 뒤 GBIS id로 대체한다.
+    """
+    if stop_id is None:
+        return None
+    raw = str(stop_id)
+    # 정류장 id 매핑은 정적이다. 시간표 응답 자체가 이미 캐시돼도 이 해석은 매 요청
+    # 실행되므로(지도 화면만 8회 호출) 매핑도 함께 캐시한다.
+    cache_key = f"bus:stop_pk:{raw}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return cached or None
+
+    numeric = int(raw) if raw.isdigit() else None
+    filters = [BusStop.gbis_station_id == raw]
+    if numeric is not None:
+        filters.append(BusStop.id == numeric)
+    stmt = select(BusStop.id).where(or_(*filters))
+    if numeric is not None:
+        stmt = stmt.order_by(case((BusStop.id == numeric, 0), else_=1))
+    result = await db.execute(stmt.limit(1))
+    resolved = result.scalar_one_or_none()
+    # 미해석(0)도 캐시해 존재하지 않는 id 반복 조회를 막는다.
+    await set_cached_json(cache_key, resolved or 0, ttl=STATION_META_TTL)
+    return resolved
+
+
+async def _realtime_routes_at_stop(db: AsyncSession, stop_id: int) -> list[BusRoute]:
+    """이 정류장에서 실제로 GBIS 실시간을 제공할 수 있는 노선.
+
+    수집기(`bus_collector._load_realtime_stations`)와 같은 테이블·같은 조건을 본다.
+    노선에 `gbis_route_id`가 있다는 사실만으로 실시간 가능으로 판정하면 승차점별
+    정보 종류를 표현할 수 없다(docs/2026-08-01-bus-data-source-audit.md).
+
+    `bus_stop_routes`가 아니라 target 을 기준으로 삼는 이유: 3400 이마트 승차처럼
+    실시간 관측 대상으로 등록됐지만 stop-route 링크가 없는 조합이 있고, 수집기가
+    캐시에 넣는 노선 집합과 여기서 placeholder 를 만드는 집합이 어긋나면 안 된다.
+    """
+    stmt = (
+        select(BusRoute)
+        .join(BusRealtimeTarget, BusRealtimeTarget.bus_route_id == BusRoute.id)
+        .where(
+            BusRealtimeTarget.bus_stop_id == stop_id,
+            BusRealtimeTarget.enabled.is_(True),
+            BusRoute.gbis_route_id.is_not(None),
+        )
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().unique().all())
+
+
+async def _stop_context_meta(db: AsyncSession, stop_id: int) -> dict[int, dict]:
+    """이 정류장에 정보 source 가 등록된 노선별 메타 — `{route_id: {...}}`.
+
+    두 가지를 한 번에 답한다.
+
+    1. 이 정류장이 어떤 노선을 취급하는가. 프런트 `busStationConfig` 상수가 같은
+       내용을 복제하고 있어 DB·GBIS 변경과 어긋날 수 있었다(2026-08-01 감사 §프론트
+       하드코딩). 목록의 근거를 DB로 옮긴다.
+    2. 그중 "출발 시간표"로 보장된 조합은 무엇인가. `bus_timetable_entries` 존재
+       여부와 다르다 — 시흥1 이마트(평일 92행), 시흥33 한국공학대(평일 60행)처럼
+       원본 행은 있지만 통학 화면의 보장된 승차 시간표가 아니어서 source 로 연결하지
+       않은 조합이 있다. 실시간 대기 중 폴백으로 그 행을 끌어오면 그 결정이 무너진다.
+
+    승차 문구는 `bus_context`와 같은 `source_role` 정규화를 거쳐 홈과 시간표가 같은
+    말을 쓰게 한다.
+    """
+    stmt = (
+        select(BusCommuteContext, BusInformationSource)
+        .join(
+            BusInformationSource,
+            BusInformationSource.context_id == BusCommuteContext.id,
+        )
+        .options(selectinload(BusCommuteContext.route))
+        .where(BusInformationSource.bus_stop_id == stop_id)
+        .order_by(
+            BusCommuteContext.sort_order,
+            BusCommuteContext.id,
+            BusInformationSource.sort_order,
+        )
+    )
+    rows = (await db.execute(stmt)).all()
+
+    meta: dict[int, dict] = {}
+    for context, source in rows:
+        entry = meta.setdefault(context.bus_route_id, {
+            "route_no": context.route.route_number,
+            "category": context.route.category,
+            "boarding_label": None,
+            "has_timetable_source": False,
+        })
+        if source.source_type == "timetable":
+            entry["has_timetable_source"] = True
+        # 승차 지점 라벨은 정렬상 첫 source 를 대표로 쓴다. downstream_arrival(승차 후
+        # 중간 관측)은 승차 지점이 아니므로 대표로 삼지 않는다.
+        if entry["boarding_label"] is None and source.source_role in BOARDING_SOURCE_ROLES:
+            entry["boarding_label"] = _normalize_source_display_label(
+                source.source_role, source.display_label
+            )
+    return meta
+
+
+async def _next_departures(
+    db: AsyncSession,
+    route_ids: list[int],
+    stop_id: int,
+    day: str,
+    now_time: time,
+) -> dict[int, str]:
+    """노선별 이 정류장의 다음 출발 시각("HH:MM"). 오늘 남은 편성이 없으면 키 없음."""
+    if not route_ids:
+        return {}
+    stmt = (
+        select(BusTimetableEntry.route_id, BusTimetableEntry.departure_time)
+        .where(
+            BusTimetableEntry.route_id.in_(route_ids),
+            BusTimetableEntry.stop_id == stop_id,
+            BusTimetableEntry.day_type == day,
+            BusTimetableEntry.departure_time > now_time,
+        )
+        .order_by(BusTimetableEntry.route_id, BusTimetableEntry.departure_time)
+    )
+    rows = (await db.execute(stmt)).all()
+    out: dict[int, str] = {}
+    for route_id, departure_time in rows:
+        out.setdefault(route_id, departure_time.strftime("%H:%M"))
+    return out
+
+
 async def get_arrivals(
     db: AsyncSession, station_id: int, d: date, now_time: time
 ) -> dict | None:
@@ -378,7 +525,15 @@ async def get_arrivals(
     arrivals: list[dict] = []
 
     # ── 1. 실시간 노선: Redis 캐시에서 읽기 ─────────────────────────────────
-    realtime_routes: list[BusRoute] = [r for r in stop.routes if r.is_realtime]
+    # 이 정류장이 취급하는 노선과 승차 문구의 단일 출처. 홈 목록이 프런트 상수
+    # 대신 이 값을 쓰도록 응답에 함께 싣는다.
+    context_meta = await _stop_context_meta(db, stop.id)
+
+    # 실시간 가능 여부는 노선 단위(`gbis_route_id`)가 아니라 정류장 단위다.
+    # 3400은 GBIS 노선이지만 시흥터미널 승차점에는 시간표만 있고, 6502는
+    # gbis_route_id가 있어도 이마트 실시간 관측 대상이 아니다. 수집기와 같은
+    # 기준(`bus_realtime_targets`)을 써야 여기서 실시간/시간표가 갈린다.
+    realtime_routes: list[BusRoute] = await _realtime_routes_at_stop(db, stop.id)
 
     if realtime_routes and stop.gbis_station_id:
         try:
@@ -466,30 +621,42 @@ async def get_arrivals(
     # 않고 시간표 쿼리로 넘긴다 (stop.gbis_station_id가 있을 때만 placeholder 적용).
     if stop.gbis_station_id:
         seen_realtime_ids: set[int] = {a["route_id"] for a in arrivals}
-        for route in realtime_routes:
-            if route.id not in seen_realtime_ids:
-                arrivals.append({
-                    "route_id": route.id,
-                    "route_no": route.route_number,
-                    "destination": route.direction_name,
-                    "category": route.category,
-                    "arrival_type": "realtime",
-                    "depart_at": None,
-                    "arrive_in_seconds": None,
-                    "is_tomorrow": False,
-                })
+        pending = [r for r in realtime_routes if r.id not in seen_realtime_ids]
+        # 아직 차량이 안 잡힌 노선의 시간표 폴백. 20-1 한국공학대처럼 같은 승차점에
+        # 보장된 출발 시간표가 있을 때만 채운다 — "학교 실시간, 부재 시 시간표".
+        # 클라이언트가 승차점별로 다시 조회하면 이 정책 판단을 우회하게 된다.
+        next_departures: dict[int, str] = {}
+        if pending:
+            next_departures = await _next_departures(
+                db,
+                [r.id for r in pending if context_meta.get(r.id, {}).get("has_timetable_source")],
+                stop.id,
+                day,
+                now_time,
+            )
+        for route in pending:
+            arrivals.append({
+                "route_id": route.id,
+                "route_no": route.route_number,
+                "destination": route.direction_name,
+                "category": route.category,
+                "arrival_type": "realtime",
+                "depart_at": next_departures.get(route.id),
+                "arrive_in_seconds": None,
+                "is_tomorrow": False,
+            })
 
     # ── 2. 시간표 기반 노선: DB 조회 ───────────────────────────────────────
     # gbis_station_id 없는 정류장에서는 gbis_route_id를 가진 노선도 시간표로 조회한다.
     realtime_route_ids: set[int] = (
         {r.id for r in realtime_routes} if stop.gbis_station_id else set()
     )
-    # 오늘 시간표 소진 판단 범위: gbis 없는 정류장은 모든 노선을 시간표 대상으로 간주
-    timetable_route_ids: set[int] = (
-        {r.id for r in stop.routes if not r.is_realtime}
-        if stop.gbis_station_id
-        else {r.id for r in stop.routes}
-    )
+    # 오늘 시간표 소진 판단 범위: 이 정류장의 실시간 대상이 아닌 모든 노선.
+    # `not r.is_realtime`으로 좁히면 3400·6502처럼 GBIS 노선이면서 이 정류장에서는
+    # 시간표만 제공하는 노선이 "내일 첫차" 안내에서도 빠진다.
+    timetable_route_ids: set[int] = {
+        r.id for r in stop.routes if r.id not in realtime_route_ids
+    }
 
     stmt = (
         select(BusTimetableEntry, BusRoute)
@@ -578,11 +745,49 @@ async def get_arrivals(
     # ── 3. 정렬: arrive_in_seconds 기준 오름차순 (None은 뒤로) ─────────────
     arrivals.sort(key=lambda x: (x["arrive_in_seconds"] is None, x["arrive_in_seconds"] or 0))
 
+    # ── 4. 혼잡도 표시 보정 ────────────────────────────────────────────────
+    # GBIS 값이 현장과 어긋나는 조합(시흥1 하교 이마트)의 표시 하한. 관측이 아니라
+    # 사람이 넣은 단언이므로 값을 실제로 올린 항목에만 crowded_estimated 를 단다.
+    calibrations = await load_calibrations(db)
+    if calibrations:
+        cal_day_type = "weekday" if d.weekday() <= 4 else "weekend"
+        for arrival in arrivals:
+            raw = arrival.get("crowded") or None
+            level, estimated = apply_calibration(
+                raw,
+                calibrations,
+                route_id=arrival.get("route_id"),
+                stop_id=stop.id,
+                day_type=cal_day_type,
+                hour=now_time.hour,
+            )
+            if level is not None:
+                arrival["crowded"] = level
+            arrival["crowded_estimated"] = estimated
+
+    # ── 5. 통학 맥락 라벨 부착 ─────────────────────────────────────────────
+    for arrival in arrivals:
+        entry = context_meta.get(arrival.get("route_id"))
+        if entry is None:
+            continue
+        arrival["boarding_label"] = entry["boarding_label"]
+
     return {
         "station_id": station_id,
         "station_name": stop.name,
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "arrivals": arrivals,
+        # 이 정류장이 취급해야 할 노선 전체. 응답에 없는 노선을 홈이 "오늘 미운행"으로
+        # 표시할 때, 그 기준 목록을 프런트 상수가 아니라 DB에서 받는다.
+        "expected_routes": [
+            {
+                "route_id": route_id,
+                "route_no": entry["route_no"],
+                "category": entry["category"],
+                "boarding_label": entry["boarding_label"],
+            }
+            for route_id, entry in context_meta.items()
+        ],
     }
 
 
@@ -742,14 +947,16 @@ async def invalidate_bus_meta(route_id: int | None = None) -> None:
 
         # bus:station_meta:{station_id} — get_arrivals 핫패스 캐시. 정류장/노선
         # 수정 시 stale 방지를 위해 bus:stations와 함께 무효화한다.
-        async for key in redis.scan_iter(match="bus:station_meta:*", count=200):
-            batch.append(key)
-            if len(batch) >= 200:
+        # bus:stop_pk:{raw} — resolve_stop_id 의 GBIS id → 내부 PK 매핑.
+        for pattern in ("bus:station_meta:*", "bus:stop_pk:*"):
+            async for key in redis.scan_iter(match=pattern, count=200):
+                batch.append(key)
+                if len(batch) >= 200:
+                    await redis.unlink(*batch)
+                    batch.clear()
+            if batch:
                 await redis.unlink(*batch)
                 batch.clear()
-        if batch:
-            await redis.unlink(*batch)
-            batch.clear()
 
         # bus:timetable:{route_id}:{day}:{stop_id|'all'} — 24h TTL 이므로
         # CRUD 후 stale 가능성이 크다.

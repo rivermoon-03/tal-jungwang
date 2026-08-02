@@ -20,7 +20,13 @@ from app.schemas.bus import (
 )
 from app.schemas.traffic import CrowdingFlowResponse
 from app.core.cache import get_cached_json, get_or_fetch_with_lock, set_cached_json
-from app.services.bus import get_arrivals, get_stations, get_timetable, get_timetable_by_route_number
+from app.services.bus import (
+    get_arrivals,
+    get_stations,
+    get_timetable,
+    get_timetable_by_route_number,
+    resolve_stop_id,
+)
 from app.services.bus_context import get_commute_contexts
 from app.services.crowding_flow import compute_crowding_flow
 from app.services.external.gbis import fetch_bus_locations
@@ -145,7 +151,7 @@ async def bus_timetable_by_route_number(
     schedule_type: str | None = Query(
         None, description="weekday/saturday/sunday — 명시 시 date보다 우선(요일 탭 전환)"
     ),
-    stop_id: int | None = Query(None),
+    stop_id: str | None = Query(None, description="내부 PK 또는 GBIS station id"),
     category: str | None = Query(None, description="등교 또는 하교 — 방향별 route 선택"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -158,8 +164,17 @@ async def bus_timetable_by_route_number(
             status_code=400,
             detail="schedule_type은 weekday/saturday/sunday 중 하나여야 합니다.",
         )
+    # 해석 실패를 조용히 넘기면 stop_id=None으로 전 정류장 시간표가 섞여 나간다.
+    resolved_stop_id = await resolve_stop_id(db, stop_id)
+    if stop_id is not None and resolved_stop_id is None:
+        return ApiResponse.fail("BUS_STOP_NOT_FOUND", f"'{stop_id}' 정류장을 찾을 수 없습니다.")
     result = await get_timetable_by_route_number(
-        db, route_number, d, stop_id=stop_id, category=category, day_type=schedule_type
+        db,
+        route_number,
+        d,
+        stop_id=resolved_stop_id,
+        category=category,
+        day_type=schedule_type,
     )
     if not result:
         return ApiResponse.fail("BUS_ROUTE_NOT_FOUND", f"'{route_number}' 노선을 찾을 수 없습니다.")

@@ -31,10 +31,18 @@ class TrafficFlowResponse(BaseModel):
 
 
 class CrowdingFlowPoint(BaseModel):
-    hour: int           # 0..23
-    minute: int         # 0 | 30 (half-hour buckets)
-    crowded: float      # 1.0..4.0 (1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
-    samples: int        # 해당 버킷에 집계된 로그 수
+    hour: int                  # 0..23
+    minute: int                # 0 | 30 (half-hour buckets)
+    crowded: float | None      # 1.0..4.0 평균 — 호환용. 표시에는 쓰지 않는다
+    # 표시 기준. 이 버킷 도착 버스 중 혼잡(등급 3 이상) 비율 0.0~1.0.
+    # 평균은 하한이 1이라 값 1인 버스와 3인 버스가 섞이면 2("보통")로 뭉개진다.
+    # 분포가 아직 집계되지 않은 버킷은 null (평균으로 추정하지 않는다).
+    ratio: float | None = None
+    samples: int               # 해당 버킷의 차량 접근 수
+    # 관측이 아니라 bus_crowding_calibrations 의 표시 하한이 값을 올린 경우 true.
+    # 화면이 "경험 기준"으로 출처를 구분해 표기한다.
+    estimated: bool = False
+    reliable: bool = True      # 표본이 충분한가(부족하면 화면이 "정보 부족" 표시)
 
 
 class CrowdingFlowResponse(BaseModel):

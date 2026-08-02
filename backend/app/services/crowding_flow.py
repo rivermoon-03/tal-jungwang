@@ -20,6 +20,7 @@ from sqlalchemy.exc import DBAPIError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.bus import BusCrowdingLog, BusRoute, BusStop
+from app.services.crowding_calibration import load_calibrations
 
 KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
@@ -29,12 +30,84 @@ _PRECOMPUTED_SQL = """
 SELECT bucket,
        SUM(avg_crowded * sample_size) / NULLIF(SUM(sample_size), 0) AS avg_crowded,
        SUM(sample_size)::int AS sample_size,
-       MAX(sample_days)::int AS sample_days
+       MAX(sample_days)::int AS sample_days,
+       SUM(c1)::int AS c1,
+       SUM(c2)::int AS c2,
+       SUM(c3)::int AS c3,
+       SUM(c4)::int AS c4
 FROM bus_crowding_stats
 WHERE route_id = :r AND day_type = :d
 GROUP BY bucket
 ORDER BY bucket
 """
+
+# 표본이 이보다 적은 버킷은 비율의 분산이 커서 등급을 단정하면 오해를 만든다.
+# 값은 그대로 내보내되 프런트가 "정보 부족"으로 표시한다.
+MIN_RELIABLE_SAMPLES = 10
+
+
+def build_points(
+    rows,
+    *,
+    rules=None,
+    route_id: int | None = None,
+    stop_id: int | None = None,
+    day_type: str | None = None,
+) -> list[dict]:
+    """사전집계 행 → 화면이 쓰는 point 목록.
+
+    `ratio` = 이 버킷 도착 버스 중 혼잡(등급 3 이상) 비율. 평균 대신 이 값을 표시
+    기준으로 쓴다 — 평균은 하한이 1이라 값 1인 버스와 3인 버스가 섞이면 2("보통")가
+    되어 실제로 존재한 어떤 버스도 설명하지 못한다.
+
+    `c1..c4` 가 없는 행(마이그레이션 직후~첫 나이틀리 이전)은 `ratio=None` 이다.
+    평균으로 대체 추정하지 않는다 — 그게 지금 고치는 문제의 원인이다.
+    """
+    from app.services.crowding_calibration import apply_calibration
+
+    rules = rules or []
+    points: list[dict] = []
+    for row in rows:
+        bucket = int(row["bucket"])
+        counts = [row.get(k) for k in ("c1", "c2", "c3", "c4")]
+        has_distribution = all(c is not None for c in counts)
+        hour = bucket // 2
+
+        ratio: float | None = None
+        estimated = False
+        samples = 0
+        if has_distribution:
+            c1, c2, c3, c4 = (int(c) for c in counts)
+            samples = c1 + c2 + c3 + c4
+            if samples > 0:
+                ratio = (c3 + c4) / samples
+                # 보정은 등급 축에서 이뤄진다. 하한이 3 이상이면 이 시간대 도착 버스를
+                # 전부 혼잡으로 본다는 뜻이므로 비율이 1.0 이 된다.
+                observed_level = 4 if c4 > c3 and c4 > c2 and c4 > c1 else (
+                    3 if ratio >= 0.5 else (2 if (c2 + c3 + c4) / samples >= 0.5 else 1)
+                )
+                level, estimated = apply_calibration(
+                    observed_level,
+                    rules,
+                    route_id=route_id,
+                    stop_id=stop_id,
+                    day_type=day_type,
+                    hour=hour,
+                )
+                if estimated and level is not None and level >= 3:
+                    ratio = 1.0
+
+        points.append({
+            "hour": hour,
+            "minute": (bucket % 2) * 30,
+            "crowded": float(row["avg_crowded"]) if row.get("avg_crowded") is not None else None,
+            "ratio": ratio,
+            "samples": samples,
+            "estimated": estimated,
+            "reliable": samples >= MIN_RELIABLE_SAMPLES,
+            "days": int(row["sample_days"]) if row.get("sample_days") is not None else 0,
+        })
+    return points
 
 
 async def _resolve_stop_name(db: AsyncSession, route_id: int) -> str | None:
@@ -43,6 +116,17 @@ async def _resolve_stop_name(db: AsyncSession, route_id: int) -> str | None:
         await db.execute(
             select(BusStop.name)
             .join(BusCrowdingLog, BusCrowdingLog.stop_id == BusStop.id)
+            .where(BusCrowdingLog.route_id == route_id)
+            .limit(1)
+        )
+    ).scalar()
+
+
+async def _resolve_stop_id(db: AsyncSession, route_id: int) -> int | None:
+    """보정 규칙 매칭에 쓸 집계 대상 정류장 PK."""
+    return (
+        await db.execute(
+            select(BusCrowdingLog.stop_id)
             .where(BusCrowdingLog.route_id == route_id)
             .limit(1)
         )
@@ -68,17 +152,7 @@ async def _compute_from_precomputed(
 
     if not rows:
         return None
-
-    return [
-        {
-            "hour": int(r["bucket"]) // 2,
-            "minute": (int(r["bucket"]) % 2) * 30,
-            "crowded": float(r["avg_crowded"]),
-            "samples": int(r["sample_size"]),
-            "days": int(r["sample_days"]),
-        }
-        for r in rows
-    ]
+    return [dict(r) for r in rows]
 
 
 async def _compute_from_raw_logs(
@@ -95,6 +169,9 @@ async def _compute_from_raw_logs(
     half_expr = func.floor(func.extract("minute", ts_kst) / 30.0) * 30
     dow_expr = func.extract("isodow", ts_kst)
 
+    def _count_level(level: int):
+        return func.count().filter(BusCrowdingLog.crowded == level)
+
     stmt = (
         select(
             hour_expr.label("h"),
@@ -102,6 +179,10 @@ async def _compute_from_raw_logs(
             func.avg(BusCrowdingLog.crowded).label("avg_c"),
             func.count().label("samples"),
             func.count(func.distinct(func.date(ts_kst))).label("days"),
+            _count_level(1).label("c1"),
+            _count_level(2).label("c2"),
+            _count_level(3).label("c3"),
+            _count_level(4).label("c4"),
         )
         .where(BusCrowdingLog.route_id == route_id)
         .where(BusCrowdingLog.recorded_at >= since)
@@ -116,13 +197,15 @@ async def _compute_from_raw_logs(
 
     rows = (await db.execute(stmt)).all()
 
+    # 폴백 경로는 접근 단위 dedup 없이 로그를 그대로 센다. 사전집계가 채워지기 전
+    # 임시 경로이며, 비율이 실제보다 낮게 나올 수 있다(같은 차량 반복 기록).
     return [
         {
-            "hour": int(r.h),
-            "minute": int(r.m),
-            "crowded": float(r.avg_c),
-            "samples": int(r.samples),
-            "days": int(r.days),
+            "bucket": int(r.h) * 2 + (1 if int(r.m) >= 30 else 0),
+            "avg_crowded": float(r.avg_c),
+            "sample_size": int(r.samples),
+            "sample_days": int(r.days),
+            "c1": int(r.c1), "c2": int(r.c2), "c3": int(r.c3), "c4": int(r.c4),
         }
         for r in rows
     ]
@@ -159,26 +242,26 @@ async def compute_crowding_flow(
         }
 
     stop_name = await _resolve_stop_name(db, route_row.id)
+    stop_id = await _resolve_stop_id(db, route_row.id)
 
-    raw_points = None
+    raw_rows = None
     if lookback_days == 60:
         # 사전집계는 항상 60일 윈도우로 계산되므로, 호출자가 다른 lookback을
         # 요청한 경우(현재 API는 기본값만 사용)에는 원본 집계로 바로 간다.
-        raw_points = await _compute_from_precomputed(db, route_row.id, day_type)
+        raw_rows = await _compute_from_precomputed(db, route_row.id, day_type)
 
-    if raw_points is None:
-        raw_points = await _compute_from_raw_logs(db, route_row.id, day_type, lookback_days)
+    if raw_rows is None:
+        raw_rows = await _compute_from_raw_logs(db, route_row.id, day_type, lookback_days)
 
-    points = [
-        {
-            "hour": p["hour"],
-            "minute": p["minute"],
-            "crowded": p["crowded"],
-            "samples": p["samples"],
-        }
-        for p in raw_points
-    ]
-    sample_days = max((p["days"] for p in raw_points), default=0)
+    rules = await load_calibrations(db)
+    points = build_points(
+        raw_rows,
+        rules=rules,
+        route_id=route_row.id,
+        stop_id=stop_id,
+        day_type=day_type,
+    )
+    sample_days = max((p["days"] for p in points), default=0)
     total_samples = sum(p["samples"] for p in points)
 
     return {

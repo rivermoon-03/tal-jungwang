@@ -1,7 +1,20 @@
 from datetime import datetime, time
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, Numeric, SmallInteger, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -242,4 +255,39 @@ class BusCrowdingStats(Base):
     avg_crowded: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
     sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
     sample_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 등급별 표본 수. 표시 기준이 평균이 아니라 "혼잡(>=3) 비율"이라 분포가 필요하다.
+    # 마이그레이션 직후~첫 나이틀리 전까지 NULL이며 그동안은 "정보 없음"으로 표시한다.
+    c1: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    c2: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    c3: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    c4: Mapped[int | None] = mapped_column(Integer, nullable=True)
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BusCrowdingCalibration(Base):
+    """GBIS crowded 값이 현장과 어긋나는 조합의 표시 하한.
+
+    원천 로그와 사전집계는 건드리지 않고 표시 시점에만 적용한다. 센서 관측이 아니라
+    사람이 넣은 단언이므로 `reason`이 NOT NULL이고, 실제로 값을 올린 경우 응답에
+    `estimated` 플래그가 붙어 화면에서 출처가 구분된다.
+
+    `bus_stop_id`/`day_type`이 NULL이면 해당 축 전체에 적용한다.
+    """
+
+    __tablename__ = "bus_crowding_calibrations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bus_route_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_routes.id", ondelete="CASCADE"), nullable=False
+    )
+    bus_stop_id: Mapped[int | None] = mapped_column(
+        ForeignKey("bus_stops.id", ondelete="CASCADE"), nullable=True
+    )
+    day_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    hour_from: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    hour_to: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    min_level: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

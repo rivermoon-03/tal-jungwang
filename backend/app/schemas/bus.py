@@ -85,8 +85,24 @@ class BusArrival(BaseModel):
     arrive_in_seconds: int | None = None
     is_tomorrow: bool = False  # 오늘 시간표 소진 후 내일 첫차인 경우 True
     crowded: int = 0  # 혼잡도 (0=정보없음, 1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
+    # bus_crowding_calibrations 의 표시 하한이 crowded 를 올린 경우 true.
+    # 관측값이 아니라는 뜻이므로 화면이 "경험 기준"으로 구분해 표기한다.
+    crowded_estimated: bool = False
     avg_interval_minutes: int | None = None  # 현재 시각 ±120분 윈도우 평균 배차 간격(분)
     stats: ArrivalStats | None = None
+    # 이 정류장에서의 승차 지점 문구(bus_information_sources 기준, source_role 정규화).
+    # 프런트가 정류장별 노선 라벨을 상수로 복제하지 않게 한다. 행선지 라벨은 한 노선이
+    # 여러 방면 그룹에 속할 수 있어(3401·5602) 정류장 단위로 확정되지 않으므로 내보내지 않는다.
+    boarding_label: str | None = None  # 예: "시흥터미널 승차"
+
+
+class BusExpectedRoute(BaseModel):
+    """이 정류장이 취급하는 노선. 오늘 도착 정보가 없어도 목록 기준으로 쓴다."""
+
+    route_id: int
+    route_no: str
+    category: str | None = None
+    boarding_label: str | None = None
 
 
 class BusArrivalsResponse(BaseModel):
@@ -94,6 +110,7 @@ class BusArrivalsResponse(BaseModel):
     station_name: str
     updated_at: str
     arrivals: list[BusArrival]
+    expected_routes: list[BusExpectedRoute] = []
 
 
 class BusTimetableResponse(BaseModel):

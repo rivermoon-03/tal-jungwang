@@ -26,6 +26,7 @@
 import { useMemo, useState } from 'react'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
 import { mergeToHourly, crowdedToneStyle, isWeekendNow } from '../../utils/crowdingHeatmap'
+import { labelFromRatio } from '../../utils/crowdingLevel'
 import { getKstHour } from '../../utils/timeOfDay'
 import { summarizeCrowding } from './crowdingSummary'
 
@@ -50,8 +51,9 @@ export default function RouteCrowdingSummary({ routeNumber }) {
   if (loading || !summary) return null
 
   const stopLabel = flow?.stop_name ? `${flow.stop_name} 탑승 기준` : null
+  // 피크는 1시간 해상도다 — 2시간 버킷으로 말하면 17시 피크가 16시와 섞여 흐려진다.
   const sentence = summary.hasVariance && summary.peak
-    ? `지금은 ${summary.nowLabel ?? '정보 없음'} · ${dayLabel} ${summary.peak.startHour}~${summary.peak.endHour}시만 붐벼요`
+    ? `지금은 ${summary.nowLabel ?? '정보 없음'} · ${dayLabel} ${summary.peak.hour}시가 가장 붐벼요`
     : `지금은 ${summary.nowLabel ?? '정보 없음'} · 시간대별 차이가 크지 않아요`
 
   return (
@@ -87,9 +89,9 @@ export default function RouteCrowdingSummary({ routeNumber }) {
             <div className="mt-2 rounded-card bg-surface dark:bg-surface border border-line dark:border-line p-3">
               <div className="grid grid-cols-12 gap-1">
                 {summary.buckets.map((b) => {
-                  const tone = crowdedToneStyle(b.crowded)
-                  const label = b.crowded != null
-                    ? `${b.startHour}~${b.endHour}시: ${dayLabel === '평일' ? '평일' : '주말'} 혼잡도 (표본 ${b.samples}건)`
+                  const tone = crowdedToneStyle(b.ratio)
+                  const label = b.ratio != null
+                    ? `${b.startHour}~${b.endHour}시: ${dayLabel} ${labelFromRatio(b.ratio, { estimated: b.estimated, reliable: b.reliable })} (도착 ${b.samples}대 중 ${Math.round(b.ratio * 100)}%가 혼잡)`
                     : `${b.startHour}~${b.endHour}시: 데이터 없음`
                   return (
                     <div

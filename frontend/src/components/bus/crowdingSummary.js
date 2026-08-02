@@ -1,41 +1,58 @@
 /**
- * crowdingSummary.js — 노선 상세 페이지 ④ 혼잡도 요약 전용 순수 계산 유틸.
+ * crowdingSummary.js — 노선 상세 ④ 혼잡도 요약 전용 순수 계산 유틸.
  *
- * 기존 utils/crowdingHeatmap.js의 mergeToHourly(24시간 버킷)를 입력으로 받아
- * "문장 요약 한 줄"과 2시간 단위 12칸 히트맵을 계산한다. 실제 프로덕션 데이터를
- * 확인해보면 GBIS crowded 값이 대부분 1.0~1.2 사이(전부 "여유")로 몰려 있어
- * 24열 히트맵을 그대로 보여주면 정보량이 0에 가깝다 — hasVariance 판정으로
- * 이런 경우 히트맵 자체를 숨기고 문장 요약만 남긴다.
+ * 표시 기준은 평균이 아니라 **혼잡 비율**(그 시간대 도착 버스 중 등급 3 이상 비율)이다.
+ * 평균은 하한이 1이라 값 1인 버스와 3인 버스가 반씩이면 2("보통")가 나오는데, 그 2는
+ * 실제로 존재한 어떤 버스도 설명하지 못한다. 시흥33 하교 17시가 실측 ≥3 비율 46.6%인데
+ * 화면에서 "보통"이던 원인이다.
  *
- * crowdedLabel(utils/crowdingPalette.js, 읽기 전용)로 "여유/보통/혼잡/매우혼잡"
- * 4단계 라벨을 구하고, 그 라벨 종류가 2개 이상이면 "분산이 있다"고 판정한다.
+ * 히트맵 칸은 2시간을 유지한다(24칸은 390px 뷰포트를 넘는다). 대신 **요약 문장의 피크와
+ * 현재 라벨은 1시간 해상도로** 읽는다 — 16시(8.9%)와 17시(46.6%)를 합쳐 버리면 피크가
+ * 조용한 옆 시간에 희석된다.
+ *
+ * 라벨 규칙은 utils/crowdingLevel 단일 출처를 쓴다.
+ * 설계: docs/superpowers/specs/2026-08-02-bus-crowding-thresholds-design.md
  */
-import { crowdedLabel } from '../../utils/crowdingPalette'
+import { labelFromRatio } from '../../utils/crowdingLevel'
+
+/** 표본 가중으로 시간 버킷들을 하나로 합친다. 표본이 없으면 ratio=null. */
+function combine(entries) {
+  let weighted = 0
+  let samples = 0
+  let estimated = false
+  let reliable = false
+  for (const e of entries) {
+    if (!e || e.samples <= 0 || e.ratio == null) continue
+    weighted += e.ratio * e.samples
+    samples += e.samples
+    // 한 시간이라도 보정으로 올라갔으면 이 칸은 순수 관측이 아니다.
+    if (e.estimated) estimated = true
+    if (e.reliable !== false) reliable = true
+  }
+  return {
+    ratio: samples > 0 ? weighted / samples : null,
+    samples,
+    estimated,
+    reliable: samples > 0 ? reliable : true,
+  }
+}
 
 /**
- * mergeToTwoHourBuckets(hourly) — 24시간(0~23) 버킷 → 2시간 단위 12칸 버킷.
- * 표본수(samples)를 가중치로 삼아 평균한다(mergeToHourly와 동일 원칙).
+ * mergeToTwoHourBuckets(hourly) — 24시간 버킷 → 12칸 2시간 버킷(히트맵용).
  *
- * @param {Array<{hour:number, crowded:number|null, samples:number}>} hourly
- * @returns {Array<{startHour:number, endHour:number, crowded:number|null, samples:number}>} 길이 12
+ * @param {Array<{hour:number, ratio:number|null, samples:number, estimated?:boolean, reliable?:boolean}>} hourly
+ * @returns {Array<{startHour:number, endHour:number, ratio:number|null, samples:number, estimated:boolean, reliable:boolean}>}
  */
 export function mergeToTwoHourBuckets(hourly) {
   const safe = Array.isArray(hourly) ? hourly : []
   const byHour = new Map(safe.map((b) => [b.hour, b]))
   const buckets = []
   for (let start = 0; start < 24; start += 2) {
-    const a = byHour.get(start)
-    const b = byHour.get(start + 1)
-    const samplesA = a?.samples ?? 0
-    const samplesB = b?.samples ?? 0
-    const samples = samplesA + samplesB
-    let crowded = null
-    if (samples > 0) {
-      const weighted = (a?.crowded != null ? a.crowded * samplesA : 0)
-        + (b?.crowded != null ? b.crowded * samplesB : 0)
-      crowded = weighted / samples
-    }
-    buckets.push({ startHour: start, endHour: start + 2, crowded, samples })
+    buckets.push({
+      startHour: start,
+      endHour: start + 2,
+      ...combine([byHour.get(start), byHour.get(start + 1)]),
+    })
   }
   return buckets
 }
@@ -43,34 +60,47 @@ export function mergeToTwoHourBuckets(hourly) {
 /**
  * summarizeCrowding(hourly, nowHour) — 문장 요약에 필요한 값을 한 번에 계산.
  *
- * @param {Array<{hour:number, crowded:number|null, samples:number}>} hourly - 24시간 버킷
- * @param {number} nowHour - 현재 KST 시(0~23)
  * @returns {{
- *   buckets: Array,               // 2시간 단위 12칸(히트맵용)
- *   nowLabel: string|null,        // 지금 시간대 혼잡도 라벨
- *   peak: {startHour:number, endHour:number, label:string} | null, // 가장 혼잡한 버킷
- *   hasVariance: boolean,         // 라벨 종류가 2개 이상이면 true(히트맵 표시 근거)
- * } | null}  표본이 전혀 없으면 null(호출부가 섹션 자체를 숨기는 신호로 쓴다).
+ *   buckets: Array,                          // 2시간 12칸(히트맵용)
+ *   nowLabel: string|null,                   // 지금 "시간"의 라벨(1시간 해상도)
+ *   peak: {hour:number, label:string}|null,  // 가장 붐비는 "시간"(1시간 해상도)
+ *   hasVariance: boolean,                    // 라벨이 갈리는가(히트맵 표시 근거)
+ * } | null}  표본이 전혀 없으면 null.
  */
 export function summarizeCrowding(hourly, nowHour) {
-  const buckets = mergeToTwoHourBuckets(hourly)
-  const withData = buckets.filter((b) => b.samples > 0 && b.crowded != null)
+  const safe = Array.isArray(hourly) ? hourly : []
+  const buckets = mergeToTwoHourBuckets(safe)
+  const withData = safe.filter((b) => b && b.samples > 0 && b.ratio != null)
   if (withData.length === 0) return null
 
-  const nowBucket = buckets.find((b) => nowHour >= b.startHour && nowHour < b.endHour) ?? null
-  const nowLabel = nowBucket?.crowded != null ? crowdedLabel(nowBucket.crowded) : null
+  const nowEntry = withData.find((b) => b.hour === nowHour) ?? null
+  const nowLabel = nowEntry
+    ? labelFromRatio(nowEntry.ratio, {
+        estimated: nowEntry.estimated,
+        reliable: nowEntry.reliable !== false,
+      })
+    : null
 
-  let peakBucket = withData[0]
-  for (const b of withData) {
-    if (b.crowded > peakBucket.crowded) peakBucket = b
+  // 표본이 부족한 시간은 비율의 분산이 커서 피크로 뽑으면 오해를 만든다.
+  // 전부 부족하면 어쩔 수 없이 전체에서 고른다.
+  const reliablePool = withData.filter((b) => b.reliable !== false)
+  const pool = reliablePool.length > 0 ? reliablePool : withData
+
+  let peakEntry = pool[0]
+  for (const b of pool) {
+    if (b.ratio > peakEntry.ratio) peakEntry = b
   }
   const peak = {
-    startHour: peakBucket.startHour,
-    endHour: peakBucket.endHour,
-    label: crowdedLabel(peakBucket.crowded),
+    hour: peakEntry.hour,
+    label: labelFromRatio(peakEntry.ratio, {
+      estimated: peakEntry.estimated,
+      reliable: peakEntry.reliable !== false,
+    }),
   }
 
-  const labelSet = new Set(withData.map((b) => crowdedLabel(b.crowded)))
+  const labelSet = new Set(
+    withData.map((b) => labelFromRatio(b.ratio, { reliable: b.reliable !== false }))
+  )
   const hasVariance = labelSet.size > 1
 
   return { buckets, nowLabel, peak, hasVariance }
