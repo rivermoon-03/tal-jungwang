@@ -28,6 +28,7 @@ import { scrollToCenter } from '../../utils/scrollToCenter'
 import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
 import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
 import { buildDisplayList, DIRECTION_LABELS } from '../shuttle/shuttleSchedule'
+import { canSubmitBusSignal, submitBusSignal } from '../../hooks/useBusReports'
 import {
   PERIOD_VARIANTS,
   periodVariantKey,
@@ -310,6 +311,56 @@ function BusContent({ routeCode, routeId = null, stopId = null, category = null,
             )
         )
       )}
+      <BusReportRow routeNo={routeCode} stationKey={stopId} />
+    </div>
+  )
+}
+
+// F6 — 만차·결행 제보 행. 제보는 30분간 같은 정류장 카드에 경고 칩으로 공유된다.
+// 기기당 (노선, 종류) 10분 1회 로컬 스로틀(useBusReports)로 어뷰즈를 완충한다.
+function BusReportRow({ routeNo, stationKey }) {
+  const [sentKind, setSentKind] = useState(null)
+  if (!stationKey || !routeNo) return null
+
+  const send = async (kind) => {
+    setSentKind(kind)
+    if (!canSubmitBusSignal(routeNo, kind)) return // 이미 제보함 — UI만 완료 표시
+    try {
+      await submitBusSignal(kind, routeNo, stationKey)
+    } catch {
+      // rate limit 등 — 제보 UX는 성공처럼 조용히 처리(서버가 이미 과다 요청을 막았다)
+    }
+  }
+
+  if (sentKind) {
+    return (
+      <p className="mt-2 px-1 text-caption font-semibold text-accent-ink dark:text-accent-ink">
+        제보 완료 · 30분 동안 다른 사람 카드에 표시돼요
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-2 pt-3 border-t border-line dark:border-line">
+      <p className="px-1 mb-2 text-caption font-medium text-mute dark:text-mute">
+        지금 상황 제보 · 익명, 30분 뒤 자동 삭제
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => send('bus_full')}
+          className="pressable flex-1 py-2.5 rounded-button bg-surface-2 dark:bg-surface-2 text-ink-2 dark:text-ink-2 text-caption font-bold"
+        >
+          만차로 지나갔어요
+        </button>
+        <button
+          type="button"
+          onClick={() => send('bus_no_show')}
+          className="pressable flex-1 py-2.5 rounded-button bg-surface-2 dark:bg-surface-2 text-ink-2 dark:text-ink-2 text-caption font-bold"
+        >
+          시간 지나도 안 와요
+        </button>
+      </div>
     </div>
   )
 }
