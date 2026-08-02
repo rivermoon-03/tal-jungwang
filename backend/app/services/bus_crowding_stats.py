@@ -24,12 +24,41 @@ logger = logging.getLogger(__name__)
 CROWDING_FLOW_CACHE_PREFIX = "crowding:flow"
 CROWDING_STATS_LOOKBACK_DAYS = 60  # compute_crowding_flow 기본 lookback_days와 동일
 
-_REFRESH_SQL = """
+# 표본 = 차량 1대의 정류장 1회 접근. 로그 행을 그대로 세면 같은 차량이 45초마다
+# 재기록돼(정류장·차량당 5분 해상도) 멀리서 잡힌 빈 상태가 과대 대표된다.
+# 같은 (route, stop, plate)에서 20분 이상 공백이면 다른 접근으로 보고, 접근당
+# arrive_in_seconds 가 가장 작은 관측 1건만 표본으로 쓴다 — 정류장에 가장 가까웠을
+# 때의 값이 승차 시점 상태에 가장 가깝다.
+_APPROACH_GAP = "20 minutes"
+
+_REFRESH_SQL = f"""
 WITH ts AS (
-  SELECT route_id, stop_id, crowded,
-         (recorded_at AT TIME ZONE 'Asia/Seoul') AS ts_kst
+  SELECT route_id, stop_id, plate_no, crowded, arrive_in_seconds,
+         (recorded_at AT TIME ZONE 'Asia/Seoul') AS ts_kst,
+         recorded_at
   FROM bus_crowding_logs
   WHERE recorded_at >= now() - interval '60 days'
+),
+marked AS (
+  SELECT *,
+         CASE WHEN recorded_at - LAG(recorded_at) OVER w > interval '{_APPROACH_GAP}'
+                OR LAG(recorded_at) OVER w IS NULL
+              THEN 1 ELSE 0 END AS new_run
+  FROM ts
+  WINDOW w AS (PARTITION BY route_id, stop_id, plate_no ORDER BY recorded_at)
+),
+runs AS (
+  SELECT *,
+         SUM(new_run) OVER (
+           PARTITION BY route_id, stop_id, plate_no ORDER BY recorded_at
+         ) AS run_id
+  FROM marked
+),
+approaches AS (
+  SELECT DISTINCT ON (route_id, stop_id, plate_no, run_id)
+         route_id, stop_id, crowded, ts_kst
+  FROM runs
+  ORDER BY route_id, stop_id, plate_no, run_id, arrive_in_seconds ASC, ts_kst DESC
 ),
 bucketed AS (
   SELECT route_id, stop_id, crowded,
@@ -37,26 +66,35 @@ bucketed AS (
          (EXTRACT(HOUR FROM ts_kst)::int * 2
            + FLOOR(EXTRACT(MINUTE FROM ts_kst) / 30.0)::int) AS bucket,
          DATE(ts_kst) AS day
-  FROM ts
+  FROM approaches
 ),
 agg AS (
   SELECT route_id, stop_id, day_type, bucket,
          AVG(crowded)::numeric(4,2) AS avg_crowded,
          COUNT(*)::int AS sample_size,
-         COUNT(DISTINCT day)::int AS sample_days
+         COUNT(DISTINCT day)::int AS sample_days,
+         COUNT(*) FILTER (WHERE crowded = 1)::int AS c1,
+         COUNT(*) FILTER (WHERE crowded = 2)::int AS c2,
+         COUNT(*) FILTER (WHERE crowded = 3)::int AS c3,
+         COUNT(*) FILTER (WHERE crowded = 4)::int AS c4
   FROM bucketed
   GROUP BY route_id, stop_id, day_type, bucket
 )
 INSERT INTO bus_crowding_stats (
   route_id, stop_id, day_type, bucket,
-  avg_crowded, sample_size, sample_days, computed_at
+  avg_crowded, sample_size, sample_days, c1, c2, c3, c4, computed_at
 )
-SELECT route_id, stop_id, day_type, bucket, avg_crowded, sample_size, sample_days, :now_ts
+SELECT route_id, stop_id, day_type, bucket, avg_crowded, sample_size, sample_days,
+       c1, c2, c3, c4, :now_ts
 FROM agg
 ON CONFLICT (route_id, stop_id, day_type, bucket) DO UPDATE
 SET avg_crowded = EXCLUDED.avg_crowded,
     sample_size = EXCLUDED.sample_size,
     sample_days = EXCLUDED.sample_days,
+    c1 = EXCLUDED.c1,
+    c2 = EXCLUDED.c2,
+    c3 = EXCLUDED.c3,
+    c4 = EXCLUDED.c4,
     computed_at = EXCLUDED.computed_at
 """
 

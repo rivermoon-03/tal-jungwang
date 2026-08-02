@@ -83,23 +83,27 @@ async def test_get_arrivals_applies_margin_to_realtime_only():
 
     stop = _FakeStop()
 
+    # 호출 순서가 아니라 쿼리 내용으로 분기한다. 순서 고정 side_effect 는
+    # get_arrivals 에 조회가 하나 늘 때마다 무관한 이유로 깨진다.
+    def _dispatch(stmt):
+        sql = str(stmt)
+        result = MagicMock()
+        if "bus_stops" in sql and "bus_realtime_targets" not in sql:
+            result.scalar_one_or_none = MagicMock(return_value=stop)
+        elif "bus_realtime_targets" in sql:
+            # 시흥33(101)이 이 정류장의 enabled 실시간 대상이어야 캐시를 읽는다.
+            unique = MagicMock()
+            unique.all = MagicMock(return_value=stop.routes)
+            scalars = MagicMock()
+            scalars.unique = MagicMock(return_value=unique)
+            result.scalars = MagicMock(return_value=scalars)
+        else:
+            # 통학 맥락 메타 / 시간표 — 이 시나리오에서는 둘 다 비어 있다.
+            result.all = MagicMock(return_value=[])
+        return result
+
     db = MagicMock()
-    db.execute = AsyncMock()
-    scalar_result = MagicMock()
-    scalar_result.scalar_one_or_none = MagicMock(return_value=stop)
-    # 정류장 조회 → 통학 맥락 메타(source 없음) → bus_realtime_targets 순.
-    # 시흥33(101)이 이 정류장의 enabled 실시간 대상이어야 캐시를 읽는다.
-    context_result = MagicMock()
-    context_result.all = MagicMock(return_value=[])
-    target_unique = MagicMock()
-    target_unique.all = MagicMock(return_value=stop.routes)
-    target_scalars = MagicMock()
-    target_scalars.unique = MagicMock(return_value=target_unique)
-    target_result = MagicMock()
-    target_result.scalars = MagicMock(return_value=target_scalars)
-    all_result = MagicMock()
-    all_result.all = MagicMock(return_value=[])
-    db.execute.side_effect = [scalar_result, context_result, target_result, all_result]
+    db.execute = AsyncMock(side_effect=_dispatch)
 
     kst = ZoneInfo("Asia/Seoul")
     now = datetime.now(kst)

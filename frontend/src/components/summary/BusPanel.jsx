@@ -11,6 +11,7 @@ import { SkeletonArrivalCard } from '../common/Skeleton'
 import ErrorState from '../ui/ErrorState'
 import TransitCard from '../ui/TransitCard.jsx'
 import { formatEta } from '../../utils/eta'
+import { labelFromLevel, toneFromLevel } from '../../utils/crowdingLevel'
 import { arrivalEntryToSeconds, arrivalSecondsToMinutes, groupArrivalsByRoute } from '../../utils/busArrivalRows'
 import {
   getGbisStationId,
@@ -24,13 +25,6 @@ const DEFAULT_ROUTE_COLOR = '#64748B'
 // 결함 #3 — "5분 이하"가 곧 도착 섹션 + 임박(색만) 톤의 기준. 기존 IMMINENT_THRESHOLD_SEC(60초,
 // "곧 도착" 라벨 전환용)와는 별개 — 이 파일이 새로 정의하는 대시보드 카드 전용 규칙이다.
 const SOON_THRESHOLD_SEC = 5 * 60
-
-const CROWDED_META = {
-  1: { label: '여유', tone: 'neutral' },
-  2: { label: '보통', tone: 'neutral' },
-  3: { label: '혼잡', tone: 'warn' },
-  4: { label: '혼잡', tone: 'warn' },
-}
 
 function getCommuteGroup(station, category, routeNumber) {
   if (category === '등교') return station === '서울' ? 'from-seoul' : 'from-siheung-city-hall'
@@ -229,11 +223,14 @@ function buildLiveRow(group, { station, direction, onOpenDetail }) {
   const cfg = getRouteDisplayConfig(a.route_no)
   const { title, viaChip } = getRouteTitleAndVia(a.route_no, a.category ?? direction, a.destination)
   const originText = boardingLabel(a, station, direction)
-  const crowdedMeta = a.arrival_type === 'realtime' ? CROWDED_META[a.crowded] : null
+  // 라벨은 utils/crowdingLevel 단일 출처. 보정이 값을 올렸으면 "경험 기준"이 붙는다.
+  const crowdedLabel = a.arrival_type === 'realtime'
+    ? labelFromLevel(a.crowded, { estimated: a.crowded_estimated })
+    : null
 
   const chips = []
   if (a.arrival_type === 'realtime') chips.push({ label: '실시간', tone: 'realtime' })
-  if (crowdedMeta) chips.push({ label: crowdedMeta.label, tone: crowdedMeta.tone })
+  if (crowdedLabel) chips.push({ label: crowdedLabel, tone: toneFromLevel(a.crowded) })
   if (viaChip) chips.push({ label: viaChip, tone: 'neutral' })
 
   const imminent = !a.is_tomorrow && sec != null && sec <= SOON_THRESHOLD_SEC

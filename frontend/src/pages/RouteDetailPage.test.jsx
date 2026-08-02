@@ -413,8 +413,8 @@ describe('RouteDetailPage', () => {
           stop_name: '한국공학대학교',
           total_samples: 100,
           points: [
-            { hour: 8, minute: 0, crowded: 1.0, samples: 50 },
-            { hour: 9, minute: 0, crowded: 1.1, samples: 50 },
+            { hour: 8, minute: 0, ratio: 0.0, samples: 50 },
+            { hour: 9, minute: 0, ratio: 0.01, samples: 50 },
           ],
         },
         loading: false,
@@ -432,15 +432,15 @@ describe('RouteDetailPage', () => {
           stop_name: '한국공학대학교',
           total_samples: 100,
           points: [
-            { hour: 8, minute: 0, crowded: 3.6, samples: 50 },
-            { hour: 12, minute: 0, crowded: 1.0, samples: 50 },
+            { hour: 8, minute: 0, ratio: 0.45, samples: 50 },
+            { hour: 12, minute: 0, ratio: 0.0, samples: 50 },
           ],
         },
         loading: false,
         error: null,
       })
       const { container } = render(<RouteDetailPage routeNumber="33" />)
-      expect(screen.getByText(/붐벼요/)).toBeInTheDocument()
+      expect(screen.getByText(/8시가 가장 붐벼요/)).toBeInTheDocument()
       fireEvent.click(screen.getByText('시간대별 자세히 보기'))
       expect(container.querySelector('.grid-cols-12')).toBeTruthy()
     })
@@ -450,7 +450,7 @@ describe('RouteDetailPage', () => {
         data: {
           stop_name: '한국공학대학교',
           total_samples: 100,
-          points: [{ hour: 8, minute: 0, crowded: 3.6, samples: 50 }, { hour: 12, minute: 0, crowded: 1.0, samples: 50 }],
+          points: [{ hour: 8, minute: 0, ratio: 0.45, samples: 50 }, { hour: 12, minute: 0, ratio: 0.0, samples: 50 }],
         },
         loading: false,
         error: null,

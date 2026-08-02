@@ -125,6 +125,7 @@ async def _run_get_arrivals(
              "_next_departures",
              AsyncMock(return_value=dict(next_departures or {})),
          ), \
+         patch.object(bus_mod, "load_calibrations", AsyncMock(return_value=[])), \
          patch.object(bus_mod, "get_redis", AsyncMock(return_value=fake_redis)), \
          patch.object(bus_mod, "_resolve_avg_intervals", AsyncMock(return_value={})), \
          patch.object(bus_mod, "_resolve_arrival_stats", AsyncMock(return_value={})):
@@ -262,6 +263,7 @@ async def test_next_departures_asked_only_for_sanctioned_routes():
              }),
          ), \
          patch.object(bus_mod, "_next_departures", spy), \
+         patch.object(bus_mod, "load_calibrations", AsyncMock(return_value=[])), \
          patch.object(bus_mod, "get_redis", AsyncMock(return_value=fake_redis)), \
          patch.object(bus_mod, "_resolve_avg_intervals", AsyncMock(return_value={})), \
          patch.object(bus_mod, "_resolve_arrival_stats", AsyncMock(return_value={})):

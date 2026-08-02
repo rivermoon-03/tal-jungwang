@@ -23,6 +23,7 @@ from app.services.bus_context import (
     _normalize_source_display_label,
 )
 from app.services.bus_stats import get_arrival_stats
+from app.services.crowding_calibration import apply_calibration, load_calibrations
 
 _KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
@@ -744,7 +745,27 @@ async def get_arrivals(
     # ── 3. 정렬: arrive_in_seconds 기준 오름차순 (None은 뒤로) ─────────────
     arrivals.sort(key=lambda x: (x["arrive_in_seconds"] is None, x["arrive_in_seconds"] or 0))
 
-    # ── 4. 통학 맥락 라벨 부착 ─────────────────────────────────────────────
+    # ── 4. 혼잡도 표시 보정 ────────────────────────────────────────────────
+    # GBIS 값이 현장과 어긋나는 조합(시흥1 하교 이마트)의 표시 하한. 관측이 아니라
+    # 사람이 넣은 단언이므로 값을 실제로 올린 항목에만 crowded_estimated 를 단다.
+    calibrations = await load_calibrations(db)
+    if calibrations:
+        cal_day_type = "weekday" if d.weekday() <= 4 else "weekend"
+        for arrival in arrivals:
+            raw = arrival.get("crowded") or None
+            level, estimated = apply_calibration(
+                raw,
+                calibrations,
+                route_id=arrival.get("route_id"),
+                stop_id=stop.id,
+                day_type=cal_day_type,
+                hour=now_time.hour,
+            )
+            if level is not None:
+                arrival["crowded"] = level
+            arrival["crowded_estimated"] = estimated
+
+    # ── 5. 통학 맥락 라벨 부착 ─────────────────────────────────────────────
     for arrival in arrivals:
         entry = context_meta.get(arrival.get("route_id"))
         if entry is None:

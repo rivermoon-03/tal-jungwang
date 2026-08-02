@@ -4,45 +4,52 @@ import { mergeToHourly, crowdedToneStyle, isWeekendNow } from './crowdingHeatmap
 describe('mergeToHourly', () => {
   it('같은 시간대(hour)의 30분 버킷들을 표본가중 평균한다', () => {
     const result = mergeToHourly([
-      { hour: 8, minute: 0, crowded: 2, samples: 10 },
-      { hour: 8, minute: 30, crowded: 4, samples: 10 },
+      { hour: 8, minute: 0, ratio: 0.2, samples: 10 },
+      { hour: 8, minute: 30, ratio: 0.4, samples: 10 },
     ])
-    expect(result[8].crowded).toBeCloseTo(3)
+    expect(result[8].ratio).toBeCloseTo(0.3)
     expect(result[8].samples).toBe(20)
   })
 
   it('표본 수가 다르면 가중 평균이 큰 쪽으로 쏠린다(단순 평균과 달라야 함)', () => {
     const result = mergeToHourly([
-      { hour: 8, minute: 0, crowded: 1, samples: 1 },
-      { hour: 8, minute: 30, crowded: 4, samples: 9 },
+      { hour: 8, minute: 0, ratio: 0, samples: 1 },
+      { hour: 8, minute: 30, ratio: 1, samples: 9 },
     ])
-    // 단순평균이면 2.5, 표본가중이면 3.7에 가까움
-    expect(result[8].crowded).toBeCloseTo(3.7, 1)
+    // 단순평균이면 0.5, 표본가중이면 0.9
+    expect(result[8].ratio).toBeCloseTo(0.9, 2)
   })
 
-  it('데이터 없는 시간대는 crowded=null, samples=0', () => {
-    const result = mergeToHourly([{ hour: 5, minute: 0, crowded: 2, samples: 5 }])
+  it('데이터 없는 시간대는 ratio=null, samples=0', () => {
+    const result = mergeToHourly([{ hour: 5, minute: 0, ratio: 0.2, samples: 5 }])
     expect(result).toHaveLength(24)
-    expect(result[0].crowded).toBeNull()
+    expect(result[0].ratio).toBeNull()
     expect(result[0].samples).toBe(0)
   })
 
   it('points가 빈 배열/undefined/null이어도 24개 null 버킷을 반환', () => {
     expect(mergeToHourly([])).toHaveLength(24)
-    expect(mergeToHourly(undefined).every((b) => b.crowded === null)).toBe(true)
-    expect(mergeToHourly(null).every((b) => b.crowded === null)).toBe(true)
+    expect(mergeToHourly(undefined).every((b) => b.ratio === null)).toBe(true)
+    expect(mergeToHourly(null).every((b) => b.ratio === null)).toBe(true)
   })
 
   it('범위 밖 hour/결측 항목은 무시하고 크래시하지 않는다', () => {
     const result = mergeToHourly([
-      { hour: 30, minute: 0, crowded: 2, samples: 5 },
-      { hour: -1, minute: 0, crowded: 2, samples: 5 },
+      { hour: 30, minute: 0, ratio: 0.2, samples: 5 },
+      { hour: -1, minute: 0, ratio: 0.2, samples: 5 },
       null,
-      { hour: 9, minute: 0, crowded: null, samples: null },
+      { hour: 9, minute: 0, ratio: null, samples: null },
     ])
     expect(result.filter((b) => b.hour !== 9).every((b) => b.samples === 0)).toBe(true)
-    // samples가 null(0으로 취급)이면 해당 시간대도 데이터 없음 취급
-    expect(result[9].crowded).toBeNull()
+    expect(result[9].ratio).toBeNull()
+  })
+
+  it('한 버킷이라도 경험 기준이면 그 시간이 경험 기준으로 표시된다', () => {
+    const result = mergeToHourly([
+      { hour: 17, minute: 0, ratio: 0.1, samples: 10 },
+      { hour: 17, minute: 30, ratio: 1, samples: 10, estimated: true },
+    ])
+    expect(result[17].estimated).toBe(true)
   })
 })
 
@@ -53,22 +60,21 @@ describe('crowdedToneStyle', () => {
     expect(tone.className).toContain('bg-surface-2')
   })
 
-  it('1~4 범위를 벗어난 값도 clamp되어 색을 만든다(크래시하지 않음)', () => {
-    const low = crowdedToneStyle(0)
-    const high = crowdedToneStyle(10)
-    expect(low.style.backgroundColor).toContain('var(--tj-ease)')
-    expect(high.style.backgroundColor).toContain('var(--tj-delayed)')
+  it('0~1 범위를 벗어난 값도 clamp되어 색을 만든다(크래시하지 않음)', () => {
+    expect(crowdedToneStyle(-1).style.backgroundColor).toContain('var(--tj-ease)')
+    expect(crowdedToneStyle(10).style.backgroundColor).toContain('var(--tj-delayed)')
   })
 
-  it('낮은 값일수록 ease 비중이, 높은 값일수록 delayed 비중이 커진다', () => {
-    const easeHeavy = crowdedToneStyle(1.2)
-    const delayedHeavy = crowdedToneStyle(3.8)
+  it('낮은 비율일수록 ease 비중이, 높은 비율일수록 delayed 비중이 커진다', () => {
+    // 라벨 임계(붐빔 15%, 매우 붐빔 35%)와 색 구간이 같은 축을 쓴다
+    const easeHeavy = crowdedToneStyle(0.02)
+    const delayedHeavy = crowdedToneStyle(0.34)
     expect(easeHeavy.style.backgroundColor).toMatch(/var\(--tj-ease\) 8\d%/)
-    expect(delayedHeavy.style.backgroundColor).toMatch(/var\(--tj-delayed\) 8\d%/)
+    expect(delayedHeavy.style.backgroundColor).toMatch(/var\(--tj-delayed\) 9\d%/)
   })
 
   it('색은 항상 var(--tj-*) 토큰 기반이며 하드코딩 hex를 포함하지 않는다', () => {
-    for (const v of [1, 1.5, 2, 2.5, 3, 3.5, 4]) {
+    for (const v of [0, 0.05, 0.15, 0.35, 0.5, 1]) {
       const tone = crowdedToneStyle(v)
       expect(tone.style.backgroundColor).toMatch(/^color-mix\(in srgb, var\(--tj-/)
       expect(tone.style.backgroundColor).not.toMatch(/#[0-9a-fA-F]{3,6}/)

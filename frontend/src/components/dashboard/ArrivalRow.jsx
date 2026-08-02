@@ -3,12 +3,14 @@ import RouteBadge from '../ui/RouteBadge.jsx'
 import StatusChip from '../ui/StatusChip.jsx'
 import LastBusBanner from '../bus/LastBusBanner.jsx'
 import { formatEta } from '../../utils/eta.js'
+import { labelFromLevel } from '../../utils/crowdingLevel'
 
-const CROWDED_KIND = {
-  1: { kind: 'ease', label: '여유' },
-  2: { kind: 'ease', label: '보통' },
-  3: { kind: 'crowded', label: '혼잡' },
-  4: { kind: 'crowded', label: '매우혼잡' },
+// 라벨은 utils/crowdingLevel 단일 출처를 쓴다 — 예전엔 이 표와 BusPanel.CROWDED_META가
+// 따로 있어 등급 4가 화면마다 "매우혼잡"/"혼잡"으로 갈렸다.
+function crowdedChip(level, estimated) {
+  const label = labelFromLevel(level, { estimated })
+  if (!label) return null
+  return { kind: level >= 3 ? 'crowded' : 'ease', label }
 }
 
 export default function ArrivalRow({
@@ -26,6 +28,7 @@ export default function ArrivalRow({
   onClick,
   rightAddon = null,
   crowded = 0,
+  crowdedEstimated = false,
   isRealtime = false,
   selectedStation = null,
   // 오늘 시간표(있으면) — 막차 30분 이내일 때만 행 위에 컴팩트 배너를 얹는다.
@@ -67,7 +70,7 @@ export default function ArrivalRow({
   const mainText = subdirection != null ? direction : direction ?? null
   const subText = subdirection != null ? subdirection : null
 
-  const crowdedMeta = CROWDED_KIND[crowded] ?? null
+  const crowdedMeta = crowdedChip(crowded, crowdedEstimated)
 
   // onClick이 없고 routeNumber가 있으면 /route/bus:{routeNumber}?stop={station}로 네비게이트
   function handleClick() {
