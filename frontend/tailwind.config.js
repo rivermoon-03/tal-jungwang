@@ -1,3 +1,21 @@
+/**
+ * semantic 토큰을 "투명도 수식어를 받을 수 있는" 색으로 만든다.
+ *
+ * 값을 문자열 "var(--tj-surface-3)" 로 그냥 두면 Tailwind v3는 알파를 끼워 넣을 채널을
+ * 몰라서 `bg-surface-3/95` 같은 클래스의 **CSS 규칙 자체를 생성하지 않는다**.
+ * 클래스는 조용히 죽고, 앞에 적힌 `bg-white/95` 같은 게 그대로 살아남는다
+ * (다크모드 히어로의 흰 알약 · 흰 글자 사고가 이 경로였다. 전수 조사 결과
+ * src/ 전체에서 semantic 토큰 + 투명도 조합 40곳이 전부 무효였다).
+ *
+ * CSS 상대색 문법 `rgb(from <color> r g b / <alpha>)` 을 쓰면 채널을 따로
+ * 보관하지 않고도(--tj-x: 39 43 41 식의 이중 관리 없이) 알파를 넣을 수 있다.
+ * 전 브라우저가 지원한다.
+ */
+const tok = (name) => ({ opacityValue }) =>
+  opacityValue === undefined
+    ? `var(${name})`
+    : `rgb(from var(${name}) r g b / ${opacityValue})`
+
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}', './test/**/*.{js,jsx,html}'],
   darkMode: 'class',
@@ -7,25 +25,25 @@ export default {
         // ═══════════════════════════════════════════════════
         // 디자인 시스템 v1 semantic 토큰 (DESIGN.md §2, CSS 변수 단일 출처)
         // ═══════════════════════════════════════════════════
-        'bg':           'var(--tj-bg)',
-        'surface':      'var(--tj-surface)',
-        'surface-2':    'var(--tj-surface-2)',
-        'surface-3':    'var(--tj-surface-3)',
-        'line':         'var(--tj-line)',
-        'line-strong':  'var(--tj-line-strong)',
-        'ink':          'var(--tj-ink)',
-        'ink-2':        'var(--tj-ink-2)',
-        'mute':         'var(--tj-mute)',
-        'accent':       'var(--tj-accent)',
-        'accent-hover': 'var(--tj-accent-hover)',
-        'accent-ink':   'var(--tj-accent-ink)',
-        'accent-bg':    'var(--tj-accent-bg)',
-        'imminent':     'var(--tj-imminent)',
-        'imminent-bg':  'var(--tj-imminent-bg)',
-        'ease':         'var(--tj-ease)',
-        'delayed':      'var(--tj-delayed)',
-        'delayed-bg':   'var(--tj-delayed-bg)',
-        'realtime':     'var(--tj-realtime)',
+        'bg':           tok('--tj-bg'),
+        'surface':      tok('--tj-surface'),
+        'surface-2':    tok('--tj-surface-2'),
+        'surface-3':    tok('--tj-surface-3'),
+        'line':         tok('--tj-line'),
+        'line-strong':  tok('--tj-line-strong'),
+        'ink':          tok('--tj-ink'),
+        'ink-2':        tok('--tj-ink-2'),
+        'mute':         tok('--tj-mute'),
+        'accent':       tok('--tj-accent'),
+        'accent-hover': tok('--tj-accent-hover'),
+        'accent-ink':   tok('--tj-accent-ink'),
+        'accent-bg':    tok('--tj-accent-bg'),
+        'imminent':     tok('--tj-imminent'),
+        'imminent-bg':  tok('--tj-imminent-bg'),
+        'ease':         tok('--tj-ease'),
+        'delayed':      tok('--tj-delayed'),
+        'delayed-bg':   tok('--tj-delayed-bg'),
+        'realtime':     tok('--tj-realtime'),
 
         // ═══════════════════════════════════════════════════
         // 레거시 별칭 — 값은 위 semantic CSS 변수로 통일(다크 2체계 제거).
@@ -33,38 +51,38 @@ export default {
         // ═══════════════════════════════════════════════════
 
         // ── 라이트 모드 surface · 텍스트 ───────────────────
-        'surface-alt':  'var(--tj-surface-2)',   // 패널 내부 보조
-        'text':         'var(--tj-ink-2)',       // 본문 (destination 등)
+        'surface-alt':  tok('--tj-surface-2'),   // 패널 내부 보조
+        'text':         tok('--tj-ink-2'),       // 본문 (destination 등)
 
         // ── 다크 모드 surface · 텍스트 (구 iDrive OLED — sage 다크 사다리로 통일) ──
-        'bg-dark':           'var(--tj-bg)',
-        'surface-dark':      'var(--tj-surface)',
-        'surface-dark-alt':  'var(--tj-bg)',      // surface보다 한 단 어두운 보조
-        'line-dark':         'var(--tj-line)',
-        'border-dark':       'var(--tj-line)',    // 후방 호환 alias
-        'ink-dark':          'var(--tj-ink)',
-        'text-dark':         'var(--tj-ink-2)',
-        'mute-dark':         'var(--tj-mute)',
+        'bg-dark':           tok('--tj-bg'),
+        'surface-dark':      tok('--tj-surface'),
+        'surface-dark-alt':  tok('--tj-bg'),      // surface보다 한 단 어두운 보조
+        'line-dark':         tok('--tj-line'),
+        'border-dark':       tok('--tj-line'),    // 후방 호환 alias
+        'ink-dark':          tok('--tj-ink'),
+        'text-dark':         tok('--tj-ink-2'),
+        'mute-dark':         tok('--tj-mute'),
         'mute-2-dark':       '#444947',           // sage7 dark
-        'text-secondary-dark': 'var(--tj-ink-2)', // 후방 호환
+        'text-secondary-dark': tok('--tj-ink-2'), // 후방 호환
 
         // ── 중립 (레거시 — 신규 컴포넌트는 ink/mute var() 키 사용) ─
         'mute-2': '#cbcfcd',         // sage7 — disabled / placeholder
 
         // ── 브랜드 액센트 (레거시) ────────────────────────
-        'accent-dark':  'var(--tj-accent)',   // teal9는 라이트/다크 동일이라 accent와 일치
+        'accent-dark':  tok('--tj-accent'),   // teal9는 라이트/다크 동일이라 accent와 일치
 
         // ── 모드별 식별 색 ────────────────────────────────
-        shuttle: 'var(--tj-accent)',          // 셔틀 전용 (구 navy #1b3a6e)
+        shuttle: tok('--tj-accent'),          // 셔틀 전용 (구 navy #1b3a6e)
 
         // ── 상태 토큰 ──────────────────────────────────────
-        'state-ok':       'var(--tj-ease)',
-        'state-warn':     'var(--tj-imminent)',
-        'state-bad':      'var(--tj-delayed)',
-        'imminent-dark':  'var(--tj-imminent)', // "곧" 배지 (다크) 레거시 — imminent와 통일
+        'state-ok':       tok('--tj-ease'),
+        'state-warn':     tok('--tj-imminent'),
+        'state-bad':      tok('--tj-delayed'),
+        'imminent-dark':  tok('--tj-imminent'), // "곧" 배지 (다크) 레거시 — imminent와 통일
 
         // ── Dock 전용 ─────────────────────────────────────
-        'dock-bg':         'var(--tj-dock-bg)',
+        'dock-bg':         tok('--tj-dock-bg'),
         'dock-active-bg':  '#272a29',   // sage4 dark
         'dock-text':       '#eceeed',   // sage12 dark
         'dock-text-mute':  '#717d79',   // sage10 dark
@@ -87,19 +105,19 @@ export default {
         'route-halo-local-dark':    'rgba(8,145,178,.36)',
 
         // ── 카테고리 칩 팔레트 (Soft Tinted — DESIGN.md "카테고리 칩 팔레트", CSS 변수 단일 출처) ──
-        'chip-green-bg':   'var(--tj-chip-green-bg)',  'chip-green-fg':   'var(--tj-chip-green-fg)',
-        'chip-blue-bg':    'var(--tj-chip-blue-bg)',   'chip-blue-fg':    'var(--tj-chip-blue-fg)',
-        'chip-red-bg':     'var(--tj-chip-red-bg)',    'chip-red-fg':     'var(--tj-chip-red-fg)',
-        'chip-purple-bg':  'var(--tj-chip-purple-bg)', 'chip-purple-fg':  'var(--tj-chip-purple-fg)',
-        'chip-yellow-bg':  'var(--tj-chip-yellow-bg)', 'chip-yellow-fg':  'var(--tj-chip-yellow-fg)',
-        'chip-gray-bg':    'var(--tj-chip-gray-bg)',   'chip-gray-fg':    'var(--tj-chip-gray-fg)',
+        'chip-green-bg':   tok('--tj-chip-green-bg'),  'chip-green-fg':   tok('--tj-chip-green-fg'),
+        'chip-blue-bg':    tok('--tj-chip-blue-bg'),   'chip-blue-fg':    tok('--tj-chip-blue-fg'),
+        'chip-red-bg':     tok('--tj-chip-red-bg'),    'chip-red-fg':     tok('--tj-chip-red-fg'),
+        'chip-purple-bg':  tok('--tj-chip-purple-bg'), 'chip-purple-fg':  tok('--tj-chip-purple-fg'),
+        'chip-yellow-bg':  tok('--tj-chip-yellow-bg'), 'chip-yellow-fg':  tok('--tj-chip-yellow-fg'),
+        'chip-gray-bg':    tok('--tj-chip-gray-bg'),   'chip-gray-fg':    tok('--tj-chip-gray-fg'),
         // 레거시 별칭(-dark 접미) — 값은 위와 동일 var()라 라이트/다크 전환은 CSS에서 이미 처리됨.
         // 이름 자체(전수 치환)는 Phase B 몫 — 컴포넌트에서는 -dark 접미 없이 위 키를 그대로 쓴다.
-        'chip-green-bg-dark':  'var(--tj-chip-green-bg)',  'chip-green-fg-dark':  'var(--tj-chip-green-fg)',
-        'chip-blue-bg-dark':   'var(--tj-chip-blue-bg)',   'chip-blue-fg-dark':   'var(--tj-chip-blue-fg)',
-        'chip-red-bg-dark':    'var(--tj-chip-red-bg)',    'chip-red-fg-dark':    'var(--tj-chip-red-fg)',
-        'chip-purple-bg-dark': 'var(--tj-chip-purple-bg)', 'chip-purple-fg-dark': 'var(--tj-chip-purple-fg)',
-        'chip-yellow-bg-dark': 'var(--tj-chip-yellow-bg)', 'chip-yellow-fg-dark': 'var(--tj-chip-yellow-fg)',
+        'chip-green-bg-dark':  tok('--tj-chip-green-bg'),  'chip-green-fg-dark':  tok('--tj-chip-green-fg'),
+        'chip-blue-bg-dark':   tok('--tj-chip-blue-bg'),   'chip-blue-fg-dark':   tok('--tj-chip-blue-fg'),
+        'chip-red-bg-dark':    tok('--tj-chip-red-bg'),    'chip-red-fg-dark':    tok('--tj-chip-red-fg'),
+        'chip-purple-bg-dark': tok('--tj-chip-purple-bg'), 'chip-purple-fg-dark': tok('--tj-chip-purple-fg'),
+        'chip-yellow-bg-dark': tok('--tj-chip-yellow-bg'), 'chip-yellow-fg-dark': tok('--tj-chip-yellow-fg'),
 
         // ── 레거시 (호환을 위해 유지, 값은 신규 팔레트로 정리) ──
         // bg-soft / line-soft / bg-soft-light / route-201 / route-33 / route-1 / suinbundang
@@ -108,7 +126,7 @@ export default {
 
         // ── 도메인 색 — shuttle 토큰과 동일 값으로 통일(구 #1b3a6e 네이비 폐기) ──
         navy: {
-          DEFAULT: 'var(--tj-accent)',
+          DEFAULT: tok('--tj-accent'),
         },
       },
       fontSize: {

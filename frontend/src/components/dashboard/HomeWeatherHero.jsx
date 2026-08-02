@@ -4,7 +4,8 @@ import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useAppStore from '../../stores/useAppStore'
 import { SKY_ICON, SKY_TEXT } from '../stats/skyDisplay'
-import { getTimeOfDay } from '../../utils/timeOfDay'
+import { getSunAltitude, getSunPhase } from '../../utils/sunPosition'
+import { getSkyPalette } from '../../utils/skyPalette'
 import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import { pickGreeting } from '../../utils/heroGreeting'
 import { getDirectionAutoChangeMessage } from '../../utils/directionAutoChangeToast'
@@ -87,31 +88,49 @@ function goToCafeteria() {
   }
 }
 
+/** 하늘을 다시 계산하는 주기. 태양은 5분에 약 1.25도 움직인다. */
+const SKY_REFRESH_MS = 5 * 60 * 1000
+
 /**
  * HomeWeatherHero — 모바일 홈 상단 A. 결함 #31 리디자인: 기본은 "한 줄 스트립"만
  * 차지한다("32° 맑음 · 바람 2.6m/s" + 펼치기 토글) — 예전처럼 뷰포트의 45%를
  * 영구 점유해 하단 Dashboard가 내부 스크롤에 갇히던 문제를 없앤다. 스트립을
- * 탭하면 아코디언으로 펼쳐져 기존 인사말/예보 상세(이펙트·greeting·classic
- * 레이아웃)가 그대로 나타난다 — 아래 로직은 펼침 여부와 무관하게 기존 그대로다.
+ * 탭하면 아코디언으로 펼쳐져 인사말/예보 상세가 나타난다.
  *
- * 펼친 패널 내부 날씨 상태 + 시간대(낮/저녁/밤)에 따라 배경/이펙트가 변한다
- * (맑음=낮 햇살 광선·밤 별/달/유성 · 흐림=드리프트 구름 · 비=3겹 원근
- * 빗줄기+스플래시(+밤엔 번개) · 눈=원근 눈송이, 맑음·흐림은 저녁엔 노을/보랏빛,
- * 밤엔 남색/청회색으로 톤이 어두워진다).
+ * 하늘은 하나다
+ * ─────────────
+ * 배경 색과 그 위의 잉크는 skyPalette.getSkyPalette()가 한 번에 정하고, 이
+ * 컴포넌트는 그 결과를 CSS 변수로 흘려보내기만 한다. 예전에는 배경이 CSS의
+ * 무드×시간대 하드코딩이고 글자 색은 여기 `lightText` 불리언이라 서로를 몰랐다
+ * (다크 맑음·낮에서 남색 배경 위에 회색 글자가 얹혀 2.2:1까지 떨어졌고, 흰
+ * 알약 위 흰 글자는 1.01:1이었다). 이제 두 판단이 한 함수에서 나오고,
+ * skyPalette.test.js가 무드×고도×테마 전 조합의 대비를 실제로 계산해 막는다.
+ *
+ * 시간도 세 칸이 아니다
+ * ───────────────────
+ * 낮/저녁/밤 버킷 대신 정왕동 좌표의 **태양 고도**(sunPosition.js)로 하늘을
+ * 연속 보간한다. 12월 6시와 6월 6시가 다른 하늘이 된다. 5분마다 다시 계산한다.
+ * 해 원반을 실제 위치에 띄우는 것도 해 봤지만 좁은 히어로 안에서는 어디에 두든
+ * 붙여 놓은 스티커처럼 보여서 걷어냈다 — 시간의 흐름은 배경 색이 말한다.
+ *
+ * 이펙트는 무드당 하나다(맑음=낮 글로우 또는 별·흐림=구름·비=빗줄기+스플래시·
+ * 눈=눈송이). 예전의 glow/breath/grain 세 겹은 서로 싸워 하늘을 회색으로
+ * 씻어내기만 해서 걷어냈다.
+ *
  * useAppStore.heroStyle에 따라 펼친 메인 블록이 두 가지로 갈린다:
- *  - 'classic': 큰 온도(60px) 중심 레이아웃(기존).
+ *  - 'classic': 큰 온도(60px) 중심 레이아웃.
  *  - 'greeting'(기본): 온도 위에 pickGreeting()이 고른 감성 글귀를 얹고,
- *    온도는 34px로 축소. 필름 그레인 + 호흡 글로우 배경 레이어가 함께 붙는다.
- * 지도 전환 버튼·날씨/식당 토글·검색 진입은 모두 스트립 행
- * 우측에 항상 노출한다(검색은 결함 명세상 필수, 날씨/식당 토글도 함께 유지해
- * 기존 진입점을 잃지 않게 한다). 날씨/식당 토글을 누르면 결과를 보여주기 위해
- * 패널도 함께 펼쳐진다.
+ *    온도는 34px로 축소했다가 2초 뒤 확대한다.
+ * 지도 전환 버튼·날씨/식당 토글·검색 진입은 모두 스트립 행 우측에 항상 노출한다.
  */
 export default function HomeWeatherHero({ onOpenMap }) {
   const { weather } = useWeather()
   const { direction, isOverride } = useEffectiveDirection()
   const heroStyle = useAppStore((s) => s.heroStyle) // 'greeting'(기본) | 'classic'
   const setSearchOpen = useAppStore((s) => s.setSearchOpen)
+  // useTheme이 themeMode + 시스템 설정을 종합해 스토어에 넣어 둔 실제 화면 상태.
+  // 하늘 팔레트가 이 값을 받아야 다크모드에서 잉크가 어긋나지 않는다.
+  const darkMode = useAppStore((s) => s.darkMode)
   const [view, setView] = useState('weather') // 'weather' | 'cafeteria' — persist 불필요, 새로고침 시 날씨로 리셋
   // 아코디언 펼침 여부 — 기본 접힘(스트립만 노출). persist 불필요(세션 로컬, 새로고침 시 리셋).
   const [expanded, setExpanded] = useState(false)
@@ -138,13 +157,37 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const mood = SKY_MOOD[icon] ?? 'sunny'
   const Icon = SKY_ICON[icon] ?? Sun
 
-  // 시간대는 KST 기준(getTimeOfDay가 Intl.DateTimeFormat('Asia/Seoul') 패턴을 씀).
-  // 렌더마다 새로 계산 — 히어로가 마운트된 채 시간대가 바뀌어도 다음 렌더에 반영.
-  const timeOfDay = getTimeOfDay()
-  const timeShifted = (mood === 'sunny' || mood === 'cloudy') && timeOfDay !== 'day'
-  // 비 배경은 항상 어둡고, 맑음/흐림은 저녁·밤에 배경이 어두워질 때만 흰 글자로 전환.
-  // 눈(snowy)은 시간대 영향을 받지 않는 파스텔 배경을 유지하므로 제외(대비 유지).
-  const lightText = mood === 'rainy' || timeShifted
+  // ── 하늘 ────────────────────────────────────────────────────────────
+  // 태양 고도를 5분마다 다시 잰다. Date는 state로 들고 있어야(렌더 중 new Date()가
+  // 아니라) 리렌더 시점이 예측 가능하고, 테스트에서 가짜 타이머로 제어된다.
+  const [skyClock, setSkyClock] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setSkyClock(new Date()), SKY_REFRESH_MS)
+    return () => clearInterval(id)
+  }, [])
+
+  const sunAltitude = getSunAltitude(skyClock)
+  // 배경 색은 고도로 연속 보간하지만, "밤이냐"만 알면 되는 규칙(번개 등)은
+  // 기존 세 칸 값을 그대로 쓴다.
+  const timeOfDay = getSunPhase(sunAltitude)
+
+  const sky = useMemo(
+    () => getSkyPalette({ mood, altitudeDeg: sunAltitude, dark: darkMode }),
+    [mood, sunAltitude, darkMode],
+  )
+
+  // 낮 글로우 세기 — 해가 지평선 위로 올라올수록 밝아지고, 25도쯤에서 최대.
+  const daylight = Math.min(1, Math.max(0, sunAltitude / 25))
+  const skyVars = {
+    '--whero-sky-a': sky.stops[0],
+    '--whero-sky-b': sky.stops[1],
+    '--whero-sky-c': sky.stops[2],
+    '--whero-on': sky.on,
+    '--whero-on-2': sky.on2,
+    '--whero-scrim': sky.scrim,
+    '--whero-scrim-a': sky.scrimAlpha,
+    '--daylight': daylight.toFixed(3),
+  }
 
   const snowflakes = useMemo(() => SNOWFLAKES, [])
   const rainFar = useMemo(() => RAIN_FAR, [])
@@ -158,15 +201,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
     () => (view === 'cafeteria' ? pickOpenVenues(3) : []),
     [view],
   )
-
-  const chipCls = lightText
-    ? 'bg-black/35 border border-white/15 text-white'
-    : 'bg-white/95 dark:bg-surface-3/95 border border-line dark:border-line text-ink dark:text-ink'
-
-  // 날씨/식당 토글 — 다른 pill(등교·자동/지도)과 같은 chip 시각언어로 통일.
-  // 활성 아이콘만 채워 세그먼트 느낌. 배경 밝기에 맞춰 대비 분기.
-  const toggleActiveCls = lightText ? 'bg-white text-[#1b3a6e]' : 'bg-accent-bg text-accent-ink'
-  const toggleIdleCls = lightText ? 'text-white/75' : 'text-ink-2 dark:text-mute'
 
   // 정왕풍(定王風) — 건물풍이 센 정왕동을 재치있게 표현. 풍속 없으면 null → 줄 미표시.
   const wind = describeJeongwangWind(weather?.windSpeed ?? null)
@@ -271,43 +305,20 @@ export default function HomeWeatherHero({ onOpenMap }) {
     </Fragment>
   ))
 
-  // 배경 밝기(lightText)에 맞춘 전경색. 식당 뷰도 날씨 배경 위라 동일 규칙을 쓴다.
-  const tempColor = lightText ? 'text-white' : 'text-ink dark:text-ink'
-  const skyColor  = lightText ? 'text-white/90' : 'text-ink-2 dark:text-mute'
-  const metaColor = lightText ? 'text-white/80' : 'text-ink-2 dark:text-mute'
-
-  // 강등 글귀(.whero-quote-text) 색 — Tailwind 유틸리티 클래스 스왑 대신 CSS 커스텀
-  // 프로퍼티로 넘겨, font-size/weight와 함께 하나의 트랜지션(700ms)으로 보간되게 한다.
-  // 강등 색은 한 단계 흐리게: lightText면 white/70, 아니면 --tj-ink-2.
-  const quoteColorVars = {
-    '--quote-color': lightText ? '#fff' : 'var(--tj-ink)',
-    '--quote-color-demoted': lightText ? 'rgba(255,255,255,0.7)' : 'var(--tj-ink-2)',
-  }
-
-  // 정왕풍 미니 pill — 배경 대비에 맞춰 톤 조정, strong(6m/s+)이면 살짝 강조.
-  const windPillCls = lightText
-    ? (wind?.strong ? 'bg-white/25 text-white' : 'bg-white/15 text-white/95')
-    : (wind?.strong ? 'bg-ink/10 text-ink dark:bg-white/10 dark:text-ink' : 'bg-ink/[0.06] text-ink-2 dark:bg-white/[0.07] dark:text-ink')
-
-  // 식당 카드 — 날씨 그라디언트 위에 얹히므로 대비를 lightText로 분기(반투명 유리감).
-  const venueCardCls = lightText
-    ? 'bg-white/[0.14] border border-white/20'
-    : 'bg-white/75 dark:bg-black/25 border border-white/50 dark:border-white/10'
-  const venueNameCls = lightText ? 'text-white' : 'text-ink dark:text-ink'
-  const venueMetaCls = lightText ? 'text-white/70' : 'text-ink-2 dark:text-mute'
-
   // 정왕풍 pill + 강수확률 — classic/greeting 두 레이아웃이 동일하게 재사용(인라인 중복 방지).
   const windMeta = (
     <>
       {wind && (
-        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-bold ${windPillCls}`}>
+        <span
+          className={`whero-windpill ${wind.strong ? 'is-strong' : ''} inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-bold`}
+        >
           <Wind size={12} strokeWidth={2.2} aria-hidden="true" />
           정왕풍 {wind.value}
           <span className="font-semibold opacity-80">· {wind.phrase}</span>
         </span>
       )}
       {weather?.rainProb != null && weather.rainProb > 0 && (
-        <span className={`text-caption font-semibold ${metaColor}`}>
+        <span className="whero-ink-2 text-caption font-semibold">
           강수 <span className="tabular-nums">{weather.rainProb}%</span>
         </span>
       )}
@@ -315,7 +326,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
   )
 
   return (
-    <div className="whero" data-mood={mood} data-time={timeOfDay}>
+    <div className="whero" data-mood={mood} data-time={timeOfDay} style={skyVars}>
       {/* 자동 방향 전환 토스트 */}
       {previousDirection && (
         <DirectionAutoToast
@@ -325,6 +336,10 @@ export default function HomeWeatherHero({ onOpenMap }) {
           onClose={() => setToastVisible(false)}
         />
       )}
+
+      {/* 스크림 — 하늘 위 베일. 스트립과 패널이 하나의 하늘을 공유하므로
+          이 한 겹이 두 곳의 가독성을 함께 책임진다(두께는 skyPalette가 계산). */}
+      <div className="whero-scrim" aria-hidden="true" />
 
       {/* 한 줄 스트립 — 결함 #31: 항상 이 높이만 차지. 왼쪽은 펼치기 토글,
           오른쪽은 날씨/식당/검색 아이콘(항상 노출 — 검색은 명세상 필수 유지). */}
@@ -336,18 +351,18 @@ export default function HomeWeatherHero({ onOpenMap }) {
           aria-label={expanded ? '날씨 요약 접기' : '날씨 요약 펼치기'}
           className="flex-1 min-w-0 flex items-center gap-1.5 text-left active:scale-[0.99] transition-transform duration-press"
         >
-          <span className={`text-caption font-bold whitespace-nowrap truncate ${tempColor}`}>
+          <span className="whero-ink text-caption font-bold whitespace-nowrap truncate">
             {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'} {SKY_TEXT[icon] ?? ''}
           </span>
           {wind && (
-            <span className={`text-caption font-medium whitespace-nowrap truncate ${metaColor}`}>
+            <span className="whero-ink-2 text-caption font-medium whitespace-nowrap truncate">
               · 바람 {wind.value}
             </span>
           )}
           <ChevronDown
             size={15}
             aria-hidden="true"
-            className={`shrink-0 transition-transform duration-base ${expanded ? 'rotate-180' : ''} ${lightText ? 'text-white/80' : 'text-ink-2 dark:text-mute'}`}
+            className={`whero-ink-2 shrink-0 transition-transform duration-base ${expanded ? 'rotate-180' : ''}`}
           />
         </button>
 
@@ -356,14 +371,14 @@ export default function HomeWeatherHero({ onOpenMap }) {
           type="button"
           onClick={onOpenMap}
           aria-label="지도 보기"
-          className={`shrink-0 inline-flex items-center gap-1 rounded-card px-2.5 h-8 text-[12px] font-bold shadow-pill active:scale-[0.94] transition-transform duration-press ease-spring ${chipCls}`}
+          className="whero-chip shrink-0 inline-flex items-center gap-1 rounded-card px-2.5 h-8 text-[12px] font-bold active:scale-[0.94] transition-transform duration-press ease-spring"
         >
           <Map size={14} aria-hidden="true" />
           지도
         </button>
 
         <div
-          className={`shrink-0 inline-flex items-center gap-0.5 rounded-card p-0.5 shadow-pill ${chipCls}`}
+          className="whero-chip shrink-0 inline-flex items-center gap-0.5 rounded-card p-0.5"
           role="group"
           aria-label="히어로 옵션"
           style={{ touchAction: 'manipulation' }}
@@ -373,7 +388,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
             onClick={() => selectView('weather')}
             aria-label="날씨 보기"
             aria-pressed={view === 'weather'}
-            className={`flex items-center justify-center w-7 h-7 rounded-badge transition-colors active:scale-[0.92] ${view === 'weather' ? toggleActiveCls : toggleIdleCls}`}
+            className={`whero-toggle ${view === 'weather' ? 'is-on' : ''} flex items-center justify-center w-7 h-7 rounded-badge active:scale-[0.92]`}
           >
             <Sun size={14} aria-hidden="true" />
           </button>
@@ -382,7 +397,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
             onClick={() => selectView('cafeteria')}
             aria-label="식당 보기"
             aria-pressed={view === 'cafeteria'}
-            className={`flex items-center justify-center w-7 h-7 rounded-badge transition-colors active:scale-[0.92] ${view === 'cafeteria' ? toggleActiveCls : toggleIdleCls}`}
+            className={`whero-toggle ${view === 'cafeteria' ? 'is-on' : ''} flex items-center justify-center w-7 h-7 rounded-badge active:scale-[0.92]`}
           >
             <Utensils size={14} aria-hidden="true" />
           </button>
@@ -390,7 +405,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
             type="button"
             onClick={() => setSearchOpen?.(true)}
             aria-label="검색"
-            className={`flex items-center justify-center w-7 h-7 rounded-badge transition-colors active:scale-[0.92] ${toggleIdleCls}`}
+            className="whero-toggle flex items-center justify-center w-7 h-7 rounded-badge active:scale-[0.92]"
           >
             <Search size={14} aria-hidden="true" />
           </button>
@@ -400,9 +415,9 @@ export default function HomeWeatherHero({ onOpenMap }) {
       {/* 아코디언 패널 — 펼쳤을 때만 마운트. 기존 인사말/예보 상세 + 날씨 이펙트가 여기 담긴다. */}
       {expanded && (
       <div className="whero-panel">
-      {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다. */}
-      {mood === 'sunny' && timeOfDay !== 'night' && <div className="whero-glow" aria-hidden="true" />}
-      {mood === 'sunny' && timeOfDay === 'day' && <div className="whero-rays" aria-hidden="true" />}
+      {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다.
+          무드당 한 겹씩만 얹는다. */}
+      {mood === 'sunny' && sunAltitude > 0 && <div className="whero-daylight" aria-hidden="true" />}
       {mood === 'sunny' && timeOfDay === 'night' && (
         <div className="whero-night-sky" aria-hidden="true">
           {stars.map((s, i) => (
@@ -418,7 +433,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
               }}
             />
           ))}
-          <span className="whero-moon" />
           <span className="whero-meteor" />
         </div>
       )}
@@ -499,14 +513,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
           ))}
         </div>
       )}
-      {heroStyle === 'greeting' && (
-        <>
-          <div className="whero-grain" aria-hidden="true" />
-          <div className="whero-breath" aria-hidden="true" />
-        </>
-      )}
-
-      {/* 하단 seam — mood 색을 대시보드 배경으로 얇게 블렌드 */}
+      {/* 하단 seam — 하늘을 대시보드 배경으로 얇게 블렌드 */}
       <div className="whero-seam" aria-hidden="true" />
 
       {view === 'weather' ? (
@@ -518,10 +525,10 @@ export default function HomeWeatherHero({ onOpenMap }) {
             <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-7 pt-2">
               <div className="min-w-0">
                 <div className="flex items-end gap-2.5">
-                  <span className={`text-hero-temp tabular-nums ${tempColor}`}>
+                  <span className="whero-ink text-hero-temp tabular-nums">
                     {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
                   </span>
-                  <span className={`mb-1.5 text-title font-bold ${skyColor}`}>
+                  <span className="whero-ink-2 mb-1.5 text-title font-bold">
                     {SKY_TEXT[icon] ?? ''}
                   </span>
                 </div>
@@ -534,9 +541,9 @@ export default function HomeWeatherHero({ onOpenMap }) {
               <Icon
                 size={64}
                 strokeWidth={1.6}
-                className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
-                // 그라디언트 배경(특히 비/저녁 톤)에 아이콘이 묻히지 않게 살짝 그림자로 띄운다.
-                style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
+                className="whero-ink shrink-0"
+                // 하늘 위에 아이콘이 묻히지 않게 스크림과 같은 극성의 그림자로 띄운다.
+                style={{ filter: 'drop-shadow(0 2px 7px rgb(from var(--whero-scrim) r g b / 0.35))' }}
                 aria-hidden="true"
               />
             </div>
@@ -559,7 +566,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
                     onClick={toggleTooltip}
                     aria-expanded={tooltipOpen}
                     aria-describedby={tooltipOpen ? tooltipId : undefined}
-                    style={quoteColorVars}
                     className={`whero-quote-text block w-full cursor-pointer border-0 bg-transparent p-0 text-left [text-wrap:balance] ${
                       phase === 'weather' ? 'is-demoted' : ''
                     }`}
@@ -569,7 +575,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
                 ) : (
                   <p
                     data-testid="hero-greeting-text"
-                    style={quoteColorVars}
                     className={`whero-quote-text [text-wrap:balance] ${
                       phase === 'weather' ? 'is-demoted' : ''
                     }`}
@@ -581,9 +586,9 @@ export default function HomeWeatherHero({ onOpenMap }) {
                   <div
                     id={tooltipId}
                     role="tooltip"
-                    className={`whero-quote-tooltip rounded-button px-3 py-1.5 text-caption shadow-sh-card ${
+                    className={`whero-quote-tooltip whero-tooltip-surface rounded-button px-3 py-1.5 text-caption shadow-sh-card ${
                       tooltipOpen ? 'is-entering' : 'is-leaving'
-                    } ${lightText ? 'bg-black/55 text-white backdrop-blur-md' : 'bg-surface-3 text-ink-2'}`}
+                    }`}
                   >
                     {tooltipContent}
                   </div>
@@ -596,14 +601,14 @@ export default function HomeWeatherHero({ onOpenMap }) {
                 <div className="min-w-0">
                   <div className="flex items-end gap-2">
                     <span
-                      className={`whero-quote-temp font-extrabold leading-none tabular-nums ${
+                      className={`whero-quote-temp whero-ink font-extrabold leading-none tabular-nums ${
                         phase === 'weather' ? 'is-grown' : ''
-                      } ${tempColor}`}
+                      }`}
                     >
                       {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
                     </span>
                     <span
-                      className={`whero-quote-sky mb-0.5 font-bold ${phase === 'weather' ? 'is-grown' : ''} ${skyColor}`}
+                      className={`whero-quote-sky whero-ink-2 mb-0.5 font-bold ${phase === 'weather' ? 'is-grown' : ''}`}
                     >
                       {SKY_TEXT[icon] ?? ''}
                     </span>
@@ -617,8 +622,8 @@ export default function HomeWeatherHero({ onOpenMap }) {
                   <Icon
                     size={32}
                     strokeWidth={1.6}
-                    className={`shrink-0 ${lightText ? 'text-white' : 'text-ink/70 dark:text-white/90'}`}
-                    style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.28))' }}
+                    className="whero-ink shrink-0"
+                    style={{ filter: 'drop-shadow(0 2px 7px rgb(from var(--whero-scrim) r g b / 0.35))' }}
                     aria-hidden="true"
                   />
                 </span>
@@ -628,9 +633,9 @@ export default function HomeWeatherHero({ onOpenMap }) {
         </>
       ) : (
         <div className="relative z-10 flex-1 flex flex-col px-4 pb-6" style={{ paddingTop: 40 }}>
-          <p className={`text-caption font-bold tracking-wide ${metaColor}`}>지금 문 연 곳</p>
+          <p className="whero-ink-2 text-caption font-bold tracking-wide">지금 문 연 곳</p>
           {openVenues.length === 0 ? (
-            <p className={`flex-1 flex items-center justify-center text-label font-semibold ${skyColor}`}>
+            <p className="whero-ink-2 flex-1 flex items-center justify-center text-label font-semibold">
               지금 문 연 곳이 없어요
             </p>
           ) : (
@@ -638,17 +643,17 @@ export default function HomeWeatherHero({ onOpenMap }) {
               {openVenues.map(({ venue, status }) => (
                 <li
                   key={venue.id}
-                  className={`flex items-center gap-2 rounded-card px-3 py-2 backdrop-blur-sm ${venueCardCls}`}
+                  className="whero-venue flex items-center gap-2 rounded-card px-3 py-2 backdrop-blur-sm"
                 >
                   <span
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{ background: 'var(--tj-ease)' }}
                     aria-hidden="true"
                   />
-                  <span className={`flex-1 truncate text-caption font-semibold ${venueNameCls}`}>
+                  <span className="whero-ink flex-1 truncate text-caption font-semibold">
                     {venue.name}
                   </span>
-                  <span className={`shrink-0 text-caption font-medium ${venueMetaCls}`}>
+                  <span className="whero-ink-2 shrink-0 text-caption font-medium">
                     {status.nextChange ? `~${status.nextChange}` : '24시간'}
                   </span>
                 </li>
@@ -658,7 +663,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
           <button
             type="button"
             onClick={goToCafeteria}
-            className={`self-end text-caption font-bold active:scale-[0.96] transition-transform duration-press ease-spring ${lightText ? 'text-white' : 'text-accent'}`}
+            className="whero-ink self-end text-caption font-bold active:scale-[0.96] transition-transform duration-press ease-spring"
           >
             더보기
           </button>

@@ -10,8 +10,9 @@ export default function BusStatsHeader({ stats, dayLabel, hourLabel }) {
 
   const isLowSample = stats.is_low_sample === true
 
+  // 프레임 대신 구분선 한 줄로 ETA 블록과 나눈다(시간표 상세 표면 규율, 2026-08-02).
   return (
-    <div className="rounded-card bg-surface-2 dark:bg-bg border border-line dark:border-line p-3.5 mb-4">
+    <div className="border-t border-line dark:border-line pt-3.5 mb-4">
       <div className="flex items-end justify-between mb-2.5 gap-3">
         <div className="min-w-0">
           <div className="text-label text-mute dark:text-mute font-semibold tracking-wide mb-0.5 flex items-center gap-1.5">
