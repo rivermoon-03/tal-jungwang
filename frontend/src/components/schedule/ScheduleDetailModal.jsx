@@ -21,7 +21,7 @@ import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
 import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
 import Skeleton from '../common/Skeleton'
 import { RouteProgressStrip } from '../bus/BusArrivalCard'
-import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStationConfig'
+import { ROUTE_WAYPOINTS, getGbisStationIdForRoute, getRouteDisplayConfig } from '../dashboard/busStationConfig'
 import BusStatsHeader from '../bus/BusStatsHeader'
 import BusEtaCard from '../bus/BusEtaCard'
 import { scrollToCenter } from '../../utils/scrollToCenter'
@@ -285,6 +285,18 @@ function BusContent({ routeCode, routeId = null, stopId = null, category = null,
 
   return (
     <div className="flex flex-col gap-2">
+      {/* 남은 차가 0이면 목록만 보고는 "지난 시각뿐"인지 "데이터가 이상한지" 구분이
+          안 된다. 상단에 상태를 먼저 말하고 내일 첫차까지 준다. */}
+      {futureCount === 0 && (
+        <div className="mb-1 px-3.5 py-2.5 rounded-card bg-imminent-bg dark:bg-imminent-bg">
+          <p className="text-label font-bold text-imminent dark:text-imminent">
+            오늘 운행이 끝났어요
+          </p>
+          <p className="text-caption font-semibold text-mute dark:text-mute mt-0.5">
+            막차 {allTimes[allTimes.length - 1]} 출발 · 내일 첫차 {allTimes[0]}
+          </p>
+        </div>
+      )}
       {data?.schedule_type && (
         <p className="text-caption text-mute mb-1">
           {scheduleTypeLabel(data.schedule_type)} 시간표 · 첫차 {allTimes[0]} ~ 막차 {allTimes[allTimes.length - 1]} · 총 {allTimes.length}회 · 남은 {futureCount}회
@@ -1234,7 +1246,11 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   if (!isPC && !open && !title) return null
 
   const fallbackColor = TYPE_COLOR[type] ?? '#64748B'
-  const color = accentColor ?? fallbackColor
+  // 헤더 점 색은 카드 배지와 같은 출처(ROUTE_DISPLAY_CONFIG)를 써야 한다.
+  // 예전엔 호출부가 급행 4개 노선에만 accentColor를 넘겨서, 시흥33·20-1·11-A는
+  // 카드에선 노선색인데 시트에선 타입 기본색(파랑)으로 떠 색이 어긋났다.
+  const routeColor = type === 'bus' ? getRouteDisplayConfig(routeCode)?.color : null
+  const color = accentColor ?? routeColor ?? fallbackColor
   const typeLabel = TYPE_LABEL[type] ?? ''
   // 마커 진입 등 title이 아직 없는 경로에서도 헤더가 빈 줄로 찌그러지지 않도록
   // routeCode → typeLabel 순으로 폴백한다(제목 잘림 버그와 함께 확인된 방어 로직).
