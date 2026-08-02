@@ -87,9 +87,19 @@ async def test_get_arrivals_applies_margin_to_realtime_only():
     db.execute = AsyncMock()
     scalar_result = MagicMock()
     scalar_result.scalar_one_or_none = MagicMock(return_value=stop)
+    # 정류장 조회 → 통학 맥락 메타(source 없음) → bus_realtime_targets 순.
+    # 시흥33(101)이 이 정류장의 enabled 실시간 대상이어야 캐시를 읽는다.
+    context_result = MagicMock()
+    context_result.all = MagicMock(return_value=[])
+    target_unique = MagicMock()
+    target_unique.all = MagicMock(return_value=stop.routes)
+    target_scalars = MagicMock()
+    target_scalars.unique = MagicMock(return_value=target_unique)
+    target_result = MagicMock()
+    target_result.scalars = MagicMock(return_value=target_scalars)
     all_result = MagicMock()
     all_result.all = MagicMock(return_value=[])
-    db.execute.side_effect = [scalar_result, all_result]
+    db.execute.side_effect = [scalar_result, context_result, target_result, all_result]
 
     kst = ZoneInfo("Asia/Seoul")
     now = datetime.now(kst)

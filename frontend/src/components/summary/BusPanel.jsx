@@ -5,7 +5,6 @@ import {
   useBusArrivals,
   useBusRoutesByCategory,
   useBusTimetable,
-  useBusTimetableByRoute,
 } from '../../hooks/useBus'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import { SkeletonArrivalCard } from '../common/Skeleton'
@@ -152,10 +151,12 @@ export default function BusPanel() {
   const imminentRows = liveRows.filter((r) => r.sec <= SOON_THRESHOLD_SEC).sort((a, b) => a.sec - b.sec)
   const runningRows = liveRows.filter((r) => r.sec > SOON_THRESHOLD_SEC).sort((a, b) => a.sec - b.sec)
 
-  // 정류장에 설정된 노선 중 오늘 arrivals 응답에 아예 없는(완전 미운행) 노선
+  // 정류장이 취급하는 노선 중 오늘 arrivals 응답에 아예 없는(완전 미운행) 노선.
+  // 기준 목록은 백엔드 expected_routes(bus_information_sources 기반)다 — 프런트
+  // busStationConfig 상수로 판단하면 DB·GBIS 개편과 조용히 어긋난다.
   const presentRouteNos = new Set(routeGroups.map((g) => g[0].route_no))
-  const configuredRoutes = Object.keys(getPerRouteDisplay(selectedBusStation) ?? {})
-  const missingRoutes = configuredRoutes.filter((r) => !presentRouteNos.has(r))
+  const expectedRoutes = arrivalsQuery.data?.expected_routes ?? []
+  const missingRoutes = expectedRoutes.filter((r) => !presentRouteNos.has(r.route_no))
 
   const hasRunning = runningRows.length > 0 || fallbackGroups.length > 0
 
@@ -177,9 +178,9 @@ export default function BusPanel() {
               <BusFallbackCard
                 key={group[0].route_no}
                 arrival={group[0]}
-                gbisStationId={gbisStationId}
                 station={selectedBusStation}
                 direction={selectedBusDirection}
+                onOpenDetail={setDetailModal}
               />
             ))}
           </div>
@@ -188,9 +189,10 @@ export default function BusPanel() {
 
       {missingRoutes.length > 0 && (
         <NotRunningSection
-          routeNumbers={missingRoutes}
-          gbisStationId={gbisStationId}
+          routes={missingRoutes}
+          station={selectedBusStation}
           direction={selectedBusDirection}
+          onOpenDetail={setDetailModal}
         />
       )}
 
@@ -203,6 +205,19 @@ export default function BusPanel() {
   )
 }
 
+/**
+ * 카드 subtitle 로 쓸 승차 지점 문구.
+ *
+ * 백엔드가 `bus_information_sources`의 승차 라벨을 정규화해 내려주므로 그 값을 그대로
+ * 쓴다("이마트 승차"). 시간표 화면과 같은 출처라 같은 노선을 다르게 설명하지 않는다.
+ * 서울 정류장처럼 통학 맥락 source 가 없는 경로만 기존 상수로 폴백한다.
+ */
+function boardingLabel(arrival, station, direction) {
+  if (arrival.boarding_label) return arrival.boarding_label
+  const perRoute = getPerRouteDisplay(station)?.[arrival.route_no]
+  return perRoute ? getOriginLabel(station, direction, perRoute.origin) : ''
+}
+
 /** 실시간 ETA가 확보된 그룹 하나 → {sec, node(TransitCard)}. */
 function buildLiveRow(group, { station, direction, onOpenDetail }) {
   const a = group[0]
@@ -213,8 +228,7 @@ function buildLiveRow(group, { station, direction, onOpenDetail }) {
 
   const cfg = getRouteDisplayConfig(a.route_no)
   const { title, viaChip } = getRouteTitleAndVia(a.route_no, a.category ?? direction, a.destination)
-  const perRoute = getPerRouteDisplay(station)?.[a.route_no]
-  const originText = perRoute ? getOriginLabel(station, direction, perRoute.origin) : ''
+  const originText = boardingLabel(a, station, direction)
   const crowdedMeta = a.arrival_type === 'realtime' ? CROWDED_META[a.crowded] : null
 
   const chips = []
@@ -302,17 +316,18 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpe
  * 결함 #17 — 실시간 도착 데이터는 있지만(arrivals 응답에 항목 존재) 실시간 위치가
  * 아직 안 잡혀 arrive_in_seconds가 없는 노선. "실시간 준비 중" 대신 시간표 폴백:
  * 오늘 남은 시간표가 있으면 그 시각을, 없으면 안내 문구를 보여준다.
+ *
+ * 폴백 시각은 arrivals 응답의 depart_at을 그대로 쓴다. 그 승차점에 제품이 보장한
+ * 출발 시간표가 있는지(`bus_information_sources`)는 서버가 판단하며, 클라이언트가
+ * 노선번호로 다시 조회하면 source로 연결하지 않은 원본 시간표까지 끌어오게 된다.
+ * 값이 비어도 카드는 상세로 진입 가능해야 한다(정보 부재 ≠ 상세 부재).
  */
-function BusFallbackCard({ arrival, gbisStationId, station, direction }) {
-  const todayTT = useBusTimetableByRoute(arrival.route_no, { stopId: gbisStationId })
+function BusFallbackCard({ arrival, station, direction, onOpenDetail }) {
+  const category = arrival.category ?? direction
   const cfg = getRouteDisplayConfig(arrival.route_no)
-  const { title, viaChip } = getRouteTitleAndVia(
-    arrival.route_no,
-    arrival.category ?? direction,
-    arrival.destination ?? todayTT.data?.direction_name
-  )
+  const { title, viaChip } = getRouteTitleAndVia(arrival.route_no, category, arrival.destination)
 
-  const next = nextTimeToday(todayTT.data?.times)
+  const next = arrival.depart_at ?? null
   const chips = [{ label: '실시간 연결 중', tone: 'neutral' }]
   if (viaChip) chips.push({ label: viaChip, tone: 'neutral' })
 
@@ -320,19 +335,28 @@ function BusFallbackCard({ arrival, gbisStationId, station, direction }) {
     <TransitCard
       badge={{ label: arrival.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
       title={title}
-      subtitle={getOriginLabel(station, direction, getPerRouteDisplay(station)?.[arrival.route_no]?.origin) || undefined}
+      subtitle={boardingLabel(arrival, station, direction) || undefined}
       chips={chips}
       eta={
         next
           ? { primary: { text: `${next} 출발`, tone: 'default' }, secondary: { text: '시간표 기준' } }
-          : { primary: { text: '출발 정보 없음', tone: 'muted' }, secondary: { text: '잠시 후 다시 확인' } }
+          // 이 승차점에 시간표 자체가 없는 실시간 전용 노선이다. "출발 정보 없음"은
+          // 시간표가 있는데 비어 보이게 하므로 도착 기준 문구를 쓴다.
+          : { primary: { text: '현재 도착 정보 없음', tone: 'muted' }, secondary: { text: '잠시 후 다시 확인' } }
       }
+      onClick={() => openBusDetail(onOpenDetail, {
+        routeNumber: arrival.route_no,
+        routeId: arrival.route_id ?? null,
+        station,
+        category,
+        title: `${arrival.route_no} · ${title}`,
+      })}
     />
   )
 }
 
 /** 결함 #27 — "오늘 미운행 · N" 접힘 섹션. 기본 접힘, 펼치면 노선별 muted 카드. */
-function NotRunningSection({ routeNumbers, gbisStationId, direction }) {
+function NotRunningSection({ routes, station, direction, onOpenDetail }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -343,13 +367,19 @@ function NotRunningSection({ routeNumbers, gbisStationId, direction }) {
         aria-expanded={open}
         className="flex items-center gap-1 text-[12px] font-bold text-mute mb-1.5 pressable"
       >
-        오늘 미운행 · {routeNumbers.length}
+        오늘 미운행 · {routes.length}
         <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-base ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="space-y-2">
-          {routeNumbers.map((routeNo) => (
-            <NotRunningCard key={routeNo} routeNo={routeNo} gbisStationId={gbisStationId} direction={direction} />
+          {routes.map((route) => (
+            <NotRunningCard
+              key={route.route_no}
+              route={route}
+              station={station}
+              direction={direction}
+              onOpenDetail={onOpenDetail}
+            />
           ))}
         </div>
       )}
@@ -357,45 +387,37 @@ function NotRunningSection({ routeNumbers, gbisStationId, direction }) {
   )
 }
 
-function NotRunningCard({ routeNo, gbisStationId, direction }) {
-  // 평일 시간표를 기준으로 "다음 첫차" 안내(정확한 요일 계산 대신 평일/토/일 스케줄
-  // 타입을 그대로 노출 — 백엔드 schedule_type 규약과 일치).
-  const weekdayTT = useBusTimetableByRoute(routeNo, { stopId: gbisStationId, scheduleType: 'weekday' })
+/**
+ * 오늘 도착·출발 정보가 하나도 없는 노선. 여기서 노선번호로 시간표를 다시 조회하면
+ * 제품이 승차 시간표로 연결하지 않은 원본 행(시흥1·시흥33)까지 "평일 첫차"로 나온다.
+ * 운행 여부 판단은 시간표 화면으로 넘기고 목록에서는 상태만 말한다.
+ */
+function NotRunningCard({ route, station, direction, onOpenDetail }) {
+  const routeNo = route.route_no
+  const category = route.category ?? direction
   const cfg = getRouteDisplayConfig(routeNo)
-  const { title } = getRouteTitleAndVia(routeNo, direction, weekdayTT.data?.direction_name)
-  const weekdayFirst = nextTimeToday(weekdayTT.data?.times, { anyTime: true })
+  const { title } = getRouteTitleAndVia(routeNo, category, null)
 
   return (
     <TransitCard
       badge={{ label: routeNo, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
       title={title}
+      subtitle={route.boarding_label || undefined}
       muted
       chips={[{ label: '오늘 미운행', tone: 'neutral' }]}
       eta={{
         primary: { text: '오늘 미운행', tone: 'muted' },
-        secondary: { text: weekdayFirst ? `평일 ${weekdayFirst} 첫차` : '시간표 확인 전' },
+        secondary: { text: '운행일 확인' },
       }}
+      onClick={() => openBusDetail(onOpenDetail, {
+        routeNumber: routeNo,
+        routeId: route.route_id ?? null,
+        station,
+        category,
+        title: `${routeNo} · ${title}`,
+      })}
     />
   )
-}
-
-/**
- * 시간표 times(문자열 "HH:MM" 배열)에서 다음 출발 시각을 찾는다.
- * anyTime이면 지금 이후 필터 없이 첫 값을 그대로 반환(다른 스케줄 타입의 "첫차" 조회용).
- */
-function nextTimeToday(times, { anyTime = false } = {}) {
-  if (!Array.isArray(times) || times.length === 0) return null
-  const sorted = times.filter((t) => typeof t === 'string').slice().sort()
-  if (anyTime) return sorted[0] ?? null
-  const now = new Date()
-  const upcoming = sorted.filter((t) => {
-    const [h, m] = t.split(':').map(Number)
-    if (Number.isNaN(h) || Number.isNaN(m)) return false
-    const d = new Date(now)
-    d.setHours(h, m, 0, 0)
-    return d.getTime() >= now.getTime()
-  })
-  return upcoming[0] ?? null
 }
 
 function extractNext(data, n = 2) {

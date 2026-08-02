@@ -241,7 +241,8 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
   })
 
   it('완전 미운행 노선이 있으면 "오늘 미운행 · N" 접힘 섹션이 기본 접힘 상태로 보인다', () => {
-    // 5602만 실시간 응답에 있고, 시흥시청 설정상 시흥33/3401은 응답에 없음 → 미운행 후보
+    // 5602만 실시간 응답에 있고, 시흥시청이 취급하는 시흥33/3401은 응답에 없음 →
+    // 미운행 후보. 기준 목록은 서버 expected_routes 다(프런트 상수 아님).
     mockUseBusArrivals.mockReturnValue({
       data: {
         arrivals: [
@@ -254,6 +255,11 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
             is_tomorrow: false,
             crowded: 0,
           },
+        ],
+        expected_routes: [
+          { route_id: 14, route_no: '시흥33', category: '등교', boarding_label: '시흥시청 승차' },
+          { route_id: 10, route_no: '3401', category: '등교', boarding_label: '시흥시청 승차' },
+          { route_id: 12, route_no: '5602', category: '등교', boarding_label: '시흥시청 승차' },
         ],
       },
       loading: false,
