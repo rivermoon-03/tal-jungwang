@@ -49,6 +49,10 @@ class ShuttleTimetableEntry(Base):
     day_type: Mapped[str] = mapped_column(String(10), nullable=False)  # weekday|saturday|sunday
     departure_time: Mapped[time] = mapped_column(nullable=False)
     note: Mapped[str | None] = mapped_column(String(100))
+    # 방학 시간표의 근무제/학사 구분 태그 — seasonal(계절학기)|reduced(단축근무)|normal(정상근무).
+    # NULL 이면 기간 내 공통 시각. 프런트가 이 값으로 색상 분류를 렌더링한다(학교 PDF의
+    # 빨강=계절학기 / 초록=단축근무 / 검정=정상근무 구분을 그대로 옮긴 것).
+    variant: Mapped[str | None] = mapped_column(String(20))
 
     schedule_period: Mapped["SchedulePeriod"] = relationship(back_populates="shuttle_entries")
     shuttle_route: Mapped["ShuttleRoute"] = relationship(back_populates="shuttle_entries")

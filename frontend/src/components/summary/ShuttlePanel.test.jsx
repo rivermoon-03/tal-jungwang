@@ -62,10 +62,17 @@ describe('ShuttlePanel — NO_SCHEDULE/NO_SHUTTLE 빈 상태 카피', () => {
     vi.useRealTimers()
   })
 
-  it('NO_SCHEDULE 에러 시 주말·방학 미운영 안내 제목을 표시한다', () => {
+  it('NO_SCHEDULE 에러 시 "시간표가 없는 기간" 안내를 표시한다 (D1: 방학 미운행 단정 금지)', () => {
     useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR, refetch: vi.fn() })
     render(<ShuttlePanel />)
-    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+    expect(screen.getByText(/시간표가 없는 기간/)).toBeInTheDocument()
+  })
+
+  it('NO_SCHEDULE 안내에는 대체 시내버스(20-1·시흥33) 다음 행동이 있다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR, refetch: vi.fn() })
+    render(<ShuttlePanel />)
+    expect(screen.getByText(/20-1/)).toBeInTheDocument()
+    expect(screen.getByText(/시흥33/)).toBeInTheDocument()
   })
 
   it('NO_SCHEDULE 에러 시 "학기 중 시간표 보기" 버튼이 없다', () => {
@@ -84,7 +91,27 @@ describe('ShuttlePanel — NO_SCHEDULE/NO_SHUTTLE 빈 상태 카피', () => {
     useShuttleNext.mockReturnValue({ data: null, loading: false, error: null, refetch: vi.fn() })
     useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR })
     render(<ShuttlePanel />)
-    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+    expect(screen.getByText(/시간표가 없는 기간/)).toBeInTheDocument()
+  })
+
+  it('기간은 있지만 오늘 편성이 0건이면(주말) "오늘은 운행하지 않아요" + 다음 첫차를 보여준다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SHUTTLE_ERR, refetch: vi.fn() })
+    useShuttleSchedule.mockImplementation((direction) => {
+      // 오늘 전체 시간표(방향 없음): 기간은 있는데 directions가 비어 있음 = 미운행일
+      if (direction === undefined || direction === null) {
+        return {
+          data: { schedule_type: 'VACATION', schedule_name: '여름방학 · 단축근무', directions: [] },
+          loading: false,
+          error: null,
+        }
+      }
+      // 내일/모레 폴백(방향 지정): 월요일 첫차
+      return { data: { directions: [{ direction, times: [{ depart_at: direction === 0 ? '08:41' : '09:10' }] }] }, loading: false, error: null }
+    })
+    render(<ShuttlePanel />)
+    expect(screen.getByText('오늘은 셔틀이 운행하지 않아요')).toBeInTheDocument()
+    expect(screen.getByText('다음 첫차')).toBeInTheDocument()
+    expect(screen.queryByText(/운행이 끝났어요/)).not.toBeInTheDocument()
   })
 
   it('NO_SHUTTLE 에러 시 오늘 운행 종료 안내를 표시한다', () => {
@@ -142,7 +169,7 @@ describe('ShuttlePanel — 본캠 주말 미운영', () => {
   it('본캠 + 토요일 + NO_SCHEDULE 시 미운영 안내를 표시한다', () => {
     mockKstDay(6) // 토요일
     render(<ShuttlePanel />)
-    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+    expect(screen.getByText(/시간표가 없는 기간/)).toBeInTheDocument()
   })
 
   it('본캠 + 토요일 + NO_SCHEDULE 시 학기 중 시간표 버튼이 없다', () => {
@@ -154,7 +181,7 @@ describe('ShuttlePanel — 본캠 주말 미운영', () => {
   it('본캠 + 일요일 + NO_SCHEDULE 시 미운영 안내를 표시한다', () => {
     mockKstDay(0) // 일요일
     render(<ShuttlePanel />)
-    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+    expect(screen.getByText(/시간표가 없는 기간/)).toBeInTheDocument()
   })
 })
 
@@ -179,7 +206,7 @@ describe('ShuttlePanel — 2캠 + 토요일 예외: 정상 흐름', () => {
       refetch: vi.fn(),
     })
     render(<ShuttlePanel />)
-    expect(screen.queryByText(/주말·방학/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/시간표가 없는 기간/)).not.toBeInTheDocument()
     expect(screen.getByText('2캠 셔틀버스')).toBeInTheDocument()
   })
 
@@ -193,7 +220,7 @@ describe('ShuttlePanel — 2캠 + 토요일 예외: 정상 흐름', () => {
     })
     useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: NO_SCHEDULE_ERR })
     render(<ShuttlePanel />)
-    expect(screen.queryByText(/주말·방학/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/시간표가 없는 기간/)).not.toBeInTheDocument()
     expect(screen.getByText('2캠 셔틀버스')).toBeInTheDocument()
   })
 
@@ -202,7 +229,7 @@ describe('ShuttlePanel — 2캠 + 토요일 예외: 정상 흐름', () => {
     useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
     render(<ShuttlePanel />)
     expect(screen.getByText(/오늘 셔틀 운행이 끝났어요/)).toBeInTheDocument()
-    expect(screen.queryByText(/주말·방학/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/시간표가 없는 기간/)).not.toBeInTheDocument()
   })
 })
 
@@ -222,7 +249,7 @@ describe('ShuttlePanel — 2캠 + 일요일: 미운영', () => {
 
   it('2캠 + 일요일 + NO_SCHEDULE 시 미운영 안내를 표시한다', () => {
     render(<ShuttlePanel />)
-    expect(screen.getByText(/주말·방학/)).toBeInTheDocument()
+    expect(screen.getByText(/시간표가 없는 기간/)).toBeInTheDocument()
   })
 
   it('2캠 + 일요일 + NO_SCHEDULE 시 "학기 중 시간표 보기" 버튼이 없다', () => {
