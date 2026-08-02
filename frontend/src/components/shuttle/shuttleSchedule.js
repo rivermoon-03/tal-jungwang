@@ -40,6 +40,7 @@ export function buildDisplayList(times) {
         time: times[i].depart_at,
         minutes: toMinutes(times[i].depart_at),
         note: times[i].note ?? null,
+        variant: times[i].variant ?? null, // seasonal|reduced|normal — 기간 색상 분류
       })
       i++
     }

@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── 스토어 모킹 (기본: userLocation 있음) ──
 vi.mock('../../stores/useAppStore', () => ({
@@ -8,6 +8,7 @@ vi.mock('../../stores/useAppStore', () => ({
       userLocation: { lat: 37.351, lng: 126.742 },
       driveRouteCoords: null,
       setDriveRouteCoords: vi.fn(),
+      setUserLocation: vi.fn(),
     }),
   ),
 }))
@@ -63,8 +64,10 @@ describe('TaxiPanel — AI티 제거 검증', () => {
     })
   })
 
-  it('승차 포인트를 렌더한다', () => {
+  it('내 위치 출발이 기본이고, 학교 정문 출발로 바꾸면 승차 포인트가 따라온다', () => {
     render(<TaxiPanel />)
+    expect(screen.getByText('승차 포인트: 내 위치 주변에서 호출')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '학교 정문 출발' }))
     expect(screen.getByText('승차 포인트: 정문 앞 로터리')).toBeInTheDocument()
   })
 
@@ -74,13 +77,42 @@ describe('TaxiPanel — AI티 제거 검증', () => {
   })
 })
 
-describe('TaxiPanel — GPS 없음', () => {
-  it('GPS 위치가 없으면 안내 문구를 렌더한다', () => {
-    // 이 describe 내에서 스토어를 직접 재모킹 (vi.mock은 이미 실행됨, 새 모듈 불가)
-    // userLocation=null 케이스는 컴포넌트 내부 if (!userLocation) 분기 확인용
-    // → 여기서는 이미 모킹된 값(userLocation 있음)이 쓰이므로, 별도 렌더로 GPS 없음 메시지를 확인
-    // 이 케이스는 통합 테스트로 처리 — 단순히 분기 텍스트가 소스에 있는지만 확인
-    // (동일 모듈 수준 vi.mock 재지정 불가)
-    expect(true).toBe(true) // GPS 없음 분기는 컴포넌트 소스 코드로 보장
+// ── D4 — GPS 없음: 막다른 화면 대신 고정 출발지 프리셋으로 동작 ──
+import useAppStore from '../../stores/useAppStore'
+
+describe('TaxiPanel — GPS 없음(D4)', () => {
+  beforeEach(() => {
+    useAppStore.mockImplementation((selector) =>
+      selector({
+        userLocation: null,
+        driveRouteCoords: null,
+        setDriveRouteCoords: vi.fn(),
+        setUserLocation: vi.fn(),
+      }),
+    )
+  })
+
+  it('"GPS 위치를 켜주세요" 막다른 문구가 없다', () => {
+    render(<TaxiPanel />)
+    expect(screen.queryByText('GPS 위치를 켜주세요')).not.toBeInTheDocument()
+  })
+
+  it('학교 정문 출발 기준으로 목적지·요금 목록을 바로 보여준다', () => {
+    render(<TaxiPanel />)
+    expect(screen.getByRole('button', { name: '학교 정문 출발' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('정왕역')).toBeInTheDocument()
+    expect(screen.getByText('승차 포인트: 정문 앞 로터리')).toBeInTheDocument()
+  })
+
+  it('위치 권한 요청 버튼(내 위치 켜기)이 있다', () => {
+    render(<TaxiPanel />)
+    expect(screen.getByRole('button', { name: /내 위치 켜기/ })).toBeInTheDocument()
+  })
+
+  it('정왕역 출발로 바꾸면 학교행 목적지가 보인다', () => {
+    render(<TaxiPanel />)
+    fireEvent.click(screen.getByRole('button', { name: '정왕역 출발' }))
+    expect(screen.getByText('한국공학대(정문)')).toBeInTheDocument()
+    expect(screen.getByText('승차 포인트: 정왕역 앞 택시승강장')).toBeInTheDocument()
   })
 })

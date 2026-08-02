@@ -190,14 +190,27 @@ function SubwayDirectionCard({ meta, train, fallbackDir, firstTomorrow, emptyTit
   const imminent = sec != null && sec <= SOON_THRESHOLD_SEC
   const title = train?.destination ? `${train.destination} 방면` : fallbackDir
 
+  // 막차 강조 — 지금 카드의 열차가 오늘 마지막이면 '막차' 칩. 아직 여러 대 남았어도
+  // 저녁(21시 이후)엔 막차 시각을 보조줄에 상시 노출해 "언제까지 갈 수 있나"를
+  // 카드에서 바로 읽게 한다.
+  const isLast = train?.is_last === true
+  const isEvening = new Date().getHours() >= 21
+  const secondaryText = (() => {
+    const parts = []
+    if (nextMinutes != null) parts.push(`다음 ${nextMinutes}분`)
+    if (!isLast && isEvening && train?.last_depart_at) parts.push(`막차 ${train.last_depart_at}`)
+    return parts.length ? parts.join(' · ') : undefined
+  })()
+
   return (
     <TransitCard
       badge={{ label: meta.symbol, bgVar: meta.color }}
       title={title}
       subtitle={fallbackDir}
+      chips={isLast ? [{ label: '막차', tone: 'warn' }] : []}
       eta={{
         primary: { text: minutes != null ? `${minutes}분` : '정보 없음', tone: minutes == null ? 'muted' : imminent ? 'imminent' : 'default' },
-        secondary: nextMinutes != null ? { text: `다음 ${nextMinutes}분` } : undefined,
+        secondary: secondaryText ? { text: secondaryText } : undefined,
       }}
       onClick={onClick}
     />

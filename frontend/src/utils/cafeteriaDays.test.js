@@ -7,6 +7,7 @@ import {
   isKstWeekend,
   hasDayMenu,
   getNearestMenuDayKey,
+  isMenuWeekStale,
 } from './cafeteriaDays'
 
 describe('buildDayLabelMap', () => {
@@ -247,5 +248,36 @@ describe('isKstWeekend', () => {
   it('인자 없이 호출 가능하다(기본값 new Date())', () => {
     // 예외 없이 boolean을 반환하는지만 확인
     expect(typeof isKstWeekend()).toBe('boolean')
+  })
+})
+
+describe('isMenuWeekStale — 지난주 식단 판정', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('오늘이 주차 마지막 날 이후면 stale', () => {
+    // 주차 7/27(월)~8/1(토), 오늘 8/2(일) KST
+    vi.setSystemTime(new Date('2026-08-02T12:00:00+09:00'))
+    expect(isMenuWeekStale('7.27', 2026, ['27', '28', '29', '30', '31', '1'])).toBe(true)
+  })
+
+  it('오늘이 주차 안이면 stale 아님 (월 경계 포함)', () => {
+    // 같은 주차, 오늘 8/1(토) KST — dayKeys의 '1'이 8월로 넘어간 날
+    vi.setSystemTime(new Date('2026-08-01T12:00:00+09:00'))
+    expect(isMenuWeekStale('7.27', 2026, ['27', '28', '29', '30', '31', '1'])).toBe(false)
+  })
+
+  it('주차 시작 전(다음 주 식단 선게시)이면 stale 아님', () => {
+    vi.setSystemTime(new Date('2026-08-02T12:00:00+09:00'))
+    expect(isMenuWeekStale('8.3', 2026, ['3', '4', '5', '6', '7'])).toBe(false)
+  })
+
+  it('입력이 비면 false', () => {
+    expect(isMenuWeekStale(null, 2026, ['1'])).toBe(false)
+    expect(isMenuWeekStale('7.27', 2026, [])).toBe(false)
   })
 })
