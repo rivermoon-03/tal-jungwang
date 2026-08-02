@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  학사일정 위젯 메타 (4×2, 4×1 까지 축소 허용).
+  목록형이라 높이를 줄이면 아래 줄부터 자연스럽게 잘린다 — 그래서 여기만
+  minResizeHeight 를 1셀(40dp)까지 열어 둔다. 교통 위젯과 다른 점.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="250dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_calendar"
+    android:previewLayout="@layout/widget_calendar"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_calendar_description" />

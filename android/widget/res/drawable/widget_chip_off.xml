@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 비선택 칩 — 중립 채움. 선택/비선택을 배경 리소스 교체로만 구분한다. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/tj_chip" />
+    <corners android:radius="100dp" />
+</shape>

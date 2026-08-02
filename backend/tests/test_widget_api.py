@@ -146,6 +146,42 @@ def test_식단이_없으면_빈_문장을_준다():
     assert payload["empty_text"] == "오늘은 등록된 식단이 없어요"
 
 
+def _두_식당_메뉴():
+    return {
+        "cafeterias": [
+            {
+                "name": "TIP 학생식당",
+                "meals": [{"type": "중식", "time": "11:00~14:00", "by_day": {"3": ["돈까스"]}}],
+            },
+            {
+                "name": "E동 레스토랑",
+                "meals": [{"type": "중식", "time": "11:30~13:30", "by_day": {"3": ["제육덮밥"]}}],
+            },
+        ]
+    }
+
+
+def test_식단은_식당을_골라_보여준다():
+    """TIP 지하 / E동은 메뉴도 운영시간도 달라 한쪽만 보면 답이 반쪽이다."""
+    noon = datetime(2026, 8, 3, 12, tzinfo=KST)
+    tip = _cafeteria_payload(_두_식당_메뉴(), noon, "tip")
+    edong = _cafeteria_payload(_두_식당_메뉴(), noon, "edong")
+    assert tip["title"] == "TIP 학생식당"
+    assert [i["label"] for i in tip["items"]] == ["돈까스"]
+    assert edong["title"] == "E동 레스토랑"
+    assert [i["label"] for i in edong["items"]] == ["제육덮밥"]
+    assert edong["sub"] == "11:30~13:30"
+    assert edong["selector"] == {"kind": "place", "value": "edong", "options": ["tip", "edong"]}
+
+
+def test_고른_식당이_없으면_첫_식당으로_떨어진다():
+    """크롤 결과에 E동이 빠진 날에도 위젯이 비지 않는다."""
+    menu = {"cafeterias": [_두_식당_메뉴()["cafeterias"][0]]}
+    payload = _cafeteria_payload(menu, datetime(2026, 8, 3, 12, tzinfo=KST), "edong")
+    assert payload["title"] == "TIP 학생식당"
+    assert [i["label"] for i in payload["items"]] == ["돈까스"]
+
+
 # ── 학사일정 ───────────────────────────────────────────────────────────
 
 

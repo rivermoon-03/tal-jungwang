@@ -1,15 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  라이트 테마 색 — frontend/DESIGN.md semantic 토큰과 1:1.
+  라이트 테마 색 — frontend/DESIGN.md semantic 토큰과 1:1(이름은 앱의 tj-* 토큰과 같다).
   위젯 전용 색을 새로 만들지 않는다(앱과 위젯의 색이 갈라지면 둘 다 관리가 안 된다).
+
+  주석에 앱 토큰을 "hyphen hyphen tj-bg" 꼴로 적지 않는다 — XML 주석 안의 연속 하이픈은
+  문법 위반이라 aapt 가 리소스 파싱에서 바로 실패한다(v1 colors.xml 이 그 상태였다).
+
+  D-day 알약의 글자색은 따로 두지 않고 @color/tj_bg 를 쓴다 — 라이트에선 거의 흰색,
+  다크에선 거의 검정이 되어 accent(다크 #0BD8B6)처럼 밝은 채움 위에서도 읽힌다.
+  "흰 글자 고정"으로 두면 다크 accent 위에서 대비가 2:1 아래로 떨어진다.
 -->
 <resources>
-    <color name="tj_bg">#FBFDFC</color>       <!-- --tj-bg -->
-    <color name="tj_surface">#F1F5F3</color>  <!-- --tj-surface -->
-    <color name="tj_line">#DDE5E1</color>     <!-- --tj-line -->
-    <color name="tj_ink">#17211D</color>      <!-- --tj-ink -->
-    <color name="tj_mute">#5F7570</color>     <!-- --tj-mute -->
-    <color name="tj_accent">#12A594</color>   <!-- --tj-accent -->
-    <color name="tj_badge_bg">#E0F8F3</color> <!-- --tj-accent-bg -->
-    <color name="tj_badge_ink">#0D7A6F</color><!-- --tj-accent-ink -->
+    <color name="tj_bg">#FBFDFC</color>
+    <color name="tj_line">#DDE5E1</color>
+    <color name="tj_ink">#17211D</color>
+    <color name="tj_mute">#5F7570</color>
+    <color name="tj_accent">#12A594</color>      <!-- teal9 -->
+    <color name="tj_chip">#EDF2EF</color>        <!-- 비선택 칩 배경 -->
+    <color name="tj_chip_on">#DCF3EE</color>     <!-- 선택 칩 배경 -->
+    <color name="tj_chip_on_ink">#0C7C6B</color> <!-- 선택 칩 글자 -->
+    <color name="tj_delayed">#E5484D</color>     <!-- 임박·마감(red9) -->
 </resources>

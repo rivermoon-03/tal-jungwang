@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  교통 위젯 (4×2) — 셔틀/지하철을 좌우 2열(등교·하교 / 상행·하행)로 나눠 담는다.
+
+  RemoteViews 제약을 전제로 짠 레이아웃이다:
+  - 런타임에 바꿀 수 있는 건 텍스트·가시성·색·배경리소스·클릭뿐이다. 그래서 폰트 크기와
+    여백은 전부 여기서 고정하고, 분기는 가시성으로만 한다.
+  - 헤더 세그는 칩 3개를 두고 셔틀(1캠/2캠)일 때 세 번째를 GONE 한다 — 역 3개짜리
+    세그와 레이아웃 파일을 나누면 그릴 때마다 어느 레이아웃인지 신경 써야 한다.
+  - 구분선을 <View> 대신 ImageView 로 그린다. RemoteViews 가 인플레이트를 허용하는
+    클래스는 @RemoteView 가 붙은 것뿐이고 android.view.View 는 그 목록에 없다.
+  - 여기 적힌 기본 텍스트는 위젯 피커 미리보기(previewLayout)용 샘플이다. 실제 위젯은
+    onUpdate 가 첫 프레임부터 값을 덮어쓰므로 가짜 값이 남지 않는다.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <!-- 헤더: 제목(좌) + 세그먼트(우) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/transit_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_ink"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="셔틀" />
+
+        <TextView
+            android:id="@+id/transit_seg_0"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/widget_chip_on"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_chip_on_ink"
+            android:maxLines="1"
+            android:text="1캠" />
+
+        <TextView
+            android:id="@+id/transit_seg_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/widget_chip_off"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_mute"
+            android:maxLines="1"
+            android:text="2캠" />
+
+        <TextView
+            android:id="@+id/transit_seg_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/widget_chip_off"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_mute"
+            android:maxLines="1"
+            android:visibility="gone"
+            android:text="시흥시청" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="7dp"
+        android:layout_marginBottom="7dp"
+        android:background="@color/tj_line"
+        android:importantForAccessibility="no" />
+
+    <!-- 본문: 2열 또는 empty_text 한 줄. 남는 높이를 전부 먹어 하단 칩을 바닥에 붙인다. -->
+    <FrameLayout
+        android:id="@+id/transit_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/transit_columns"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/col0_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="↑ 정왕역 → 학교" />
+
+                <TextView
+                    android:id="@+id/col0_dest"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:visibility="gone"
+                    android:text="왕십리" />
+
+                <TextView
+                    android:id="@+id/col0_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:textSize="26sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_accent"
+                    android:maxLines="1"
+                    android:text="4분" />
+
+                <TextView
+                    android:id="@+id/col0_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="08:41 출발 · 다음 08:59" />
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:background="@color/tj_line"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/col1_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="↓ 학교 → 정왕역" />
+
+                <TextView
+                    android:id="@+id/col1_dest"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:visibility="gone"
+                    android:text="인천" />
+
+                <TextView
+                    android:id="@+id/col1_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:textSize="26sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/tj_ink"
+                    android:maxLines="1"
+                    android:text="18분" />
+
+                <TextView
+                    android:id="@+id/col1_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/tj_mute"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="09:00 출발 · 막차" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/transit_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:textSize="13sp"
+            android:textColor="@color/tj_mute"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:visibility="gone"
+            android:text="@string/widget_loading" />
+    </FrameLayout>
+
+    <!-- 하단 모드 칩 — 가로를 반반으로 채운다(탭 영역을 최대한 크게). -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/transit_mode_shuttle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:background="@drawable/widget_chip_on"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_chip_on_ink"
+            android:maxLines="1"
+            android:text="셔틀" />
+
+        <TextView
+            android:id="@+id/transit_mode_subway"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:background="@drawable/widget_chip_off"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/tj_mute"
+            android:maxLines="1"
+            android:text="지하철" />
+    </LinearLayout>
+</LinearLayout>
