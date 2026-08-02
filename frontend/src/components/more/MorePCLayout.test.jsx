@@ -15,8 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 // ─── 훅 모킹 (MorePage.test.jsx와 동일 패턴) ─────────────────────────────
 vi.mock('../../hooks/useMore', () => ({
   useNotices: vi.fn(),
-  useSchoolDepartments: vi.fn(),
-  useSchoolNotices: vi.fn(),
+  useSchoolBoardNotices: vi.fn(),
   useAcademicCalendar: vi.fn(),
 }))
 
@@ -54,7 +53,7 @@ vi.mock('../../hooks/useMediaQuery', async (importOriginal) => {
   }
 })
 
-import { useNotices, useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../../hooks/useMore'
+import { useNotices, useSchoolBoardNotices, useAcademicCalendar } from '../../hooks/useMore'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
 import MorePCLayout from './MorePCLayout'
 import MorePage from './MorePage'
@@ -88,8 +87,7 @@ const MOCK_CALENDAR = {
 
 function mockAllMoreHooks() {
   useNotices.mockReturnValue({ data: MOCK_NOTICES, loading: false, error: null })
-  useSchoolDepartments.mockReturnValue({ data: MOCK_DEPARTMENTS, loading: false, error: null })
-  useSchoolNotices.mockReturnValue({ data: MOCK_SCHOOL_NOTICES, loading: false, error: null })
+  useSchoolBoardNotices.mockReturnValue({ data: MOCK_SCHOOL_NOTICES, loading: false, error: null })
   useAcademicCalendar.mockReturnValue({ data: MOCK_CALENDAR, loading: false, error: null })
 }
 
@@ -110,8 +108,9 @@ describe('MorePCLayout', () => {
   it('기본(initialNav 없음)이면 학사공지 콘텐츠와 헤더를 렌더한다', () => {
     render(<MorePCLayout />)
     expect(screen.getByRole('heading', { name: '학사공지' })).toBeInTheDocument()
-    // 학사공지 콘텐츠(학과 select)가 기본으로 보인다
-    expect(screen.getByRole('combobox', { name: '학과 선택' })).toBeInTheDocument()
+    // 학사공지 콘텐츠(카테고리 칩)가 기본으로 보인다 — 학과 select는 제거됨(DS1)
+    expect(screen.queryByRole('combobox', { name: '학과 선택' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '장학' })).toBeInTheDocument()
   })
 
   // --- (b) initialNav prop으로 각 섹션이 전환된다 (nav 자체는 PCSidebar로 이관) ---

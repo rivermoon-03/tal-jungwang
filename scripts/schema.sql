@@ -26,6 +26,7 @@ DROP TABLE IF EXISTS app_links                   CASCADE;
 DROP TABLE IF EXISTS app_info                    CASCADE;
 DROP TABLE IF EXISTS push_subscriptions          CASCADE;
 DROP TABLE IF EXISTS department_notices          CASCADE;
+DROP TABLE IF EXISTS school_board_notices        CASCADE;
 DROP TABLE IF EXISTS academic_calendar           CASCADE;
 
 
@@ -453,6 +454,26 @@ CREATE TABLE department_notices (
 
 CREATE INDEX idx_department_notices_dept_published
     ON department_notices (department, published_at DESC);
+
+-- ────────────────────────────────────────────────────────────
+-- 19b. school_board_notices — 전교 게시판 공지(DS1 2026-08)
+-- 학사/장학/취업/비교과/생활관 목록 페이지에서 제목+게시일+원문링크만 수집
+-- (robots.txt 허용 경로 — /bbs/ 본문은 크롤하지 않음). 학과 공지(RSS)는
+-- 2026-08 개편에서 UI·수집이 제거됐고 department_notices 테이블은 보존만 한다.
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE school_board_notices (
+    id              SERIAL       PRIMARY KEY,
+    category        VARCHAR(20)  NOT NULL,
+    external_id     INTEGER      NOT NULL,
+    title           VARCHAR(300) NOT NULL,
+    url             VARCHAR(500) NOT NULL,
+    published_at    TIMESTAMPTZ  NOT NULL,
+    fetched_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (category, external_id)
+);
+
+CREATE INDEX idx_school_board_notices_cat_published
+    ON school_board_notices (category, published_at DESC);
 
 -- ────────────────────────────────────────────────────────────
 -- 20. academic_calendar — 학사일정
