@@ -20,21 +20,21 @@ describe('FloatingDock', () => {
     vi.unstubAllGlobals()
   })
 
-  it('탭 4개(홈/시간표/학식/더보기) aria-label + 시각 텍스트 라벨(12px)', () => {
+  it('탭 4개(홈/학교시설/공지/더보기) aria-label + 시각 텍스트 라벨(12px)', () => {
     render(<FloatingDock />)
     expect(screen.getByLabelText('홈')).toBeInTheDocument()
-    expect(screen.getByLabelText('시간표')).toBeInTheDocument()
-    expect(screen.getByLabelText('학식')).toBeInTheDocument()
+    expect(screen.getByLabelText('학교시설')).toBeInTheDocument()
+    expect(screen.getByLabelText('공지')).toBeInTheDocument()
     expect(screen.getByLabelText('더보기')).toBeInTheDocument()
     // 결함 #31 수정 — 아이콘 아래 시각 텍스트 라벨이 보여야 한다.
-    expect(screen.getAllByText('시간표').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('학교시설').length).toBeGreaterThan(0)
     expect(screen.queryByText('지도')).toBeNull()
   })
 
-  it('시간표 탭 롱프레스 타이머 500ms 설정', () => {
+  it('홈 탭 롱프레스 타이머 500ms 설정', () => {
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
 
     setTimeoutSpy.mockClear()
     fireEvent.pointerDown(scheduleTab)
@@ -47,7 +47,7 @@ describe('FloatingDock', () => {
 
   it('롱프레스 발동 시 navigator.vibrate 호출', () => {
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
 
     fireEvent.pointerDown(scheduleTab)
     vi.advanceTimersByTime(500)
@@ -57,7 +57,7 @@ describe('FloatingDock', () => {
 
   it('pointerUp 시 롱프레스 타이머 해제', () => {
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
 
     fireEvent.pointerDown(scheduleTab)
     vi.advanceTimersByTime(300)
@@ -69,7 +69,7 @@ describe('FloatingDock', () => {
 
   it('pointerLeave 시 롱프레스 타이머 해제', () => {
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
 
     fireEvent.pointerDown(scheduleTab)
     vi.advanceTimersByTime(300)
@@ -81,7 +81,7 @@ describe('FloatingDock', () => {
 
   it('pointerCancel 시 롱프레스 타이머 해제', () => {
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
 
     fireEvent.pointerDown(scheduleTab)
     vi.advanceTimersByTime(300)
@@ -93,7 +93,7 @@ describe('FloatingDock', () => {
 
   it('롱프레스 발동 후 longPressTriggered 플래그 설정', () => {
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
 
     fireEvent.pointerDown(scheduleTab)
     vi.advanceTimersByTime(500)
@@ -105,9 +105,9 @@ describe('FloatingDock', () => {
     expect(preventDefaultSpy).toBeDefined()
   })
 
-  it('시간표 탭 contextMenu 기본 동작 방지', () => {
+  it('홈 탭 contextMenu 기본 동작 방지', () => {
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
 
     const event = new Event('contextmenu', { bubbles: true, cancelable: true })
     const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
@@ -116,9 +116,9 @@ describe('FloatingDock', () => {
     expect(preventDefaultSpy).toHaveBeenCalled()
   })
 
-  it('시간표 탭 touch-action: none 설정', () => {
+  it('홈 탭 touch-action: none 설정', () => {
     render(<FloatingDock />)
-    const scheduleTab = screen.getByLabelText('시간표')
+    const scheduleTab = screen.getByLabelText('홈')
     const link = scheduleTab.closest('a')
 
     expect(link).toHaveStyle({ touchAction: 'none' })

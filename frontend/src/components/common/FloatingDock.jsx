@@ -1,26 +1,29 @@
 import { useRef, useState } from 'react'
-import { Home, Clock, Utensils, MoreHorizontal } from 'lucide-react'
+import { Home, Building2, Megaphone, MoreHorizontal } from 'lucide-react'
 import usePathname from '../../hooks/usePathname'
 import DockQuickAccess from './DockQuickAccess'
 
 // 모바일 floating dock. 아이콘 + 12px 라벨(아이콘 아래).
 // 활성 = accent, 비활성 = white/60.
 // 위치: bottom 14px / left 14px / right 14px. radius 22px.
-// 4탭: 홈/시간표/학식/더보기 (frontend/test/Screens.jsx 시안 확정).
-// 시간표 탭 롱프레스(500ms) → 즐겨찾기 팝오버.
+// 4탭: 홈/학교시설/공지/더보기.
+// 시간표는 별도 탭이 아니라 홈 안의 보기 전환("지금 ↔ 시간표")이 됐다 — 같은 모드를
+// 두 화면에서 각각 고르던 구조를 없애면서 탭 한 자리가 비었고, 그 자리를 공지가 받는다.
+// 홈 탭 롱프레스(500ms) → 즐겨찾기 팝오버(예전 시간표 탭이 갖던 동작).
 // 결함 #31: 라벨 없이 아이콘만으로는 초행 사용자가 탭 의미를 알기 어려웠다
 // — 아이콘 아래 12px 라벨을 추가하되 터치 타깃(44px)은 그대로 유지한다.
 
 const TABS = [
-  { id: 'home',      Icon: Home,           href: '/',          label: '홈'     },
-  { id: 'schedule',  Icon: Clock,          href: '/schedule',  label: '시간표' },
-  { id: 'cafeteria', Icon: Utensils,       href: '/cafeteria', label: '학식'   },
-  { id: 'more',      Icon: MoreHorizontal, href: '/more',      label: '더보기' },
+  { id: 'home',       Icon: Home,           href: '/',           label: '홈'       },
+  { id: 'facilities', Icon: Building2,      href: '/facilities', label: '학교시설' },
+  { id: 'notices',    Icon: Megaphone,      href: '/notices',    label: '공지'     },
+  { id: 'more',       Icon: MoreHorizontal, href: '/more',       label: '더보기'   },
 ]
 
 function getActiveId(pathname) {
-  if (pathname.startsWith('/schedule'))  return 'schedule'
-  if (pathname.startsWith('/cafeteria')) return 'cafeteria'
+  // /cafeteria 는 학교시설의 옛 주소다(북마크·위젯 딥링크가 아직 쓴다).
+  if (pathname.startsWith('/facilities') || pathname.startsWith('/cafeteria')) return 'facilities'
+  if (pathname.startsWith('/notices'))   return 'notices'
   if (pathname.startsWith('/more'))      return 'more'
   return 'home'
 }
@@ -79,7 +82,7 @@ export default function FloatingDock() {
     >
       {TABS.map(({ id, Icon, href, label }) => {
         const active = activeId === id
-        const isSchedule = id === 'schedule'
+        const isSchedule = id === 'home'
         return (
           <a
             key={id}

@@ -15,6 +15,7 @@ import EmptyState from '../ui/EmptyState'
 import ErrorState from '../ui/ErrorState'
 import MealGridSection from './MealGridSection'
 import CafeteriaVenues from './CafeteriaVenues'
+import LibrarySection from '../facilities/LibrarySection'
 import useAppStore from '../../stores/useAppStore'
 import { useNow } from '../../hooks/useNow'
 import { formatUpdated } from '../../utils/cafeteriaFormat'
@@ -138,6 +139,16 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
   function handleSelectVenue(idx) {
     setSelectedVenueIdx(idx)
     setSelectedDay(null)
+  }
+
+  if (mainTab === 'library') {
+    return (
+      <div className="h-full min-h-0 overflow-y-auto bg-bg px-8 py-6">
+        <div className="max-w-[720px]">
+          <LibrarySection />
+        </div>
+      </div>
+    )
   }
 
   return (

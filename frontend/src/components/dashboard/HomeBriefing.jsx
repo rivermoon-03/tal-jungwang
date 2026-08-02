@@ -9,7 +9,7 @@
  * 보여줄 것이 하나도 없으면(방학 주말 등) 섹션 자체를 그리지 않는다 —
  * 빈 껍데기 카드가 여백보다 나쁘다.
  */
-import { CalendarDays, UtensilsCrossed, ChevronRight, BookOpen } from 'lucide-react'
+import { CalendarDays, UtensilsCrossed, ChevronRight } from 'lucide-react'
 import { useAcademicCalendar, useLibraryHours } from '../../hooks/useMore'
 import { useCafeteriaMenu } from '../../hooks/useCafeteria'
 import { formatDday } from '../../utils/academicCalendar'
@@ -17,10 +17,8 @@ import {
   summarizeTodayMenu,
   findExamEvent,
   summarizeLibraryHours,
-  roomStateToday,
 } from '../../utils/homeBriefing'
-
-const LIBRARY_GUIDE_URL = 'https://library.tukorea.ac.kr/guide/hours'
+import LibraryPanel from '../facilities/LibraryPanel'
 
 // pathname 페이지 이동 — 라우터 없이 pushState + popstate 디스패치(MorePage
 // 개인정보처리방침 진입과 동일한 관례).
@@ -49,82 +47,11 @@ function BriefingRow({ icon, label, value, onClick, ariaLabel }) {
   )
 }
 
-// 열람실 상태 배지 — 지금 열림(accent) / 닫힘 / 오늘 미개방.
-const ROOM_STATE_META = {
-  open: { label: '열림', cls: 'bg-accent-bg text-accent-ink dark:text-accent-ink' },
-  closed: { label: '닫힘', cls: 'bg-surface-2 dark:bg-surface-2 text-mute dark:text-mute' },
-  off: { label: '미개방', cls: 'bg-surface-2 dark:bg-surface-2 text-mute dark:text-mute' },
-}
-
-/**
- * LibraryCard — 도서관 열람실 카드(상시).
- *
- * 원래는 시험 임박(D-7) 때만 뜨는 카드였는데, "지금 어디가 열려 있나"는 시험기간이
- * 아니어도 늘 묻는 질문이라 상시로 올렸다. 시험이 가까우면 D-day 칩이 붙고 카드가
- * 브리핑 위로 올라간다(그때는 이 정보가 화면에서 제일 급한 정보라서).
- */
-function LibraryCard({ rooms, summary, exam }) {
-  const now = new Date()
-  return (
-    <div className="px-4 pb-2" aria-label="도서관 열람실 안내">
-      <div
-        className={`bg-surface dark:bg-surface border rounded-card px-4 py-3 ${
-          exam ? 'border-accent/40 dark:border-accent/40' : 'border-line dark:border-line'
-        }`}
-      >
-        <div className="flex items-center gap-2 flex-wrap">
-          {exam && (
-            <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-chip-red-bg text-chip-red-fg">
-              {exam.title} {formatDday(exam.start_date)}
-            </span>
-          )}
-          <span className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-ink">
-            <BookOpen size={14} aria-hidden className="text-mute dark:text-mute" />
-            도서관 열람실
-          </span>
-          {summary && (
-            <span className="ml-auto text-caption font-semibold text-mute dark:text-mute">
-              {summary.label}
-            </span>
-          )}
-        </div>
-
-        <div className="mt-2 pt-2 border-t border-line dark:border-line space-y-1">
-          {rooms.map((r) => {
-            const s = roomStateToday(r, now)
-            const meta = ROOM_STATE_META[s.state]
-            return (
-              <p key={r.room} className="flex items-center gap-2 text-caption font-medium text-ink-2 dark:text-ink-2">
-                <span className="truncate flex-1 min-w-0">{r.room}</span>
-                <span className="font-semibold tabular-nums text-mute dark:text-mute whitespace-nowrap">
-                  {s.state === 'off' ? (r.closed ? '미개방' : '오늘 없음') : `${s.startText} ~ ${s.endText}`}
-                </span>
-                <span className={`text-micro font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${meta.cls}`}>
-                  {meta.label}
-                </span>
-              </p>
-            )
-          })}
-        </div>
-
-        <a
-          href={LIBRARY_GUIDE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block text-caption font-semibold text-accent-ink dark:text-accent-ink pressable"
-        >
-          도서관 이용안내 열기
-        </a>
-      </div>
-    </div>
-  )
-}
-
 export default function HomeBriefing() {
   const calendarQuery = useAcademicCalendar()
   const menuQuery = useCafeteriaMenu()
-  // 열람실 개관시간은 시험기간에만 쓰기엔 아까운 정보다 — "지금 도서관 열었나"는
-  // 평소에도 자주 묻는 질문이라 브리핑 행으로 상시 노출한다.
+  // 평소의 "지금 도서관 열었나"는 학교시설 탭이 상시로 답한다. 홈에서는 시험이
+  // 임박했을 때만 꺼낸다 — 그 외에는 교통 정보가 화면을 온전히 쓰는 편이 낫다.
   const libraryQuery = useLibraryHours()
 
   const allEvents = [calendarQuery.data?.next, ...(calendarQuery.data?.upcoming ?? [])].filter(Boolean)
@@ -134,16 +61,18 @@ export default function HomeBriefing() {
   const rooms = Array.isArray(libraryQuery.data) ? libraryQuery.data : []
   const library = summarizeLibraryHours(rooms)
 
-  if (!event && !menuLine && !exam && !library) return null
+  if (!event && !menuLine && !exam) return null
 
-  // 시험이 가까우면 열람실 카드가 브리핑보다 급하다 — 그때만 위로 올린다.
-  const libraryCard = library ? (
-    <LibraryCard rooms={rooms} summary={library} exam={exam} />
+  // 시험이 가까울 때만 열람실 카드를 홈에 올린다(그때는 화면에서 제일 급한 정보).
+  const libraryCard = exam && library ? (
+    <div className="px-4 pb-2">
+      <LibraryPanel rooms={rooms} summary={library} exam={exam} />
+    </div>
   ) : null
 
   return (
     <div className="pb-6" aria-label="오늘 브리핑 영역">
-      {exam && libraryCard}
+      {libraryCard}
       <div className="px-4 space-y-2" aria-label="오늘 브리핑">
       <h3 className="text-[13px] font-bold text-ink dark:text-ink px-0.5">오늘 브리핑</h3>
       {event && (
@@ -151,8 +80,8 @@ export default function HomeBriefing() {
           icon={<CalendarDays size={15} aria-hidden />}
           label={`학사일정 ${formatDday(event.start_date)}`}
           value={event.title}
-          ariaLabel={`학사일정 ${event.title} · 더보기에서 보기`}
-          onClick={() => goTo('/more')}
+          ariaLabel={`학사일정 ${event.title} · 공지 탭에서 보기`}
+          onClick={() => goTo('/notices')}
         />
       )}
       {menuLine && (
@@ -160,12 +89,11 @@ export default function HomeBriefing() {
           icon={<UtensilsCrossed size={15} aria-hidden />}
           label="오늘의 학식"
           value={menuLine}
-          ariaLabel="오늘의 학식 · 학식 탭에서 보기"
-          onClick={() => goTo('/cafeteria')}
+          ariaLabel="오늘의 학식 · 학교시설 탭에서 보기"
+          onClick={() => goTo('/facilities')}
         />
       )}
       </div>
-      {!exam && libraryCard}
     </div>
   )
 }

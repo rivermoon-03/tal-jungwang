@@ -93,7 +93,7 @@ describe('HomeBriefing (F1)', () => {
     expect(screen.getByText('09:00 ~ 22:00')).toBeInTheDocument()
   })
 
-  it('시험이 멀어도 도서관 카드는 상시로 남고 D-day 칩만 사라진다', async () => {
+  it('시험이 멀면 홈에서는 도서관 카드를 빼고 학교시설 탭에 맡긴다', async () => {
     const { useLibraryHours } = await import('../../hooks/useMore')
     useLibraryHours.mockReturnValue({
       data: [{ room: '자료열람실(3층)', period: '학기', hours: '평일 09:00 ~ 22:00', closed: false }],
@@ -108,8 +108,9 @@ describe('HomeBriefing (F1)', () => {
     useCafeteriaMenu.mockReturnValue({ data: null, loading: false, error: null })
     render(<HomeBriefing />)
     expect(screen.queryByText(/기말고사 D-/)).not.toBeInTheDocument()
-    expect(screen.getByLabelText('도서관 열람실 안내')).toBeInTheDocument()
-    expect(screen.getByText('자료열람실(3층)')).toBeInTheDocument()
+    // 평시의 "지금 도서관 열었나"는 학교시설 탭이 상시로 답한다. 홈은 교통 정보에
+    // 화면을 내준다 — 예전에는 도착 카드 아래에 쌓여 스크롤 끝까지 가야 보였다.
+    expect(screen.queryByLabelText('도서관 열람실 안내')).not.toBeInTheDocument()
   })
 
   it('열람실 데이터가 없으면 도서관 카드를 그리지 않는다', async () => {

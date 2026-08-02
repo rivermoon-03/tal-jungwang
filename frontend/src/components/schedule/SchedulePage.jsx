@@ -810,7 +810,15 @@ function FavoritesEmpty() {
 }
 
 // ─── main component ──────────────────────────────────────────────────────────
-export default function SchedulePage() {
+/**
+ * @param embedded   홈의 "시간표" 보기로 얹혀 있을 때 true.
+ *   이때 모드의 단일 출처는 홈의 ModeTabs(store.selectedMode)다 — 자체 헤더와
+ *   모드 탭을 그리지 않고, 주소도 건드리지 않는다(홈이 주소를 소유한다).
+ * @param viewSwitch 홈이 넘기는 "지금 ↔ 시간표" 전환 노드. 비워둔 모드 탭 자리에
+ *   그려 통계·즐겨찾기 버튼과 한 줄을 쓴다 — 전환만 따로 한 줄을 차지하면
+ *   목록이 그만큼 아래로 밀린다.
+ */
+export default function SchedulePage({ embedded = false, viewSwitch = null }) {
   const isDesktop = useIsDesktop()
   const [query, setQuery] = useState(readQuery)
 
@@ -844,15 +852,22 @@ export default function SchedulePage() {
 
   // 주소의 type이 바뀌면(뒤로가기 등) 화면 모드를 맞춘다. 렌더 중 조정이라
   // 이전 모드로 한 프레임이 그려지지 않는다.
-  if (isValidMode(query.type) && query.type !== mode) {
+  if (!embedded && isValidMode(query.type) && query.type !== mode) {
     setMode(query.type)
+  }
+
+  // 홈에 얹혀 있으면 모드는 홈이 정한다. 여기서도 렌더 중에 맞춰야 이전 모드의
+  // 목록이 한 프레임 보이지 않는다(useApi 의 path 리셋과 같은 이유).
+  if (embedded && isValidMode(storedMode) && storedMode !== mode) {
+    setMode(storedMode)
+    setSelectedDetail(null)
   }
 
   // /schedule 로 바로 들어오면 저장된 모드(storedMode)가 화면을 결정하는데, URL에는
   // 그 사실이 안 남아 링크를 공유하면 상대가 다른 탭을 보게 된다. 마운트 시 현재
   // 모드를 URL에 한 번 반영해 주소가 항상 화면 상태를 나타내게 한다.
   useEffect(() => {
-    if (!isValidMode(query.type)) navigateSchedule({ type: mode })
+    if (!embedded && !isValidMode(query.type)) navigateSchedule({ type: mode })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 힌트로 넘어온 모드/그룹은 렌더 중에 반영한다(로컬 state). 스토어를 비우는
@@ -1010,11 +1025,16 @@ export default function SchedulePage() {
     isDesktop,
     hasFavoriteInMode,
     onOpenStats: () => setStatsOpen(true),
+    embedded,
+    viewSwitch,
   }
 
   return (
-    <div className="flex flex-col h-full bg-surface dark:bg-bg animate-fade-in-up" style={{ paddingTop: 'var(--banner-h, 0px)' }}>
-      <PageHeader title="시간표" />
+    <div
+      className={`flex flex-col h-full bg-surface dark:bg-bg ${embedded ? '' : 'animate-fade-in-up'}`}
+      style={embedded ? undefined : { paddingTop: 'var(--banner-h, 0px)' }}
+    >
+      {!embedded && <PageHeader title="시간표" />}
 
       {isDesktop ? (
         // PC · 시간표 시안: 좌(노선 리스트+요일) / 우(선택한 노선의 그리드+통계).
@@ -1069,18 +1089,23 @@ function ScheduleSectionView({
   isDesktop,
   hasFavoriteInMode,
   onOpenStats,
+  embedded = false,
+  viewSwitch = null,
 }) {
   return (
     <>
       {/* 모드 탭(홈 ModeTabs와 동일 ui/SegmentTabs) + 통계·즐겨찾기 유틸.
-          탭은 flex-1로 행을 채우고 유틸 버튼은 우측에 고정. */}
+          탭은 flex-1로 행을 채우고 유틸 버튼은 우측에 고정.
+          홈에 얹힌 경우 모드 탭은 홈이 이미 그렸고, 그 자리에 보기 전환이 들어온다. */}
       <div className="px-4 pt-2 pb-1.5 flex items-center gap-2 flex-shrink-0">
         <div className="flex-1 min-w-0">
-          <SegmentTabs
-            items={MODES}
-            active={mode}
-            onChange={handleModeChange}
-          />
+          {embedded ? viewSwitch : (
+            <SegmentTabs
+              items={MODES}
+              active={mode}
+              onChange={handleModeChange}
+            />
+          )}
         </div>
         <div className="shrink-0 flex items-center gap-1.5">
           <button

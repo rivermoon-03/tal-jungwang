@@ -1,10 +1,13 @@
 /**
- * CafeteriaPage — /cafeteria 페이지 (학식)
+ * FacilitiesPage — /facilities 페이지 (학교시설. 옛 주소 /cafeteria 도 그대로 연다)
  * 백엔드 형식: week_start, year, fetched_at, cafeterias[{ name, meals[{ type, time, by_day }] }]
  *
- * 상단 메인 탭: [식단 | 운영정보]
- *   - 식단: 시안1 메뉴 그리드 레이아웃
- *   - 운영정보: CafeteriaVenues 컴포넌트
+ * 상단 메인 탭: [학식 | 매장 | 도서관]
+ *   - 학식: 시안1 메뉴 그리드 레이아웃
+ *   - 매장: CafeteriaVenues 컴포넌트(교내 매장 운영정보)
+ *   - 도서관: 열람실 개관시간(LibraryPanel) — 예전에는 홈 하단에 있어 스크롤
+ *     끝까지 가야 보였다. "오늘 뭐 먹지"와 "지금 어디 열었지"는 같은 질문의
+ *     변주라 한 탭에 둔다.
  */
 import { useMemo, useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
@@ -13,6 +16,7 @@ import StationChips from '../components/ui/StationChips'
 import EmptyState from '../components/ui/EmptyState'
 import ErrorState from '../components/ui/ErrorState'
 import CafeteriaVenues from '../components/cafeteria/CafeteriaVenues'
+import LibrarySection from '../components/facilities/LibrarySection'
 import MealGridSection from '../components/cafeteria/MealGridSection'
 import CafeteriaPCLayout from '../components/cafeteria/CafeteriaPCLayout'
 import { useCafeteriaMenu } from '../hooks/useCafeteria'
@@ -29,13 +33,15 @@ import {
 } from '../utils/cafeteriaDays'
 import { formatUpdated } from '../utils/cafeteriaFormat'
 
-// 메인 탭 정의
+// 메인 탭 정의. id 는 기존 딥링크(/cafeteria?tab=diet|venues)와 PC 사이드바
+// 서브내비가 쓰던 값이라 그대로 둔다 — 라벨만 탭 이름에 맞춰 바꾼다.
 const MAIN_TABS = [
-  { id: 'diet', label: '식단' },
-  { id: 'venues', label: '운영정보' },
+  { id: 'diet', label: '학식' },
+  { id: 'venues', label: '매장' },
+  { id: 'library', label: '도서관' },
 ]
 
-export default function CafeteriaPage() {
+export default function FacilitiesPage() {
   const { data, loading, error, refetch } = useCafeteriaMenu()
   const isDesktop = useIsDesktop()
 
@@ -104,7 +110,7 @@ export default function CafeteriaPage() {
   return (
     <div className="flex flex-col h-full bg-surface animate-fade-in-up">
       {/* 헤더는 에러여도 항상 표시 */}
-      <PageHeader title="학식" />
+      <PageHeader title="학교시설" />
 
       {/* 갱신 시각 */}
       {updatedLabel && (
@@ -123,7 +129,7 @@ export default function CafeteriaPage() {
         </div>
       )}
 
-      {/* 메인 탭: 식단 / 운영정보 */}
+      {/* 메인 탭: 학식 / 매장 / 도서관 */}
       <div className="px-4 pb-3">
         <SegmentTabs
           tabs={MAIN_TABS}
@@ -243,7 +249,7 @@ export default function CafeteriaPage() {
         </>
       )}
 
-      {/* 운영정보 탭 */}
+      {/* 매장 탭 */}
       {mainTab === 'venues' && (
         <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 md:pb-6">
           <CafeteriaVenues
@@ -252,6 +258,13 @@ export default function CafeteriaPage() {
               window.dispatchEvent(new PopStateEvent('popstate'))
             }}
           />
+        </div>
+      )}
+
+      {/* 도서관 탭 */}
+      {mainTab === 'library' && (
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 md:pb-6">
+          <LibrarySection />
         </div>
       )}
     </div>

@@ -49,13 +49,20 @@ function PCWeatherStrip() {
 
 // 컨텍스트 서브내비 — 현재 활성 상위 탭에 딸린 콘텐츠성 하위 항목만 둔다.
 // 설정성 항목(설정/앱 정보/개인정보처리방침)은 하단 "설정" 섹션이 전담한다.
-const CAFETERIA_SUBNAV = [
-  { id: 'diet', label: '식단' },
-  { id: 'venues', label: '운영정보' },
+const FACILITIES_SUBNAV = [
+  { id: 'diet', label: '학식' },
+  { id: 'venues', label: '매장' },
+  { id: 'library', label: '도서관' },
 ]
-const MORE_SUBNAV = [
+const NOTICES_SUBNAV = [
   { id: 'academic', label: '학사공지' },
-  { id: 'notices', label: '앱 공지' },
+  { id: 'app', label: '앱 공지' },
+]
+// 시간표는 별도 탭이 아니라 지도(홈)의 다른 관점이다 — 같은 교통 정보를
+// "지금"과 "하루 전체"로 나눠 본다.
+const MAP_SUBNAV = [
+  { id: 'now', label: '지금' },
+  { id: 'timetable', label: '시간표' },
 ]
 
 /**
@@ -68,7 +75,7 @@ const MORE_SUBNAV = [
  * 토글 + 공지 벨 — 이전에 PCDock이 갖던 기능을 이관).
  *
  * 학식/더보기 콘텐츠와는 App.jsx상 형제 컴포넌트라 URL 없이 뷰를 동기화할
- * 곳이 store뿐이다 — pcCafeteriaTab/pcMoreNav(useAppStore, persist 제외)를
+ * 곳이 store뿐이다 — pcCafeteriaTab/pcNoticesTab/homeView(useAppStore, persist 제외)를
  * 공유 출처로 쓰고, CafeteriaPCLayout/MorePCLayout이 동일 필드를 구독한다.
  */
 export default function PCSidebar() {
@@ -82,8 +89,11 @@ export default function PCSidebar() {
 
   const pcCafeteriaTab = useAppStore((s) => s.pcCafeteriaTab)
   const setPcCafeteriaTab = useAppStore((s) => s.setPcCafeteriaTab)
-  const pcMoreNav = useAppStore((s) => s.pcMoreNav)
   const setPcMoreNav = useAppStore((s) => s.setPcMoreNav)
+  const pcNoticesTab = useAppStore((s) => s.pcNoticesTab)
+  const setPcNoticesTab = useAppStore((s) => s.setPcNoticesTab)
+  const homeView = useAppStore((s) => s.homeView)
+  const setHomeView = useAppStore((s) => s.setHomeView)
 
   const { data: notices } = useNotices()
   const hasNotices = Array.isArray(notices) && notices.length > 0
@@ -99,26 +109,35 @@ export default function PCSidebar() {
   const selectCafeteriaTab = (id) => (e) => {
     e.preventDefault()
     setPcCafeteriaTab(id)
-    const url = `/cafeteria?tab=${id}`
-    if (window.location.pathname !== '/cafeteria') {
+    const url = `/facilities?tab=${id}`
+    if (window.location.pathname !== '/facilities') {
       window.history.pushState({}, '', url)
       window.dispatchEvent(new PopStateEvent('popstate'))
     } else {
       window.history.replaceState({}, '', url)
     }
   }
-  const selectMoreNav = (id) => (e) => {
+  const selectNoticesTab = (id) => (e) => {
     e.preventDefault()
-    setPcMoreNav(id)
-    const url = `/more?nav=${id}`
-    if (window.location.pathname !== '/more') {
+    setPcNoticesTab(id)
+    const url = id === 'academic' ? '/notices' : `/notices?tab=${id}`
+    if (window.location.pathname !== '/notices') {
       window.history.pushState({}, '', url)
       window.dispatchEvent(new PopStateEvent('popstate'))
     } else {
       window.history.replaceState({}, '', url)
     }
   }
-
+  // 지도 서브내비 — "시간표"는 /schedule 페이지(좌 목록 / 우 상세 2단)로 간다.
+  const selectMapView = (id) => (e) => {
+    e.preventDefault()
+    setHomeView(id)
+    const url = id === 'timetable' ? '/schedule' : '/'
+    if (window.location.pathname !== url) {
+      window.history.pushState({}, '', url)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
   // 설정 섹션 항목 — 안정 URL(/more/settings, /more/app-info, /privacy)로
   // pushState하면서 더보기 PC 레이아웃의 nav도 함께 맞춰둔다(있는 경우에만).
   const goMoreSub = (path, nav) => (e) => {
@@ -159,11 +178,18 @@ export default function PCSidebar() {
         {PC_TABS.map(({ id, Icon, href, label }) => {
           const active = activeId === id
           const subnav =
-            id === 'cafeteria' ? CAFETERIA_SUBNAV
-            : id === 'more' ? MORE_SUBNAV
+            id === 'facilities' ? FACILITIES_SUBNAV
+            : id === 'notices' ? NOTICES_SUBNAV
+            : id === 'map' ? MAP_SUBNAV
             : null
-          const activeSubId = id === 'cafeteria' ? pcCafeteriaTab : pcMoreNav
-          const onSelectSub = id === 'cafeteria' ? selectCafeteriaTab : selectMoreNav
+          const activeSubId =
+            id === 'facilities' ? pcCafeteriaTab
+            : id === 'notices' ? pcNoticesTab
+            : homeView
+          const onSelectSub =
+            id === 'facilities' ? selectCafeteriaTab
+            : id === 'notices' ? selectNoticesTab
+            : selectMapView
 
           return (
             <div key={id} className="flex flex-col gap-0.5">
@@ -189,7 +215,7 @@ export default function PCSidebar() {
                         // 하위 메뉴도 각자 고유 URL을 갖는다. 예전에는 둘 다 상위와
                         // 같은 경로여서 새 탭으로 열거나 북마크하면 어느 쪽인지
                         // 구분되지 않았다.
-                        href={`${href}?${id === 'cafeteria' ? 'tab' : 'nav'}=${sub.id}`}
+                        href={`${href}?${id === 'map' ? 'view' : 'tab'}=${sub.id}`}
                         onClick={onSelectSub(sub.id)}
                         aria-current={subActive ? 'page' : undefined}
                         className={`pressable flex items-center rounded-button py-[7px] pl-[41px] pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
