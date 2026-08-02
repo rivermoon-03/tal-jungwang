@@ -26,43 +26,19 @@ def client():
     app.dependency_overrides.clear()
 
 
-def test_departments_returns_registry(client):
-    resp = client.get("/api/v1/school/departments")
-
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["success"] is True
-    data = body["data"]
-
-    by_code = {d["code"]: d for d in data}
-    assert by_code["ce"] == {"code": "ce", "label": "컴퓨터공학부", "supported": True}
-
-    others = [d for code, d in by_code.items() if code != "ce"]
-    assert len(others) > 0
-    for d in others:
-        assert d["supported"] is False
-        assert isinstance(d["unsupported_reason"], str) and d["unsupported_reason"]
-
-
-def test_notices_unsupported_but_known_department_returns_400(client):
-    """ce 외 학과는 드롭다운엔 노출되지만 아직 미지원 — notices는 400이어야 한다."""
-    resp = client.get("/api/v1/school/notices", params={"department": "ee"})
-
-    assert resp.status_code == 400
-    assert isinstance(resp.json().get("detail"), str)
-
-
-def test_notices_valid_department_returns_ok(client):
+def test_board_notices_valid_category_returns_ok(client):
     fake_notices = [
         {
-            "id": 151703,
-            "title": "제목",
-            "url": "https://www.tukorea.ac.kr/bbs/ce/201/151703/artclView.do",
-            "published_at": "2026-07-16T00:00:00+09:00",
+            "id": 152029,
+            "category": "scholarship",
+            "category_label": "장학",
+            "title": "장학금 안내",
+            "url": "https://www.tukorea.ac.kr/bbs/tukorea/374/152029/artclView.do",
+            "published_at": "2026-07-31T00:00:00+09:00",
         }
     ]
-    with patch("app.api.school.get_notices", new=AsyncMock(return_value=fake_notices)):
-        resp = client.get("/api/v1/school/notices", params={"department": "ce"})
+    with patch("app.api.school.get_board_notices", new=AsyncMock(return_value=fake_notices)):
+        resp = client.get("/api/v1/school/board-notices", params={"category": "scholarship"})
 
     assert resp.status_code == 200
     body = resp.json()
@@ -70,18 +46,26 @@ def test_notices_valid_department_returns_ok(client):
     assert body["data"] == fake_notices
 
 
-def test_notices_invalid_department_returns_400_not_empty_list(client):
-    """빈 배열이 아니라 명확한 400 에러여야 한다(요구사항 명시)."""
-    resp = client.get("/api/v1/school/notices", params={"department": "unknown"})
+def test_board_notices_defaults_to_all(client):
+    with patch("app.api.school.get_board_notices", new=AsyncMock(return_value=[])) as mock_get:
+        resp = client.get("/api/v1/school/board-notices")
 
-    assert resp.status_code == 400
-    assert resp.json() != []
-    assert isinstance(resp.json().get("detail"), str)
+    assert resp.status_code == 200
+    assert mock_get.await_args.args[1] == "all"
 
 
-def test_notices_requires_department_query_param(client):
-    resp = client.get("/api/v1/school/notices")
-    assert resp.status_code == 422  # FastAPI 필수 쿼리 파라미터 누락
+def test_board_notices_invalid_category_returns_400(client):
+    """빈 배열이 아니라 명확한 400 에러여야 한다. 제거된 학과 코드(ce)도 400."""
+    for bad in ("unknown", "ce"):
+        resp = client.get("/api/v1/school/board-notices", params={"category": bad})
+        assert resp.status_code == 400
+        assert isinstance(resp.json().get("detail"), str)
+
+
+def test_removed_department_endpoints_are_gone(client):
+    """학과 공지 개편(DS1) — 옛 엔드포인트는 라우팅 자체가 없어야 한다."""
+    assert client.get("/api/v1/school/departments").status_code == 404
+    assert client.get("/api/v1/school/notices", params={"department": "ce"}).status_code == 404
 
 
 def test_calendar_returns_wrapped_shape(client):

@@ -29,63 +29,57 @@ def _db_with_scalars(rows):
     return db
 
 
-# ── departments ──────────────────────────────────────────────────────────
+# ── categories (DS1) ─────────────────────────────────────────────────────
 
 
-def test_list_departments_marks_ce_supported_and_others_unsupported():
-    depts = school.list_departments()
-    by_code = {d["code"]: d for d in depts}
-
-    assert by_code["ce"]["supported"] is True
-    assert "unsupported_reason" not in by_code["ce"]
-
-    others = [d for code, d in by_code.items() if code != "ce"]
-    assert len(others) > 0
-    for d in others:
-        assert d["supported"] is False
-        assert isinstance(d["unsupported_reason"], str) and d["unsupported_reason"]
+def test_is_valid_category():
+    assert school.is_valid_category("all") is True
+    assert school.is_valid_category("scholarship") is True
+    assert school.is_valid_category("dorm") is True
+    assert school.is_valid_category("ce") is False  # 학과 공지는 제거됨
+    assert school.is_valid_category("") is False
 
 
-def test_is_valid_department():
-    assert school.is_valid_department("ce") is True
-    assert school.is_valid_department("ee") is False
-    assert school.is_valid_department("") is False
-
-
-# ── get_notices (cache-aside) ───────────────────────────────────────────
+# ── get_board_notices (cache-aside) ─────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_get_notices_queries_db_on_cache_miss_and_shapes_output(fake_redis):
+async def test_get_board_notices_queries_db_on_cache_miss_and_shapes_output(fake_redis):
     notice = MagicMock(
-        external_id=151703,
-        title="공지 제목",
-        url="https://www.tukorea.ac.kr/bbs/ce/201/151703/artclView.do",
-        published_at=datetime(2026, 7, 16, 21, 27, 37, tzinfo=_KST),
+        external_id=152029,
+        category="scholarship",
+        title="장학금 안내",
+        url="https://www.tukorea.ac.kr/bbs/tukorea/374/152029/artclView.do",
+        published_at=datetime(2026, 7, 31, 0, 0, 0, tzinfo=_KST),
     )
     db = _db_with_scalars([notice])
 
     with patch.object(cache_mod, "get_redis", AsyncMock(return_value=fake_redis)):
-        result = await school.get_notices(db, "ce")
+        result = await school.get_board_notices(db, "scholarship")
 
     assert result == [
         {
-            "id": 151703,
-            "title": "공지 제목",
-            "url": "https://www.tukorea.ac.kr/bbs/ce/201/151703/artclView.do",
-            "published_at": "2026-07-16T21:27:37+09:00",
+            "id": 152029,
+            "category": "scholarship",
+            "category_label": "장학",
+            "title": "장학금 안내",
+            "url": "https://www.tukorea.ac.kr/bbs/tukorea/374/152029/artclView.do",
+            "published_at": "2026-07-31T00:00:00+09:00",
         }
     ]
     db.execute.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_get_notices_cache_hit_skips_db(fake_redis):
-    await fake_redis.set("school:notices:ce", '[{"id": 1, "title": "cached", "url": "u", "published_at": "x"}]')
+async def test_get_board_notices_cache_hit_skips_db(fake_redis):
+    await fake_redis.set(
+        "school:board:all",
+        '[{"id": 1, "category": "academic", "category_label": "학사", "title": "cached", "url": "u", "published_at": "x"}]',
+    )
     db = _db_with_scalars([])
 
     with patch.object(cache_mod, "get_redis", AsyncMock(return_value=fake_redis)):
-        result = await school.get_notices(db, "ce")
+        result = await school.get_board_notices(db, "all")
 
     assert result[0]["title"] == "cached"
     db.execute.assert_not_awaited()
@@ -155,17 +149,17 @@ async def test_get_calendar_empty_when_no_future_events(fake_redis):
     assert result == {"next": None, "upcoming": []}
 
 
-# ── refresh_department_notices ──────────────────────────────────────────
+# ── refresh_board_notices (DS1) ─────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_refresh_department_notices_inserts_with_on_conflict_do_nothing():
+async def test_refresh_board_notices_inserts_with_on_conflict_do_nothing():
     fetched = [
         {
-            "external_id": 1,
-            "title": "새 공지",
-            "url": "https://www.tukorea.ac.kr/bbs/ce/201/1/artclView.do",
-            "published_at": datetime(2026, 7, 16, tzinfo=_KST),
+            "external_id": 152029,
+            "title": "장학금 안내",
+            "url": "https://www.tukorea.ac.kr/bbs/tukorea/374/152029/artclView.do",
+            "published_at": datetime(2026, 7, 31, tzinfo=_KST),
         }
     ]
     db = MagicMock()
@@ -174,44 +168,48 @@ async def test_refresh_department_notices_inserts_with_on_conflict_do_nothing():
     db.commit = AsyncMock()
 
     with patch(
-        "app.services.external.tukorea_notices.fetch_department_notices",
+        "app.services.external.tukorea_boards.fetch_board_notices",
         new=AsyncMock(return_value=fetched),
     ), patch.object(school, "delete_keys", new=AsyncMock(return_value=1)) as mock_del:
-        summary = await school.refresh_department_notices(db, "ce")
+        summary = await school.refresh_board_notices(db, "scholarship")
 
-    assert summary == {"department": "ce", "fetched": 1, "inserted": 1}
+    assert summary == {"category": "scholarship", "fetched": 1, "inserted": 1}
     db.commit.assert_awaited_once()
-    mock_del.assert_awaited_once_with("school:notices:ce")
+    # 카테고리 키 + 'all' 병합 키를 모두 무효화한다
+    assert [c.args[0] for c in mock_del.await_args_list] == [
+        "school:board:scholarship",
+        "school:board:all",
+    ]
 
 
 @pytest.mark.asyncio
-async def test_refresh_department_notices_empty_response_is_graceful():
+async def test_refresh_board_notices_empty_response_is_graceful():
     db = MagicMock()
     db.execute = AsyncMock()
     db.commit = AsyncMock()
 
     with patch(
-        "app.services.external.tukorea_notices.fetch_department_notices",
+        "app.services.external.tukorea_boards.fetch_board_notices",
         new=AsyncMock(return_value=[]),
     ):
-        summary = await school.refresh_department_notices(db, "ce")
+        summary = await school.refresh_board_notices(db, "scholarship")
 
-    assert summary == {"department": "ce", "fetched": 0, "inserted": 0}
+    assert summary == {"category": "scholarship", "fetched": 0, "inserted": 0}
     db.execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_refresh_department_notices_propagates_fetch_failure():
+async def test_refresh_board_notices_propagates_fetch_failure():
     """스크레이핑 실패 시 예외를 삼키지 않고 그대로 전파한다 — 호출부(scheduler job)가
     잡아서 이전 DB 데이터를 유지(graceful degradation)한다."""
     db = MagicMock()
 
     with patch(
-        "app.services.external.tukorea_notices.fetch_department_notices",
+        "app.services.external.tukorea_boards.fetch_board_notices",
         new=AsyncMock(side_effect=RuntimeError("network down")),
     ):
         with pytest.raises(RuntimeError):
-            await school.refresh_department_notices(db, "ce")
+            await school.refresh_board_notices(db, "scholarship")
 
 
 # ── refresh_academic_calendar ───────────────────────────────────────────

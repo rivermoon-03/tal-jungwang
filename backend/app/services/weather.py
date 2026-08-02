@@ -262,12 +262,81 @@ def _build_forecast(
     return ForecastResponse(items=items)
 
 
+# ── F5 이동 지수 — 미세먼지(에어코리아) 결합 ────────────────────────────
+
+CACHE_KEY_AIR = "weather:air"
+CACHE_TTL_AIR = 3600  # 에어코리아는 시간 단위 발표 — 1h면 충분
+
+# level별 표시 라벨. 판정은 compute_walk_index가 한다.
+_WALK_LABEL = {
+    "good": "걷기 좋음",
+    "ok": "무난함",
+    "transit": "대중교통 권장",
+    "indoor": "실내 권장",
+}
+
+
+def compute_walk_index(rain_prob: int, temp: int | None, pm_grade: str | None) -> dict:
+    """강수확률·기온·미세먼지 등급 → 4단계 걷기 지수(level/label/reason).
+
+    보수적 우선순위: 미세 매우나쁨/극한 기온 → indoor, 비 예보·나쁨 → transit.
+    미세먼지 등급이 없으면(None/알수없음) 날씨만으로 판정한다 — 에어코리아
+    활용신청 전에도 지수는 뜬다.
+    """
+    t = temp if temp is not None else 20
+    if pm_grade == "매우나쁨" or t <= -10 or t >= 35:
+        reason = f"미세먼지 {pm_grade}" if pm_grade == "매우나쁨" else f"기온 {t}°"
+        level = "indoor"
+    elif rain_prob >= 60 or pm_grade == "나쁨" or t <= -5 or t >= 33:
+        if rain_prob >= 60:
+            reason = f"강수확률 {rain_prob}%"
+        elif pm_grade == "나쁨":
+            reason = f"미세먼지 {pm_grade}"
+        else:
+            reason = f"기온 {t}°"
+        level = "transit"
+    elif rain_prob >= 30 or t >= 30 or t <= 0:
+        reason = f"강수확률 {rain_prob}%" if rain_prob >= 30 else f"기온 {t}°"
+        level = "ok"
+    else:
+        reason = "지금 날씨가 걷기에 좋아요"
+        level = "good"
+    return {"level": level, "label": _WALK_LABEL[level], "reason": reason}
+
+
+async def _get_air_quality_cached() -> dict | None:
+    """에어코리아 실측(정왕동) — 1h 캐시. 미승인/장애 시 None(캐시 안 함: 승인 즉시 반영)."""
+    cached = await get_cached_json(CACHE_KEY_AIR)
+    if cached:
+        return cached
+    from app.services.external.airkorea import fetch_air_quality
+
+    air = await fetch_air_quality()
+    if air:
+        await set_cached_json(CACHE_KEY_AIR, air, CACHE_TTL_AIR)
+    return air
+
+
+def _apply_air(result: CurrentWeatherResponse, air: dict | None) -> CurrentWeatherResponse:
+    """live 캐시 shape을 건드리지 않고 응답 직전에 미세먼지·지수를 얹는다."""
+    if air:
+        result.pm10 = air.get("pm10")
+        result.pm25 = air.get("pm25")
+        result.pm25_grade = air.get("pm25_grade")
+        if air.get("pm10_grade"):
+            result.pm10_grade = air["pm10_grade"]
+    pm_grade = result.pm25_grade or (result.pm10_grade if result.pm10_grade != "알수없음" else None)
+    result.walk_index = compute_walk_index(result.rain_prob, result.current_temp, pm_grade)
+    return result
+
+
 async def get_current_weather() -> CurrentWeatherResponse:
-    """현재 날씨 조회 (Redis 캐시 우선, 미스 시 기상청 API)."""
+    """현재 날씨 조회 (Redis 캐시 우선, 미스 시 기상청 API) + 미세먼지·이동 지수."""
     cached = await get_cached_json(CACHE_KEY_LIVE)
     if cached:
         try:
-            return CurrentWeatherResponse.model_validate(cached)
+            base = CurrentWeatherResponse.model_validate(cached)
+            return _apply_air(base, await _get_air_quality_cached())
         except Exception:
             pass
 
@@ -280,7 +349,7 @@ async def get_current_weather() -> CurrentWeatherResponse:
 
     result = _build_current(ncst, fcst, now)
     await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
-    return result
+    return _apply_air(result, await _get_air_quality_cached())
 
 
 async def get_forecast(hours: int = 12) -> ForecastResponse:

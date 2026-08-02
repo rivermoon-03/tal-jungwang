@@ -120,6 +120,12 @@ describe('ShuttlePanel — NO_SCHEDULE/NO_SHUTTLE 빈 상태 카피', () => {
     expect(screen.getByText(/오늘 셔틀 운행이 끝났어요/)).toBeInTheDocument()
   })
 
+  it('운행 종료·미운행 빈 상태에는 "시간표 보기" 버튼이 있다', () => {
+    useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SHUTTLE_ERR, refetch: vi.fn() })
+    render(<ShuttlePanel />)
+    expect(screen.getByRole('button', { name: '시간표 보기' })).toBeInTheDocument()
+  })
+
   it('NO_SHUTTLE 에러 + 내일 첫차 정보가 있으면 "답이 있는 빈 상태" nextInfo 카드를 표시한다', () => {
     useShuttleNext.mockReturnValue({ data: null, loading: false, error: NO_SHUTTLE_ERR, refetch: vi.fn() })
     useShuttleSchedule.mockImplementation((direction) => {
