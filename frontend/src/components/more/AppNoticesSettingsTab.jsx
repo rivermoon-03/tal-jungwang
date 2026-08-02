@@ -10,9 +10,10 @@
  *   onOpenNotices   () => void  — 공지 전체 목록(NoticesPage)으로 이동
  *   onOpenSettings  () => void  — 설정(SettingsPage)으로 이동
  *   onOpenAppInfo   () => void  — 앱 정보(AppInfoPage)로 이동
+ *   onOpenHelp      () => void  — 도움말(HelpPage)로 이동
  *   onOpenPrivacy   () => void  — 개인정보처리방침(/privacy)으로 이동
  */
-import { ChevronRight, Info, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronRight, Info, Settings as SettingsIcon, HelpCircle } from 'lucide-react'
 import NoticeHighlights from './NoticeHighlights'
 import { useNotices } from '../../hooks/useMore'
 
@@ -30,7 +31,7 @@ function fmtDateShort(s) {
   return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
 }
 
-export default function AppNoticesSettingsTab({ onOpenNotices, onOpenSettings, onOpenAppInfo, onOpenPrivacy }) {
+export default function AppNoticesSettingsTab({ onOpenNotices, onOpenSettings, onOpenAppInfo, onOpenHelp, onOpenPrivacy }) {
   const { data: noticesData } = useNotices()
   const allNotices = Array.isArray(noticesData) ? noticesData : []
   const recent = allNotices.slice(0, 2)
@@ -127,6 +128,23 @@ export default function AppNoticesSettingsTab({ onOpenNotices, onOpenSettings, o
             <div className="text-left">
               <div className="text-body font-semibold text-ink dark:text-ink">설정</div>
               <div className="text-label font-semibold text-mute dark:text-mute mt-0.5">개인화 · 알림 · 데이터</div>
+            </div>
+          </div>
+          <ChevronRight size={18} aria-hidden="true" className="text-mute dark:text-mute" />
+        </button>
+        <button
+          type="button"
+          onClick={onOpenHelp}
+          className="pressable w-full flex items-center justify-between px-[14px] py-3"
+          aria-label="도움말 보기"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-mini bg-surface-2 dark:bg-bg flex items-center justify-center text-accent" aria-hidden="true">
+              <HelpCircle size={18} />
+            </div>
+            <div className="text-left">
+              <div className="text-body font-semibold text-ink dark:text-ink">도움말</div>
+              <div className="text-label font-semibold text-mute dark:text-mute mt-0.5">홈 화면 위젯 · 자주 묻는 질문</div>
             </div>
           </div>
           <ChevronRight size={18} aria-hidden="true" className="text-mute dark:text-mute" />
