@@ -25,26 +25,42 @@ function toMinutes(h, m) {
 }
 
 /**
+ * 열람실 한 곳의 오늘 상태.
+ * @returns {{state: 'open'|'closed'|'off', startText?: string, endText?: string,
+ *            start?: number, end?: number}}
+ *   off  = 오늘 운영 자체가 없음(미개방이거나 오늘 요일 대상이 아님)
+ *   open = 지금 열려 있음 / closed = 오늘 운영하지만 지금은 닫힘
+ */
+export function roomStateToday(room, now = new Date()) {
+  if (!room?.hours || room.closed) return { state: 'off' }
+  const m = HOURS_RE.exec(room.hours)
+  if (!m || !scopeMatchesToday(room.hours, now.getDay())) return { state: 'off' }
+
+  const start = toMinutes(Number(m[1]), Number(m[2]))
+  const end = toMinutes(Number(m[3]), Number(m[4]))
+  const nowMin = toMinutes(now.getHours(), now.getMinutes())
+  return {
+    state: nowMin >= start && nowMin < end ? 'open' : 'closed',
+    start,
+    end,
+    startText: `${m[1].padStart(2, '0')}:${m[2]}`,
+    endText: `${m[3].padStart(2, '0')}:${m[4]}`,
+  }
+}
+
+/**
  * @returns {{open: boolean, label: string, sub: string}|null}
  *   열람실 정보가 없으면 null(행 자체를 그리지 않는다).
  */
 export function summarizeLibraryHours(rooms, now = new Date()) {
   if (!Array.isArray(rooms) || rooms.length === 0) return null
-  const day = now.getDay()
   const nowMin = toMinutes(now.getHours(), now.getMinutes())
 
   const parsed = []
   for (const r of rooms) {
-    if (!r?.hours || r.closed) continue
-    const m = HOURS_RE.exec(r.hours)
-    if (!m || !scopeMatchesToday(r.hours, day)) continue
-    parsed.push({
-      room: r.room,
-      start: toMinutes(Number(m[1]), Number(m[2])),
-      end: toMinutes(Number(m[3]), Number(m[4])),
-      startText: `${m[1].padStart(2, '0')}:${m[2]}`,
-      endText: `${m[3].padStart(2, '0')}:${m[4]}`,
-    })
+    const s = roomStateToday(r, now)
+    if (s.state === 'off') continue
+    parsed.push({ room: r.room, ...s })
   }
   if (!parsed.length) return { open: false, label: '오늘은 열람실을 열지 않아요', sub: '도서관 안내 보기' }
 

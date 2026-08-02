@@ -60,9 +60,13 @@ function inferDirectionFromLocation(userLocation) {
  *        `userLocation`이 null(GPS 미허용)이거나 애매한 거리면 시간 기반값을 그대로 쓴다.
  *
  * 반환 shape:
- *   { direction: '등교' | '하교', isOverride: boolean }
+ *   { direction: '등교' | '하교', isOverride: boolean, reason: 'manual'|'time'|'location' }
  *   isOverride는 "자동 알고리즘이 아니라 사용자가 명시적으로 정한 값"일 때 true
  *   (directionOverride 또는 수동 모드 고정값). 시간/위치 자동 판정일 때는 false.
+ *
+ *   reason은 자동 판정의 근거다. 이걸 반환하지 않던 시절 Dashboard가 결과값만 보고
+ *   근거 문구를 역추론해서, 오후에 위치 보정으로 '등교'가 되면 "오전이라 등교"라는
+ *   거짓 라벨이 떴다(실제 제보된 버그). 근거는 판정한 쪽이 알려줘야 한다.
  *
  * @param {Date} [now] 테스트용 주입 시각. 기본값은 호출 시점의 현재 시각.
  */
@@ -72,13 +76,16 @@ export default function useEffectiveDirection(now = new Date()) {
   const commuteManualDirection = useAppStore((s) => s.commuteManualDirection)
   const userLocation = useAppStore((s) => s.userLocation)
 
-  if (override) return { direction: override, isOverride: true }
+  if (override) return { direction: override, isOverride: true, reason: 'manual' }
 
   if (!commuteAutoMode) {
-    return { direction: commuteManualDirection ?? '등교', isOverride: true }
+    return { direction: commuteManualDirection ?? '등교', isOverride: true, reason: 'manual' }
   }
 
   const timeDirection = getKstHour(now) < 14 ? '등교' : '하교'
   const locationDirection = inferDirectionFromLocation(userLocation)
-  return { direction: locationDirection ?? timeDirection, isOverride: false }
+  if (locationDirection) {
+    return { direction: locationDirection, isOverride: false, reason: 'location' }
+  }
+  return { direction: timeDirection, isOverride: false, reason: 'time' }
 }
