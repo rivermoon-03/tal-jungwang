@@ -13,7 +13,9 @@ import { CalendarDays, UtensilsCrossed, ChevronRight, BookOpen } from 'lucide-re
 import { useAcademicCalendar, useLibraryHours } from '../../hooks/useMore'
 import { useCafeteriaMenu } from '../../hooks/useCafeteria'
 import { formatDday } from '../../utils/academicCalendar'
-import { summarizeTodayMenu, findExamEvent } from '../../utils/homeBriefing'
+import { summarizeTodayMenu, findExamEvent, summarizeLibraryHours } from '../../utils/homeBriefing'
+
+const LIBRARY_GUIDE_URL = 'https://library.tukorea.ac.kr/guide/hours'
 
 // pathname 페이지 이동 — 라우터 없이 pushState + popstate 디스패치(MorePage
 // 개인정보처리방침 진입과 동일한 관례).
@@ -80,13 +82,17 @@ function ExamCard({ exam }) {
 export default function HomeBriefing() {
   const calendarQuery = useAcademicCalendar()
   const menuQuery = useCafeteriaMenu()
+  // 열람실 개관시간은 시험기간에만 쓰기엔 아까운 정보다 — "지금 도서관 열었나"는
+  // 평소에도 자주 묻는 질문이라 브리핑 행으로 상시 노출한다.
+  const libraryQuery = useLibraryHours()
 
   const allEvents = [calendarQuery.data?.next, ...(calendarQuery.data?.upcoming ?? [])].filter(Boolean)
   const exam = findExamEvent(allEvents)
   const event = allEvents[0] ?? null
   const menuLine = summarizeTodayMenu(menuQuery.data)
+  const library = summarizeLibraryHours(libraryQuery.data)
 
-  if (!event && !menuLine && !exam) return null
+  if (!event && !menuLine && !exam && !library) return null
 
   return (
     <div className="pb-6" aria-label="오늘 브리핑 영역">
@@ -109,6 +115,15 @@ export default function HomeBriefing() {
           value={menuLine}
           ariaLabel="오늘의 학식 · 학식 탭에서 보기"
           onClick={() => goTo('/cafeteria')}
+        />
+      )}
+      {library && (
+        <BriefingRow
+          icon={<BookOpen size={15} aria-hidden />}
+          label={`도서관 열람실 · ${library.label}`}
+          value={library.sub}
+          ariaLabel={`도서관 열람실 ${library.label} · 도서관 안내 열기 (새 탭)`}
+          onClick={() => window.open(LIBRARY_GUIDE_URL, '_blank', 'noopener,noreferrer')}
         />
       )}
       </div>

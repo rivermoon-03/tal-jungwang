@@ -6,6 +6,67 @@
 import { extractDayKeys, getTodayDayKey, isMenuWeekStale } from './cafeteriaDays'
 import { ddayFrom } from './academicCalendar'
 
+// ── 도서관 열람실 "지금 열려 있나" 요약 ────────────────────────────────
+// 원본 문자열은 "[방학] 평일 09:30 ~ 17:30" / "매일 06:30 ~ 23:00" / "미개방" 꼴.
+// 시험기간에만 보이던 개관시간을 홈에서 상시로 답해주기 위한 헬퍼.
+const HOURS_RE = /(\d{1,2}):(\d{2})\s*~\s*(\d{1,2}):(\d{2})/
+
+function scopeMatchesToday(hours, day) {
+  // day: 0=일 … 6=토
+  if (/매일/.test(hours)) return true
+  if (/평일/.test(hours)) return day >= 1 && day <= 5
+  if (/토/.test(hours)) return day === 6
+  if (/일/.test(hours)) return day === 0
+  return true // 요일 표기가 없으면 오늘 적용으로 본다
+}
+
+function toMinutes(h, m) {
+  return h * 60 + m
+}
+
+/**
+ * @returns {{open: boolean, label: string, sub: string}|null}
+ *   열람실 정보가 없으면 null(행 자체를 그리지 않는다).
+ */
+export function summarizeLibraryHours(rooms, now = new Date()) {
+  if (!Array.isArray(rooms) || rooms.length === 0) return null
+  const day = now.getDay()
+  const nowMin = toMinutes(now.getHours(), now.getMinutes())
+
+  const parsed = []
+  for (const r of rooms) {
+    if (!r?.hours || r.closed) continue
+    const m = HOURS_RE.exec(r.hours)
+    if (!m || !scopeMatchesToday(r.hours, day)) continue
+    parsed.push({
+      room: r.room,
+      start: toMinutes(Number(m[1]), Number(m[2])),
+      end: toMinutes(Number(m[3]), Number(m[4])),
+      startText: `${m[1].padStart(2, '0')}:${m[2]}`,
+      endText: `${m[3].padStart(2, '0')}:${m[4]}`,
+    })
+  }
+  if (!parsed.length) return { open: false, label: '오늘은 열람실을 열지 않아요', sub: '도서관 안내 보기' }
+
+  const openNow = parsed.filter((p) => nowMin >= p.start && nowMin < p.end)
+  if (openNow.length) {
+    // 가장 늦게까지 여는 곳이 "언제까지 있을 수 있나"의 답이다
+    const latest = openNow.reduce((a, b) => (b.end > a.end ? b : a))
+    return {
+      open: true,
+      label: `지금 ${openNow.length}곳 열림`,
+      sub: `${latest.room} ${latest.endText}까지`,
+    }
+  }
+
+  const upcoming = parsed.filter((p) => p.start > nowMin).sort((a, b) => a.start - b.start)[0]
+  return {
+    open: false,
+    label: '지금은 모두 닫혀 있어요',
+    sub: upcoming ? `${upcoming.room} ${upcoming.startText} 개방` : '오늘 운영 종료',
+  }
+}
+
 // F7 — 학사일정에서 시험기간(중간·기말고사)을 찾는다.
 // 진행 중이거나 시작 7일 전 이내일 때만 반환 — 그 밖엔 카드 자체가 없다.
 export function findExamEvent(events, now = new Date()) {
