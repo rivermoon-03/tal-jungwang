@@ -11,9 +11,12 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import ScheduleDetailModal from './ScheduleDetailModal'
 
+// 버스 시간표는 테스트별로 바꿔야 해서(운행 종료 케이스) mock 함수로 둔다.
+const busTimetable = vi.fn(() => ({ data: null, loading: false, error: null }))
+
 vi.mock('../../hooks/useBus', () => ({
   useBusTimetable: () => ({ data: null, loading: false, error: null }),
-  useBusTimetableByRoute: () => ({ data: null, loading: false, error: null }),
+  useBusTimetableByRoute: (...args) => busTimetable(...args),
   useBusCommuteContexts: () => ({ data: [], loading: false, error: null }),
   useBusHistoryPreview: (_routeNumber, stopId) => ({
     data: {
@@ -185,5 +188,72 @@ describe('ScheduleDetailModal — 실시간 전용 버스 상세', () => {
     expect(screen.getByText(/실시간 GBIS 기반 · 한국공학대학교 시흥터미널/)).toBeInTheDocument()
     expect(screen.getByText(/실시간 GBIS 기반 · 이마트/)).toBeInTheDocument()
     expect(screen.queryByText(/잘못 재사용된 첫 정류장/)).not.toBeInTheDocument()
+  })
+})
+
+// 헤더 점 색이 카드 배지와 달랐던 제보(시흥33 등). 호출부가 급행 4개 노선에만
+// accentColor를 넘겨서 나머지는 타입 기본색(파랑)으로 떨어지고 있었다.
+describe('ScheduleDetailModal — 헤더 점 색은 카드 배지와 같은 출처', () => {
+  function renderBus(routeCode, extra = {}) {
+    return render(
+      <ScheduleDetailModal
+        open
+        onClose={() => {}}
+        type="bus"
+        routeCode={routeCode}
+        title={`${routeCode} · 정왕역 방면`}
+        {...extra}
+      />
+    )
+  }
+
+  // 시트는 portal로 body에 붙으므로 container가 아니라 document에서 찾는다.
+  const dotColor = () => document.querySelector('.w-3.h-3.rounded-full').style.background
+
+  it('시흥33은 노선색(#0891B2)을 쓴다', () => {
+    renderBus('시흥33')
+    expect(dotColor()).toBe('rgb(8, 145, 178)')
+  })
+
+  it('20-1은 노선색(#2563EB)을 쓴다', () => {
+    renderBus('20-1')
+    expect(dotColor()).toBe('rgb(37, 99, 235)')
+  })
+
+  it('호출부가 accentColor를 명시하면 그 값이 우선한다', () => {
+    renderBus('시흥33', { accentColor: '#DC2626' })
+    expect(dotColor()).toBe('rgb(220, 38, 38)')
+  })
+})
+
+describe('ScheduleDetailModal — 버스 운행 종료 안내', () => {
+  afterEach(() => {
+    busTimetable.mockReturnValue({ data: null, loading: false, error: null })
+  })
+
+  it('남은 차가 없으면 상단에 종료 문구와 내일 첫차를 보여준다', () => {
+    // 시스템 시각은 08:15(beforeEach) — 07:00·07:30은 모두 지난 시각
+    busTimetable.mockReturnValue({
+      data: { schedule_type: 'weekday', times: ['07:00', '07:30'] },
+      loading: false,
+      error: null,
+    })
+    render(
+      <ScheduleDetailModal open onClose={() => {}} type="bus" routeCode="20-1" title="20-1" />
+    )
+    expect(screen.getByText('오늘 운행이 끝났어요')).toBeInTheDocument()
+    expect(screen.getByText(/막차 07:30 출발 · 내일 첫차 07:00/)).toBeInTheDocument()
+  })
+
+  it('남은 차가 있으면 종료 문구가 없다', () => {
+    busTimetable.mockReturnValue({
+      data: { schedule_type: 'weekday', times: ['07:00', '09:30'] },
+      loading: false,
+      error: null,
+    })
+    render(
+      <ScheduleDetailModal open onClose={() => {}} type="bus" routeCode="20-1" title="20-1" />
+    )
+    expect(screen.queryByText('오늘 운행이 끝났어요')).not.toBeInTheDocument()
   })
 })
