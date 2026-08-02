@@ -42,6 +42,15 @@ import {
 import SegmentedControl from '../ui/SegmentedControl'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 
+/**
+ * 셔틀 알림(종 버튼 + 예약 시트) 노출 스위치.
+ *
+ * 실기기에서 예약이 동작하지 않아 2026-08에 화면에서 내렸다. 훅·시트·버튼 코드는
+ * 지우지 않고 이 플래그로만 끈다 — 푸시 배선(서비스워커 스케줄링)이 끝나면
+ * true 로 되돌리는 것으로 복구된다. 관련 테스트도 이 플래그를 보고 skip한다.
+ */
+export const SHUTTLE_ALARM_ENABLED = false
+
 // ─── helpers ────────────────────────────────────────────────────────────
 
 function toHHMM(date) {
@@ -536,12 +545,16 @@ const SHUTTLE_BOARDING_INFO = {
   3: '2캠퍼스 정문 승차장 승차 (정왕역·본교 방향 동일)',
 }
 
-function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
+function ShuttleContent({ direction, onDirectionChange, accentColor, scrollContainerRef }) {
   const isSecondCampus = direction >= 2
-  // 알림 예약 UI(F3-3 실화면 배선) — 이 콘텐츠가 마운트돼 있는 동안(=셔틀 상세
-  // 시트가 열려있는 동안)만 useShuttleAlarms의 setTimeout이 살아있다(훅 자체
-  // 문서화된 한계, hooks/useShuttleNotification.js 참고). 종 버튼은 아래 리스트/
-  // 좁은 폰 스트립 양쪽에서 공유한다.
+  // 방향 전환 세그먼트는 시트 상단(헤더 아래)에서 렌더한다 — 버스 방면 셀렉터와
+  // 같은 자리라 위치를 새로 배우지 않아도 된다. onDirectionChange는 그 세그먼트가
+  // 쓰는 콜백이고, 이 컴포넌트는 넘겨받은 direction만 그린다.
+  void onDirectionChange
+
+  // 알림 예약 UI는 아직 실기기에서 동작하지 않아 화면에서 내렸다(2026-08).
+  // 훅·시트·종 버튼 코드는 그대로 두고 렌더만 끈다 — 푸시 배선이 끝나면
+  // SHUTTLE_ALARM_ENABLED 를 true 로 되돌리는 것으로 복구된다.
   const isNarrowPhone = useIsNarrowPhone()
   const { addAlarm, isAlarmSet } = useShuttleAlarms()
   const [sheetTime, setSheetTime] = useState(null)
@@ -898,7 +911,7 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
           isAlarmSet={(time) => isAlarmSet(time, direction)}
           onOpenSheet={openSheet}
           embedded
-          showBell={!previewing}
+          showBell={SHUTTLE_ALARM_ENABLED && !previewing}
         />
       ) : (
         <>
@@ -940,10 +953,10 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
               // 폴백(주말→평일)·미리보기에선 "N분 뒤/곧 출발" 카운트다운이 오늘 기준이라
               // 전부 어긋난다 — 시각만 보여준다.
               hideCountdown={previewing || usingFallback}
-              // 수시운행 밴드(entry.type === 'frequent')는 특정 편이 아니라 종을
-              // 달 수 없다 — entry.time이 있는 편(회차편 포함)에만 종을 붙인다.
-              // 미리보기(다른 기간)에서는 오늘 알림이 어긋나므로 종을 숨긴다.
-              bell={entry.type === 'fixed' && !previewing ? (
+              // 알림 종은 SHUTTLE_ALARM_ENABLED 가 false 인 동안 렌더하지 않는다.
+              // (수시운행 밴드에는 원래 종이 붙지 않고, 미리보기에서도 숨겼다 —
+              //  기능 복구 시 아래 조건을 그대로 되살리면 된다.)
+              bell={SHUTTLE_ALARM_ENABLED && entry.type === 'fixed' && !previewing ? (
                 <BellButton
                   time={entry.time}
                   isSet={isAlarmSet(entry.time, direction)}
@@ -957,13 +970,15 @@ function ShuttleContent({ direction, accentColor, scrollContainerRef }) {
       </>
     )}
   </div>
-  <ShuttleNotifySheet
-    open={sheetTime != null}
-    time={sheetTime ?? ''}
-    directionLabel={DIRECTION_LABELS[direction] ?? null}
-    onClose={closeSheet}
-    onConfirm={handleConfirm}
-  />
+  {SHUTTLE_ALARM_ENABLED && (
+    <ShuttleNotifySheet
+      open={sheetTime != null}
+      time={sheetTime ?? ''}
+      directionLabel={DIRECTION_LABELS[direction] ?? null}
+      onClose={closeSheet}
+      onConfirm={handleConfirm}
+    />
+  )}
 </>
 )
 }
@@ -1219,6 +1234,16 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
     if (open) setViewModeState(scheduleViewMode)
   }
 
+  // 셔틀 방향은 시트 안에서 바꿀 수 있다(등교↔하교). 예전엔 카드가 넘긴 방향으로
+  // 고정돼서, 하교를 보려면 시트를 닫고 다른 카드를 다시 열어야 했다.
+  // 다른 카드로 진입하면(prop 변경) 그 방향으로 되돌린다 — 렌더 중 조정(effect 금지).
+  const [shuttleDirection, setShuttleDirection] = useState(direction)
+  const [seenDirection, setSeenDirection] = useState(direction)
+  if (direction !== seenDirection) {
+    setSeenDirection(direction)
+    setShuttleDirection(direction)
+  }
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
@@ -1254,7 +1279,14 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   const typeLabel = TYPE_LABEL[type] ?? ''
   // 마커 진입 등 title이 아직 없는 경로에서도 헤더가 빈 줄로 찌그러지지 않도록
   // routeCode → typeLabel 순으로 폴백한다(제목 잘림 버그와 함께 확인된 방어 로직).
-  const displayTitle = title || routeCode || typeLabel || '시간표'
+  // 셔틀은 시트 안에서 방향을 바꿀 수 있다(아래 ShuttleContent의 세그먼트).
+  // 방향이 바뀌면 헤더 제목도 따라가야 해서 여기서 직접 조립한다 — 넘겨받은 title은
+  // 열 때의 방향으로 고정돼 있어 전환 후엔 거짓말이 된다.
+  const shuttleTitle =
+    type === 'shuttle'
+      ? `${shuttleDirection >= 2 ? '2캠 ' : ''}셔틀버스 ${shuttleDirection % 2 === 0 ? '등교' : '하교'}`
+      : null
+  const displayTitle = shuttleTitle || title || routeCode || typeLabel || '시간표'
   const detailTypeLabel = type === 'bus'
     ? (hasTimetableSource ? '버스 시간표' : '버스 실시간 정보')
     : `${typeLabel} 시간표`
@@ -1317,6 +1349,22 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           />
         </div>
       )}
+      {/* 셔틀 방향 전환 — 버스의 방면 셀렉터와 같은 자리에 둬서 위치를 학습하지
+          않아도 된다. 시트를 닫았다 다시 열지 않고 등교↔하교를 오간다. */}
+      {type === 'shuttle' && (
+        <div className="px-5 pt-3 flex-shrink-0">
+          <SegmentedControl
+            options={
+              shuttleDirection >= 2
+                ? [{ value: 2, label: '등교' }, { value: 3, label: '하교' }]
+                : [{ value: 0, label: '등교' }, { value: 1, label: '하교' }]
+            }
+            value={shuttleDirection}
+            onChange={setShuttleDirection}
+            ariaLabel="셔틀 방향 선택"
+          />
+        </div>
+      )}
       <div className="px-5 pt-3 pb-1 flex-shrink-0 flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 min-w-0">
           <Clock size={12} className="text-mute flex-shrink-0" />
@@ -1341,7 +1389,14 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
         )}
         {type === 'bus' && <BusContextDetail context={activeContext} routeCode={routeCode} routeId={routeId} category={category} color={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
         {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
-        {type === 'shuttle' && <ShuttleContent direction={direction} accentColor={color} scrollContainerRef={scrollContainerRef} />}
+        {type === 'shuttle' && (
+          <ShuttleContent
+            direction={shuttleDirection}
+            onDirectionChange={setShuttleDirection}
+            accentColor={color}
+            scrollContainerRef={scrollContainerRef}
+          />
+        )}
       </div>
     </>
   )

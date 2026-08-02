@@ -13,6 +13,7 @@ type 파라미터로 세 위젯이 같은 엔드포인트를 공유한다:
 
 import asyncio
 import logging
+import re
 from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -75,22 +76,35 @@ def _row(kind: str, badge: str, label: str, value: str, sub: str = "") -> dict:
 # ── 교통 ───────────────────────────────────────────────────────────────
 
 
+_DIGITS_RE = re.compile(r"\d+")
+
+
+def _bus_badge(route_no: str) -> str:
+    """노선번호 → 배지(좁은 칸용 짧은 식별자).
+
+    단순 슬라이스는 의미를 깨뜨린다("20-1"→"20-", "시흥33"→"시흥3").
+    노선번호의 첫 숫자 덩어리를 쓰면 "20-1"→"20", "시흥33"→"33", "11-A"→"11"로
+    사람이 부르는 이름과 맞는다. 숫자가 없으면 앞 두 글자.
+    """
+    m = _DIGITS_RE.search(route_no)
+    return m.group(0) if m else route_no[:2]
+
+
 def _bus_rows(result: Any) -> list[dict]:
     arrivals = result.get("arrivals") if isinstance(result, dict) else None
     rows: list[dict] = []
+    seen: set[str] = set()
     for a in arrivals or []:
         sec = a.get("arrive_in_seconds")
         if sec is None or a.get("is_tomorrow"):
             continue
         route = a.get("route_no") or "버스"
+        # 같은 노선의 두 번째 차로 세 줄을 채우면 선택지가 줄어든다 — 노선별 첫 차만.
+        if route in seen:
+            continue
+        seen.add(route)
         rows.append(
-            _row(
-                "bus",
-                route[:3],  # 배지는 좁다 — 앞 3글자만
-                route,
-                _minutes_text(sec) or "-",
-                a.get("destination") or "",
-            )
+            _row("bus", _bus_badge(route), route, _minutes_text(sec) or "-", a.get("destination") or "")
         )
         if len(rows) == 3:
             break
