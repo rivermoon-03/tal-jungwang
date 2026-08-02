@@ -12,7 +12,7 @@ vi.mock('../../hooks/useCafeteria', () => ({
 import { useAcademicCalendar } from '../../hooks/useMore'
 import { useCafeteriaMenu } from '../../hooks/useCafeteria'
 import HomeBriefing from './HomeBriefing'
-import { summarizeTodayMenu } from '../../utils/homeBriefing'
+import { summarizeTodayMenu, summarizeLibraryHours } from '../../utils/homeBriefing'
 
 const CALENDAR = {
   next: { title: '26학년도 2학기 수강신청', start_date: '2026-08-04', end_date: '2026-08-06' },
@@ -102,5 +102,54 @@ describe('HomeBriefing (F1)', () => {
     useCafeteriaMenu.mockReturnValue({ data: null, loading: false, error: null })
     render(<HomeBriefing />)
     expect(screen.queryByText(/기말고사 D-/)).not.toBeInTheDocument()
+  })
+})
+
+// 열람실 개관시간은 시험기간(F7) 카드에만 있어 방학·평시에는 보이지 않았다.
+// "지금 도서관 열었나"는 상시 질문이라 브리핑 행으로 승격한 뒤의 요약 규칙.
+describe('summarizeLibraryHours — 도서관 열람실 상시 요약', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const ROOMS = [
+    { room: '노트북열람실', period: '방학', hours: '매일 06:30 ~ 23:00', closed: false },
+    { room: '자료열람실(3층)', period: '방학', hours: '평일 09:30 ~ 17:30', closed: false },
+    { room: '제1일반열람실', period: '방학', hours: '미개방', closed: true },
+  ]
+
+  it('평일 낮에는 열린 곳 수와 가장 늦게 닫는 곳을 알려준다', () => {
+    vi.setSystemTime(new Date('2026-08-03T14:00:00+09:00')) // 월요일 14시
+    const s = summarizeLibraryHours(ROOMS)
+    expect(s.open).toBe(true)
+    expect(s.label).toBe('지금 2곳 열림')
+    expect(s.sub).toBe('노트북열람실 23:00까지')
+  })
+
+  it('평일 전용 열람실은 일요일에 제외된다', () => {
+    vi.setSystemTime(new Date('2026-08-02T14:00:00+09:00')) // 일요일
+    expect(summarizeLibraryHours(ROOMS).label).toBe('지금 1곳 열림')
+  })
+
+  it('개방 전 새벽에는 다음 개방 시각을 알려준다', () => {
+    vi.setSystemTime(new Date('2026-08-03T05:00:00+09:00'))
+    const s = summarizeLibraryHours(ROOMS)
+    expect(s.open).toBe(false)
+    expect(s.sub).toBe('노트북열람실 06:30 개방')
+  })
+
+  it('미개방만 있으면 오늘 미운영으로 안내한다', () => {
+    vi.setSystemTime(new Date('2026-08-03T14:00:00+09:00'))
+    const s = summarizeLibraryHours([{ room: '제1일반열람실', hours: '미개방', closed: true }])
+    expect(s.open).toBe(false)
+    expect(s.label).toBe('오늘은 열람실을 열지 않아요')
+  })
+
+  it('데이터가 없으면 행을 그리지 않는다(null)', () => {
+    expect(summarizeLibraryHours([])).toBe(null)
+    expect(summarizeLibraryHours(null)).toBe(null)
   })
 })
