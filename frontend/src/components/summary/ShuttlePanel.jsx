@@ -165,6 +165,20 @@ export default function ShuttlePanel() {
 
   // NO_SHUTTLE: 운행일이지만 오늘 운행 종료 — "답이 있는 빈 상태": 그냥 끝났다고
   // 알리지 않고, 이미 갖고 있는 내일 시간표(goTom/backTom)에서 다음 첫차를 계산해 보여준다.
+  // 상세 시트 열기 — 빈 상태(운행 종료/미운행일)의 "시간표 보기" 버튼도 이걸 쓴다.
+  // 상세 시트는 미운행일이면 다음 평일 시간표로 자동 폴백한다(ShuttleContent).
+  function openModal(dir) {
+    const meta = DIR_META[dir]
+    const campusTag = dir >= 2 ? '2캠 ' : ''
+    setDetailModal({
+      type: 'shuttle',
+      routeCode: `${campusTag}셔틀${meta.label}`,
+      direction: dir,
+      favCode: `shuttle:${campusTag}${meta.label}`.trim(),
+      title: `${campusTag}셔틀버스 ${meta.label}`,
+    })
+  }
+
   const goNoShuttle = goQuery.error?.code === 'NO_SHUTTLE'
   const backNoShuttle = backQuery.error?.code === 'NO_SHUTTLE'
   if (goNoShuttle && backNoShuttle) {
@@ -177,6 +191,7 @@ export default function ShuttlePanel() {
           title="오늘은 셔틀이 운행하지 않아요"
           nextInfo={nextBus ? { label: '다음 첫차', time: nextBus.time, sub: nextBus.sub } : null}
           desc={nextBus ? null : '다음 운행일 첫차 시간을 확인해 주세요'}
+          action={{ label: '시간표 보기', onClick: () => openModal(goDir) }}
         />
       )
     }
@@ -187,6 +202,7 @@ export default function ShuttlePanel() {
         title="오늘 셔틀 운행이 끝났어요"
         nextInfo={nextBus ? { label: '내일 첫차', time: nextBus.time, sub: nextBus.sub } : null}
         desc={nextBus ? null : '내일 첫차 시간을 확인해 주세요'}
+        action={{ label: '시간표 보기', onClick: () => openModal(goDir) }}
       />
     )
   }
@@ -196,18 +212,6 @@ export default function ShuttlePanel() {
 
   const left = toSlot(goData, goDir, goFirstTomorrow, goInsideWindow)
   const right = toSlot(backData, backDir, backFirstTomorrow, backInsideWindow)
-
-  function openModal(dir) {
-    const meta = DIR_META[dir]
-    const campusTag = dir >= 2 ? '2캠 ' : ''
-    setDetailModal({
-      type: 'shuttle',
-      routeCode: `${campusTag}셔틀${meta.label}`,
-      direction: dir,
-      favCode: `shuttle:${campusTag}${meta.label}`.trim(),
-      title: `${campusTag}셔틀버스 ${meta.label}`,
-    })
-  }
 
   // 방학·계절학기 등 비학기 기간이면 기간 배지(계절학기=빨강 · 단축근무=초록 ·
   // 정상근무=파랑 칩 팔레트, 학교 PDF 색 구분과 동일)를 노출한다.

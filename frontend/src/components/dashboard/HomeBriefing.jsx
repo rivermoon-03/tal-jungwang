@@ -9,11 +9,11 @@
  * 보여줄 것이 하나도 없으면(방학 주말 등) 섹션 자체를 그리지 않는다 —
  * 빈 껍데기 카드가 여백보다 나쁘다.
  */
-import { CalendarDays, UtensilsCrossed, ChevronRight } from 'lucide-react'
-import { useAcademicCalendar } from '../../hooks/useMore'
+import { CalendarDays, UtensilsCrossed, ChevronRight, BookOpen } from 'lucide-react'
+import { useAcademicCalendar, useLibraryHours } from '../../hooks/useMore'
 import { useCafeteriaMenu } from '../../hooks/useCafeteria'
 import { formatDday } from '../../utils/academicCalendar'
-import { summarizeTodayMenu } from '../../utils/homeBriefing'
+import { summarizeTodayMenu, findExamEvent } from '../../utils/homeBriefing'
 
 // pathname 페이지 이동 — 라우터 없이 pushState + popstate 디스패치(MorePage
 // 개인정보처리방침 진입과 동일한 관례).
@@ -42,17 +42,56 @@ function BriefingRow({ icon, label, value, onClick, ariaLabel }) {
   )
 }
 
+// F7 — 시험기간 카드. 학사일정에 시험(중간·기말고사)이 임박(7일)·진행 중일 때만
+// 브리핑 위에 승격된다. 도서관 개관시간은 시험 카드가 뜰 때만 조회한다(enabled).
+function ExamCard({ exam }) {
+  const hoursQuery = useLibraryHours({ enabled: !!exam })
+  const rooms = (Array.isArray(hoursQuery.data) ? hoursQuery.data : []).slice(0, 3)
+
+  return (
+    <div className="px-4 pb-2" aria-label="시험기간 안내">
+      <div className="bg-surface dark:bg-surface border border-accent/40 dark:border-accent/40 rounded-card px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-chip-red-bg text-chip-red-fg">
+            {exam.title} {formatDday(exam.start_date)}
+          </span>
+          <span className="text-caption font-semibold text-mute dark:text-mute ml-auto tabular-nums">
+            {exam.start_date?.slice(5).replace('-', '/')}~{(exam.end_date ?? exam.start_date)?.slice(5).replace('-', '/')}
+          </span>
+        </div>
+        {rooms.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-line dark:border-line space-y-1">
+            {rooms.map((r) => (
+              <p key={r.room} className="flex items-center gap-1.5 text-caption font-medium text-ink-2 dark:text-ink-2">
+                <BookOpen size={13} aria-hidden className="text-mute dark:text-mute flex-shrink-0" />
+                <span className="truncate">{r.room}</span>
+                <span className={`ml-auto font-bold tabular-nums ${r.closed ? 'text-mute dark:text-mute' : ''}`}>
+                  {r.hours}
+                </span>
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function HomeBriefing() {
   const calendarQuery = useAcademicCalendar()
   const menuQuery = useCafeteriaMenu()
 
-  const event = calendarQuery.data?.next ?? calendarQuery.data?.upcoming?.[0] ?? null
+  const allEvents = [calendarQuery.data?.next, ...(calendarQuery.data?.upcoming ?? [])].filter(Boolean)
+  const exam = findExamEvent(allEvents)
+  const event = allEvents[0] ?? null
   const menuLine = summarizeTodayMenu(menuQuery.data)
 
-  if (!event && !menuLine) return null
+  if (!event && !menuLine && !exam) return null
 
   return (
-    <div className="px-4 pb-6 space-y-2" aria-label="오늘 브리핑">
+    <div className="pb-6" aria-label="오늘 브리핑 영역">
+      {exam && <ExamCard exam={exam} />}
+      <div className="px-4 space-y-2" aria-label="오늘 브리핑">
       <h3 className="text-[13px] font-bold text-ink dark:text-ink px-0.5">오늘 브리핑</h3>
       {event && (
         <BriefingRow
@@ -72,6 +111,7 @@ export default function HomeBriefing() {
           onClick={() => goTo('/cafeteria')}
         />
       )}
+      </div>
     </div>
   )
 }
