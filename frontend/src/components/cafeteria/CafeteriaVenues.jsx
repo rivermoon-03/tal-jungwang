@@ -188,9 +188,13 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
     >
       {/* 헤더: 아이콘 + 이름 + 상태 */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <CategoryIconChip category={venue.category} />
-          <div>
+        {/* 아이콘은 이름 줄 기준으로 맞춘다 — 아래 SimpleVenueCard와 같은 규칙이라
+            큰 카드와 작은 카드가 섞여도 좌측 리듬이 흔들리지 않는다. */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minWidth: 0 }}>
+          <div style={{ flex: 'none', marginTop: 1 }}>
+            <CategoryIconChip category={venue.category} />
+          </div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--tj-ink)' }}>
               {venue.name}
             </div>
@@ -329,15 +333,19 @@ function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onVenueClick(venue.id) }}
       style={{
         display: 'flex',
-        alignItems: 'center',
+        // 중앙 정렬이면 정보가 2줄인 카드에서 아이콘·상태 배지가 아래로 떠내려가
+        // 카드마다 다른 높이에 놓인다. 첫 줄(가게 이름) 기준으로 맞춘다.
+        alignItems: 'flex-start',
         gap: 12,
         padding: '11px 0',
         cursor: 'pointer',
         minHeight: 44,
       }}
     >
-      {/* 카테고리 아이콘 칩 */}
-      <CategoryIconChip category={venue.category} />
+      {/* 카테고리 아이콘 칩 — 15px 굵은 이름 줄과 광학적으로 맞도록 살짝 내림 */}
+      <div style={{ flex: 'none', marginTop: 1 }}>
+        <CategoryIconChip category={venue.category} />
+      </div>
 
       {/* 이름 + 위치 */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -346,10 +354,16 @@ function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
           <LocationChip location={venue.location} />
-          <span style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 600, letterSpacing: '-0.01em' }}>
+          {/* 시간과 휴무 안내를 한 문자열로 이으면 줄바꿈 위치에 따라 "10:00 ~ 20:00 ·"
+              처럼 구분자만 줄 끝에 남는다. 조각을 각각 nowrap으로 두고 gap으로 띄운다. */}
+          <span style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 600, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
             {timeLabel}
-            {venue.closedNote && ` · ${venue.closedNote}`}
           </span>
+          {venue.closedNote && (
+            <span style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 600, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+              {venue.closedNote}
+            </span>
+          )}
         </div>
       </div>
 

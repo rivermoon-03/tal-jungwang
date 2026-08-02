@@ -222,46 +222,46 @@ describe('isOpenNow — subLabel (스마트 안내)', () => {
     expect(result.subLabel).toBe('20:00 영업 종료')
   })
 
-  it('영업 전 59분 미만 남은 경우 subLabel에 "N분 후 영업 시작"이 들어요', () => {
+  it('영업 전 59분 미만 남은 경우 subLabel에 "N분 후 오픈"이 들어요', () => {
     // 화요일 10:30 KST, simpleVenue(11:00 시작) — 30분 후
     const now = kst(2026, 6, 23, 10, 30)
     const result = isOpenNow(simpleVenue, now)
-    expect(result.subLabel).toBe('30분 후 영업 시작')
+    expect(result.subLabel).toBe('30분 후 오픈')
   })
 
-  it('영업 전 60분 이상 남은 경우 subLabel에 "N시간 M분 후 영업 시작"이 들어요', () => {
+  it('영업 전 60분 이상 남은 경우 subLabel에 "N시간 M분 후 오픈"이 들어요', () => {
     // 화요일 09:00 KST, simpleVenue(11:00 시작) — 120분(2시간) 후
     const now = kst(2026, 6, 23, 9, 0)
     const result = isOpenNow(simpleVenue, now)
-    expect(result.subLabel).toBe('2시간 후 영업 시작')
+    expect(result.subLabel).toBe('2시간 후 오픈')
   })
 
-  it('영업 전 1시간 30분 남은 경우 "N시간 M분 후 영업 시작"이에요', () => {
+  it('영업 전 1시간 30분 남은 경우 "N시간 M분 후 오픈"이에요', () => {
     // 화요일 09:30 KST, simpleVenue(11:00 시작) — 90분(1시간 30분) 후
     const now = kst(2026, 6, 23, 9, 30)
     const result = isOpenNow(simpleVenue, now)
-    expect(result.subLabel).toBe('1시간 30분 후 영업 시작')
+    expect(result.subLabel).toBe('1시간 30분 후 오픈')
   })
 
-  it('영업 종료 후 당일 다음 끼니 없으면 "다음 날 HH:MM 영업 시작"이에요', () => {
+  it('영업 종료 후 당일 다음 끼니 없으면 "내일 HH:MM 오픈"이에요', () => {
     // 화요일 21:00 KST, simpleVenue — 다음 날 수요일 11:00
     const now = kst(2026, 6, 23, 21, 0)
     const result = isOpenNow(simpleVenue, now)
-    expect(result.subLabel).toBe('다음 날 11:00 영업 시작')
+    expect(result.subLabel).toBe('내일 11:00 오픈')
   })
 
   it('끼니 사이(조식 후, 중식 전)에 다음 끼니 안내가 들어요', () => {
     // 화요일 10:00 KST, mealVenue — 조식(~09:20) 끝, 중식(11:00~) 전
     const now = kst(2026, 6, 23, 10, 0)
     const result = isOpenNow(mealVenue, now)
-    expect(result.subLabel).toBe('1시간 후 영업 시작')
+    expect(result.subLabel).toBe('1시간 후 오픈')
   })
 
   it('휴무일 subLabel에 다음 영업 날 안내가 들어요', () => {
     // 2026-06-28 일요일(휴무), mealVenue — 다음 날 월요일 08:30
     const now = kst(2026, 6, 28, 12, 0)
     const result = isOpenNow(mealVenue, now)
-    expect(result.subLabel).toBe('다음 날 08:30 영업 시작')
+    expect(result.subLabel).toBe('내일 08:30 오픈')
   })
 
   it('토요일 휴무 장소 — 다음 영업 월요일 안내', () => {
@@ -269,7 +269,7 @@ describe('isOpenNow — subLabel (스마트 안내)', () => {
     const now = kst(2026, 6, 27, 12, 0)
     const result = isOpenNow(weekdayOnly, now)
     // 토->일(휴무)->월(영업), 2일 후 = "월요일 10:00 영업 시작"
-    expect(result.subLabel).toBe('월요일 10:00 영업 시작')
+    expect(result.subLabel).toBe('월요일 10:00 오픈')
   })
 })
 

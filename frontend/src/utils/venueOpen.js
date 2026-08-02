@@ -140,19 +140,22 @@ function buildNextOpenSubLabel(nextOpen, nowTotalMin) {
 
   const { daysAhead, startHhmm, startDow } = nextOpen
 
+  // 문구는 짧게 유지한다 — 리스트 카드에서 이 보조문구가 우측 폭을 먹으면
+  // 좌측(가게명·위치·시간)이 밀려 한 줄이 세 줄로 접힌다. "영업 시작"은
+  // 상태 배지(오늘 휴무/영업 종료)와 함께 읽히므로 생략해도 뜻이 통한다.
   if (daysAhead === 0) {
     // 오늘 중 다음 시작
     const startMin = timeToMin(startHhmm)
     const diffMin = startMin - nowTotalMin
-    return `${formatCountdown(diffMin)} 영업 시작`
+    return `${formatCountdown(diffMin)} 오픈`
   }
 
   if (daysAhead === 1) {
-    return `다음 날 ${startHhmm} 영업 시작`
+    return `내일 ${startHhmm} 오픈`
   }
 
   // 2일 이상 — 요일 표기
-  return `${DAY_KO[startDow]} ${startHhmm} 영업 시작`
+  return `${DAY_KO[startDow]} ${startHhmm} 오픈`
 }
 
 /**
@@ -265,7 +268,8 @@ export function isOpenNow(venue, now = new Date()) {
     // 영업 전: 오늘 중 첫 슬롯까지 남은 시간
     const startMin = timeToMin(futureSlot.start)
     const diffMin = startMin - totalMin
-    const subLabel = `${formatCountdown(diffMin)} 영업 시작`
+    // 표기는 buildNextOpenSubLabel과 같은 규칙(짧게 — 리스트 우측 폭을 아낀다)
+    const subLabel = `${formatCountdown(diffMin)} 오픈`
     return {
       open: false,
       status: 'before_open',
