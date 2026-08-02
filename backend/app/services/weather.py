@@ -23,6 +23,9 @@ CACHE_KEY_LIVE = "weather:live"
 CACHE_KEY_FORECAST = "weather:forecast"
 CACHE_KEY_FORECAST_RAW = "weather:forecast:raw"  # KMA API 응답 원본(tuple 키 직렬화형)
 CACHE_TTL_LIVE = 3600      # 1시간 — 초단기실황, 사용자 요구에 맞춰 호출 빈도 최소화
+# 외부 API 장애로 실황이 비어버린 응답(기온 null)을 1시간 굳히면 그동안 히어로에
+# 기온이 통째로 사라진다(2026-08 실제 장애). 저하 응답은 짧게만 캐시해 자가회복시킨다.
+CACHE_TTL_LIVE_DEGRADED = 120
 CACHE_TTL_FORECAST = 10800  # 3시간 — 단기예보 발표 주기(02·05·08·11·14·17·20·23시)와 동기화
 
 # 기상청 SKY 코드 → 문자열/아이콘 매핑
@@ -330,6 +333,26 @@ def _apply_air(result: CurrentWeatherResponse, air: dict | None) -> CurrentWeath
     return result
 
 
+async def store_live_cache(result: CurrentWeatherResponse) -> None:
+    """실황 캐시 기록 — 저하 응답(기온 없음)을 정상 TTL로 굳히지 않는다.
+
+    기온이 없다는 건 기상청 실황 수집이 실패했다는 뜻이다. 그 상태를 1시간짜리
+    캐시로 박아두면 외부 장애가 끝난 뒤에도 한 시간 동안 히어로에 기온이 안 뜬다.
+      - 이미 정상 값이 캐시돼 있으면 덮지 않는다(직전 관측치가 빈 값보다 낫다)
+      - 없으면 짧게만(120s) 캐시해 곧바로 재시도하게 한다
+    """
+    if result.current_temp is not None:
+        await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
+        return
+
+    existing = await get_cached_json(CACHE_KEY_LIVE)
+    if existing and existing.get("current_temp") is not None:
+        logger.warning("실황 수집 실패 — 기존 정상 캐시를 유지한다")
+        return
+    logger.warning("실황 수집 실패 — 저하 응답을 %d초만 캐시한다", CACHE_TTL_LIVE_DEGRADED)
+    await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE_DEGRADED)
+
+
 async def get_current_weather() -> CurrentWeatherResponse:
     """현재 날씨 조회 (Redis 캐시 우선, 미스 시 기상청 API) + 미세먼지·이동 지수."""
     cached = await get_cached_json(CACHE_KEY_LIVE)
@@ -348,7 +371,7 @@ async def get_current_weather() -> CurrentWeatherResponse:
     fcst = _fcst_map(fcst_items)
 
     result = _build_current(ncst, fcst, now)
-    await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
+    await store_live_cache(result)
     return _apply_air(result, await _get_air_quality_cached())
 
 
@@ -407,7 +430,7 @@ async def refresh_weather_live_cache() -> None:
             fcst = _fcst_map(fcst_items)
 
         result = _build_current(ncst, fcst, now)
-        await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
+        await store_live_cache(result)
         logger.info("초단기실황 캐시 갱신 완료 (temp=%s°)", result.current_temp)
     except Exception:
         logger.exception("초단기실황 캐시 갱신 실패")

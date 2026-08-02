@@ -14,7 +14,11 @@ from app.core.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0"
+# https 필수 — data.go.kr가 평문 HTTP 응답을 끊었다(2026-08 확인: http는 무응답
+# 타임아웃, https는 정상 200). 평문으로 두면 모든 호출이 10초 타임아웃 후 빈 배열이
+# 되어 기온·바람·예보가 통째로 사라진다. 참고로 서울 열린데이터(지하철 실시간)는
+# 반대로 http만 동작하므로 그쪽은 바꾸지 말 것.
+BASE_URL = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0"
 _KST = ZoneInfo("Asia/Seoul")
 
 # 정왕동 격자 좌표 (기본값)
