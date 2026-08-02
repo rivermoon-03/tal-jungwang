@@ -1007,10 +1007,17 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     if (savedView) {
       map.setCenter(new window.kakao.maps.LatLng(savedView.center[0], savedView.center[1]))
       map.setLevel(savedView.level)
+      // 복원으로 초기 카메라가 확정됐다 — fitBounds 불필요 + idle 저장 즉시 허용
+      didInitialFitRef.current = true
     }
 
     // idle 이벤트마다 현재 중심/줌을 스토어에 저장 (pan/zoom 종료 시점)
     const onIdle = () => {
+      // D5(결함 #28 재발) — 지도 생성 직후 kakao가 자동 발화하는 첫 idle이
+      // 기본 center를 mapView로 저장해 버리면, attemptInitialFit이 "사용자가
+      // 이미 조작한 지도"로 오판하고 fitBounds를 영영 건너뛴다(첫 화면에 마커 0개).
+      // 초기 fit(또는 savedView 복원 판정)이 끝나기 전의 idle은 저장하지 않는다.
+      if (!didInitialFitRef.current) return
       const c = map.getCenter()
       useAppStore.getState().setMapView({
         center: [c.getLat(), c.getLng()],

@@ -11,6 +11,7 @@
  *  토글로 이미 있어 중복이었다. DarkModePage.jsx/NotificationsPage.jsx 자체는 그대로 둔다.)
  */
 import { useState } from 'react'
+import { Settings } from 'lucide-react'
 import PageHeader from '../layout/PageHeader'
 import SegmentTabs from '../ui/SegmentTabs.jsx'
 import NoticesPage from './NoticesPage'
@@ -76,7 +77,22 @@ export default function MorePage() {
 
   return (
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-fade-in-up">
-      <PageHeader title="더보기" />
+      {/* D6 — 설정이 '앱 공지' 탭 안에만 있어 발견이 어려웠다(라벨과 내용 불일치).
+          어느 탭에 있든 보이는 헤더 우측 진입점을 상시 노출한다. PC 사이드바가
+          설정을 항상 보여주는 것과 대칭. */}
+      <PageHeader
+        title="더보기"
+        action={
+          <button
+            type="button"
+            onClick={openSettings}
+            aria-label="설정"
+            className="w-9 h-9 rounded-full flex items-center justify-center pressable bg-surface-2 dark:bg-surface-2 text-ink-2 dark:text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tj-focus-ring)]"
+          >
+            <Settings size={18} strokeWidth={2} />
+          </button>
+        }
+      />
 
       <div className="px-4 pt-1 pb-2 flex-shrink-0">
         <SegmentTabs items={TOP_TABS} active={topTab} onChange={setTopTab} />

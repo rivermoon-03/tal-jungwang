@@ -9,6 +9,7 @@ import BusPanel from '../summary/BusPanel'
 import SubwayPanel from '../summary/SubwayPanel'
 import ShuttlePanel from '../summary/ShuttlePanel'
 import TaxiPanel from '../summary/TaxiPanel'
+import HomeBriefing from './HomeBriefing'
 import { BUS_STATION_LABELS, getAllowedDirections } from './busStationConfig'
 
 /**
@@ -134,6 +135,9 @@ export default function Dashboard() {
           <div key="taxi" className="animate-fade-in"><TaxiPanel /></div>
         )}
       </div>
+
+      {/* F1 — 도착 카드 아래 빈 공간에 오늘 브리핑(학사일정 D-day · 오늘 학식) */}
+      <HomeBriefing />
     </section>
   )
 }

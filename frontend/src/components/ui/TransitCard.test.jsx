@@ -89,3 +89,44 @@ describe('TransitCard', () => {
     expect(matches, `${matches} 남아있음 (12px 미만)`).toBeNull()
   })
 })
+
+// ── D2/D3 회귀 — 실사례: 모바일 홈 11-A 카드에서 "현재 도착 정보 없음"(22px)이
+// subtitle "한국공학대학교 승차" 위로 겹쳐 그려졌고, PC 패널에서 "20-1" 배지가
+// "20-"/"1" 두 줄로 꺾였다. 레이아웃은 jsdom으로 못 재므로 원인 클래스를 고정한다.
+describe('TransitCard — 겹침(D2)·배지 줄바꿈(D3) 회귀', () => {
+  it('배지에 whitespace-nowrap이 있다 — 하이픈 노선번호 줄바꿈 방지(D3)', () => {
+    render(<TransitCard {...BASE_PROPS} />)
+    expect(screen.getByText('20-1').className).toMatch(/whitespace-nowrap/)
+  })
+
+  it('subtitle은 shrink-0이 아니라 truncate로 줄어든다(D2)', () => {
+    render(<TransitCard {...BASE_PROPS} subtitle="한국공학대학교 승차" />)
+    const subtitle = screen.getByText('한국공학대학교 승차')
+    expect(subtitle.className).toMatch(/truncate/)
+    expect(subtitle.className).not.toMatch(/shrink-0/)
+  })
+
+  it('muted 상태 문장은 22px 숫자 스타일이 아니라 줄바꿈 허용 스타일이다(D2)', () => {
+    render(
+      <TransitCard
+        {...BASE_PROPS}
+        eta={{ primary: { text: '현재 도착 정보 없음', tone: 'muted' }, secondary: { text: '잠시 후 다시 확인' } }}
+      />
+    )
+    const primary = screen.getByText('현재 도착 정보 없음')
+    expect(primary.className).toMatch(/break-keep/)
+    expect(primary.className).not.toMatch(/text-\[22px\]/)
+  })
+
+  it('숫자 ETA는 22px 스타일을 유지한다', () => {
+    render(<TransitCard {...BASE_PROPS} />)
+    expect(screen.getByText('3분').className).toMatch(/text-\[22px\]/)
+  })
+
+  it('ETA 열 컨테이너에 min-w-0이 없다 — 넘친 텍스트가 본문 위로 그려지던 원인(D2)', () => {
+    const { container } = render(<TransitCard {...BASE_PROPS} />)
+    const etaCol = container.querySelector('.min-h-\\[44px\\]')
+    expect(etaCol).not.toBeNull()
+    expect(etaCol.className).not.toMatch(/min-w-0/)
+  })
+})
