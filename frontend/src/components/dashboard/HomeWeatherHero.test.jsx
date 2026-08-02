@@ -20,8 +20,13 @@ vi.mock('../../hooks/useEffectiveDirection', () => ({
   default: (...args) => mockUseEffectiveDirection(...args),
 }))
 
-// ── 스토어 모킹 — storeState를 테스트별로 재할당해 heroStyle을 바꾼다 ──
-let storeState = { heroStyle: 'greeting', setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
+// ── 스토어 모킹 — storeState를 테스트별로 재할당해 heroStyle/darkMode를 바꾼다 ──
+let storeState = {
+  heroStyle: 'greeting',
+  darkMode: false,
+  setSearchOpen: vi.fn(),
+  setDirectionOverride: vi.fn(),
+}
 vi.mock('../../stores/useAppStore', () => ({
   default: (selector) => selector(storeState),
 }))
@@ -59,7 +64,7 @@ function expandPanel() {
 
 beforeEach(() => {
   vi.useFakeTimers()
-  storeState = { heroStyle: 'greeting', setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
+  storeState = { heroStyle: 'greeting', darkMode: false, setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
   mockUseEffectiveDirection.mockReturnValue({ direction: '등교', isOverride: false })
   mockUseWeather.mockReturnValue({
     weather: {
@@ -194,7 +199,7 @@ describe('HomeWeatherHero — 펼친 뒤 greeting 스타일(기본) 동작', () 
 
 describe('HomeWeatherHero — heroStyle=classic', () => {
   it('펼치면 큰 온도(text-hero-temp) 레이아웃을 렌더하고 글귀는 렌더하지 않는다', () => {
-    storeState = { heroStyle: 'classic', setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
+    storeState = { heroStyle: 'classic', darkMode: false, setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
     expandPanel()
 
@@ -225,6 +230,153 @@ describe('HomeWeatherHero — 비 mood', () => {
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
 
     expect(container.querySelector('.whero-rain')).toBeNull()
+  })
+})
+
+describe('HomeWeatherHero — 하늘과 잉크', () => {
+  // 하늘 색과 그 위 글자 색은 skyPalette가 한 번에 정해 CSS 변수로 내려온다.
+  // 예전에는 배경이 CSS 하드코딩, 글자는 JSX의 lightText 불리언이라 서로를
+  // 몰랐고 그게 다크모드에서 대비 1.01:1 사고로 이어졌다.
+  function heroEl(container) {
+    return container.querySelector('.whero')
+  }
+
+  it('하늘 3스톱과 잉크를 CSS 변수로 내려보낸다', () => {
+    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+    const style = heroEl(container).style
+
+    for (const name of ['--whero-sky-a', '--whero-sky-b', '--whero-sky-c']) {
+      expect(style.getPropertyValue(name), name).toMatch(/^#[0-9a-f]{6}$/)
+    }
+    expect(style.getPropertyValue('--whero-on')).toMatch(/^#[0-9a-f]{6}$/)
+    expect(style.getPropertyValue('--whero-on-2')).toMatch(/^#[0-9a-f]{6}$/)
+    expect(style.getPropertyValue('--whero-scrim')).toMatch(/^#(000000|ffffff)$/)
+    expect(Number(style.getPropertyValue('--whero-scrim-a'))).toBeGreaterThan(0)
+  })
+
+  it('다크 테마에서는 하늘이 라이트보다 어둡고 잉크가 밝은 쪽으로 뒤집힌다', () => {
+    const { container: light } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+    const lightSky = heroEl(light).style.getPropertyValue('--whero-sky-b')
+
+    storeState = { ...storeState, darkMode: true }
+    const { container: dark } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+    const darkStyle = heroEl(dark).style
+
+    // 다크 하늘은 항상 더 어둡다(스톱을 정수로 비교).
+    const lum = (hex) => parseInt(hex.slice(1), 16)
+    expect(lum(darkStyle.getPropertyValue('--whero-sky-b'))).toBeLessThan(lum(lightSky))
+    // 어두운 하늘에는 밝은 잉크가 온다.
+    expect(darkStyle.getPropertyValue('--whero-scrim')).toBe('#000000')
+  })
+
+  it('스트립 칩에 죽은 클래스(dark:bg-surface-3/95)나 lightText 분기 잔재가 없다', () => {
+    // 이 클래스는 Tailwind가 CSS를 만들지 않아 bg-white/95가 살아남았고,
+    // 그 위에 text-ink가 얹혀 흰 글자·흰 배경(1.01:1)이 됐다.
+    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+    const mapButton = screen.getByLabelText('지도 보기')
+
+    expect(mapButton.className).not.toMatch(/bg-white|bg-surface-3|text-ink/)
+    expect(mapButton).toHaveClass('whero-chip')
+    expect(container.innerHTML).not.toMatch(/text-ink-2 dark:text-mute/)
+  })
+
+  it('하늘 위 글자는 전부 잉크 변수를 쓰는 클래스로 칠한다', () => {
+    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+    expandPanel()
+
+    expect(container.querySelectorAll('.whero-ink').length).toBeGreaterThan(0)
+    expect(container.querySelectorAll('.whero-ink-2').length).toBeGreaterThan(0)
+  })
+
+  it('스크림을 한 겹 깔고, 걷어낸 오버레이(grain/breath/glow)는 렌더하지 않는다', () => {
+    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+    expandPanel()
+
+    expect(container.querySelector('.whero-scrim')).toBeTruthy()
+    expect(container.querySelector('.whero-grain')).toBeNull()
+    expect(container.querySelector('.whero-breath')).toBeNull()
+    expect(container.querySelector('.whero-glow')).toBeNull()
+  })
+})
+
+describe('HomeWeatherHero — 태양 위치', () => {
+  // 배경이 낮/저녁/밤 세 칸이 아니라 태양 고도로 연속 변한다.
+  const REAL_DATE = Date
+
+  function renderAt(iso) {
+    vi.setSystemTime(new REAL_DATE(`${iso}+09:00`))
+    return render(<HomeWeatherHero onOpenMap={() => {}} />)
+  }
+
+  it('해 원반을 그리지 않는다(좁은 히어로에서 스티커처럼 보였다)', () => {
+    const { container } = renderAt('2026-08-02T13:00:00')
+    expandPanel()
+
+    expect(container.querySelector('.whero-sun')).toBeNull()
+    expect(container.querySelector('.whero-rays')).toBeNull()
+  })
+
+  it('해가 떠 있으면 낮 글로우를 얹고, 지면 걷는다', () => {
+    const { container: noon } = renderAt('2026-08-02T13:00:00')
+    expandPanel()
+    expect(noon.querySelector('.whero-daylight')).toBeTruthy()
+
+    const { container: night } = renderAt('2026-08-02T23:00:00')
+    fireEvent.click(screen.getAllByLabelText('날씨 요약 펼치기')[0])
+    expect(night.querySelector('.whero-daylight')).toBeNull()
+  })
+
+  it('낮 글로우 세기는 태양 고도를 따라간다', () => {
+    const daylight = (container) =>
+      Number(container.querySelector('.whero').style.getPropertyValue('--daylight'))
+
+    const noon = daylight(renderAt('2026-08-02T12:40:00').container)
+    const evening = daylight(renderAt('2026-08-02T18:40:00').container)
+    const night = daylight(renderAt('2026-08-02T23:00:00').container)
+
+    expect(noon).toBe(1)
+    expect(evening).toBeGreaterThan(0)
+    expect(evening).toBeLessThan(1)
+    expect(night).toBe(0)
+  })
+
+  it('다크모드 한낮 하늘은 한밤보다 뚜렷하게 밝다', () => {
+    storeState = { ...storeState, darkMode: true }
+    const midStop = (container) =>
+      parseInt(container.querySelector('.whero').style.getPropertyValue('--whero-sky-b').slice(1), 16)
+
+    const noon = midStop(renderAt('2026-08-02T12:40:00').container)
+    const night = midStop(renderAt('2026-08-02T23:00:00').container)
+    expect(noon).toBeGreaterThan(night * 3)
+  })
+
+  it('한밤중에는 별과 유성을 렌더한다', () => {
+    const { container } = renderAt('2026-08-02T23:00:00')
+    fireEvent.click(screen.getAllByLabelText('날씨 요약 펼치기')[0])
+
+    expect(container.querySelector('.whero-night-sky')).toBeTruthy()
+    expect(container.querySelectorAll('.whero-star').length).toBeGreaterThan(0)
+    expect(container.querySelector('.whero-meteor')).toBeTruthy()
+  })
+
+  it('같은 시각이라도 계절이 다르면 하늘이 다르다(시간 버킷이었다면 같았을 것)', () => {
+    const { container: summer } = renderAt('2026-06-21T19:00:00')
+    const summerSky = summer.querySelector('.whero').style.getPropertyValue('--whero-sky-b')
+
+    const { container: winter } = renderAt('2025-12-21T19:00:00')
+    const winterSky = winter.querySelector('.whero').style.getPropertyValue('--whero-sky-b')
+
+    expect(summerSky).not.toBe(winterSky)
+  })
+
+  it('흐림·비·눈에는 낮 글로우가 없다(대신 그 무드의 이펙트가 온다)', () => {
+    mockUseWeather.mockReturnValue({
+      weather: { currentTemp: 15, icon: 'rainy', rainProb: 80, windSpeed: 3 },
+    })
+    const { container } = renderAt('2026-08-02T13:00:00')
+    expandPanel()
+    expect(container.querySelector('.whero-daylight')).toBeNull()
+    expect(container.querySelector('.whero-rain')).toBeTruthy()
   })
 })
 

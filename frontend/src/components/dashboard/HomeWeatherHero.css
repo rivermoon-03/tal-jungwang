@@ -1,5 +1,8 @@
-/* HomeWeatherHero — 홈 상단 A. 날씨 상태에 따라 배경/이펙트가 바뀐다.
-   맑음=푸른 글로우, 흐림=회색, 비=빗줄기, 눈=눈송이. */
+/* HomeWeatherHero — 홈 상단 히어로.
+   하늘 색과 그 위의 잉크는 전부 skyPalette.js가 정해 CSS 변수로 내려온다
+   (--whero-sky-a/b/c · --whero-on · --whero-on-2 · --whero-scrim*). 이 파일에는
+   무드별/시간대별 색 하드코딩이 없다 — 예전엔 여기 그라데이션 8종이 손으로
+   찍혀 있고 글자 색은 JSX가 따로 정해서, 다크모드에서 둘이 어긋났다. */
 
 .whero {
   position: relative;
@@ -11,11 +14,43 @@
   display: flex;
   flex-direction: column;
   border-radius: 0;
-  transition: background 400ms ease;
+
+  /* 하나의 하늘 — 접혀 있든 펼쳐져 있든 같은 하늘의 같은 부분을 본다.
+     그라데이션 높이를 292px로 고정했기 때문에 펼침 토글을 눌러도 스트립
+     색이 튀지 않는다(높이에 맞춰 늘어나면 접힘/펼침 사이에 색이 점프한다).
+     292px 아래쪽은 background-color(마지막 스톱)가 이어받는다. */
+  background-color: var(--whero-sky-c, #142639);
+  background-image: linear-gradient(
+    168deg,
+    var(--whero-sky-a, #0d2038) 0%,
+    var(--whero-sky-b, #123049) 52%,
+    var(--whero-sky-c, #142639) 100%
+  );
+  background-size: 100% 292px;
+  background-repeat: no-repeat;
+
+  /* 잉크는 하루에 걸쳐 아주 천천히 바뀐다. 5분 간격 갱신 사이를 부드럽게 잇는다. */
+  transition: background-color 600ms ease;
 }
 
-/* 접힌 상태: 배경 그라데이션은 유지하되 강조 이펙트(rays/night-sky/rain/snow/grain 등)는
-   .whero-panel 내부에서만 렌더되므로 자연히 숨는다 — 별도 규칙 불필요. */
+/* 스크림 — 하늘 위에 까는 베일. 칩과 글자가 하늘 색과 무관하게 항상 같은
+   바닥을 딛게 해준다. 두께(--whero-scrim-a)는 skyPalette가 대비를 실제로
+   계산해 정한다: 평소엔 12%, 하늘이 중간 밝기라 잉크가 애매해지는 구간에서만
+   두꺼워진다. 위/아래(스트립·패널 콘텐츠가 앉는 자리)는 언제나 더 진하다. */
+.whero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgb(from var(--whero-scrim, #000) r g b / calc(var(--whero-scrim-a, 0.12) + 0.26)) 0%,
+    rgb(from var(--whero-scrim, #000) r g b / var(--whero-scrim-a, 0.12)) 30%,
+    rgb(from var(--whero-scrim, #000) r g b / var(--whero-scrim-a, 0.12)) 52%,
+    rgb(from var(--whero-scrim, #000) r g b / calc(var(--whero-scrim-a, 0.12) + 0.22)) 100%
+  );
+  transition: background 600ms ease;
+}
 
 /* 한 줄 스트립 — 항상 보이는 행. 펼침 토글 + 온도/하늘/바람 요약 + 검색 진입. */
 .whero-strip {
@@ -28,7 +63,7 @@
   padding: 0 16px;
 }
 
-/* 펼침 패널 — 기존 상단바/메인블록/이펙트를 모두 담는다. 진입 시 살짝 페이드+슬라이드. */
+/* 펼침 패널 — 메인블록과 이펙트를 담는다. 진입 시 살짝 페이드+슬라이드. */
 .whero-panel {
   position: relative;
   display: flex;
@@ -45,7 +80,7 @@
   .whero-panel { animation: none; }
 }
 
-/* 하단 seam — 히어로(mood 색)를 대시보드 배경(var(--tj-bg))으로 얇게 블렌드.
+/* 하단 seam — 히어로를 대시보드 배경(var(--tj-bg))으로 얇게 블렌드.
    콘텐츠는 z-10, seam은 z-5라 콘텐츠가 seam 위에 그려진다(콘텐츠는 pb로 seam을 피함). */
 .whero-seam {
   position: absolute;
@@ -58,74 +93,86 @@
   background: linear-gradient(to bottom, transparent, var(--tj-bg));
 }
 
-/* mood 색이 히어로를 꽉 채운다(마지막 색 스톱이 100%까지 유지). 예전엔 그라데이션을
-   var(--tj-bg)로 끝냈는데, 히어로가 45% 높이로 커지면서 중앙~하단이 넓게 하얗게 떠
-   보였다(실사용 피드백) — 콘텐츠(온도/정왕풍)가 흰 밴드 위에 얹혀 대비가 죽었다.
-   이제 대시보드로 잇는 블렌드는 아래 .whero-seam(하단 ~34px)만 담당한다. */
-.whero[data-mood='sunny']  { background: linear-gradient(165deg, #dbeeff 0%, #f2faff 55%); }
-.whero[data-mood='cloudy'] { background: linear-gradient(165deg, #dee2e6 0%, #edeff1 60%); }
-.whero[data-mood='rainy']  { background: linear-gradient(165deg, #3c5468 0%, #57728a 65%); }
-.whero[data-mood='snowy']  { background: linear-gradient(165deg, #cfe6f5 0%, #e9f4fb 55%); }
+/* ── 잉크를 쓰는 요소들 ──────────────────────────────────────────────────
+   전부 --whero-on / --whero-on-2 만 본다. 예전엔 이 자리마다 lightText
+   삼항 연산자가 붙어 있었고(11곳), 그게 다크모드를 몰라서 깨졌다. */
 
-/* 시간대(낮/저녁/밤) 반영 — 맑음·흐림 무드만. 비/눈은 이미 어두운/파스텔 톤이라 생략(기존 유지).
-   낮(day)은 위 기본 규칙과 동일해 별도 셀렉터가 필요 없다. */
-.whero[data-mood='sunny'][data-time='evening']  { background: linear-gradient(165deg, #3d4f78 0%, #6b5a7d 35%, #a8707a 70%); }
-.whero[data-mood='sunny'][data-time='night']    { background: linear-gradient(165deg, #131c33 0%, #1b2b4a 65%); }
-.whero[data-mood='cloudy'][data-time='evening'] { background: linear-gradient(165deg, #a8a0ad 0%, #8f8a9c 55%); }
-.whero[data-mood='cloudy'][data-time='night']   { background: linear-gradient(165deg, #2a2d35 0%, #23262e 60%); }
+.whero-ink   { color: var(--whero-on, #f5f8f9); transition: color 600ms ease; }
+.whero-ink-2 { color: var(--whero-on-2, rgba(245, 248, 249, 0.78)); transition: color 600ms ease; }
 
-.dark .whero[data-mood='sunny']  { background: linear-gradient(165deg, #0d2038 0%, #142639 60%); }
-.dark .whero[data-mood='cloudy'] { background: linear-gradient(165deg, #202327 0%, #26292d 60%); }
-.dark .whero[data-mood='rainy']  { background: linear-gradient(165deg, #0e1c28 0%, #16293a 60%); }
-.dark .whero[data-mood='snowy']  { background: linear-gradient(165deg, #14212b 0%, #1a2a35 60%); }
+/* 칩(지도 버튼 · 옵션 그룹) — 하늘 위에 뜨는 유리질 알약.
+   스크림이 바닥을 잡아 주므로 배경 밝기에 따른 분기가 필요 없다. */
+.whero-chip {
+  color: var(--whero-on, #f5f8f9);
+  background: rgb(from var(--whero-on, #f5f8f9) r g b / 0.14);
+  border: 1px solid rgb(from var(--whero-on, #f5f8f9) r g b / 0.24);
+  box-shadow: 0 1px 3px rgb(from var(--whero-scrim, #000) r g b / 0.18);
+  transition: color 600ms ease, background-color 600ms ease, border-color 600ms ease;
+}
 
-/* 다크모드 + 시간대 — 기존 다크 규칙보다 한층 더 어둡고 채도 낮은 톤(이 파일의 기존 패턴 준수) */
-.dark .whero[data-mood='sunny'][data-time='evening']  { background: linear-gradient(165deg, #262f47 0%, #3d3548 35%, #5c4550 70%); }
-.dark .whero[data-mood='sunny'][data-time='night']    { background: linear-gradient(165deg, #0c1120 0%, #111b2e 65%); }
-.dark .whero[data-mood='cloudy'][data-time='evening'] { background: linear-gradient(165deg, #4d4952 0%, #423f4a 55%); }
-.dark .whero[data-mood='cloudy'][data-time='night']   { background: linear-gradient(165deg, #1c1e24 0%, #17181d 60%); }
+/* 옵션 그룹 안의 아이콘 버튼 — 활성만 채워서 세그먼트 느낌을 낸다. */
+.whero-toggle {
+  color: rgb(from var(--whero-on, #f5f8f9) r g b / 0.72);
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.whero-toggle:hover { color: var(--whero-on, #f5f8f9); }
+.whero-toggle.is-on {
+  color: var(--tj-accent-ink);
+  background: rgb(from var(--tj-accent-ink) r g b / 0.18);
+}
 
-/* 맑음: 정적인 햇살 글로우 (모션 없음 — 비/눈과의 대비로 "고요함"을 표현) */
-.whero-glow {
+/* 정왕풍 미니 pill */
+.whero-windpill {
+  color: var(--whero-on, #f5f8f9);
+  background: rgb(from var(--whero-on, #f5f8f9) r g b / 0.13);
+}
+.whero-windpill.is-strong {
+  background: rgb(from var(--whero-on, #f5f8f9) r g b / 0.22);
+}
+
+/* 식당 뷰 카드 — 하늘 위에 얹히므로 칩과 같은 유리 규칙을 쓴다. */
+.whero-venue {
+  background: rgb(from var(--whero-on, #f5f8f9) r g b / 0.12);
+  border: 1px solid rgb(from var(--whero-on, #f5f8f9) r g b / 0.2);
+}
+
+/* 툴팁 — 스크림과 같은 극성으로 깔아 하늘 위에서도 읽힌다. */
+.whero-tooltip-surface {
+  color: var(--whero-on, #f5f8f9);
+  background: rgb(from var(--whero-scrim, #000) r g b / 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── 대기 레이어 ────────────────────────────────────────────────────────
+   무드당 하나만 남겼다. 예전엔 glow · rays · breath · grain · seam 다섯 겹이
+   겹쳐서, 흰 호흡 글로우와 overlay 그레인이 어두운 하늘을 회색으로 씻어냈다
+   (실측: 같은 히어로 안 두 지점이 6.96:1까지 벌어졌다). grain과 breath는
+   삭제했고, glow는 아래 실제 태양(.whero-sun)이 대신한다. */
+
+/* 맑음·낮: 하늘이 밝은 쪽 한 겹.
+   해 원반이나 광선 다발을 그리지 않는다 — 태양을 실제 위치에 띄워 봤지만,
+   좁은 히어로 안에서는 원반이 어디에 있든 붙여 놓은 스티커처럼 보였다.
+   대신 대기가 밝은 방향으로 넓게 번지는 글로우만 남긴다. 하늘 색 자체가
+   이미 태양 고도로 연속 변하므로, 시간의 흐름은 배경이 말해 준다.
+   세기(--daylight)는 고도에 비례해 해가 낮으면 옅어진다. */
+.whero-daylight {
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
-  background: radial-gradient(160px 130px at 84% -8%, rgba(255, 255, 255, 0.9), transparent 70%);
-}
-.dark .whero-glow {
-  background: radial-gradient(160px 130px at 84% -8%, rgba(120, 170, 255, 0.28), transparent 70%);
+  opacity: var(--daylight, 0);
+  background:
+    radial-gradient(120% 78% at 78% -18%, rgb(from var(--whero-on, #f5f8f9) r g b / 0.5), transparent 62%),
+    radial-gradient(90% 52% at 22% -10%, rgb(from var(--whero-on, #f5f8f9) r g b / 0.16), transparent 70%);
+  transition: opacity 900ms ease;
 }
 
-/* 맑음·낮: 햇살 광선 — 우상단 원점에서 conic-gradient로 뻗어나가는 광선을
-   radial-gradient mask로 감쇠시키고, 26s 주기로 ±7deg 흔들린다(.whero-glow와 함께 사용). */
-.whero-rays {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  transform-origin: 88% 6%;
-  background: conic-gradient(
-    from 200deg at 88% 6%,
-    transparent 0deg, rgba(255, 255, 255, 0.55) 4deg, transparent 10deg,
-    transparent 24deg, rgba(255, 255, 255, 0.4) 28deg, transparent 34deg,
-    transparent 48deg, rgba(255, 255, 255, 0.5) 52deg, transparent 58deg,
-    transparent 72deg, rgba(255, 255, 255, 0.35) 76deg, transparent 82deg,
-    transparent 360deg
-  );
-  -webkit-mask-image: radial-gradient(220px 220px at 88% 6%, black, transparent 75%);
-          mask-image: radial-gradient(220px 220px at 88% 6%, black, transparent 75%);
-  animation: whero-rays-sway 26s ease-in-out infinite alternate;
-}
-@keyframes whero-rays-sway {
-  0%   { transform: rotate(-7deg); }
-  100% { transform: rotate(7deg); }
-}
-.dark .whero-rays { opacity: 0.6; }
-
-/* 맑음·밤: 별(개별 트윈클) + 달 + 유성 — 예전 .whero-glow 재사용 정적 별 5개를 대체.
-   우상단은 달 자리라 STARS 좌표 생성 시 비워 둔다(HomeWeatherHero.jsx). */
+/* 맑음·밤: 별(개별 트윈클) + 유성. */
 .whero-night-sky {
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
 }
 .whero-star {
@@ -139,16 +186,6 @@
 @keyframes whero-twinkle {
   0%, 100% { opacity: 0.25; }
   50%      { opacity: 1; }
-}
-.whero-moon {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fffef2 0%, #f4ecc8 55%, #d8cd9c 100%);
-  box-shadow: 0 0 18px 4px rgba(255, 250, 220, 0.35);
 }
 .whero-meteor {
   position: absolute;
@@ -170,10 +207,12 @@
 }
 
 /* 흐림: 서로 다른 속도로 좌→우 드리프트하는 구름 덩어리 4개.
-   톤은 시간대(data-time)에 맞춰 따뜻하게/어둡게 바뀐다. */
+   구름은 하늘색을 그대로 받아 밝기만 올린다(흰색 고정이 아니다 — 그래야
+   밤 하늘에 흰 솜뭉치가 떠 있는 사고가 안 난다). */
 .whero-clouds {
   position: absolute;
   inset: 0;
+  z-index: 2;
   overflow: hidden;
   pointer-events: none;
 }
@@ -182,7 +221,7 @@
   height: 34px;
   border-radius: 999px;
   filter: blur(14px);
-  background: rgba(255, 255, 255, 0.55);
+  background: rgb(from var(--whero-on, #f5f8f9) r g b / 0.24);
   animation-name: whero-cloud-drift;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
@@ -191,15 +230,13 @@
   0%   { transform: translateX(-40%); }
   100% { transform: translateX(140%); }
 }
-.whero[data-time='evening'] .whero-clouds span { background: rgba(255, 240, 235, 0.3); }
-.whero[data-time='night']   .whero-clouds span { background: rgba(255, 255, 255, 0.1); }
-.dark .whero-clouds span { background: rgba(255, 255, 255, 0.1); }
 
-/* 비: 3겹 원근(far/mid/near) 스트릭 + 바닥 스플래시 링. --skew는 강풍(정왕풍 6m/s+)일
-   때만 JS가 인라인으로 14deg를 부여해, 빗줄기가 기울어져 떨어지는 것처럼 보인다. */
+/* 비: 3겹 원근(far/mid/near) 스트릭 + 바닥 스플래시 링. --skew는 강풍(정왕풍
+   6m/s+)일 때만 JS가 인라인으로 14deg를 부여해, 빗줄기가 기울어져 떨어진다. */
 .whero-rain {
   position: absolute;
   inset: 0;
+  z-index: 2;
   overflow: hidden;
   pointer-events: none;
   --skew: 0deg;
@@ -216,7 +253,7 @@
   position: absolute;
   top: -10%;
   border-radius: 999px;
-  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.8));
+  background: linear-gradient(to bottom, transparent, rgb(from var(--whero-on, #f5f8f9) r g b / 0.8));
   transform: rotate(var(--skew));
   animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
   animation-iteration-count: infinite;
@@ -259,13 +296,14 @@
   100% { transform: translateY(160px) rotate(var(--skew)); opacity: 0; }
 }
 
-/* 비: 바닥 스플래시 링 6개 — near 레이어가 떨어지는 하단 근처(bottom:30px)에서 퍼진다. */
+/* 비: 바닥 스플래시 링 6개 — near 레이어가 떨어지는 하단 근처에서 퍼진다. */
 .whero-splash {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 30px;
   height: 1px;
+  z-index: 2;
   pointer-events: none;
 }
 .whero-splash span {
@@ -275,7 +313,7 @@
   height: 4px;
   margin-left: -5px;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border: 1.5px solid rgb(from var(--whero-on, #f5f8f9) r g b / 0.55);
   opacity: 0;
   animation-name: whero-splash-ring;
   animation-timing-function: ease-out;
@@ -288,10 +326,11 @@
   100% { transform: scale(1.6); opacity: 0; }
 }
 
-/* 비 + 밤: 번개 섬광 — 9s 주기 중 92.9~94.6% 구간에만 두 번 반짝인다(최대 opacity .55). */
+/* 비 + 밤: 번개 섬광 — 9s 주기 중 92.9~94.6% 구간에만 두 번 반짝인다. */
 .whero-lightning {
   position: absolute;
   inset: 0;
+  z-index: 3;
   pointer-events: none;
   background: rgba(255, 255, 255, 0.9);
   opacity: 0;
@@ -303,11 +342,12 @@
   93.9%  { opacity: 0.4; }
 }
 
-/* 눈: 흩날리는 눈송이 (개별 위치/속도는 JS에서 부여). far(원경) 눈은 더 흐리고 옅다.
-   낙하는 좌우로 흔들리는 지그재그(zigzag) 형태 — 그냥 수직 낙하보다 자연스럽다. */
+/* 눈: 흩날리는 눈송이. far(원경) 눈은 더 흐리고 옅다. 낙하는 좌우로 흔들리는
+   지그재그 — 그냥 수직 낙하보다 자연스럽다. */
 .whero-snow {
   position: absolute;
   inset: 0;
+  z-index: 2;
   overflow: hidden;
   pointer-events: none;
 }
@@ -315,7 +355,7 @@
   position: absolute;
   top: -10%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgb(from var(--whero-on, #f5f8f9) r g b / 0.9);
   animation-name: whero-snow-fall;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
@@ -341,45 +381,12 @@
   100% { transform: translate(0, 158px);   opacity: 0.08; }
 }
 
-/* greeting 스타일 전용 배경 감성 레이어 — 필름 그레인(overlay 블렌드) + 좌하단 호흡 글로우. */
-.whero-grain {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: overlay;
-  opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 120px 120px;
-}
-.whero-breath {
-  position: absolute;
-  left: -10%;
-  bottom: -10%;
-  width: 60%;
-  height: 60%;
-  pointer-events: none;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.35), transparent 70%);
-  animation: whero-breathe 9s ease-in-out infinite;
-}
-.whero[data-time='evening'] .whero-breath,
-.whero[data-time='night']   .whero-breath {
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 70%);
-}
-@keyframes whero-breathe {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50%      { opacity: 0.9;  transform: scale(1.08); }
-}
-
 /* greeting 진입 시퀀스 — 글귀(quote) 진입 → 강등(demote, weather)으로 온도 행에
-   시각적 주인공을 넘긴다. 글귀 블록은 더 이상 접히거나 사라지지 않고 그 자리에
-   남아 작아진다(구 grid-template-rows 접힘 방식 폐기 — 아래 .whero-quote-text 참고).
-   reduced-motion은 이 파일이 아니라 index.css의 전역 규칙(*,*::before,*::after에
-   transition/animation-duration ≈0ms)이 처리한다 — 별도 media 분기를 두지 않는다. */
+   시각적 주인공을 넘긴다. 글귀 블록은 접히거나 사라지지 않고 그 자리에 남아
+   작아진다. reduced-motion은 index.css의 전역 규칙이 처리한다. */
 
 /* 글귀 블록 래퍼 — 마운트 시 blur(10px)+translateY(10px)+opacity 0에서 시작해
-   900ms 만에 제자리로 진입(is-visible). 진입 후에는 강등되어도 계속 DOM/레이아웃에
-   남아 있으므로(클릭 가능 상태 유지), 별도의 퇴장 모션은 없다. */
+   900ms 만에 제자리로 진입(is-visible). */
 .whero-quote-content {
   position: relative;
   opacity: 0;
@@ -395,15 +402,11 @@
 
 /* 글귀 텍스트 본체 — 전용 클래스로 font-size/font-weight/line-height/color를 직접
    제어한다(Tailwind text-title은 fontWeight가 fontSize 토큰에 내장돼 있어 중간값으로
-   보간되지 않는다). SUIT Variable은 wght 축을 가진 진짜 가변 폰트라(index.html의
-   CDN SUIT-Variable.css) font-weight 자체를 트랜지션해도 최신 브라우저(Chrome/
-   Firefox/Safari)가 100~900 사이를 연속 보간한다 — font-variation-settings나
-   레이어 크로스페이드로 우회할 필요가 없다.
-   색상은 --quote-color / --quote-color-demoted 커스텀 프로퍼티(HomeWeatherHero.jsx가
-   lightText에 맞춰 인라인으로 주입)로 받아, 같은 700ms 트랜지션에 함께 태운다. */
+   보간되지 않는다). SUIT Variable은 wght 축을 가진 진짜 가변 폰트라 font-weight
+   자체를 트랜지션해도 최신 브라우저가 100~900 사이를 연속 보간한다. */
 .whero-quote-text {
   display: block;
-  color: var(--quote-color, var(--tj-ink));
+  color: var(--whero-on, #f5f8f9);
   font-size: 21px;
   font-weight: 800;
   line-height: 1.35;
@@ -415,14 +418,13 @@
     color 700ms var(--e-out);
 }
 .whero-quote-text.is-demoted {
-  color: var(--quote-color-demoted, var(--tj-ink-2));
+  color: var(--whero-on-2, rgba(245, 248, 249, 0.78));
   font-size: 13px;
   font-weight: 500;
   line-height: 1.3;
 }
 
-/* 출처/부제 툴팁 — 글귀 클릭 시 바로 아래(좌측 정렬)에 뜬다. 등장은 opacity+translateY+blur
-   220ms, 퇴장은 opacity만 160ms(HomeWeatherHero.jsx가 tooltipMounted로 DOM 유지 시간을 맞춘다). */
+/* 출처/부제 툴팁 — 글귀 클릭 시 바로 아래(좌측 정렬)에 뜬다. */
 .whero-quote-tooltip {
   position: absolute;
   top: 100%;
@@ -445,8 +447,7 @@
   transition: opacity 160ms var(--e-out);
 }
 
-/* 온도/하늘 텍스트 확대 — phase='weather'에서 34px→56px, 14px→18px로 커진다.
-   font-size는 CSS 트랜지션으로 자연스럽게 보간된다(키프레임 불필요). */
+/* 온도/하늘 텍스트 확대 — phase='weather'에서 34px→56px, 14px→18px로 커진다. */
 .whero-quote-temp {
   font-size: 34px;
   transition: font-size 700ms var(--e-out);
@@ -462,8 +463,8 @@
   font-size: 18px;
 }
 
-/* 아이콘 확대 — lucide size prop(HTML width/height 속성)은 CSS 트랜지션 대상이 아니라서
-   32px 고정 아이콘을 감싼 wrapper에 transform:scale(52/32)를 트랜지션한다. */
+/* 아이콘 확대 — lucide size prop(HTML width/height 속성)은 CSS 트랜지션 대상이
+   아니라서 32px 고정 아이콘을 감싼 wrapper에 transform:scale(52/32)를 태운다. */
 .whero-quote-icon-wrap {
   display: inline-flex;
   transform-origin: bottom right;
@@ -479,9 +480,7 @@
   .whero-rain-near span,
   .whero-snow span,
   .whero-clouds span,
-  .whero-rays,
-  .whero-star,
-  .whero-breath {
+  .whero-star {
     animation: none !important;
     opacity: 0.22;
   }
