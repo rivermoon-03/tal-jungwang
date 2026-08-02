@@ -1,0 +1,698 @@
+{
+  "_generated_by": "scripts/export_cafeteria_venues.mjs",
+  "count": 17,
+  "venues": [
+    {
+      "id": "student-cafeteria",
+      "name": "학생식당",
+      "building": "TIP",
+      "floor": "B1",
+      "category": "한식",
+      "is24h": false,
+      "closedDays": [
+        "sunday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "조식",
+              "start": "08:30",
+              "end": "09:20"
+            },
+            {
+              "type": "중식",
+              "start": "11:00",
+              "end": "14:00"
+            },
+            {
+              "type": "석식",
+              "start": "17:00",
+              "end": "18:50"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "중식",
+              "start": "11:00",
+              "end": "14:00"
+            }
+          ],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "조식",
+              "start": "09:00",
+              "end": "10:00"
+            },
+            {
+              "type": "중식",
+              "start": "11:00",
+              "end": "14:00"
+            },
+            {
+              "type": "석식",
+              "start": "17:00",
+              "end": "18:50"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "중식",
+              "start": "11:00",
+              "end": "14:00"
+            }
+          ],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "e-restaurant",
+      "name": "E동레스토랑",
+      "building": "E동",
+      "floor": "1F",
+      "category": "한식",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "중식",
+              "start": "11:30",
+              "end": "13:50"
+            },
+            {
+              "type": "석식",
+              "start": "16:50",
+              "end": "18:40"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "중식",
+              "start": "11:30",
+              "end": "13:50"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "raon-restaurant",
+      "name": "라온식당",
+      "building": "중앙도서관",
+      "floor": "1F",
+      "category": "한식",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "09:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "suho-restaurant",
+      "name": "수호식당",
+      "building": "TIP",
+      "floor": "1F",
+      "category": "한식",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "tomato-gimbap",
+      "name": "토마토김밥",
+      "building": "TIP",
+      "floor": "B1",
+      "category": "분식",
+      "is24h": false,
+      "closedDays": [],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "19:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "new-beijing",
+      "name": "신북경",
+      "building": "TIP",
+      "floor": "B1",
+      "category": "중식",
+      "is24h": false,
+      "closedDays": [
+        "saturday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ]
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "beijing-malatang",
+      "name": "북경마라탕",
+      "building": "TIP",
+      "floor": "B1",
+      "category": "중식",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "hans-omelette",
+      "name": "한스오믈렛",
+      "building": "TIP",
+      "floor": "B1",
+      "category": "양식",
+      "is24h": false,
+      "closedDays": [],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "olive-green",
+      "name": "올리브그린",
+      "building": "TIP",
+      "floor": "2F",
+      "category": "양식",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "14:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "momsters",
+      "name": "맘스터치",
+      "building": "TIP",
+      "floor": "B1",
+      "category": "패스트푸드",
+      "is24h": false,
+      "closedDays": [],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:30",
+              "end": "21:00"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "운영",
+              "start": "10:30",
+              "end": "21:00"
+            }
+          ],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "21:00"
+            }
+          ]
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:30",
+              "end": "21:00"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "운영",
+              "start": "10:30",
+              "end": "21:00"
+            }
+          ],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "11:00",
+              "end": "21:00"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "vertex",
+      "name": "버텍스(VERTEX)",
+      "building": "TIP",
+      "floor": "1F",
+      "category": "패스트푸드",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "22:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "22:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "cafe-ing",
+      "name": "카페아이엔지",
+      "building": "TIP",
+      "floor": "1F",
+      "category": "카페",
+      "is24h": false,
+      "closedDays": [],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "08:30",
+              "end": "20:30"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "운영",
+              "start": "12:00",
+              "end": "18:00"
+            }
+          ],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "12:00",
+              "end": "18:00"
+            }
+          ]
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "08:30",
+              "end": "20:30"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "운영",
+              "start": "12:00",
+              "end": "18:00"
+            }
+          ],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "12:00",
+              "end": "18:00"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "cafe-tospia",
+      "name": "카페토스피아",
+      "building": "TIP",
+      "floor": "1F",
+      "category": "카페",
+      "is24h": false,
+      "closedDays": [
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "08:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "15:00"
+            }
+          ],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "19:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "coffee-bay",
+      "name": "커피베이",
+      "building": "TIP",
+      "floor": "1F",
+      "category": "카페",
+      "is24h": false,
+      "closedDays": [
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "09:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "운영",
+              "start": "09:00",
+              "end": "20:00"
+            }
+          ],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "09:00",
+              "end": "20:00"
+            }
+          ]
+        },
+        "vacation": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "09:00",
+              "end": "18:30"
+            }
+          ],
+          "saturday": [
+            {
+              "type": "운영",
+              "start": "09:00",
+              "end": "18:30"
+            }
+          ],
+          "sunday": [
+            {
+              "type": "운영",
+              "start": "09:00",
+              "end": "18:30"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "study-store",
+      "name": "스터디매점",
+      "building": "중앙도서관",
+      "floor": "2F",
+      "category": "카페",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "10:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "tuk-store",
+      "name": "TUK STORE",
+      "building": "중앙도서관",
+      "floor": "1F",
+      "category": "카페",
+      "is24h": false,
+      "closedDays": [
+        "saturday",
+        "sunday",
+        "holiday"
+      ],
+      "schedule": {
+        "semester": {
+          "weekday": [
+            {
+              "type": "운영",
+              "start": "08:00",
+              "end": "20:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    },
+    {
+      "id": "gs25",
+      "name": "GS25",
+      "building": "TIP",
+      "floor": "1F",
+      "category": "편의점",
+      "is24h": true,
+      "closedDays": [],
+      "schedule": {
+        "semester": {
+          "weekday": [],
+          "saturday": [],
+          "sunday": []
+        },
+        "vacation": {
+          "weekday": [],
+          "saturday": [],
+          "sunday": []
+        }
+      }
+    }
+  ]
+}
