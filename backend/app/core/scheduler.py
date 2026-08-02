@@ -254,24 +254,71 @@ async def _push_notification_job():
         logger.exception("푸시 알림 사이클 실패")
 
 
-async def _department_notices_refresh_job():
-    """컴공 학과 공지 RSS 갱신 (60분 주기).
+async def _school_board_notices_refresh_job():
+    """전교 게시판 공지 갱신 (60분 주기) — 학사/장학/취업/비교과/생활관(DS1).
 
     요청 경로는 DB/Redis만 보고 학교 사이트를 직접 호출하지 않는다 — 스크레이핑은
     이 크론에서만 실행된다. TTL(120분)이 이 주기(60분)의 2배라 cron 1회 누락도
-    다음 회차에서 자가회복된다.
+    다음 회차에서 자가회복된다. 카테고리 하나가 실패해도 나머지는 계속 수집한다.
     """
+    import asyncio
+
     from app.core.database import AsyncSessionLocal
     from app.core.freshness import mark_fresh
-    from app.services.school import refresh_department_notices
+    from app.services.external.tukorea_boards import BOARD_SOURCES
+    from app.services.school import refresh_board_notices
 
-    try:
-        async with AsyncSessionLocal() as session:
-            summary = await refresh_department_notices(session, "ce")
-            logger.info("학과 공지(ce) 갱신 완료: %s", summary)
+    any_ok = False
+    async with AsyncSessionLocal() as session:
+        for category in BOARD_SOURCES:
+            try:
+                summary = await refresh_board_notices(session, category)
+                logger.info("게시판 공지 갱신 완료: %s", summary)
+                any_ok = True
+            except Exception:
+                logger.exception("게시판 공지(%s) 갱신 실패", category)
+            await asyncio.sleep(1)  # 원 서버 배려 — 게시판 간 1초 간격
+    if any_ok:
         await mark_fresh("notices")
+
+
+async def _shuttle_pdf_watch_job():
+    """셔틀 시간표 PDF 변경 감지 (매일 1회).
+
+    학교가 방학/학기 개편 때 PDF만 갈아끼우면 앱 시간표(DB 시드)가 조용히
+    낡는다 — 그게 D1(방학 셔틀 누락)의 근본 원인이었다. 자동 파싱은 포맷
+    변동이 커서 하지 않고, 파일 해시가 바뀌면 WARNING 로그를 남긴다.
+    WARNING은 discord_logging 파이프라인을 타고 관리자 웹훅으로 전달된다
+    (report 제보와 같은 경로 — 별도 알림 인프라 불필요).
+    """
+    import hashlib
+
+    from app.core.cache import get_redis
+    from app.core.http_client import get_http_client
+
+    urls = {
+        "본교": "https://www.tukorea.ac.kr/viewer/tukorea/15/fileDown1/fileDownload.do",
+        "2캠퍼스": "https://www.tukorea.ac.kr/viewer/tukorea/15/fileDown2/fileDownload.do",
+    }
+    try:
+        client = await get_http_client()
+        redis = await get_redis()
+        for label, url in urls.items():
+            resp = await client.get(url)
+            resp.raise_for_status()
+            digest = hashlib.sha256(resp.content).hexdigest()
+            key = f"shuttle:pdf:hash:{label}"
+            prev = await redis.get(key)
+            if prev and prev != digest:
+                logger.warning(
+                    "[셔틀 PDF 변경 감지] %s 시간표 PDF가 바뀌었습니다 — 시드 갱신 필요 여부를 확인하세요. %s",
+                    label,
+                    "https://www.tukorea.ac.kr/tukorea/1136/subview.do",
+                )
+            # 첫 실행(prev 없음)은 기준 해시만 저장하고 알리지 않는다
+            await redis.set(key, digest)
     except Exception:
-        logger.exception("학과 공지(ce) 갱신 실패")
+        logger.exception("셔틀 PDF 변경 감지 실패")
 
 
 async def _academic_calendar_refresh_job():
@@ -483,18 +530,31 @@ def setup_scheduler():
     )
     logger.info("Push notification scheduler configured (every 5min)")
 
-    # ── 학과 공지 RSS 갱신 (60분 간격) ──
+    # ── 전교 게시판 공지 갱신 (60분 간격, DS1) ──
     # TTL=120분(cron 주기의 2배)이라 cron 1회 누락도 다음 회차에서 자가회복.
     scheduler.add_job(
-        _department_notices_refresh_job,
+        _school_board_notices_refresh_job,
         IntervalTrigger(minutes=60),
-        id="department_notices_refresh",
+        id="school_board_notices_refresh",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
         misfire_grace_time=600,
     )
-    logger.info("Department notices (ce) refresh scheduler configured (every 60min)")
+    logger.info("School board notices refresh scheduler configured (every 60min)")
+
+    # ── 셔틀 시간표 PDF 변경 감지 (매일 09:10 KST) ──
+    # 학교 게시 시간대(업무시간) 직후를 노린다. 변경 시 WARNING → Discord 웹훅.
+    scheduler.add_job(
+        _shuttle_pdf_watch_job,
+        CronTrigger(hour=9, minute=10, timezone="Asia/Seoul"),
+        id="shuttle_pdf_watch",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
+    logger.info("Shuttle PDF watch scheduler configured (daily 09:10 KST)")
 
     # ── 학사일정 갱신 (매일 03:50 KST) ──
     # log_retention_purge(03:45) 다음 슬롯, 02:00~03:59 GBIS 폴링 휴식 구간 안쪽.

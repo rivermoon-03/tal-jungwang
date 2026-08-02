@@ -14,8 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // ─── 훅 모킹 ──────────────────────────────────────────────────────────────
 vi.mock('../hooks/useMore', () => ({
   useNotices: vi.fn(),
-  useSchoolDepartments: vi.fn(),
-  useSchoolNotices: vi.fn(),
+  useSchoolBoardNotices: vi.fn(),
   useAcademicCalendar: vi.fn(),
 }))
 
@@ -49,7 +48,7 @@ vi.mock('../components/more/DarkModeSegment', () => ({
   default: () => <div data-testid="dark-mode-segment" />,
 }))
 
-import { useNotices, useSchoolDepartments, useSchoolNotices, useAcademicCalendar } from '../hooks/useMore'
+import { useNotices, useSchoolBoardNotices, useAcademicCalendar } from '../hooks/useMore'
 import MorePageContent from '../components/more/MorePage'
 import AppInfoPage from '../components/more/AppInfoPage'
 import DarkModePage from '../components/more/DarkModePage'
@@ -84,8 +83,7 @@ const MOCK_CALENDAR = {
 // AcademicNoticesTab이 쓰는 훅도 함께 모킹해야 실제 네트워크 호출 없이 동작한다.
 function mockAllMoreHooks() {
   useNotices.mockReturnValue({ data: MOCK_NOTICES, loading: false, error: null })
-  useSchoolDepartments.mockReturnValue({ data: MOCK_DEPARTMENTS, loading: false, error: null })
-  useSchoolNotices.mockReturnValue({ data: MOCK_SCHOOL_NOTICES, loading: false, error: null })
+  useSchoolBoardNotices.mockReturnValue({ data: MOCK_SCHOOL_NOTICES, loading: false, error: null })
   useAcademicCalendar.mockReturnValue({ data: MOCK_CALENDAR, loading: false, error: null })
 }
 
@@ -205,11 +203,11 @@ describe('MorePage — 세그먼트 탭 [학사공지] [앱 공지]', () => {
     mockAllMoreHooks()
   })
 
-  it('기본 탭은 "학사공지"이며 학과 드롭다운·D-day·공지 리스트를 보여준다', () => {
+  it('기본 탭은 "학사공지"이며 카테고리 칩·D-day·공지 리스트를 보여준다(학과 드롭다운 제거)', () => {
     render(<MorePageContent />)
     expect(screen.getByRole('tab', { name: '학사공지' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('combobox', { name: '학과 선택' })).toBeInTheDocument()
-    expect(screen.getAllByText('컴퓨터공학부').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('combobox', { name: '학과 선택' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '장학' })).toBeInTheDocument()
     expect(screen.getAllByText(/기말고사/).length).toBeGreaterThan(0)
     expect(screen.getByText('2026학년도 2학기 수강신청 및 교과시간표 안내')).toBeInTheDocument()
   })
