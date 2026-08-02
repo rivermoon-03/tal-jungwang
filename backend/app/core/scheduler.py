@@ -2,7 +2,7 @@
 
 import logging
 import time as _time
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -532,16 +532,20 @@ def setup_scheduler():
 
     # ── 전교 게시판 공지 갱신 (60분 간격, DS1) ──
     # TTL=120분(cron 주기의 2배)이라 cron 1회 누락도 다음 회차에서 자가회복.
+    # next_run_time: IntervalTrigger는 기본적으로 "지금+60분"에 첫 실행이라, 새 배포
+    # 직후 한 시간 동안 공지가 빈 채로 보인다. 기동 30초 뒤 1회 즉시 수집해
+    # 콜드 스타트를 없앤다(30초는 DB/Redis 연결이 자리잡을 여유).
     scheduler.add_job(
         _school_board_notices_refresh_job,
         IntervalTrigger(minutes=60),
         id="school_board_notices_refresh",
+        next_run_time=datetime.now(_KST) + timedelta(seconds=30),
         replace_existing=True,
         max_instances=1,
         coalesce=True,
         misfire_grace_time=600,
     )
-    logger.info("School board notices refresh scheduler configured (every 60min)")
+    logger.info("School board notices refresh scheduler configured (every 60min, first run in 30s)")
 
     # ── 셔틀 시간표 PDF 변경 감지 (매일 09:10 KST) ──
     # 학교 게시 시간대(업무시간) 직후를 노린다. 변경 시 WARNING → Discord 웹훅.
