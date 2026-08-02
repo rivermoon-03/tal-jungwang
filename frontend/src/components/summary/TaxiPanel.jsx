@@ -1,16 +1,31 @@
 import { useState, useEffect } from 'react'
-import { Navigation } from 'lucide-react'
+import { Navigation, LocateFixed } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { apiFetch } from '../../hooks/useApi'
 import { splitFare, formatWon } from '../../utils/taxiSplit'
 
 const PICKUP_POINT = '정문 앞 로터리'
 
+// D4 — GPS가 없어도 통학 동선은 학교↔정왕역 등으로 정해져 있으므로,
+// 고정 출발지 프리셋으로 대부분의 수요를 처리한다. '내 위치'는 선택지 중 하나일 뿐
+// 전제 조건이 아니다(예전엔 "GPS 위치를 켜주세요" 한 줄로 막다른 화면이었다).
+const ORIGIN_PRESETS = [
+  { id: 'school',    name: '학교 정문', lat: 37.340012, lng: 126.733548, pickup: PICKUP_POINT },
+  { id: 'jeongwang', name: '정왕역',    lat: 37.351618, lng: 126.742747, pickup: '정왕역 앞 택시승강장' },
+]
+
 const TAXI_DESTS = [
-  { id: 'jeongwang',       name: '정왕역',       lat: 37.351618,  lng: 126.742747, pickup: PICKUP_POINT },
-  { id: 'siheung_station', name: '시흥시청역',   lat: 37.37970,   lng: 126.80260,  pickup: PICKUP_POINT },
-  { id: 'sadang',          name: '사당역',        lat: 37.47624,   lng: 126.98175,  pickup: PICKUP_POINT },
-  { id: 'baegot',          name: '배곧(라온초)', lat: 37.37258,   lng: 126.73493,  pickup: PICKUP_POINT },
+  { id: 'jeongwang',       name: '정왕역',       lat: 37.351618,  lng: 126.742747 },
+  { id: 'siheung_station', name: '시흥시청역',   lat: 37.37970,   lng: 126.80260 },
+  { id: 'sadang',          name: '사당역',        lat: 37.47624,   lng: 126.98175 },
+  { id: 'baegot',          name: '배곧(라온초)', lat: 37.37258,   lng: 126.73493 },
+]
+
+// 정왕역 출발(막차 놓친 귀가/등교 시나리오)은 학교행이 본체다.
+const DESTS_FROM_JEONGWANG = [
+  { id: 'school', name: '한국공학대(정문)', lat: 37.340012, lng: 126.733548 },
+  { id: 'baegot', name: '배곧(라온초)',     lat: 37.37258,  lng: 126.73493 },
+  { id: 'siheung_station', name: '시흥시청역', lat: 37.37970, lng: 126.80260 },
 ]
 
 function fmtMin(sec) {
@@ -116,27 +131,87 @@ function DestRow({ dest, origin }) {
 
 export default function TaxiPanel() {
   const userLocation = useAppStore((s) => s.userLocation)
+  const setUserLocation = useAppStore((s) => s.setUserLocation)
 
-  if (!userLocation) {
-    return (
-      <p className="text-center text-caption font-semibold text-mute py-6">
-        GPS 위치를 켜주세요
-      </p>
+  // 위치가 있으면 내 위치, 없으면 학교 정문을 기본 출발지로.
+  const [originId, setOriginId] = useState(userLocation ? 'my' : 'school')
+  const [gpsState, setGpsState] = useState('idle') // idle | loading | denied
+
+  const requestGps = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsState('denied')
+      return
+    }
+    setGpsState('loading')
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude })
+        setGpsState('idle')
+        setOriginId('my')
+      },
+      () => setGpsState('denied'),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
     )
   }
 
+  const myOrigin = userLocation
+    ? { id: 'my', name: '내 위치', lat: userLocation.lat, lng: userLocation.lng, pickup: null }
+    : null
+  const origin =
+    originId === 'my' && myOrigin
+      ? myOrigin
+      : ORIGIN_PRESETS.find((o) => o.id === originId) ?? ORIGIN_PRESETS[0]
+  const dests = origin.id === 'jeongwang' ? DESTS_FROM_JEONGWANG : TAXI_DESTS
+
+  const chipClass = (active) =>
+    `px-2.5 py-1.5 rounded-pill text-caption font-semibold pressable transition-colors border ${
+      active
+        ? 'bg-accent-bg dark:bg-accent-bg text-accent-ink dark:text-accent-ink border-transparent ring-1 ring-accent dark:ring-accent'
+        : 'bg-surface-2 dark:bg-surface-2 text-mute dark:text-mute border-line dark:border-line'
+    }`
+
   return (
-    <div className="divide-y divide-line dark:divide-line">
-      {TAXI_DESTS.map((dest) => (
-        <DestRow key={dest.id} dest={dest} origin={userLocation} />
-      ))}
-      <div className="pt-2.5 text-center">
-        <p className="text-caption font-semibold text-mute">
-          실제 요금·시간과 다를 수 있습니다
+    <div>
+      <div role="group" aria-label="출발지 선택" className="flex flex-wrap items-center gap-1.5 pb-1.5">
+        {myOrigin ? (
+          <button type="button" aria-pressed={origin.id === 'my'} onClick={() => setOriginId('my')} className={chipClass(origin.id === 'my')}>
+            내 위치
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={requestGps}
+            disabled={gpsState === 'loading'}
+            className={`${chipClass(false)} inline-flex items-center gap-1`}
+          >
+            <LocateFixed size={13} aria-hidden />
+            {gpsState === 'loading' ? '위치 확인 중…' : '내 위치 켜기'}
+          </button>
+        )}
+        {ORIGIN_PRESETS.map((o) => (
+          <button key={o.id} type="button" aria-pressed={origin.id === o.id} onClick={() => setOriginId(o.id)} className={chipClass(origin.id === o.id)}>
+            {o.name} 출발
+          </button>
+        ))}
+      </div>
+      {gpsState === 'denied' && (
+        <p className="text-caption font-medium text-mute pb-1.5">
+          위치 권한이 꺼져 있어요 · 브라우저 설정에서 허용하거나 출발지를 직접 선택해 주세요
         </p>
-        <p className="text-caption font-semibold text-mute mt-1">
-          승차 포인트: {PICKUP_POINT}
-        </p>
+      )}
+      <div className="divide-y divide-line dark:divide-line">
+        {dests.map((dest) => (
+          // key에 origin.id를 넣어 출발지 전환 시 행 상태(로딩/결과)가 즉시 리셋되게 한다
+          <DestRow key={`${origin.id}-${dest.id}`} dest={dest} origin={origin} />
+        ))}
+        <div className="pt-2.5 text-center">
+          <p className="text-caption font-semibold text-mute">
+            실제 요금·시간과 다를 수 있습니다
+          </p>
+          <p className="text-caption font-semibold text-mute mt-1">
+            승차 포인트: {origin.pickup ?? '내 위치 주변에서 호출'}
+          </p>
+        </div>
       </div>
     </div>
   )

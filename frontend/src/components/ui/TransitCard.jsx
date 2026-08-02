@@ -71,11 +71,12 @@ export default function TransitCard({
         className,
       ].filter(Boolean).join(' ')}
     >
-      {/* 노선 배지 */}
+      {/* 노선 배지 — whitespace-nowrap: "20-1" 같은 하이픈 노선번호가 좁은 폭에서
+          "20-"/"1" 두 줄로 꺾이던 문제(D3) 방지 */}
       <span
         className={[
           'inline-flex items-center justify-center shrink-0',
-          'rounded-badge px-2 py-[3px] text-[15px] font-semibold tabular-nums leading-none select-none',
+          'rounded-badge px-2 py-[3px] text-[15px] font-semibold tabular-nums leading-none select-none whitespace-nowrap',
           badge?.bgVar ? '' : 'bg-chip-gray-bg text-chip-gray-fg',
         ].filter(Boolean).join(' ')}
         style={badge?.bgVar ? { backgroundColor: badge.bgVar, color: '#ffffff' } : undefined}
@@ -95,7 +96,9 @@ export default function TransitCard({
             {title}
           </h3>
           {subtitle && (
-            <span className="shrink-0 text-[12.5px] text-mute">{subtitle}</span>
+            // min-w-0 + truncate: 폭이 부족하면 말줄임한다. shrink-0이면 자기 그리드
+            // 칸을 뚫고 ETA 열 밑으로 그대로 깔리는 겹침(D2)이 생겼다.
+            <span className="min-w-0 truncate text-[12.5px] text-mute">{subtitle}</span>
           )}
         </div>
 
@@ -125,9 +128,20 @@ export default function TransitCard({
         )}
       </div>
 
-      {/* ETA 열 — 항상 2줄 높이 고정(secondary 없어도 자리 예약) */}
-      <div className="min-w-0 shrink-0 flex flex-col items-end justify-center gap-0.5 min-h-[44px]">
-        <span className={['text-[22px] font-bold tabular-nums leading-none', primaryTone].join(' ')}>
+      {/* ETA 열 — 항상 2줄 높이 고정(secondary 없어도 자리 예약).
+          min-w-0을 두면 auto 트랙이 내용보다 줄고, items-end 정렬 때문에 넘친
+          텍스트가 왼쪽(본문 위)으로 그려져 겹침(D2)이 생긴다 — 두지 말 것. */}
+      <div className="shrink-0 flex flex-col items-end justify-center gap-0.5 min-h-[44px]">
+        <span
+          className={[
+            eta?.primary?.tone === 'muted'
+              // muted는 "현재 도착 정보 없음" 같은 상태 문장 — 숫자 ETA처럼 22px로
+              // 키우지 않고 줄바꿈을 허용해 좁은 폭에서도 카드 밖으로 안 나가게 한다.
+              ? 'text-[15px] font-semibold leading-tight break-keep text-right max-w-[150px]'
+              : 'text-[22px] font-bold tabular-nums leading-none',
+            primaryTone,
+          ].join(' ')}
+        >
           {eta?.primary?.text}
         </span>
         <span className="text-[12.5px] text-mute tabular-nums leading-none">

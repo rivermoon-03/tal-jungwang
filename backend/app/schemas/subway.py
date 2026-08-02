@@ -28,6 +28,8 @@ class SubwayNextTrain(BaseModel):
     destination: str
     next_depart_at: str | None = None  # "HH:MM" — 다음 다음 열차
     next_arrive_in_seconds: int | None = None
+    is_last: bool = False  # 이 열차가 오늘 남은 마지막 열차인지 (막차 강조)
+    last_depart_at: str | None = None  # "HH:MM" — 오늘 남은 막차 출발 시각
 
 
 class SubwayNextResponse(BaseModel):
