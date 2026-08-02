@@ -10,6 +10,7 @@ import SubwayPanel from '../summary/SubwayPanel'
 import ShuttlePanel from '../summary/ShuttlePanel'
 import TaxiPanel from '../summary/TaxiPanel'
 import HomeBriefing from './HomeBriefing'
+import SchedulePage from '../schedule/SchedulePage'
 import { BUS_STATION_LABELS, getAllowedDirections } from './busStationConfig'
 
 /**
@@ -23,6 +24,13 @@ import { BUS_STATION_LABELS, getAllowedDirections } from './busStationConfig'
 const DIRECTION_OPTIONS = [
   { value: '등교', label: '등교' },
   { value: '하교', label: '하교' },
+]
+
+// 같은 모드를 보는 두 관점. 예전엔 별도 탭이라 모드·정류장을 두 화면에서 각각
+// 골랐다 — 같은 노선을 두 번 찾게 만드는 구조였다.
+const VIEW_OPTIONS = [
+  { value: 'now', label: '지금' },
+  { value: 'timetable', label: '시간표' },
 ]
 
 /**
@@ -80,8 +88,22 @@ function BusDirectionRow() {
   )
 }
 
+function ViewSwitch({ value, onChange }) {
+  return (
+    <SegmentedControl
+      options={VIEW_OPTIONS}
+      value={value}
+      onChange={onChange}
+      size="sm"
+      ariaLabel="보기 전환"
+    />
+  )
+}
+
 export default function Dashboard() {
   const selectedMode = useAppStore((s) => s.selectedMode)
+  const homeView = useAppStore((s) => s.homeView)
+  const setHomeView = useAppStore((s) => s.setHomeView)
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
   const selectedSubwayStation = useAppStore((s) => s.selectedSubwayStation)
   const selectedShuttleCampus = useAppStore((s) => s.selectedShuttleCampus)
@@ -110,6 +132,27 @@ export default function Dashboard() {
     stationValue = null
   }
 
+  // 택시는 시간표라는 개념 자체가 없다 — 세그를 숨기고 항상 "지금"으로 둔다.
+  const canShowTimetable = selectedMode !== 'taxi'
+  const view = canShowTimetable ? homeView : 'now'
+
+  if (view === 'timetable') {
+    return (
+      <section className="h-full flex flex-col bg-bg dark:bg-bg" aria-label="대시보드">
+        <ModeTabs />
+        {/* 시간표는 자체 스크롤 영역(그룹 칩 고정 + 목록 스크롤)을 갖는다.
+            바깥에서 한 번 더 스크롤을 걸면 칩이 같이 밀려 올라간다.
+            보기 전환은 시간표가 비워둔 모드 탭 자리에 그리게 넘긴다. */}
+        <div className="flex-1 min-h-0">
+          <SchedulePage
+            embedded
+            viewSwitch={<ViewSwitch value={view} onChange={setHomeView} />}
+          />
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section
       ref={scrollRef}
@@ -118,6 +161,12 @@ export default function Dashboard() {
       aria-label="대시보드"
     >
       <ModeTabs />
+
+      {canShowTimetable && (
+        <div className="px-4 pb-1.5 pt-0.5">
+          <ViewSwitch value={view} onChange={setHomeView} />
+        </div>
+      )}
 
       {/* 방향 행(등하교) — 정류장 칩 행과 완전히 분리된 줄. 버스 모드에서만 노출. */}
       {selectedMode === 'bus' && <BusDirectionRow />}

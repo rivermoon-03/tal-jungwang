@@ -33,7 +33,7 @@ const useAppStore = create(
       walkRoute: null,
       setWalkRoute: (route) => set({ walkRoute: route }),
       clearWalkRoute: () => set({ walkRoute: null }),
-      tabBadges: { transit: false, subway: false, more: false },
+      tabBadges: { transit: false, subway: false, notices: false },
       setTabBadges: (badges) => set((s) => ({ tabBadges: { ...s.tabBadges, ...badges } })),
       mapPanTarget: null,
       setMapPanTarget: (target) => set({ mapPanTarget: target }),
@@ -75,6 +75,13 @@ const useAppStore = create(
 
       selectedMode: 'bus',          // 'bus' | 'subway' | 'shuttle' | 'taxi'
       setSelectedMode: (mode) => set({ selectedMode: mode }),
+
+      // 홈 보기 — 'now'(실시간 도착) | 'timetable'(하루 전체 시간표).
+      // 시간표가 별도 탭이던 시절엔 모드·정류장을 두 화면에서 각각 고르고 있었다.
+      // 이제 모드는 홈에서 한 번만 고르고 이 값이 같은 모드의 두 관점을 오간다.
+      // persist 하지 않는다 — 앱을 새로 열면 궁금한 건 언제나 "지금"이다.
+      homeView: 'now',
+      setHomeView: (view) => set({ homeView: view }),
 
       selectedSubwayStation: '정왕', // '정왕' | '초지' | '시흥시청'
       setSubwayStation: (station) => set({ selectedSubwayStation: station }),
@@ -124,6 +131,11 @@ const useAppStore = create(
       // 남기므로, 그 주소로 새로 들어왔을 때 같은 화면이 열려야 한다.
       pcCafeteriaTab: readInitialSubTab('tab', ['diet', 'venues'], 'diet'),
       setPcCafeteriaTab: (tab) => set({ pcCafeteriaTab: tab }),
+
+      // 공지 탭의 PC 서브내비(학사공지/앱 공지). 사이드바와 콘텐츠가 App.jsx 상
+      // 형제라 URL 없이 뷰를 맞출 지점이 store 뿐이다(pcCafeteriaTab 과 같은 이유).
+      pcNoticesTab: 'academic',
+      setPcNoticesTab: (tab) => set({ pcNoticesTab: tab }),
       pcMoreNav: readInitialSubTab('nav', ['academic', 'notices', 'settings', 'app-info'], 'academic'),
       setPcMoreNav: (nav) => set({ pcMoreNav: nav }),
 

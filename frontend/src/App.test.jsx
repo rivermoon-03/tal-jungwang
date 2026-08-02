@@ -12,7 +12,8 @@ vi.mock('./components/common/FloatingDock',    () => ({ default: () => <nav>Floa
 vi.mock('./components/layout/PWAInstallBanner', () => ({ default: () => null }))
 vi.mock('./components/search/SearchOverlay',   () => ({ default: () => null }))
 vi.mock('./pages/SchedulePage',  () => ({ default: () => <div>SchedulePage</div> }))
-vi.mock('./pages/CafeteriaPage', () => ({ default: () => <div>CafeteriaPage</div> }))
+vi.mock('./pages/FacilitiesPage', () => ({ default: () => <div>FacilitiesPage</div> }))
+vi.mock('./pages/NoticesTabPage', () => ({ default: () => <div>NoticesTabPage</div> }))
 vi.mock('./pages/MorePage',      () => ({ default: () => <div>MorePage</div> }))
 vi.mock('./components/schedule/GlobalDetailModal',          () => ({ default: () => null }))
 vi.mock('./components/subway/GlobalSubwayLineSheet',        () => ({ default: () => null }))
@@ -28,13 +29,20 @@ vi.mock('./hooks/useMediaQuery', () => ({
 
 let isDesktopMock = false
 
-vi.mock('./stores/useAppStore', () => ({
-  default: vi.fn((selector) => selector({
-    activeTab: 'main',
-    setActiveTab: vi.fn(),
-    setTabBadges: vi.fn(),
-  })),
-}))
+// App 은 훅 구독 외에 getState()도 쓴다(/schedule → 홈 시간표 보기 전환처럼
+// 렌더 전에 store 를 건드려야 하는 경로). 두 접근을 같은 객체로 돌려준다.
+const storeState = {
+  activeTab: 'main',
+  setActiveTab: vi.fn(),
+  setTabBadges: vi.fn(),
+  setHomeView: vi.fn(),
+  setSelectedMode: vi.fn(),
+}
+vi.mock('./stores/useAppStore', () => {
+  const hook = vi.fn((selector) => selector(storeState))
+  hook.getState = () => storeState
+  return { default: hook }
+})
 
 function setPath(pathname) {
   window.history.replaceState({}, '', pathname)
@@ -77,18 +85,43 @@ describe('App', () => {
   })
 
   // 페이지들은 lazy 로드라 Suspense fallback 이후 비동기로 나타난다 → findAllByText로 대기.
-  it('/schedule: 모바일은 SchedulePage, PC는 좌측 패널에 SchedulePage', async () => {
+  // /schedule 은 홈의 "시간표" 보기가 됐다. PC는 좌(목록)/우(상세) 2단이 나아
+  // 페이지를 유지하고, 모바일은 홈으로 되돌린 뒤 보기만 시간표로 맞춘다.
+  it('/schedule: 모바일은 홈으로 되돌리고 보기만 시간표로 맞춘다', async () => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })
     setPath('/schedule')
     render(<App />)
-    // 모바일 + PC 둘 다 렌더 (CSS로 md:hidden / hidden md:block 토글)
-    const all = await screen.findAllByText(/SchedulePage/)
-    expect(all.length).toBeGreaterThanOrEqual(1)
+    expect(await screen.findByText('MainShell')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+    expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
   })
 
-  it('/cafeteria: CafeteriaPage 렌더링', async () => {
+  it('/schedule: PC는 좌우 2단 SchedulePage 페이지를 유지한다', async () => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    isDesktopMock = true
+    setPath('/schedule')
+    render(<App />)
+    const all = await screen.findAllByText(/SchedulePage/)
+    expect(all.length).toBeGreaterThanOrEqual(1)
+    expect(window.location.pathname).toBe('/schedule')
+  })
+
+  it('/facilities: FacilitiesPage 렌더링', async () => {
+    setPath('/facilities')
+    render(<App />)
+    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('/notices: NoticesTabPage 렌더링', async () => {
+    setPath('/notices')
+    render(<App />)
+    expect((await screen.findAllByText(/NoticesTabPage/)).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('/cafeteria: 옛 주소도 학교시설로 연다(북마크·위젯 딥링크 보존)', async () => {
     setPath('/cafeteria')
     render(<App />)
-    expect((await screen.findAllByText(/CafeteriaPage/)).length).toBeGreaterThanOrEqual(1)
+    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
   })
 
   it('/more: MorePage 렌더링', async () => {
@@ -121,10 +154,10 @@ describe('App', () => {
     expect(el).toHaveTextContent('CafeteriaVenueDetailPage-student-cafeteria')
   })
 
-  it('/cafeteria (슬래시 없음): 기존 CafeteriaPage 그대로 렌더링', async () => {
+  it('/cafeteria (슬래시 없음): 매장 상세가 아니라 학교시설 탭이다', async () => {
     setPath('/cafeteria')
     render(<App />)
-    expect((await screen.findAllByText(/CafeteriaPage/)).length).toBeGreaterThanOrEqual(1)
+    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
   })
 
   it('/cafeteria/gs25: venueId=gs25 전달 (URL 인코딩된 id)', async () => {

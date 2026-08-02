@@ -38,7 +38,8 @@ function lazyWithReload(importer) {
 
 // 지도 외 페이지는 진입 시에만 로드 — 초기 번들에서 분리한다.
 const SchedulePage = lazyWithReload(() => import('./pages/SchedulePage'))
-const CafeteriaPage = lazyWithReload(() => import('./pages/CafeteriaPage'))
+const FacilitiesPage = lazyWithReload(() => import('./pages/FacilitiesPage'))
+const NoticesTabPage = lazyWithReload(() => import('./pages/NoticesTabPage'))
 const MorePage = lazyWithReload(() => import('./pages/MorePage'))
 const RouteDetailPage = lazyWithReload(() => import('./pages/RouteDetailPage'))
 const CafeteriaVenueDetailPage = lazyWithReload(() => import('./pages/CafeteriaVenueDetailPage'))
@@ -57,7 +58,10 @@ function pathnameToPage(pathname) {
   if (pathname.startsWith('/schedule'))   return 'schedule'
   // /cafeteria/:id (상세)와 /cafeteria (탭) 구분
   if (pathname.startsWith('/cafeteria/')) return 'cafeteria-venue'
-  if (pathname === '/cafeteria')          return 'cafeteria'
+  // /cafeteria 는 학교시설의 옛 주소다(북마크·위젯 딥링크가 아직 쓴다).
+  if (pathname === '/cafeteria')          return 'facilities'
+  if (pathname.startsWith('/facilities')) return 'facilities'
+  if (pathname.startsWith('/notices'))    return 'notices'
   if (pathname.startsWith('/more'))       return 'more-page'
   if (pathname.startsWith('/route/'))     return 'route-detail'
   return null
@@ -108,6 +112,24 @@ function parseStopQuery(search) {
   }
 }
 
+/**
+ * /schedule 은 이제 홈의 "시간표" 보기다. 기존 링크·북마크·검색 결과를 깨지 않게
+ * 주소를 살려두되, 모바일에서는 홈으로 되돌리고 보기만 시간표로 맞춘다.
+ * PC는 넓은 화면에서 좌(목록)/우(상세) 2단이 확실히 나아 페이지를 유지한다.
+ *
+ * 상태를 만들기 전(렌더 전)에 처리해야 시간표 페이지가 한 프레임도 그려지지 않는다.
+ * useIsDesktop 과 같은 768px 기준을 쓴다.
+ */
+function adoptLegacySchedulePath() {
+  if (!window.location.pathname.startsWith('/schedule')) return
+  const store = useAppStore.getState()
+  store.setHomeView('timetable')
+  const type = new URLSearchParams(window.location.search).get('type')
+  if (type === 'bus' || type === 'subway' || type === 'shuttle') store.setSelectedMode(type)
+  if (window.matchMedia?.('(min-width: 768px)')?.matches) return
+  window.history.replaceState({}, '', '/')
+}
+
 export default function App() {
   const activeTab     = useAppStore((s) => s.activeTab)
   const setActiveTab  = useAppStore((s) => s.setActiveTab)
@@ -120,9 +142,10 @@ export default function App() {
 
   const { data: notices } = useNotices()
 
-  const [currentPage, setCurrentPage] = useState(
-    () => pathnameToPage(window.location.pathname)
-  )
+  const [currentPage, setCurrentPage] = useState(() => {
+    adoptLegacySchedulePath()
+    return pathnameToPage(window.location.pathname)
+  })
   const [routeNumber, setRouteNumber] = useState(
     () => pathnameToPage(window.location.pathname) === 'route-detail'
       ? parseRouteId(window.location.pathname)
@@ -140,8 +163,10 @@ export default function App() {
   )
 
   useEffect(() => {
-    setTabBadges({ more: Array.isArray(notices) && notices.length > 0 })
+    // 공지 배지는 공지 탭으로 옮겼다(예전엔 공지가 더보기 안에 있었다).
+    setTabBadges({ notices: Array.isArray(notices) && notices.length > 0 })
   }, [notices, setTabBadges])
+
 
   // currentPage/routeNumber/routeStop/venueId는 위에서 같은 값으로 lazy 초기화하므로
   // 마운트 시 다시 세팅할 필요가 없다. 주소 해시와 어긋날 수 있는 activeTab만 맞춘다
@@ -171,6 +196,7 @@ export default function App() {
 
   useEffect(() => {
     const onPop = () => {
+      adoptLegacySchedulePath()
       const page = pathnameToPage(window.location.pathname)
       setCurrentPage(page)
       if (page === 'route-detail') {
@@ -202,9 +228,12 @@ export default function App() {
   if (currentPage === 'schedule') {
     pageContent = <SchedulePage />
     mobileContent = <SchedulePage />
-  } else if (currentPage === 'cafeteria') {
-    pageContent = <CafeteriaPage />
-    mobileContent = <CafeteriaPage />
+  } else if (currentPage === 'facilities') {
+    pageContent = <FacilitiesPage />
+    mobileContent = <FacilitiesPage />
+  } else if (currentPage === 'notices') {
+    pageContent = <NoticesTabPage />
+    mobileContent = <NoticesTabPage />
   } else if (currentPage === 'more-page') {
     pageContent = <MorePage />
     mobileContent = <MorePage />

@@ -29,16 +29,20 @@ describe('PCSidebar', () => {
       favorites: { routes: [], stations: [], venues: [] },
       pcCafeteriaTab: 'diet',
       setPcCafeteriaTab: vi.fn(),
-      pcMoreNav: 'academic',
+      pcMoreNav: 'settings',
       setPcMoreNav: vi.fn(),
+      pcNoticesTab: 'academic',
+      setPcNoticesTab: vi.fn(),
+      homeView: 'now',
+      setHomeView: vi.fn(),
     }
   })
 
-  it('4개 주요 메뉴(지도/시간표/학식/더보기)를 렌더링한다', () => {
+  it('4개 주요 메뉴(지도/학교시설/공지/더보기)를 렌더링한다', () => {
     render(<PCSidebar />)
     expect(screen.getByRole('link', { name: /지도/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /시간표/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /학식/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /학교시설/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /공지/ })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /더보기/ }).length).toBeGreaterThanOrEqual(1)
   })
 
@@ -48,13 +52,12 @@ describe('PCSidebar', () => {
     expect(mapLink).toHaveAttribute('aria-current', 'page')
   })
 
-  it('/schedule 경로에서는 시간표 탭이 active 상태로 표시된다', () => {
+  it('/schedule 은 지도 탭의 하위 보기라 지도가 active로 남는다', () => {
     setPath('/schedule')
     render(<PCSidebar />)
-    const scheduleLink = screen.getByRole('link', { name: /시간표/ })
-    expect(scheduleLink).toHaveAttribute('aria-current', 'page')
-    const mapLink = screen.getByRole('link', { name: /지도/ })
-    expect(mapLink).not.toHaveAttribute('aria-current')
+    // 시간표는 별도 탭이 아니라 같은 교통 정보의 다른 관점이다.
+    expect(screen.getByRole('link', { name: /지도/ })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: '시간표' })).toBeInTheDocument()
   })
 
   it('즐겨찾기가 없으면 즐겨찾기 섹션을 렌더링하지 않는다', () => {
@@ -87,49 +90,55 @@ describe('PCSidebar', () => {
     expect(screen.getByRole('link', { name: /개인정보처리방침/ })).toHaveAttribute('href', '/privacy')
   })
 
-  describe('컨텍스트 서브내비 — 학식', () => {
+  describe('컨텍스트 서브내비 — 학교시설', () => {
     beforeEach(() => {
-      setPath('/cafeteria')
+      setPath('/facilities')
     })
 
-    it('학식 탭이 활성일 때 식단/운영정보 하위 메뉴를 렌더하고, store 기준으로 활성 표시한다', () => {
+    it('학교시설 탭이 활성일 때 학식/매장/도서관 하위 메뉴를 렌더한다', () => {
       render(<PCSidebar />)
-      const diet = screen.getByRole('link', { name: '식단' })
-      const venues = screen.getByRole('link', { name: '운영정보' })
-      expect(diet).toHaveAttribute('aria-current', 'page')
-      expect(venues).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('link', { name: '학식' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByRole('link', { name: '매장' })).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('link', { name: '도서관' })).toBeInTheDocument()
     })
 
-    it('운영정보를 클릭하면 setPcCafeteriaTab이 venues로 호출된다', () => {
+    it('매장을 클릭하면 setPcCafeteriaTab이 venues로 호출된다', () => {
       render(<PCSidebar />)
-      screen.getByRole('link', { name: '운영정보' }).click()
+      screen.getByRole('link', { name: '매장' }).click()
       expect(storeState.setPcCafeteriaTab).toHaveBeenCalledWith('venues')
     })
 
-    it('다른 탭(더보기)에서는 학식 서브내비가 보이지 않는다', () => {
+    it('다른 탭(더보기)에서는 학교시설 서브내비가 보이지 않는다', () => {
       setPath('/more')
       render(<PCSidebar />)
-      expect(screen.queryByRole('link', { name: '식단' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: '학식' })).not.toBeInTheDocument()
     })
   })
 
-  describe('컨텍스트 서브내비 — 더보기', () => {
+  describe('컨텍스트 서브내비 — 공지', () => {
     beforeEach(() => {
-      setPath('/more')
+      setPath('/notices')
     })
 
-    it('더보기 탭이 활성일 때 학사공지/앱 공지 하위 메뉴를 렌더하고, store 기준으로 활성 표시한다', () => {
+    it('공지 탭이 활성일 때 학사공지/앱 공지 하위 메뉴를 렌더한다', () => {
       render(<PCSidebar />)
-      const academic = screen.getByRole('link', { name: '학사공지' })
-      const notices = screen.getByRole('link', { name: '앱 공지' })
-      expect(academic).toHaveAttribute('aria-current', 'page')
-      expect(notices).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('link', { name: '학사공지' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByRole('link', { name: '앱 공지' })).not.toHaveAttribute('aria-current')
     })
 
-    it('앱 공지를 클릭하면 setPcMoreNav가 notices로 호출된다', () => {
+    it('앱 공지를 클릭하면 setPcNoticesTab이 app으로 호출된다', () => {
       render(<PCSidebar />)
       screen.getByRole('link', { name: '앱 공지' }).click()
-      expect(storeState.setPcMoreNav).toHaveBeenCalledWith('notices')
+      expect(storeState.setPcNoticesTab).toHaveBeenCalledWith('app')
+    })
+  })
+
+  describe('컨텍스트 서브내비 — 지도', () => {
+    it('지도 탭에는 지금/시간표 보기 전환이 붙는다', () => {
+      render(<PCSidebar />)
+      expect(screen.getByRole('link', { name: '지금' })).toHaveAttribute('aria-current', 'page')
+      screen.getByRole('link', { name: '시간표' }).click()
+      expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
     })
   })
 })

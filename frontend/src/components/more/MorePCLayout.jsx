@@ -1,9 +1,8 @@
 /**
  * MorePCLayout — 더보기(More) 탭의 PC 전폭 콘텐츠.
  *
- * 좌측 rail(nav 4항목 + 개인정보처리방침 + 다가오는 일정)은 PCSidebar의
- * 컨텍스트 서브내비(학사공지/앱 공지) + 설정 섹션(설정/앱 정보/개인정보처리
- * 방침)으로 이관됐다 — 더보기 페이지 자체는 더 이상 좌측 rail을 갖지 않고
+ * 공지(학사공지·앱 공지)는 공지 탭으로 나갔고, 여기 남은 것은 설정·도움말·
+ * 앱 정보 세 가지다. nav는 PCSidebar 하단 설정 섹션이 담당하고 이 컴포넌트는
  * activeNav에 대응하는 콘텐츠 하나만 전폭으로 렌더한다.
  *
  * activeNav의 단일 출처는 useAppStore.pcMoreNav다. PCSidebar와 이 컴포넌트가
@@ -13,38 +12,25 @@
  * 하므로, store 필드가 없으면(테스트에서 모킹 안 한 경우) initialNav 기반
  * 로컬 상태로 자연히 폴백한다 — 두 출처를 `pcMoreNav ?? localNav`로 합친다.
  *
- * 렌더링하는 4개 컴포넌트(AcademicNoticesPCContent/NoticesPage/
- * SettingsPage/AppInfoPage)는 전부 기존 파일 그대로 재사용하고, "다가오는
- * 일정" 표시 로직(D-day/날짜 포맷)도 utils/academicCalendar.js 헬퍼를 그대로
- * import해 쓴다 — 인라인 재계산/복제 금지(mistakes.md 2).
  */
 import { useLayoutEffect, useState } from 'react'
 import useAppStore from '../../stores/useAppStore'
-import { useAcademicCalendar } from '../../hooks/useMore'
-import { formatDday, formatDateOrRange } from '../../utils/academicCalendar'
-import AcademicNoticesPCContent from './AcademicNoticesPCContent'
-import NoticesPage from './NoticesPage'
 import SettingsPage from './SettingsPage'
 import AppInfoPage from './AppInfoPage'
 import HelpPage from './HelpPage'
 
 const NAV_LABEL = {
-  academic: '학사공지',
-  notices: '앱 공지',
   settings: '설정',
   'app-info': '앱 정보',
   help: '도움말',
 }
-
-// 다가오는 일정에서 보여줄 최대 개수(가장 임박한 일정 next 1개 + upcoming).
-const UPCOMING_MAX = 4
 
 // embedded 서브페이지의 onBack은 사이드바 컨텍스트 서브내비 전환으로 대체되므로
 // 실질적으로 호출될 일이 없다(embedded=true면 자체 헤더/뒤로가기 버튼을 렌더링
 // 하지 않음). 그래도 필수 prop 계약은 지켜야 해서 no-op을 명시적으로 넘긴다.
 function noop() {}
 
-export default function MorePCLayout({ initialNav = 'academic' }) {
+export default function MorePCLayout({ initialNav = 'settings' }) {
   // store가 단일 출처. 다만 이 컴포넌트를 store 없이(또는 store에 pcMoreNav가
   // 없는 테스트 환경에서) 단독 렌더할 수도 있어 로컬 상태를 폴백으로 둔다.
   const pcMoreNav = useAppStore((s) => s.pcMoreNav)
@@ -65,58 +51,12 @@ export default function MorePCLayout({ initialNav = 'academic' }) {
     setPcMoreNav?.(id)
   }
 
-  // AcademicNoticesPCContent도 동일 엔드포인트(/school/calendar)를 구독하지만
-  // useApi가 URL 기준으로 in-flight dedup + TTL 캐시를 하므로 중복 네트워크
-  // 호출이 발생하지 않는다(mistakes.md — 캐시 정합).
-  const { data: calendarData } = useAcademicCalendar()
-  const next = calendarData?.next ?? null
-  const upcoming = Array.isArray(calendarData?.upcoming) ? calendarData.upcoming : []
-  const scheduleItems = [next, ...upcoming].filter(Boolean).slice(0, UPCOMING_MAX)
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* 상단 컨텍스트 헤더 — 현재 섹션 제목 + (학사공지 한정) 다가오는 일정 스트립.
-          예전 좌측 rail이 갖던 정보를 잃지 않도록 가로 스트립으로 옮긴다. */}
+      {/* 상단 컨텍스트 헤더 — 현재 섹션 제목 */}
       <div className="flex-shrink-0 border-b border-line dark:border-line px-8 py-5">
         <h1 className="text-page-ttl text-ink dark:text-white">{NAV_LABEL[activeNav]}</h1>
 
-        {activeNav === 'academic' && scheduleItems.length > 0 && (
-          <div className="mt-4">
-            <div
-              className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest mb-2"
-              style={{ letterSpacing: '0.14em' }}
-            >
-              다가오는 일정
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {scheduleItems.map((item, i) => {
-                const isNext = i === 0
-                return (
-                  <div
-                    key={`${item.title}-${item.start_date}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-mini bg-surface-2 dark:bg-surface-2"
-                  >
-                    <span
-                      className={`text-dest font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 tabular-nums ${
-                        isNext
-                          ? 'bg-accent dark:bg-accent text-white'
-                          : 'bg-surface-3 dark:bg-surface-3 text-ink-2 dark:text-ink-2'
-                      }`}
-                    >
-                      {formatDday(item.start_date)}
-                    </span>
-                    <span className="text-caption font-semibold text-ink dark:text-ink truncate max-w-[160px]">
-                      {item.title}
-                    </span>
-                    <span className="text-dest font-semibold text-mute dark:text-mute flex-shrink-0 whitespace-nowrap tabular-nums">
-                      {formatDateOrRange(item.start_date, item.end_date)}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 전폭 콘텐츠 — 사이드바가 nav를 담당하므로 이 컴포넌트는 콘텐츠만 그린다.
@@ -126,16 +66,6 @@ export default function MorePCLayout({ initialNav = 'academic' }) {
         <div key={activeNav} className="tj-tab-fade h-full">
           {/* 본문은 좌측 기준선을 페이지 제목과 맞춘다. mx-auto로 가운데 정렬하면
               제목만 왼쪽에 남아 축이 어긋나 보였다. 최대 폭만 제한한다. */}
-          {activeNav === 'academic' && (
-            <div className="h-full px-8 py-6">
-              <AcademicNoticesPCContent />
-            </div>
-          )}
-          {activeNav === 'notices' && (
-            <div className="h-full px-8 py-6 max-w-[820px]">
-              <NoticesPage embedded onBack={noop} />
-            </div>
-          )}
           {activeNav === 'settings' && (
             <div className="h-full px-8 py-6">
               <SettingsPage embedded onBack={noop} onOpenAppInfo={() => selectNav('app-info')} />

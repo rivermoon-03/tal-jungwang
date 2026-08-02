@@ -1,5 +1,5 @@
 /**
- * CafeteriaPage 테스트
+ * FacilitiesPage(학교시설) 테스트
  * 백엔드 형식: { week_start, year, fetched_at, cafeterias: [{ name, meals: [{ type, time, by_day }] }] }
  */
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -31,7 +31,7 @@ vi.mock('../components/cafeteria/CafeteriaVenues', () => ({
 
 import { useCafeteriaMenu } from '../hooks/useCafeteria'
 import { isKstWeekend } from '../utils/cafeteriaDays'
-import CafeteriaPage from './CafeteriaPage'
+import FacilitiesPage from './FacilitiesPage'
 
 const MOCK_DATA = {
   week_start: '5.11',
@@ -95,7 +95,7 @@ const MOCK_DATA = {
   ],
 }
 
-describe('CafeteriaPage', () => {
+describe('FacilitiesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // 오늘을 2026-05-13(수요일)로 고정
@@ -108,15 +108,15 @@ describe('CafeteriaPage', () => {
   })
 
   // --- 헤더 ---
-  it('페이지 헤더에 "학식"을 렌더한다', () => {
+  it('페이지 헤더에 "학교시설"을 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
-    expect(screen.getByTestId('page-header')).toHaveTextContent('학식')
+    render(<FacilitiesPage />)
+    expect(screen.getByTestId('page-header')).toHaveTextContent('학교시설')
   })
 
   it('fetched_at 기반으로 갱신 시각을 표시한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     expect(screen.getByText(/갱신/)).toBeInTheDocument()
     expect(screen.getByText(/10:30/)).toBeInTheDocument()
   })
@@ -124,9 +124,9 @@ describe('CafeteriaPage', () => {
   // --- 식당 세그먼트 탭 (식단 탭 전환 후 확인) ---
   it('cafeterias 이름을 세그먼트 탭으로 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText('TIP 학생식당')).toBeInTheDocument()
     expect(screen.getByText('E동 레스토랑')).toBeInTheDocument()
   })
@@ -134,9 +134,9 @@ describe('CafeteriaPage', () => {
   // --- 요일 칩 ---
   it('by_day 키를 요일 라벨 칩으로 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     // 11일(월)~15일(금)
     expect(screen.getByText(/11일/)).toBeInTheDocument()
     expect(screen.getByText(/12일/)).toBeInTheDocument()
@@ -145,9 +145,9 @@ describe('CafeteriaPage', () => {
 
   it('오늘(13일)이 자동 선택된다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     // 오늘(13일) 칩이 aria-pressed=true
     const todayChip = screen.getByText(/13일/)
     expect(todayChip.closest('button')).toHaveAttribute('aria-pressed', 'true')
@@ -156,9 +156,9 @@ describe('CafeteriaPage', () => {
   // --- meal type 섹션 ---
   it('선택된 날의 meal type 섹션(중식/석식/천원의아침밥)을 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText('중식')).toBeInTheDocument()
     expect(screen.getByText('석식')).toBeInTheDocument()
     expect(screen.getByText('천원의 아침밥')).toBeInTheDocument()
@@ -166,17 +166,17 @@ describe('CafeteriaPage', () => {
 
   it('meal time을 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText('11:00~14:00')).toBeInTheDocument()
   })
 
   it('선택된 날(13일)의 메뉴를 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText('비빔밥')).toBeInTheDocument()
     expect(screen.getByText('된장찌개')).toBeInTheDocument()
     expect(screen.getByText('김치')).toBeInTheDocument()
@@ -184,9 +184,9 @@ describe('CafeteriaPage', () => {
 
   it('다른 날 칩 클릭 시 해당 날 메뉴로 변경된다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     // 11일 클릭
     const chip11 = screen.getByText(/11일/).closest('button')
     fireEvent.click(chip11)
@@ -196,9 +196,9 @@ describe('CafeteriaPage', () => {
   // --- 빈 메뉴 / 미운영 ---
   it('by_day 값이 [] 또는 ["미운영"]이면 EmptyState를 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     // 13일 석식은 ['삼겹살', '순두부찌개']이니 11일로 바꿔서 미운영 확인
     const chip11 = screen.getByText(/11일/).closest('button')
     fireEvent.click(chip11)
@@ -209,9 +209,9 @@ describe('CafeteriaPage', () => {
   // --- 식당 탭 전환 ---
   it('E동 레스토랑 탭 클릭 시 해당 식당 메뉴를 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     const edongTab = screen.getByText('E동 레스토랑').closest('button')
     fireEvent.click(edongTab)
     expect(screen.getByText('리조또')).toBeInTheDocument()
@@ -228,9 +228,9 @@ describe('CafeteriaPage', () => {
       error: err,
       refetch: vi.fn(),
     })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText(/주말에는 학식을 운영하지 않아요/)).toBeInTheDocument()
     expect(screen.getByText(/평일에 다시 확인해 주세요/)).toBeInTheDocument()
   })
@@ -245,9 +245,9 @@ describe('CafeteriaPage', () => {
       error: err,
       refetch: vi.fn(),
     })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument()
   })
 
@@ -262,9 +262,9 @@ describe('CafeteriaPage', () => {
       error: err,
       refetch: vi.fn(),
     })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText(/등록된 식단이 없어요/)).toBeInTheDocument()
     expect(screen.getByText(/방학 기간/)).toBeInTheDocument()
   })
@@ -280,9 +280,9 @@ describe('CafeteriaPage', () => {
       error: err,
       refetch,
     })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     const retryBtn = screen.getByRole('button', { name: '다시 확인' })
     fireEvent.click(retryBtn)
     expect(refetch).toHaveBeenCalledOnce()
@@ -297,10 +297,10 @@ describe('CafeteriaPage', () => {
       error: new Error('network error'),
       refetch: vi.fn(),
     })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     expect(screen.getByTestId('page-header')).toBeInTheDocument()
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 에러 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText(/불러오지 못했어요/)).toBeInTheDocument()
   })
 
@@ -313,9 +313,9 @@ describe('CafeteriaPage', () => {
       error: new Error('network error'),
       refetch,
     })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 에러 버튼 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     const retryBtn = screen.getByRole('button', { name: '다시 시도' })
     fireEvent.click(retryBtn)
     expect(refetch).toHaveBeenCalledOnce()
@@ -324,10 +324,10 @@ describe('CafeteriaPage', () => {
   // --- 로딩 상태 ---
   it('로딩 중 식단 탭으로 전환하면 스켈레톤을 렌더한다', () => {
     useCafeteriaMenu.mockReturnValue({ data: null, loading: true, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     expect(screen.getByTestId('page-header')).toBeInTheDocument()
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 스켈레톤 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     const skeletons = document.querySelectorAll('.animate-pulse')
     expect(skeletons.length).toBeGreaterThan(0)
   })
@@ -335,7 +335,7 @@ describe('CafeteriaPage', () => {
   // --- AI티 / 소글자 사용 금지 ---
   it('9px 이하 font-size 인라인 스타일을 쓰지 않는다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    const { container } = render(<CafeteriaPage />)
+    const { container } = render(<FacilitiesPage />)
     const allEls = container.querySelectorAll('[style]')
     allEls.forEach((el) => {
       const fs = el.style.fontSize
@@ -345,57 +345,58 @@ describe('CafeteriaPage', () => {
     })
   })
 
-  // --- 메인 탭: 식단 / 운영정보 ---
-  it('상단에 [식단] [운영정보] 메인 탭이 렌더된다', () => {
+  // --- 메인 탭: 학식 / 매장 / 도서관 ---
+  it('상단에 [학식] [매장] [도서관] 메인 탭이 렌더된다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
-    expect(screen.getByRole('tab', { name: '식단' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '운영정보' })).toBeInTheDocument()
+    render(<FacilitiesPage />)
+    expect(screen.getByRole('tab', { name: '학식' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '매장' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '도서관' })).toBeInTheDocument()
   })
 
-  it('기본 탭은 [운영정보]이고 CafeteriaVenues가 보인다', () => {
+  it('기본 탭은 [매장]이고 CafeteriaVenues가 보인다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
-    const venuesTab = screen.getByRole('tab', { name: '운영정보' })
+    render(<FacilitiesPage />)
+    const venuesTab = screen.getByRole('tab', { name: '매장' })
     expect(venuesTab).toHaveAttribute('aria-selected', 'true')
-    // 운영정보 탭이 활성이므로 CafeteriaVenues 컴포넌트가 보여야 한다
+    // 매장 탭이 활성이므로 CafeteriaVenues 컴포넌트가 보여야 한다
     expect(screen.getByTestId('cafeteria-venues')).toBeInTheDocument()
   })
 
-  it('기본 탭이 [운영정보]이므로 초기에는 식단 메뉴가 보이지 않는다', () => {
+  it('기본 탭이 [매장]이므로 초기에는 식단 메뉴가 보이지 않는다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
-    // 기본이 운영정보이므로 식단 메뉴는 보이지 않는다
+    render(<FacilitiesPage />)
+    // 기본이 매장이므로 식단 메뉴는 보이지 않는다
     expect(screen.queryByText('비빔밥')).not.toBeInTheDocument()
     expect(screen.queryByText('중식')).not.toBeInTheDocument()
   })
 
-  it('[운영정보] 탭은 기본 활성 상태이므로 CafeteriaVenues가 바로 렌더된다', () => {
+  it('[매장] 탭은 기본 활성 상태이므로 CafeteriaVenues가 바로 렌더된다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     expect(screen.getByTestId('cafeteria-venues')).toBeInTheDocument()
   })
 
   it('[식단] 탭 클릭 시 식단 메뉴가 렌더된다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    render(<FacilitiesPage />)
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     // 식단 탭 콘텐츠(메뉴)가 보인다
     expect(screen.getByText('비빔밥')).toBeInTheDocument()
   })
 
   it('[식단] 탭 클릭 시 CafeteriaVenues가 사라진다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    render(<FacilitiesPage />)
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.queryByTestId('cafeteria-venues')).not.toBeInTheDocument()
   })
 
   it('[식단] 탭에서 [운영정보] 탭 복귀 시 CafeteriaVenues가 다시 보인다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    render(<CafeteriaPage />)
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
-    fireEvent.click(screen.getByRole('tab', { name: '운영정보' }))
+    render(<FacilitiesPage />)
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
+    fireEvent.click(screen.getByRole('tab', { name: '매장' }))
     expect(screen.getByTestId('cafeteria-venues')).toBeInTheDocument()
   })
 
@@ -404,21 +405,21 @@ describe('CafeteriaPage', () => {
     const err = new Error('NO_MENU')
     err.code = 'NO_MENU'
     useCafeteriaMenu.mockReturnValue({ data: null, loading: false, error: err, refetch: vi.fn() })
-    render(<CafeteriaPage />)
+    render(<FacilitiesPage />)
     // 기본 탭이 운영정보이므로 먼저 식단 탭으로 전환
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     // 식단 탭으로 전환하면 NO_MENU 빈상태가 보인다
     expect(screen.getByText(/등록된 식단이 없어요/)).toBeInTheDocument()
     // 운영정보 탭은 여전히 보인다
-    expect(screen.getByRole('tab', { name: '운영정보' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '매장' })).toBeInTheDocument()
   })
 
   // --- 시안1: 카드 그리드 레이아웃 확인 ---
   it('식단 탭으로 전환하면 메뉴 아이템이 그리드 타일로 렌더된다', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
-    const { container } = render(<CafeteriaPage />)
+    const { container } = render(<FacilitiesPage />)
     // 기본 탭이 venues이므로 식단 탭으로 전환 후 확인
-    fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     // 메뉴 그리드 컨테이너 존재 확인 (data-testid 또는 클래스로)
     const grid = container.querySelector('[data-testid="menu-grid"]')
     expect(grid).toBeInTheDocument()
@@ -470,9 +471,9 @@ describe('CafeteriaPage', () => {
 
     it('일부 요일만 메뉴 있어도 전체 빈 상태로 빠지지 않는다', () => {
       useCafeteriaMenu.mockReturnValue({ data: PARTIAL_DATA, loading: false, error: null, refetch: vi.fn() })
-      render(<CafeteriaPage />)
+      render(<FacilitiesPage />)
       // 기본 탭이 venues이므로 식단 탭으로 전환
-      fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+      fireEvent.click(screen.getByRole('tab', { name: '학식' }))
       // 전체 빈 상태(방학/등록 없음)가 아니어야 함
       expect(screen.queryByText(/지금은 등록된 식단이 없어요/)).not.toBeInTheDocument()
       expect(screen.queryByText(/현재 등록된 식단이 없어요/)).not.toBeInTheDocument()
@@ -480,9 +481,9 @@ describe('CafeteriaPage', () => {
 
     it('오늘(25일)이 메뉴 없는 날이면 메뉴 있는 가장 가까운 날(24일)을 자동 선택한다', () => {
       useCafeteriaMenu.mockReturnValue({ data: PARTIAL_DATA, loading: false, error: null, refetch: vi.fn() })
-      render(<CafeteriaPage />)
+      render(<FacilitiesPage />)
       // 기본 탭이 venues이므로 식단 탭으로 전환
-      fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+      fireEvent.click(screen.getByRole('tab', { name: '학식' }))
       // 24일 칩이 활성 선택되어야 함
       const chip24 = screen.getByText(/24일/).closest('button')
       expect(chip24).toHaveAttribute('aria-pressed', 'true')
@@ -492,9 +493,9 @@ describe('CafeteriaPage', () => {
 
     it('메뉴 있는 날(23, 24일) 칩은 정상 표시되고 없는 날(25~27일)은 흐리게 표시된다', () => {
       useCafeteriaMenu.mockReturnValue({ data: PARTIAL_DATA, loading: false, error: null, refetch: vi.fn() })
-      render(<CafeteriaPage />)
+      render(<FacilitiesPage />)
       // 기본 탭이 venues이므로 식단 탭으로 전환
-      fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+      fireEvent.click(screen.getByRole('tab', { name: '학식' }))
       // 메뉴 있는 날: data-has-menu="true"
       const chip23 = screen.getByText(/23일/).closest('button')
       const chip24 = screen.getByText(/24일/).closest('button')
@@ -507,9 +508,9 @@ describe('CafeteriaPage', () => {
 
     it('메뉴 없는 날(25일) 칩 클릭 시 해당 날이 선택되고 미운영 안내가 보인다', () => {
       useCafeteriaMenu.mockReturnValue({ data: PARTIAL_DATA, loading: false, error: null, refetch: vi.fn() })
-      render(<CafeteriaPage />)
+      render(<FacilitiesPage />)
       // 기본 탭이 venues이므로 식단 탭으로 전환
-      fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+      fireEvent.click(screen.getByRole('tab', { name: '학식' }))
       const chip25 = screen.getByText(/25일/).closest('button')
       fireEvent.click(chip25)
       expect(chip25).toHaveAttribute('aria-pressed', 'true')
@@ -519,9 +520,9 @@ describe('CafeteriaPage', () => {
 
     it('메뉴 있는 날(23일) 칩 클릭 시 해당 날 메뉴가 보인다', () => {
       useCafeteriaMenu.mockReturnValue({ data: PARTIAL_DATA, loading: false, error: null, refetch: vi.fn() })
-      render(<CafeteriaPage />)
+      render(<FacilitiesPage />)
       // 기본 탭이 venues이므로 식단 탭으로 전환
-      fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+      fireEvent.click(screen.getByRole('tab', { name: '학식' }))
       const chip23 = screen.getByText(/23일/).closest('button')
       fireEvent.click(chip23)
       expect(screen.getByText('제육볶음')).toBeInTheDocument()
@@ -546,9 +547,9 @@ describe('CafeteriaPage', () => {
         ],
       }
       useCafeteriaMenu.mockReturnValue({ data: allEmptyData, loading: false, error: null, refetch: vi.fn() })
-      render(<CafeteriaPage />)
+      render(<FacilitiesPage />)
       // 기본 탭이 venues이므로 식단 탭으로 전환
-      fireEvent.click(screen.getByRole('tab', { name: '식단' }))
+      fireEvent.click(screen.getByRole('tab', { name: '학식' }))
       // 요일 칩은 보이되 각 날의 끼니 섹션에 "운영하지 않아요"가 보인다
       // (전체 데이터 없음 EmptyState가 아님 — cafeteria.meals가 존재하므로)
       expect(screen.queryByText(/현재 등록된 식단이 없어요/)).not.toBeInTheDocument()
