@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.subway import SubwayNextResponse, SubwayTimetableResponse
-from app.services.subway import get_next, get_timetable
+from app.services.subway import get_crowding_profile, get_next, get_timetable
 from app.services.subway_realtime import get_all_realtime_cached
 
 KST = ZoneInfo("Asia/Seoul")
@@ -45,6 +45,30 @@ async def subway_next(
     result = await get_next(db, d, t)
     response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
     return ApiResponse[SubwayNextResponse].ok(result)
+
+
+@router.get("/crowding-profile")
+@limiter.limit("60/minute")
+async def subway_crowding_profile(
+    request: Request,
+    response: Response,
+    station: str = Query("정왕", max_length=20),
+    line: str = Query(..., max_length=10),        # 1004|1075|1093 (실시간 API subwayId 체계)
+    direction: str = Query(...),                  # up | down
+    db: AsyncSession = Depends(get_db),
+):
+    """시간대별 혼잡 프로파일 (B4) — 오늘 day_type 기준.
+
+    교통카드 통계(stcis) 수동 적재 데이터라, 테이블이 비면 빈 배열을 준다.
+    프런트는 빈 배열이면 혼잡 섹션 자체를 렌더하지 않는다(가짜 시드 금지 정책).
+    """
+    if direction not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="direction 은 up 또는 down 이어야 합니다.")
+    d = datetime.now(KST).date()
+    result = await get_crowding_profile(db, station, line, direction, d)
+    # 수동 적재(월 단위) 데이터라 1시간 브라우저/엣지 캐시로 충분하다.
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=21600"
+    return ApiResponse[list[dict]].ok(result)
 
 
 @router.get("/realtime")

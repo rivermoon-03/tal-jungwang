@@ -14,6 +14,9 @@ class PushSubscription(Base):
     (예: "등교:5602", "shuttle:등교", "subway:정왕:up").
     last_notified: 오늘 하루 중복 발송 방지용. `{"<favCode>:last": "2026-07-18",
     "<favCode>:first": "2026-07-18"}` 형태로 (favCode, edge) 조합별 마지막 발송 날짜(KST)를 기록.
+    preferences: 구독별 알림 프리퍼런스 JSONB.
+    `{"last_train": {"enabled": bool, "lead_min": 15|30|60}}` — 정왕역 막차 알림(B1).
+    새 알림 종류가 생기면 최상위 키를 추가한다(구독 row를 늘리지 않는다).
     """
 
     __tablename__ = "push_subscriptions"
@@ -24,5 +27,8 @@ class PushSubscription(Base):
     auth_key: Mapped[str] = mapped_column(Text, nullable=False)
     favorite_codes: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     last_notified: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    preferences: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

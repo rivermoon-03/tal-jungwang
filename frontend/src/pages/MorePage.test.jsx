@@ -202,4 +202,21 @@ describe('NotificationsPage — 품질 규칙', () => {
     const text = collectTextContent(container)
     expect(hasInfoEmoji(text)).toBe(false)
   })
+
+  it('"개발 중" 플레이스홀더 대신 실제 알림 안내를 보여준다', () => {
+    const { container } = render(<NotificationsPage onBack={() => {}} />)
+    const text = collectTextContent(container)
+    expect(text).not.toContain('개발 중')
+    // 실동작 항목(막차·노선 알림)과 준비 중 항목이 구분돼야 한다
+    expect(text).toContain('막차 알림')
+    expect(text).toContain('노선 알림')
+    expect(text).toContain('준비 중')
+    expect(text).toContain('사용 가능')
+  })
+
+  it('"~요" 톤으로 작성되어 있다 — "~습니다" 미사용', () => {
+    const { container } = render(<NotificationsPage onBack={() => {}} />)
+    const text = collectTextContent(container)
+    expect(text).not.toMatch(/습니다/)
+  })
 })

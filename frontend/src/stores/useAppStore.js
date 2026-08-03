@@ -192,6 +192,14 @@ const useAppStore = create(
 
       notifPrefs: { enabled: false, leadMin: 10 },
 
+      // ── B1: 정왕역 막차 알림 (persist 대상) ───────────────────────────
+      // enabled는 "서버 preferences.last_train.enabled와 동기화된 로컬 뷰"다.
+      // 구독(endpoint)이 사라지면 SettingsPage mount 시 false로 되돌린다.
+      // leadMin은 리드타임 칩(15|30|60분 전, 기본 30) 선택값.
+      lastTrainAlert: { enabled: false, leadMin: 30 },
+      setLastTrainAlert: (patch) =>
+        set((s) => ({ lastTrainAlert: { ...s.lastTrainAlert, ...patch } })),
+
       // ── 다크모드 토글 ─────────────────────────────────────────────────
       // darkMode는 useTheme이 themeMode + 시스템 설정을 종합해 실제 화면 상태로 동기화.
       // toggleDarkMode는 visible 상태(darkMode) 기준으로 반대로 explicit 전환한다
@@ -327,6 +335,10 @@ const useAppStore = create(
         if (persistedState && typeof persistedState === 'object' && persistedState.favorites) {
           merged.favorites = { ...currentState.favorites, ...persistedState.favorites }
         }
+        // lastTrainAlert도 중첩 객체라 같은 이유(새 필드 추가 시 통째 덮어쓰기 방지)로 병합
+        if (persistedState && typeof persistedState === 'object' && persistedState.lastTrainAlert) {
+          merged.lastTrainAlert = { ...currentState.lastTrainAlert, ...persistedState.lastTrainAlert }
+        }
         return merged
       },
       partialize: (state) => ({
@@ -340,6 +352,7 @@ const useAppStore = create(
         selectedShuttleCampus: state.selectedShuttleCampus,
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
         notifPrefs: state.notifPrefs,
+        lastTrainAlert: state.lastTrainAlert,
         busStationAutoMode: state.busStationAutoMode,
         // F1/F3 신규 persist 필드
         commuteAutoMode: state.commuteAutoMode,

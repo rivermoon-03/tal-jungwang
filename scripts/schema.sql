@@ -3452,6 +3452,31 @@ CREATE INDEX IF NOT EXISTS idx_subway_arrival_arrived_at
     ON subway_arrival_history (arrived_at);
 
 -- ============================================================
+-- 2026-08-03 신규 기능 배치 (B1 막차 푸시 · B4 혼잡 프로파일)
+-- prod_migration_20260803_feature_tables.sql 과 동일 내용
+-- ============================================================
+
+-- B1: 구독별 알림 프리퍼런스 — {"last_train": {"enabled": bool, "lead_min": 15|30|60}}
+-- 모델이 이 컬럼을 SELECT 하므로 백엔드 배포 전에 반드시 선적용해야 한다.
+ALTER TABLE push_subscriptions
+  ADD COLUMN IF NOT EXISTS preferences JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- B4: 지하철 시간대 혼잡 프로파일 (stcis 교통카드 통계, 수동 적재 전용 — cron 없음)
+-- 적재 전에는 비어 있고, 비어 있는 동안 API는 빈 배열·프런트는 섹션 미렌더.
+-- 적재: backend/scripts/load_subway_crowding_profile.py (docstring 참고)
+CREATE TABLE IF NOT EXISTS subway_crowding_profile (
+    station_name varchar(20)  NOT NULL,  -- 정왕|시흥시청|초지
+    line_id      varchar(10)  NOT NULL,  -- 1004(4호선)|1075(수인분당선)|1093(서해선)
+    direction    varchar(10)  NOT NULL CHECK (direction IN ('up', 'down')),
+    day_type     varchar(10)  NOT NULL CHECK (day_type IN ('weekday', 'saturday', 'sunday')),
+    hour         smallint     NOT NULL CHECK (hour BETWEEN 0 AND 23),
+    level        numeric(3,2) NOT NULL CHECK (level >= 0 AND level <= 1),  -- 그룹 내 0~1 정규화 혼잡도
+    source       varchar(50)  NOT NULL,  -- 예: 'stcis-2026-06'
+    updated_at   timestamptz  NOT NULL,
+    PRIMARY KEY (station_name, line_id, direction, day_type, hour)
+);
+
+-- ============================================================
 -- 초기화 후 실행 순서
 -- 1. docker compose down -v && docker compose up -d
 --    (postgres init-script → 스키마 + 시드 적용)

@@ -16,13 +16,14 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from pywebpush import WebPushException, webpush
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import get_redis
 from app.core.config import settings
 from app.models.push import PushSubscription
 from app.services import bus as bus_service
@@ -360,3 +361,200 @@ async def run_push_notification_cycle(db: AsyncSession) -> dict:
         "sent": sent,
         "removed": removed,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# B1: 정왕역 지하철 막차 알림 (매분 크론 last_train_push 에서 호출)
+#
+# 위의 favCode 기반 막차/첫차 알림(F5)과 별개 기능이다 — 즐겨찾기와 무관하게
+# 구독 preferences.last_train 이 켜진 사람에게, 정왕역 수인분당선 상/하행 막차의
+# lead_min(15/30/60)분 전 정확히 그 분에 1건을 보낸다. 중복 방지는 Redis
+# (구독id+서비스일, TTL 26h) — 하루 최대 1건이므로 먼저 닥치는 방향의 막차가
+# 발송 시점을 정하고, 본문에는 아직 안 떠난 방향들을 병기한다.
+# ═══════════════════════════════════════════════════════════════════════════
+
+LAST_TRAIN_LEAD_CHOICES = (15, 30, 60)
+LAST_TRAIN_DEFAULT_LEAD_MIN = 30
+# 26h: "하루 1건" 기준을 넉넉히 덮으면서(서비스일 기준 최대 주기 ≈ 24h+α)
+# 다음 서비스일 발송은 키가 달라 막지 않는다.
+_LAST_TRAIN_DEDUP_TTL = 26 * 3600
+# subway.get_next와 동일한 경계 — 04시 이전 출발(예: 00:32)은 전날 시간표
+# (서비스일) 소속의 자정 넘김 막차로 본다.
+_MIDNIGHT_SPILL_HOUR = 4
+# 이번 단계는 수인분당선 정왕역 상/하행만 다룬다(디자인 카피가 방향 2개 병기).
+# destination이 비어 있을 때의 라벨 폴백은 _SUBWAY_KEY_LABEL을 재사용한다.
+_LAST_TRAIN_DIRECTION_KEYS = ("up", "down")
+
+
+def last_train_service_date(now: datetime) -> date:
+    """KST now가 속한 지하철 '서비스일'. 04시 이전은 전날 시간표의 연장이다.
+
+    예: 토요일 00:02 KST → 금요일(weekday) 시간표의 자정 넘김 구간.
+    """
+    d = now.date()
+    if now.hour < _MIDNIGHT_SPILL_HOUR:
+        d -= timedelta(days=1)
+    return d
+
+
+def resolve_last_train_pref(preferences: dict | None) -> tuple[bool, int]:
+    """preferences JSONB → (enabled, lead_min). 값이 이상하면 안전한 기본값으로.
+
+    lead_min은 화이트리스트(15/30/60) 밖이면 기본 30으로 강제한다 — API가
+    Literal로 검증하지만, 과거 데이터/수동 조작 row가 크론을 죽이면 안 된다.
+    """
+    pref = (preferences or {}).get("last_train") or {}
+    if not isinstance(pref, dict):
+        return False, LAST_TRAIN_DEFAULT_LEAD_MIN
+    enabled = bool(pref.get("enabled"))
+    lead_min = pref.get("lead_min")
+    if lead_min not in LAST_TRAIN_LEAD_CHOICES:
+        lead_min = LAST_TRAIN_DEFAULT_LEAD_MIN
+    return enabled, lead_min
+
+
+async def compute_last_trains(db: AsyncSession, service_d: date) -> list[dict]:
+    """서비스일 기준 정왕역 상/하행 막차. [{key, depart_dt, destination}] (depart_dt 오름차순).
+
+    시간표는 "HH:MM" 문자열이라 정렬만으로는 자정 넘김 막차(00:32)가 첫차처럼
+    보인다 — 04시 이전 출발은 서비스일+1일로 보정한 tz-aware datetime으로 비교해
+    "가장 늦게 떠나는 열차"를 고른다(naive 산술 금지, KST 고정).
+    """
+    data = await subway_service.get_timetable(db, service_d)
+    results: list[dict] = []
+    for key in _LAST_TRAIN_DIRECTION_KEYS:
+        items = data.get(key) or []
+        best: dict | None = None
+        for item in items:
+            dep_time = _hhmm_to_time(item["depart_at"])
+            depart_dt = datetime.combine(service_d, dep_time, tzinfo=_KST)
+            if dep_time.hour < _MIDNIGHT_SPILL_HOUR:
+                depart_dt += timedelta(days=1)
+            if best is None or depart_dt > best["depart_dt"]:
+                best = {
+                    "key": key,
+                    "depart_dt": depart_dt,
+                    "destination": (item.get("destination") or "").strip(),
+                }
+        if best is not None:
+            results.append(best)
+    results.sort(key=lambda x: x["depart_dt"])
+    return results
+
+
+def _last_train_part(lt: dict) -> str:
+    """방향 하나의 본문 조각: "왕십리행 23:52". destination이 없으면 "상행 23:52"."""
+    dest = lt["destination"]
+    label = f"{dest}행" if dest else _SUBWAY_KEY_LABEL.get(lt["key"], lt["key"])
+    return f"{label} {lt['depart_dt'].strftime('%H:%M')}"
+
+
+def build_last_train_payload(lead_min: int, last_trains: list[dict]) -> dict:
+    """디자인 시안 확정 카피.
+
+    제목: "막차 {lead_min}분 전"
+    본문: "정왕역 왕십리행 막차 23:52 · 오이도행 00:32" — 첫 방향에만
+    "정왕역 …행 막차"를 붙이고 나머지는 " · {행선}행 {HH:MM}"로 병기한다.
+    """
+    parts = [_last_train_part(lt) for lt in last_trains]
+    first, *rest = parts
+    # 첫 조각 "왕십리행 23:52" → "정왕역 왕십리행 막차 23:52"
+    label, hhmm = first.rsplit(" ", 1)
+    body = " · ".join([f"정왕역 {label} 막차 {hhmm}", *rest])
+    return {"title": f"막차 {lead_min}분 전", "body": body, "url": "/schedule"}
+
+
+def _last_train_dedup_key(sub_id: int, service_d: date) -> str:
+    return f"push:last_train:sent:{sub_id}:{service_d.isoformat()}"
+
+
+async def run_last_train_push_cycle(db: AsyncSession, now: datetime | None = None) -> dict:
+    """정왕역 막차 알림 1사이클. 매분 호출되어 "막차 − lead_min == 현재 분"만 발송.
+
+    now는 테스트 주입용(기본 KST 현재). 반환값은 관측용 요약 dict.
+    """
+    summary = {"subscriptions": 0, "eligible": 0, "sent": 0, "removed": 0}
+    if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+        logger.warning("VAPID 키 미설정 — 막차 알림 스킵")
+        return summary
+
+    now = now or datetime.now(_KST)
+    # 02:00~03:59 KST: 막차 이후·첫차 이전 운행 공백(스케줄러 잡에서도 스킵하지만,
+    # 수동 호출/테스트 경로에서도 같은 규칙이 지켜지도록 이중으로 막는다).
+    if 2 <= now.hour < 4:
+        return {**summary, "skipped": "night_gap"}
+
+    result = await db.execute(select(PushSubscription))
+    subs = result.scalars().all()
+    eligible: list[tuple[PushSubscription, int]] = []
+    for sub in subs:
+        enabled, lead_min = resolve_last_train_pref(sub.preferences)
+        if enabled:
+            eligible.append((sub, lead_min))
+
+    summary["subscriptions"] = len(subs)
+    summary["eligible"] = len(eligible)
+    if not eligible:
+        return summary
+
+    service_d = last_train_service_date(now)
+    last_trains = await compute_last_trains(db, service_d)
+    if not last_trains:
+        return summary
+
+    now_minute = now.replace(second=0, microsecond=0)
+    # 본문에는 아직 출발하지 않은 방향만 싣는다 — 00:02 발송분에 이미 떠난
+    # 23:52 왕십리행을 병기하면 틀린 안내가 된다.
+    upcoming = [lt for lt in last_trains if lt["depart_dt"] > now]
+    if not upcoming:
+        return summary
+
+    redis = None
+    try:
+        redis = await get_redis()
+    except Exception as exc:
+        # Redis 불능 시에도 발송은 계속한다(가용성 우선) — "정확히 그 분" 매칭이라
+        # 같은 분 중복은 없고, 방향 2개가 다른 분에 걸릴 때만 드물게 2건이 갈 수 있다.
+        logger.warning("막차 알림 dedup Redis 연결 실패 — dedup 없이 진행: %s", exc)
+
+    for sub, lead_min in eligible:
+        lead = timedelta(minutes=lead_min)
+        if not any(
+            (lt["depart_dt"] - lead).replace(second=0, microsecond=0) == now_minute
+            for lt in last_trains
+        ):
+            continue
+
+        dedup_key = _last_train_dedup_key(sub.id, service_d)
+        if redis is not None:
+            try:
+                if await redis.get(dedup_key):
+                    continue
+            except Exception as exc:
+                logger.warning("막차 알림 dedup 조회 실패 [%s]: %s", dedup_key, exc)
+
+        payload = build_last_train_payload(lead_min, upcoming)
+        try:
+            await asyncio.to_thread(send_web_push, sub, payload)
+            summary["sent"] += 1
+            if redis is not None:
+                try:
+                    # 성공 후에만 마킹 — 발송 실패 시 다음 방향 매칭이 재시도 기회가 된다.
+                    await redis.set(dedup_key, service_d.isoformat(), ex=_LAST_TRAIN_DEDUP_TTL)
+                except Exception as exc:
+                    logger.warning("막차 알림 dedup 기록 실패 [%s]: %s", dedup_key, exc)
+        except WebPushException as exc:
+            status_code = getattr(exc.response, "status_code", None)
+            if status_code in (404, 410):
+                # 표준 web push 위생: 만료/폐기된 구독은 즉시 삭제 (위 F5 사이클과 동일).
+                await db.execute(delete(PushSubscription).where(PushSubscription.id == sub.id))
+                await db.commit()
+                summary["removed"] += 1
+            else:
+                logger.warning(
+                    "막차 알림 전송 실패 (id=%s, status=%s): %s", sub.id, status_code, exc
+                )
+        except Exception:
+            logger.exception("막차 알림 전송 중 예외 (id=%s)", sub.id)
+
+    return summary

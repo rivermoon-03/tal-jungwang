@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_token
@@ -10,10 +10,16 @@ from app.core.cache import get_cached_json, get_or_fetch_with_lock, set_cached_j
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
-from app.schemas.traffic import RoadTraffic, TrafficFlowResponse, TrafficResponse
+from app.schemas.traffic import (
+    RoadTraffic,
+    TrafficFlowResponse,
+    TrafficIncident,
+    TrafficResponse,
+)
 from app.services.external.tmap import fetch_driving_traffic
 from app.services.traffic import collect_traffic, get_history, persist_traffic_segments
 from app.services.traffic_flow import compute_flow
+from app.services.traffic_incidents import get_incidents
 
 _KST = ZoneInfo("Asia/Seoul")
 _TRAFFIC_LIVE_CACHE_KEY = "traffic:live"
@@ -181,6 +187,20 @@ async def get_traffic(request: Request):
         _fetch_traffic_payload,
     )
     return ApiResponse[TrafficResponse].ok(payload)
+
+
+@router.get("/incidents")
+@limiter.limit("30/minute")
+async def traffic_incidents(request: Request, response: Response):
+    """통학축(정왕동~서울 방면 서해안로 축) 돌발상황 목록 — 사고·공사만 (베타).
+
+    버스 도착 응답에 끼우지 않는 별도 엔드포인트다 — 홈 버스 패널만 5분 간격으로
+    조회한다. cache-aside Redis 20분(빈 결과 10분) + HTTP 5분. ITS 어댑터가
+    저하(미승인·장애)되면 빈 목록으로 조용히 내려가고 프런트는 아무것도 그리지 않는다.
+    """
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+    payload = await get_incidents()
+    return ApiResponse[list[TrafficIncident]].ok(payload)
 
 
 @router.get("/debug/segments")

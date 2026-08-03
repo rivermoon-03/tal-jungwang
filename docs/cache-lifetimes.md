@@ -37,6 +37,8 @@ cache-aside로 자가회복"이다. 이 저장소는 두 가지 다른 회복 �
 | weather(실황) | `weather:live` | 3600s | 60분(05~23시 매시, `weather_live_refresh`) | 1.0배 | OK |
 | weather(예보) | `weather:forecast` | 10800s | 3시간(02·05·08·11·14·17·20·23시, `weather_forecast_refresh`) | 1.0배 | OK |
 | weather(초단기예보, 2026-08-03) | `weather:ultra_fcst` | 3600s | 없음(이동지수 계산 시 on-demand) | — | OK — 발표가 매시 30분이라 1h TTL이면 최대 한 회차 지연. 실패는 캐시하지 않고 단기예보로 조용히 폴백 |
+| traffic(돌발상황, 2026-08-03) | `traffic:incidents` | 1200s (빈 결과·API 저하 600s) | 없음(요청 트리거 + single-flight) | — | OK — ITS 키 미승인이면 빈 목록으로 조용히 저하, 승인 즉시 자동 동작 |
+| subway(혼잡 프로파일, 2026-08-03) | `subway:crowding:{역}:{line}:{dir}:{day}` | 21600s(6h, 빈 배열도 음성 캐싱) | 없음(수동 적재 스크립트 후 캐시 삭제) | — | OK — 원본이 정적 통계 |
 | cafeteria(메뉴) | `cafeteria:menu` | 3600s | 60분(07~21시 매시, `cafeteria_refresh`) | 1.0배 | OK — mistakes.md §4에 6h→1h로 정정된 이력 있음 |
 | bus(시간표) | `bus:timetable:{route}:{day}:{stop}` | 86400s | 없음(DB 직접, 일 1회 03:40 재적재는 워밍용) | — | OK — 원본 데이터가 정적 |
 | bus(정류장 메타) | `bus:station_meta:{id}` | 300s | 없음(admin CRUD가 즉시 invalidate) | — | OK — TTL은 무효화 누락 시 상한일 뿐 |
@@ -61,6 +63,7 @@ cache-aside로 자가회복"이다. 이 저장소는 두 가지 다른 회복 �
 | 지하철 도착 중복 방지(A5) | `subway:counted:{역}:{열차번호}` | 30분 |
 | 지하철 시간표 편차 이력(A6) | `subway:deviation:{역}:{line}:{dir}` | 40분 (최근 5건) |
 | 지하철 지연 상태(A6) | `subway:delay:{역}:{line}:{dir}` | 12분 (갱신 연장, 해소 시 자연 소멸) |
+| 막차 푸시 중복 방지(B1) | `push:last_train:sent:{구독id}:{서비스일}` | 26시간 (서비스일당 1건) |
 
 ## 표 3. HTTP Cache-Control (CDN/브라우저, 배후 레이어와 함께)
 

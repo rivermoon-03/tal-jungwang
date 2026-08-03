@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -8,9 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import get_cached_json, get_redis, set_cached_json
 from app.core.calendar import get_day_type, get_holiday_name, is_holiday
 from app.core.config import settings
-from app.models.subway import SubwayTimetableEntry
+from app.models.subway import SubwayCrowdingProfile, SubwayTimetableEntry
+
+logger = logging.getLogger(__name__)
 
 _TIMETABLE_TTL = 43200  # 12시간 — 시간표는 하루 단위로 갱신
+# 혼잡 프로파일은 수동 적재(월 단위 통계) — cache-aside 라 6시간이면 충분히 신선하다.
+_CROWDING_TTL = 21600
 _KST = ZoneInfo("Asia/Seoul")
 
 
@@ -153,6 +158,54 @@ async def get_next(db: AsyncSession, d: date, now_time: time) -> dict:
         }
 
     return nexts
+
+
+# ── 시간대 혼잡 프로파일 (B4) ──────────────────────────────────
+
+
+async def get_crowding_profile(
+    db: AsyncSession, station: str, line_id: str, direction: str, d: date
+) -> list[dict]:
+    """오늘 day_type 기준 시간대별 혼잡 레벨 배열을 반환한다.
+
+    반환: ``[{"hour": 6, "level": 0.42}, ...]`` (hour 오름차순).
+    테이블이 비어 있으면 빈 배열 — 프런트는 이때 섹션 자체를 그리지 않는다.
+
+    day_type 은 공용 ``get_day_type`` (토요일 → "saturday", 공휴일 → "sunday") 을
+    쓴다. ``_subway_day_type`` 의 saturday → sunday quirk 는 시간표 시드에
+    saturday 행이 없어서 생긴 것이고, 교통카드 통계는 토요일 데이터가 실재하므로
+    여기서는 표준 매핑을 유지한다.
+    """
+    day = get_day_type(d)
+    cache_key = f"subway:crowding:{station}:{line_id}:{direction}:{day}"
+    cached = await get_cached_json(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        stmt = (
+            select(SubwayCrowdingProfile)
+            .where(
+                SubwayCrowdingProfile.station_name == station,
+                SubwayCrowdingProfile.line_id == line_id,
+                SubwayCrowdingProfile.direction == direction,
+                SubwayCrowdingProfile.day_type == day,
+            )
+            .order_by(SubwayCrowdingProfile.hour)
+        )
+        result = await db.execute(stmt)
+        rows = result.scalars().all()
+    except Exception as exc:
+        # 테이블 미생성 환경(마이그레이션 미적용 로컬 등)에서 500 대신 빈 배열로
+        # 저하한다. 실패 결과는 캐시하지 않아 다음 요청이 자가회복을 시도한다.
+        logger.warning("혼잡 프로파일 조회 실패 [%s/%s/%s/%s]: %s",
+                       station, line_id, direction, day, exc)
+        return []
+
+    # numeric(3,2) → float 캐스팅 (Decimal 은 JSON 직렬화 대상이 아님).
+    data = [{"hour": r.hour, "level": float(r.level)} for r in rows]
+    await set_cached_json(cache_key, data, ttl=_CROWDING_TTL)
+    return data
 
 
 # ── TAGO API 상수 ─────────────────────────────────────────────
