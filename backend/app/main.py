@@ -204,4 +204,12 @@ async def health():
     # 도메인별 마지막 성공 수집 시각 — 내부적으로 Redis mget 1회만 수행한다.
     freshness = await get_freshness_report()
 
+    # 기상청 수집이 막혔을 때의 사유. 외부에서 로그를 못 보는 환경이라 여기에 싣는다.
+    from app.core.cache import get_cached_json
+    from app.services.weather import CACHE_KEY_LIVE_ERROR
+
+    weather_error = await get_cached_json(CACHE_KEY_LIVE_ERROR)
+    if weather_error:
+        freshness = {**freshness, "weather_error": weather_error}
+
     return {"status": overall, **checks, "freshness": freshness}

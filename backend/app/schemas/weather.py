@@ -22,12 +22,23 @@ class HourTemp(BaseModel):
     temp: int
 
 
+class WalkFactor(BaseModel):
+    """이동 지수가 본 항목 하나. 툴팁이 판정 근거를 그대로 보여주기 위한 재료다."""
+
+    key: str        # temp | rain | dust
+    label: str      # 기온 / 강수확률 / 미세먼지
+    value: str      # "31°" / "0%" / "좋음" / "정보 없음"
+    decisive: bool = False  # 이 항목이 등급을 결정했는가
+
+
 class WalkIndex(BaseModel):
     """F5 이동 지수 — 강수확률·기온·미세먼지를 묶은 4단계 걷기 판정."""
 
     level: str   # good | ok | transit | indoor
     label: str   # 걷기 좋음 / 무난함 / 대중교통 권장 / 실내 권장
     reason: str  # 판정 근거 한 줄 (예: "14시 소나기 60%")
+    # 항목별 근거. 칩만 보면 "왜 걷기 좋은데?"에 답이 없어서, 탭하면 이걸 펼친다.
+    factors: list[WalkFactor] = []
 
 
 class CurrentWeatherResponse(BaseModel):

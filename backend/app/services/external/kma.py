@@ -78,12 +78,36 @@ def _common_params(base_date: str, base_time: str, nx: int, ny: int, **extra) ->
     }
 
 
-def _parse_items(data: dict) -> list[dict]:
-    """기상청 응답에서 item 목록을 추출한다."""
-    try:
-        return data["response"]["body"]["items"]["item"]
-    except (KeyError, TypeError):
+# 마지막 호출 실패 사유(프로세스 로컬). 기상청은 키 오류·트래픽 초과도 HTTP 200 에
+# resultCode 로 실어 보내기 때문에, 이걸 안 보면 "빈 배열"과 구분되지 않는다.
+# Railway 로그를 밖에서 읽을 수 없어 /health 로 노출한다 — 기온이 사라졌을 때
+# 원인을 추측하지 않고 확인하기 위한 장치다.
+LAST_ERROR: str | None = None
+
+
+def _record(error: str | None) -> None:
+    global LAST_ERROR
+    LAST_ERROR = error
+
+
+def _parse_items(data: dict, *, what: str) -> list[dict]:
+    """기상청 응답에서 item 목록을 추출한다. resultCode 가 정상이 아니면 빈 목록."""
+    header = ((data or {}).get("response") or {}).get("header") or {}
+    code = header.get("resultCode")
+    if code not in (None, "00"):
+        msg = header.get("resultMsg") or ""
+        # 03(NO_DATA)은 발표 전 시간대에 정상적으로 나올 수 있어 사유만 남기고 넘어간다.
+        logger.warning("KMA %s 응답 오류: resultCode=%s %s", what, code, msg)
+        _record(f"{what}: resultCode={code} {msg}".strip())
         return []
+    try:
+        items = data["response"]["body"]["items"]["item"]
+    except (KeyError, TypeError):
+        logger.warning("KMA %s 응답에 item 이 없다", what)
+        _record(f"{what}: item 없음")
+        return []
+    _record(None)
+    return items
 
 
 async def fetch_ultra_srt_ncst(nx: int = DEFAULT_NX, ny: int = DEFAULT_NY) -> list[dict]:
@@ -101,9 +125,11 @@ async def fetch_ultra_srt_ncst(nx: int = DEFAULT_NX, ny: int = DEFAULT_NY) -> li
         client = await get_http_client()
         resp = await client.get(url, params=params, timeout=10)
         resp.raise_for_status()
-        return _parse_items(resp.json())
+        # 키가 틀리면 JSON 이 아니라 XML 오류 문서가 온다 — json() 이 먼저 터진다.
+        return _parse_items(resp.json(), what="초단기실황")
     except Exception as exc:
         logger.warning("KMA 초단기실황 오류: %s", exc)
+        _record(f"초단기실황: {type(exc).__name__} {exc}"[:200])
     return []
 
 
@@ -130,7 +156,8 @@ async def fetch_village_fcst(
         client = await get_http_client()
         resp = await client.get(url, params=params, timeout=10)
         resp.raise_for_status()
-        return _parse_items(resp.json())
+        return _parse_items(resp.json(), what="단기예보")
     except Exception as exc:
         logger.warning("KMA 단기예보 오류: %s", exc)
+        _record(f"단기예보: {type(exc).__name__} {exc}"[:200])
     return []

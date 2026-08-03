@@ -37,7 +37,14 @@ export function useWeather() {
       pm10:        raw.pm10          ?? null,
       pm25:        raw.pm25          ?? null,
       walkIndex:   raw.walk_index
-        ? { level: raw.walk_index.level, label: raw.walk_index.label, reason: raw.walk_index.reason }
+        ? {
+            level: raw.walk_index.level,
+            label: raw.walk_index.label,
+            reason: raw.walk_index.reason,
+            // 항목별 근거(기온·강수확률·미세먼지). 구버전 응답이면 빈 배열이라
+            // 칩은 그대로 뜨고 팝오버에 판정 문구만 남는다.
+            factors: raw.walk_index.factors ?? [],
+          }
         : null,
       warning: w ? {
         type:      w.type      ?? null,

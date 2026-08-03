@@ -12,6 +12,7 @@ import { getDirectionAutoChangeMessage } from '../../utils/directionAutoChangeTo
 import { ALL_VENUES } from '../../data/cafeteriaVenues'
 import { isOpenNow } from '../../utils/venueOpen'
 import DirectionAutoToast from '../common/DirectionAutoToast'
+import WalkIndexChip from './WalkIndexChip'
 import './HomeWeatherHero.css'
 
 // icon(5종) → mood(4종): partly_cloudy는 sunny 무드(밝은 톤)에 편입.
@@ -322,17 +323,8 @@ export default function HomeWeatherHero({ onOpenMap }) {
           강수 <span className="tabular-nums">{weather.rainProb}%</span>
         </span>
       )}
-      {/* F5 이동 지수 — 걷기 판정 + 미세먼지(에어코리아 승인 전에는 지수만) */}
-      {weather?.walkIndex && (
-        <span
-          className={`whero-windpill ${
-            weather.walkIndex.level === 'transit' || weather.walkIndex.level === 'indoor' ? 'is-strong' : ''
-          } inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-caption font-bold`}
-          title={weather.walkIndex.reason}
-        >
-          {weather.walkIndex.label}
-        </span>
-      )}
+      {/* F5 이동 지수 — 탭하면 판정 근거(기온·강수확률·미세먼지)를 펼친다 */}
+      <WalkIndexChip walkIndex={weather?.walkIndex} />
       {(weather?.pm25Grade || (weather?.pm10Grade && weather.pm10Grade !== '알수없음')) && (
         <span className="whero-ink-2 text-caption font-semibold">
           미세 {weather.pm25Grade ?? weather.pm10Grade}
