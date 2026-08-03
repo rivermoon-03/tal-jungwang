@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 01B maskable — 글리프가 중앙 80% 안전영역(r 204.8) 안에 들어간다 -->
+  <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#17b3a1"/>
+    <stop offset="1" stop-color="#0e8f80"/>
+  </linearGradient>
+  <rect width="512" height="512" fill="url(#ground)"/>
+  <g transform="translate(4,-2)">
+    <path d="M188 336L324 172" fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round"/>
+    <rect x="126" y="274" width="124" height="124" rx="34" fill="#ffffff"/>
+    <g fill="none" stroke="#0e8a7c" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M148 311h28"/>
+      <path d="M162 311v50"/>
+      <path d="M200 311v36a14 14 0 0 0 28 0v-36"/>
+    </g>
+    <circle cx="324" cy="172" r="54" fill="#ffffff"/>
+    <circle cx="324" cy="172" r="25" fill="#13ab99"/>
+  </g>
+</svg>
