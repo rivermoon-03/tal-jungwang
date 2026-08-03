@@ -36,6 +36,7 @@ cache-aside로 자가회복"이다. 이 저장소는 두 가지 다른 회복 �
 |---|---|---|---|---|---|
 | weather(실황) | `weather:live` | 3600s | 60분(05~23시 매시, `weather_live_refresh`) | 1.0배 | OK |
 | weather(예보) | `weather:forecast` | 10800s | 3시간(02·05·08·11·14·17·20·23시, `weather_forecast_refresh`) | 1.0배 | OK |
+| weather(초단기예보, 2026-08-03) | `weather:ultra_fcst` | 3600s | 없음(이동지수 계산 시 on-demand) | — | OK — 발표가 매시 30분이라 1h TTL이면 최대 한 회차 지연. 실패는 캐시하지 않고 단기예보로 조용히 폴백 |
 | cafeteria(메뉴) | `cafeteria:menu` | 3600s | 60분(07~21시 매시, `cafeteria_refresh`) | 1.0배 | OK — mistakes.md §4에 6h→1h로 정정된 이력 있음 |
 | bus(시간표) | `bus:timetable:{route}:{day}:{stop}` | 86400s | 없음(DB 직접, 일 1회 03:40 재적재는 워밍용) | — | OK — 원본 데이터가 정적 |
 | bus(정류장 메타) | `bus:station_meta:{id}` | 300s | 없음(admin CRUD가 즉시 invalidate) | — | OK — TTL은 무효화 누락 시 상한일 뿐 |
@@ -48,6 +49,18 @@ cache-aside로 자가회복"이다. 이 저장소는 두 가지 다른 회복 �
 | map(마커) | `map:markers` | 86400s | 없음(DB 직접, 일 1회 재적재는 워밍용) | — | OK |
 | school(학과 공지) | `school:notices:{dept}` | 7200s(120분, `_TTL_NOTICES`) | 60분(`department_notices_refresh`) | 2.0배 | **주의** — 모듈 docstring(`school.py:7`)은 "크론 주기보다 짧게"라 적었지만 실제 상수는 크론의 2배. 코드 주석은 "크론 2주기 이내로 제한"이라 의도된 버퍼이나, docstring 문구와 상수가 불일치 |
 | school(학사일정) | `school:calendar` | 90000s(25h, `_TTL_CALENDAR`) | 24시간(1일 1회 03:50) | 1.04배 | OK — "살짝 길게"로 의도된 소폭 버퍼 |
+
+### 2026-08-03 추가 — 작업 상태 키 (캐시가 아니라 수집기 내부 상태)
+
+캐시 회복 경로 판정 대상이 아닌 단기 작업 상태. TTL은 신선도가 아니라 상태 유효 창이다.
+
+| 용도 | Redis 키 | TTL |
+|---|---|---|
+| ETA 예측 버퍼(A4, plate당 최근 40건) | `bus:eta_pred:{gbis_station_id}:{plate}` | 900s |
+| 지하철 직전 폴링 스냅샷(A5 도착 판정) | `subway:prev:{역}` | 300s (판정은 120s 이내만) |
+| 지하철 도착 중복 방지(A5) | `subway:counted:{역}:{열차번호}` | 30분 |
+| 지하철 시간표 편차 이력(A6) | `subway:deviation:{역}:{line}:{dir}` | 40분 (최근 5건) |
+| 지하철 지연 상태(A6) | `subway:delay:{역}:{line}:{dir}` | 12분 (갱신 연장, 해소 시 자연 소멸) |
 
 ## 표 3. HTTP Cache-Control (CDN/브라우저, 배후 레이어와 함께)
 

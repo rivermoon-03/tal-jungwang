@@ -81,6 +81,33 @@ export function arrivalSecondsToMinutes(sec) {
 }
 
 /**
+ * A1 — 광역버스 잔여좌석 칩. TransitCard chips 항목({label, tone}) 또는 null.
+ *
+ * remain_seat 규약(백엔드 gbis 파싱): -1 = 정보 없음, 0 = 만차, N = 잔여 N석.
+ * 비광역(isExpress=false)이나 실시간이 아닌 항목, 구형 캐시(키 없음)는 null —
+ * 호출부는 null이면 기존 혼잡도 칩을 유지한다.
+ */
+export function seatChipFromArrival(arrival, { isExpress = false } = {}) {
+  if (!isExpress || arrival?.arrival_type !== 'realtime') return null
+  const seat = arrival.remain_seat
+  if (typeof seat !== 'number' || !Number.isInteger(seat) || seat < 0) return null
+  if (seat === 0) return { label: '만차', tone: 'delayed' }
+  if (seat <= 10) return { label: `잔여 ${seat}석`, tone: 'warn' }
+  return { label: `잔여 ${seat}석`, tone: 'good' }
+}
+
+/**
+ * A3 — "N정거장 전" 칩. location_no(남은 정류장 수) ≥ 1일 때만 표시한다.
+ * 0은 GBIS가 정보 없음/도착 직전을 구분하지 않으므로 그리지 않는다.
+ */
+export function locationChipFromArrival(arrival) {
+  if (arrival?.arrival_type !== 'realtime') return null
+  const n = arrival.location_no
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) return null
+  return { label: `${n}정거장 전`, tone: 'neutral' }
+}
+
+/**
  * 도착 그룹(같은 노선의 여러 차) 하나를 표시용 row로 변환한다.
  *
  * @param {object[]} group - groupArrivalsByRoute가 반환한 그룹 중 하나

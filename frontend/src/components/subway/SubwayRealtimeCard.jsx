@@ -3,6 +3,7 @@ import { Star } from 'lucide-react';
 import useFavorites from '../../hooks/useFavorites';
 import StatusChip from '../ui/StatusChip';
 import DataBadge from '../ui/DataBadge';
+import SubwayDelayBadge from './SubwayDelayBadge';
 import { formatEta } from '../../utils/eta';
 import { useNow } from '../../hooks/useNow'
 
@@ -239,6 +240,10 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
   const upStatus = upTrain ? getStatusInfo(upTrain.status_code) : null
   const downStatus = downTrain ? getStatusInfo(downTrain.status_code) : null
 
+  // A6: 백엔드 자체 지연 감지 — 지연 중인 방향의 항목에만 delay_* 필드가 붙는다.
+  const upDelay = upTrain?.delay_minutes != null ? upTrain : null
+  const downDelay = downTrain?.delay_minutes != null ? downTrain : null
+
   const isUrgent = upStatus?.level === 'urgent' || downStatus?.level === 'urgent'
   const [secondsAgo, setSecondsAgo] = useState(0)
 
@@ -309,6 +314,23 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
         </span>
         {/* stale 배지 — StatusChip 기반, 점선/색점 없음 */}
         {isTimeStale ? <StaleHintBadge ageMin={ageMin} stale={stale} /> : null}
+        {/* A6 지연 배지 — 탭하면 위로 근거 팝오버 (해소되면 백엔드 TTL로 자연 소멸) */}
+        {upDelay && (
+          <SubwayDelayBadge
+            direction="상행"
+            minutes={upDelay.delay_minutes}
+            since={upDelay.delay_since}
+            samples={upDelay.delay_samples}
+          />
+        )}
+        {downDelay && (
+          <SubwayDelayBadge
+            direction="하행"
+            minutes={downDelay.delay_minutes}
+            since={downDelay.delay_since}
+            samples={downDelay.delay_samples}
+          />
+        )}
         {/* 베타 칩 — StatusChip, 이모지/점선 없음 */}
         <StatusChip kind="beta" className="ml-auto">베타</StatusChip>
       </div>

@@ -41,9 +41,11 @@ export function useWeather() {
             level: raw.walk_index.level,
             label: raw.walk_index.label,
             reason: raw.walk_index.reason,
-            // 항목별 근거(기온·강수확률·미세먼지). 구버전 응답이면 빈 배열이라
+            // 항목별 근거(기온·강수확률·미세먼지·낙뢰). 구버전 응답이면 빈 배열이라
             // 칩은 그대로 뜨고 팝오버에 판정 문구만 남는다.
             factors: raw.walk_index.factors ?? [],
+            // 판정 출처("14:30 발표 초단기예보 기준" 등). 없으면 출처 줄 자체를 숨긴다.
+            sourceLabel: raw.walk_index.source_label ?? raw.walk_index.sourceLabel ?? null,
           }
         : null,
       warning: w ? {

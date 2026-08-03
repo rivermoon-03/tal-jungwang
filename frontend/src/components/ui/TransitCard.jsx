@@ -12,9 +12,11 @@
  *             최대 2줄(line-clamp-2). 폭이 좁아지면 title이 아니라 칩 행이
  *             먼저 잘려 숨는다(아래 chips 컨테이너의 overflow-hidden 참고).
  *   subtitle? string   title 옆에 붙는 보조 라벨(예: "상행"). 12.5px mute.
- *   chips?    {label, tone}[]  tone: 'realtime'|'neutral'|'warn'. 12px.
- *             순서는 호출자가 고정한다(실시간→혼잡→경유 순 권장) — 이 컴포넌트는
- *             넘어온 순서 그대로 렌더링만 한다.
+ *   chips?    {label, tone}[]  tone: 'realtime'|'neutral'|'warn'|'good'|'delayed'|'beta'. 12px.
+ *             good=잔여좌석 여유(chip-green), delayed=만차(delayed 토큰),
+ *             beta=신규 기능 표기(StatusChip beta와 같은 보더+뮤트 스타일).
+ *             순서는 호출자가 고정한다(실시간→혼잡/좌석→제보→경유 순 권장) —
+ *             이 컴포넌트는 넘어온 순서 그대로 렌더링만 한다.
  *   eta       {
  *               primary: {text, tone},  tone: 'default'|'imminent'|'muted'
  *               secondary?: {text}
@@ -42,6 +44,12 @@ const CHIP_TONE_CLASS = {
   realtime: 'bg-accent-bg text-accent-ink',
   neutral: 'bg-chip-gray-bg text-chip-gray-fg',
   warn: 'bg-imminent-bg text-imminent',
+  // 잔여좌석 여유(11석 이상) — 카테고리 칩 팔레트의 green 토큰
+  good: 'bg-chip-green-bg text-chip-green-fg',
+  // 만차 — 지연/불가 의미색 (imminent보다 한 단계 강한 상태)
+  delayed: 'bg-delayed-bg text-delayed',
+  // 신규 기능 베타 표기 — StatusChip beta와 동일한 보더+뮤트 스타일
+  beta: 'border border-line text-mute',
 }
 
 const ETA_TONE_CLASS = {

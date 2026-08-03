@@ -28,6 +28,7 @@ from app.services.bus import (
     resolve_stop_id,
 )
 from app.services.bus_context import get_commute_contexts
+from app.services.bus_stats import get_eta_accuracy
 from app.services.crowding_flow import compute_crowding_flow
 from app.services.external.gbis import fetch_bus_locations
 
@@ -448,6 +449,21 @@ async def bus_history_preview(
     predicted_eta = None
     if realtime_eta is None:
         predicted_eta = _compute_predicted_eta(columns, now_kst)
+
+    # ── ETA 자가 채점 정확도(bus_eta_accuracy) 첨부 — 있을 때만 ───────────
+    # 화면(BusEtaCard)이 realtimeEta prop만 받으므로 realtime_eta 안에 싣는다.
+    # 정확도 문구는 실시간 상태에서만 의미가 있어 실시간 부재 시 조회하지 않는다.
+    if realtime_eta is not None:
+        accuracy_stop_id = (
+            requested_stop_id if requested_stop_id is not None else primary_stop_id
+        )
+        if accuracy_stop_id is not None:
+            try:
+                accuracy = await get_eta_accuracy(db, route_number, accuracy_stop_id)
+            except Exception:
+                accuracy = None  # 집계 테이블 문제로 ETA 본문까지 죽이지 않는다
+            if accuracy is not None:
+                realtime_eta["eta_accuracy"] = accuracy
 
     payload = {
         "route_number": route_number,

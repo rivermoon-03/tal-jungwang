@@ -219,6 +219,24 @@ async def _subway_realtime_poll_job():
         await mark_fresh("subway")
 
 
+async def _bus_eta_accuracy_refresh_job():
+    """매일 03:47 KST에 bus_eta_accuracy 재계산 (ETA 자가 채점).
+
+    bus_eta_samples 최근 28일치를 (route_number, station_id)별 mae/bias/
+    within60_ratio로 집계하고, 28일 초과 샘플도 함께 삭제한다. purge(03:45)
+    직후·calendar(03:50) 이전, 02:00~03:59 GBIS 폴링 휴식 구간 안쪽 슬롯.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.bus_stats import refresh_eta_accuracy
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await refresh_eta_accuracy(session)
+            logger.info("bus_eta_accuracy refresh: %s", result)
+    except Exception:
+        logger.exception("bus_eta_accuracy refresh failed")
+
+
 async def _purge_logs_job():
     """매일 03:45 KST에 로그성 테이블(bus_crowding_logs·bus_arrival_history·
     traffic_history)의 보존기간 초과 행을 배치 삭제.
@@ -517,6 +535,20 @@ def setup_scheduler():
         misfire_grace_time=600,
     )
     logger.info("Log retention purge scheduler configured (daily 03:45 KST)")
+
+    # ── ETA 자가 채점 정확도 재계산 (매일 03:47 KST) ──
+    # bus_eta_samples 28일치를 (route_number, station_id)별 mae/bias/within60으로
+    # 사전 집계. purge(03:45)와 calendar(03:50) 사이, GBIS 폴링 휴식 구간 안쪽.
+    scheduler.add_job(
+        _bus_eta_accuracy_refresh_job,
+        CronTrigger(hour=3, minute=47, timezone="Asia/Seoul"),
+        id="bus_eta_accuracy_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+    )
+    logger.info("Bus ETA accuracy refresh scheduler configured (daily 03:47 KST)")
 
     # ── 막차/첫차 Web Push 알림 (5분 간격) ──
     # 알림 판정 윈도우가 30분이라 5분 간격이면 놓쳐도 다음 사이클(최대 5분 후)에

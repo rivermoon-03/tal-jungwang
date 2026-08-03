@@ -3,6 +3,7 @@ import { useSecondsCountdown } from '../../hooks/useSecondsCountdown'
 import { nextTimetableSeconds } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
+import SubwayDelayBadge from './SubwayDelayBadge'
 import { isRealtimeStale } from './realtimeFreshness'
 import { useNow } from '../../hooks/useNow'
 
@@ -287,8 +288,35 @@ const SubwayRealtimeBoard = memo(function SubwayRealtimeBoard({ arrivals, lastFe
   const suinbundang = arrivals.filter((a) => a.line === '수인분당선')
   const seohae = arrivals.filter((a) => a.line === '서해선')
 
+  // A6: 지연 감지된 (노선, 방향) 수집 — 항목마다 같은 delay 값이 복제돼 있으므로 dedupe.
+  const delayedDirs = []
+  const seenDelay = new Set()
+  for (const a of arrivals) {
+    if (a?.delay_minutes == null) continue
+    const key = `${a.line}|${a.direction}`
+    if (seenDelay.has(key)) continue
+    seenDelay.add(key)
+    delayedDirs.push(a)
+  }
+
   return (
     <div className="flex-1 overflow-y-auto">
+      {/* A6 지연 배지 — stale 배너와 같은 상단 자리. 팝오버는 아래로 연다
+          (보드 최상단이라 위로 열면 스크롤 컨테이너 경계에서 잘린다). */}
+      {delayedDirs.length > 0 && (
+        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 flex-wrap">
+          {delayedDirs.map((a) => (
+            <SubwayDelayBadge
+              key={`${a.line}|${a.direction}`}
+              direction={`${a.line} ${a.direction}`}
+              minutes={a.delay_minutes}
+              since={a.delay_since}
+              samples={a.delay_samples}
+              placement="down"
+            />
+          ))}
+        </div>
+      )}
       {(stale || isRealtimeStale(lastSuccessfulRealtimeAt)) && (
         <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface-2-dark border border-line dark:border-line">
           <span className="w-2 h-2 rounded-full bg-ease flex-shrink-0" />

@@ -12,7 +12,13 @@ import ErrorState from '../ui/ErrorState'
 import TransitCard from '../ui/TransitCard.jsx'
 import { formatEta } from '../../utils/eta'
 import { labelFromLevel, toneFromLevel } from '../../utils/crowdingLevel'
-import { arrivalEntryToSeconds, arrivalSecondsToMinutes, groupArrivalsByRoute } from '../../utils/busArrivalRows'
+import {
+  arrivalEntryToSeconds,
+  arrivalSecondsToMinutes,
+  groupArrivalsByRoute,
+  locationChipFromArrival,
+  seatChipFromArrival,
+} from '../../utils/busArrivalRows'
 import { useActiveBusReports, busReportChipLabel } from '../../hooks/useBusReports'
 import {
   getGbisStationId,
@@ -260,14 +266,25 @@ function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute =
   const cfg = getRouteDisplayConfig(a.route_no)
   const { title, viaChip } = getRouteTitleAndVia(a.route_no, a.category ?? direction, a.destination)
   const originText = boardingLabel(a, station, direction)
+
+  // A1 — 광역버스는 혼잡도(재차 인원)보다 잔여좌석이 정확한 신호라 좌석 칩으로
+  // 대체한다. remain_seat이 없거나(-1·구형 캐시) 비광역이면 기존 혼잡도 칩 유지.
+  const seatChip = seatChipFromArrival(a, { isExpress: cfg?.category === 'express' })
+  // A3 — GBIS locationNo(남은 정거장 수) ≥ 1 이면 거리감을 정거장 단위로 보여준다.
+  const locationChip = locationChipFromArrival(a)
   // 라벨은 utils/crowdingLevel 단일 출처. 보정이 값을 올렸으면 "경험 기준"이 붙는다.
-  const crowdedLabel = a.arrival_type === 'realtime'
+  const crowdedLabel = !seatChip && a.arrival_type === 'realtime'
     ? labelFromLevel(a.crowded, { estimated: a.crowded_estimated })
     : null
 
+  // 칩 순서 정책: 실시간 → 혼잡/좌석 → (정거장) → (베타) → 제보 → 경유
   const chips = []
   if (a.arrival_type === 'realtime') chips.push({ label: '실시간', tone: 'realtime' })
-  if (crowdedLabel) chips.push({ label: crowdedLabel, tone: toneFromLevel(a.crowded) })
+  if (seatChip) chips.push(seatChip)
+  else if (crowdedLabel) chips.push({ label: crowdedLabel, tone: toneFromLevel(a.crowded) })
+  if (locationChip) chips.push(locationChip)
+  // 실시간 신규 기능 베타 정책 — 좌석·정거장 칩이 하나라도 보이면 베타 칩 1개만 단다
+  if (seatChip || locationChip) chips.push({ label: '베타', tone: 'beta' })
   // F6 — 활성 만차·결행 제보 경고(혼잡 칩보다 구체적 정보라 경유 칩보다 앞)
   const report = reportByRoute[a.route_no]
   if (report) chips.push({ label: busReportChipLabel(report), tone: 'warn' })

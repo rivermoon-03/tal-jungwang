@@ -22,3 +22,34 @@ class SubwayTimetableEntry(Base):
         Index("idx_subway_tt_dir_day", "direction", "day_type"),
         Index("idx_subway_tt_train_no", "train_no"),
     )
+
+
+class SubwayArrivalHistory(Base):
+    """실측 도착 이력 (A5).
+
+    실시간 폴링에서 "도착"(arvlCd=1) 또는 ETA 소실을 도착으로 판정해 적재한다.
+    추후 요일별 다이아 정본화(실측 기반 시간표 보정)의 원료가 되므로,
+    day_type 은 공휴일 보정 없이 실제 요일 기반(weekday/saturday/sunday,
+    공휴일은 sunday)으로 기록한다. line_id 는 서울 실시간 API subwayId
+    (1004:4호선, 1075:수인분당선, 1093:서해선).
+    """
+
+    __tablename__ = "subway_arrival_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    station_name: Mapped[str] = mapped_column(String(20), nullable=False)  # 정왕|시흥시청|초지
+    line_id: Mapped[str] = mapped_column(String(10), nullable=False)       # 1004|1075|1093
+    direction: Mapped[str] = mapped_column(String(10), nullable=False)     # 상행|하행
+    train_no: Mapped[str] = mapped_column(String(20), nullable=False)
+    arrived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)  # KST tz-aware
+    day_type: Mapped[str] = mapped_column(String(10), nullable=False)      # weekday|saturday|sunday
+
+    __table_args__ = (
+        # 다이아 정본화 조회(역·노선·방향·요일별 도착 시각 분포)용 복합 인덱스.
+        Index(
+            "idx_subway_arrival_stn_line_day",
+            "station_name", "line_id", "direction", "day_type", "arrived_at",
+        ),
+        # 보존기간 정리(arrived_at 단독 조건)용 인덱스 — bus_arrival_history 패턴.
+        Index("idx_subway_arrival_arrived_at", "arrived_at"),
+    )

@@ -159,3 +159,47 @@ describe('SubwayRealtimeBoard — 핵심 텍스트 렌더', () => {
     expect(screen.getByText(/잠시 끊겼습니다|지연/)).toBeTruthy()
   })
 })
+
+describe('SubwayRealtimeBoard — A6 지연 배지', () => {
+  const DELAYED_ARRIVAL = {
+    ...BASE_ARRIVAL,
+    train_no: 'T010',
+    delay_minutes: 6,
+    delay_since: '2026-05-18T08:02:00+09:00',
+    delay_samples: [5.5, 6.0, 7.0],
+  }
+
+  it('delay 필드가 붙은 항목이 있으면 상단에 지연 배지가 뜬다', () => {
+    render(
+      <SubwayRealtimeBoard
+        arrivals={[DELAYED_ARRIVAL]}
+        lastFetchedAt={null}
+        onRowClick={vi.fn()}
+      />
+    )
+    expect(screen.getByText('지연 약 +6분')).toBeTruthy()
+  })
+
+  it('같은 노선·방향에 여러 항목이 있어도 배지는 1개다', () => {
+    const second = { ...DELAYED_ARRIVAL, train_no: 'T011' }
+    render(
+      <SubwayRealtimeBoard
+        arrivals={[DELAYED_ARRIVAL, second]}
+        lastFetchedAt={null}
+        onRowClick={vi.fn()}
+      />
+    )
+    expect(screen.getAllByText('지연 약 +6분')).toHaveLength(1)
+  })
+
+  it('delay 필드가 없으면 지연 배지가 렌더되지 않는다', () => {
+    render(
+      <SubwayRealtimeBoard
+        arrivals={[BASE_ARRIVAL]}
+        lastFetchedAt={null}
+        onRowClick={vi.fn()}
+      />
+    )
+    expect(screen.queryByText(/지연 약 \+/)).toBeNull()
+  })
+})

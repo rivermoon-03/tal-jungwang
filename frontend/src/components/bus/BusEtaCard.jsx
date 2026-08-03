@@ -59,13 +59,17 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
     const { text: primaryText, imminent } = formatEtaLocal(primary.arrive_in_seconds)
     const hasSecondary = secondary && secondary.arrive_in_seconds != null
     const secondaryText = hasSecondary ? formatEtaLocal(secondary.arrive_in_seconds).text : null
+    // A4 — ETA 자가 채점(bus_eta_accuracy). 표본 50 이상인 노선·정류장만 백엔드가
+    // 값을 실어 주므로, 없으면 아무 말도 하지 않는다(모르는 것을 아는 척하지 않는다).
+    const accuracy = realtimeEta.eta_accuracy ?? null
+    const accuracyGood = accuracy != null && accuracy.within60_ratio >= 0.8
 
     return (
       <div className="mb-4">
         <div className="flex items-center gap-2 pb-1.5">
           <DataBadge state="live" />
           <span className="text-label font-semibold text-mute dark:text-mute ml-auto">
-            GBIS 도착 정보 수신 중
+            실시간 수신 중
           </span>
         </div>
         <div>
@@ -95,6 +99,22 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
                 </span>
               </div>
             </>
+          )}
+          {accuracy && (
+            // 최근 4주 실측 자가 채점 한 줄. 잘 맞는 노선(±1분 내 80% 이상)은
+            // 신뢰를, 편차 큰 노선은 여유 이동을 말한다 — 색만으로 구분하지 않고
+            // 문구 자체가 다르다.
+            <p
+              className={`mt-2 text-[12.5px] font-medium ${
+                accuracyGood
+                  ? 'text-ease dark:text-ease'
+                  : 'text-imminent dark:text-imminent'
+              }`}
+            >
+              {accuracyGood
+                ? `최근 4주 실측: 예측 ±1분 내 도착 ${Math.round(accuracy.within60_ratio * 100)}%`
+                : '예측 편차가 큰 노선이에요 · 여유 있게 이동하세요'}
+            </p>
           )}
         </div>
       </div>

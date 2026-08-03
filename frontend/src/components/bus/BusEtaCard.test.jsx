@@ -64,7 +64,9 @@ describe('BusEtaCard', () => {
       )
       // 실시간 pill
       expect(screen.getByText('실시간')).toBeInTheDocument()
-      expect(screen.getByText('GBIS 도착 정보 수신 중')).toBeInTheDocument()
+      expect(screen.getByText('실시간 수신 중')).toBeInTheDocument()
+      // 옛 문구가 남아 있으면 안 된다 (A4 카피 교체)
+      expect(screen.queryByText('GBIS 도착 정보 수신 중')).not.toBeInTheDocument()
       // 첫차: 195s → ceil(195/60) = 4분 후
       expect(screen.getByText('4분 후')).toBeInTheDocument()
       // 절대 시각
@@ -112,6 +114,54 @@ describe('BusEtaCard', () => {
         />
       )
       expect(screen.getByText('이미 도착')).toBeInTheDocument()
+    })
+  })
+
+  // A4 — ETA 자가 채점 문구 (realtimeEta.eta_accuracy, 있을 때만 표시)
+  describe('상태 1 — 실시간 정확도 한 줄', () => {
+    const baseEta = {
+      primary: { arrive_in_seconds: 195, arrive_at_hhmm: '21:01' },
+      secondary: null,
+    }
+
+    it('within60_ratio ≥ 0.8이면 실측 정확도 문구를 보여준다', () => {
+      render(
+        <BusEtaCard
+          realtimeEta={{ ...baseEta, eta_accuracy: { within60_ratio: 0.84, sample_size: 132 } }}
+          predictedEta={null}
+        />
+      )
+      expect(screen.getByText('최근 4주 실측: 예측 ±1분 내 도착 84%')).toBeInTheDocument()
+      expect(screen.queryByText(/예측 편차가 큰 노선이에요/)).not.toBeInTheDocument()
+    })
+
+    it('within60_ratio < 0.8이면 여유 이동 안내를 보여준다', () => {
+      render(
+        <BusEtaCard
+          realtimeEta={{ ...baseEta, eta_accuracy: { within60_ratio: 0.61, sample_size: 97 } }}
+          predictedEta={null}
+        />
+      )
+      expect(
+        screen.getByText('예측 편차가 큰 노선이에요 · 여유 있게 이동하세요')
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/±1분 내 도착/)).not.toBeInTheDocument()
+    })
+
+    it('eta_accuracy가 없으면 아무 문구도 그리지 않는다', () => {
+      render(<BusEtaCard realtimeEta={baseEta} predictedEta={null} />)
+      expect(screen.queryByText(/±1분 내 도착/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/예측 편차가 큰 노선이에요/)).not.toBeInTheDocument()
+    })
+
+    it('정확도 문구가 있어도 금지 클래스는 없다', () => {
+      const { container } = render(
+        <BusEtaCard
+          realtimeEta={{ ...baseEta, eta_accuracy: { within60_ratio: 0.5, sample_size: 60 } }}
+          predictedEta={null}
+        />
+      )
+      assertNoAiTi(container)
     })
   })
 
@@ -167,7 +217,7 @@ describe('BusEtaCard', () => {
         screen.getByText(/같은 요일·시간대 과거 기록도 충분하지 않아/)
       ).toBeInTheDocument()
       // 실시간/예상치 라벨이 없어야 함
-      expect(screen.queryByText('GBIS 도착 정보 수신 중')).not.toBeInTheDocument()
+      expect(screen.queryByText('실시간 수신 중')).not.toBeInTheDocument()
       expect(screen.queryByText('현재 도착 정보 없음')).not.toBeInTheDocument()
     })
 

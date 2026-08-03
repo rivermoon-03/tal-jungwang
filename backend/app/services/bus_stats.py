@@ -217,3 +217,106 @@ async def refresh_all_stats(session: AsyncSession) -> dict[str, Any]:
         updated, deleted, duration_ms,
     )
     return {"updated": updated, "deleted": deleted, "duration_ms": duration_ms}
+
+
+# ── ETA 자가 채점 정확도 집계 ─────────────────────────────────────────────
+# bus_eta_samples(수집기가 도착 판정 시 적재)를 (route_number, station_id)별로
+# 집계한다. 표본 50 미만 조합은 행을 만들지 않는다 — 신뢰 못 하는 지표를 화면에
+# 올리지 않기 위한 하한이며, stale 삭제로 표본이 다시 줄어든 조합도 사라진다.
+
+ETA_ACCURACY_MIN_SAMPLES = 50
+ETA_SAMPLES_RETENTION_DAYS = 28
+
+_ETA_ACCURACY_REFRESH_SQL = """
+WITH agg AS (
+  SELECT route_number, station_id,
+         COUNT(*)::int AS n,
+         AVG(ABS(error_sec))::int AS mae,
+         AVG(error_sec)::int AS bias,
+         ROUND(AVG((ABS(error_sec) <= 60)::int)::numeric, 3) AS within60
+  FROM bus_eta_samples
+  WHERE observed_at >= now() - interval '28 days'
+  GROUP BY route_number, station_id
+  HAVING COUNT(*) >= :min_samples
+)
+INSERT INTO bus_eta_accuracy (
+  route_number, station_id, sample_size, mae_sec, bias_sec, within60_ratio, updated_at
+)
+SELECT route_number, station_id, n, mae, bias, within60, :now_ts
+FROM agg
+ON CONFLICT (route_number, station_id) DO UPDATE
+SET sample_size = EXCLUDED.sample_size,
+    mae_sec = EXCLUDED.mae_sec,
+    bias_sec = EXCLUDED.bias_sec,
+    within60_ratio = EXCLUDED.within60_ratio,
+    updated_at = EXCLUDED.updated_at
+"""
+
+_ETA_ACCURACY_DELETE_STALE_SQL = "DELETE FROM bus_eta_accuracy WHERE updated_at < :now_ts"
+
+# 샘플 보존기간 초과분 삭제 — 집계 윈도우(28일)와 같은 값이라 별도 retention 잡이
+# 필요 없다. 이 잡이 곧 소비처이자 청소부다.
+_ETA_SAMPLES_PURGE_SQL = (
+    "DELETE FROM bus_eta_samples WHERE observed_at < now() - interval '28 days'"
+)
+
+
+async def refresh_eta_accuracy(session: AsyncSession) -> dict[str, Any]:
+    """bus_eta_accuracy 전체 재계산. UPSERT + stale row 삭제 + 오래된 샘플 정리.
+
+    Returns: {updated, deleted, purged_samples, duration_ms}
+    """
+    started_at = datetime.now(timezone.utc)
+    logger.info("bus_eta_accuracy refresh start")
+
+    upsert_res = await session.execute(text(_ETA_ACCURACY_REFRESH_SQL), {
+        "now_ts": started_at,
+        "min_samples": ETA_ACCURACY_MIN_SAMPLES,
+    })
+    updated = upsert_res.rowcount or 0
+
+    del_res = await session.execute(
+        text(_ETA_ACCURACY_DELETE_STALE_SQL), {"now_ts": started_at}
+    )
+    deleted = del_res.rowcount or 0
+
+    purge_res = await session.execute(text(_ETA_SAMPLES_PURGE_SQL))
+    purged = purge_res.rowcount or 0
+
+    await session.commit()
+
+    duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
+    logger.info(
+        "bus_eta_accuracy refresh done updated=%d deleted=%d purged_samples=%d in %dms",
+        updated, deleted, purged, duration_ms,
+    )
+    return {
+        "updated": updated,
+        "deleted": deleted,
+        "purged_samples": purged,
+        "duration_ms": duration_ms,
+    }
+
+
+async def get_eta_accuracy(
+    session: AsyncSession, route_number: str, station_id: int
+) -> dict[str, Any] | None:
+    """(route_number, station_id)의 ETA 정확도 집계 조회. 행이 없으면 None.
+
+    호출처(history-preview)가 응답 자체를 30초 캐시하므로 여기서 별도 Redis
+    캐시는 두지 않는다(PK 단건 조회 + 다층 캐시 중복 방지).
+    """
+    row = (await session.execute(text(
+        "SELECT sample_size, mae_sec, bias_sec, within60_ratio, updated_at "
+        "FROM bus_eta_accuracy WHERE route_number = :rn AND station_id = :s"
+    ), {"rn": route_number, "s": station_id})).mappings().first()
+
+    if row is None:
+        return None
+    return {
+        "sample_size": int(row["sample_size"]),
+        "mae_sec": int(row["mae_sec"]),
+        "bias_sec": int(row["bias_sec"]),
+        "within60_ratio": float(row["within60_ratio"]),
+        "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+    }
