@@ -30,6 +30,9 @@ vi.mock('../../stores/useAppStore', () => ({
       commuteManualDirection: '등교',
       setCommuteManualDirection: vi.fn(),
       favorites: { routes: [] },
+      // B1 막차 알림 — SettingsPage가 lastTrainAlert.enabled를 읽으므로 필수
+      lastTrainAlert: { enabled: false, leadMin: 30 },
+      setLastTrainAlert: vi.fn(),
     })
   ),
 }))

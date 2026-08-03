@@ -264,6 +264,59 @@ class BusCrowdingStats(Base):
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class BusEtaSample(Base):
+    """ETA 자가 채점 오차 샘플.
+
+    수집기가 폴링마다 plate별 예측(관측시각, 예측초)을 Redis 단기 버퍼에 쌓고,
+    도착 판정(detected) 시 회수해 여기로 적재한다.
+
+    - lead_sec: 예측 시점의 남은 초(예측 리드타임)
+    - error_sec: 실제도착 epoch − (관측시각 + 예측초). 양수 = 예측보다 늦게 도착
+    - observed_at: 예측이 만들어진 시각(KST tz-aware)
+
+    보존 28일 — 나이틀리 집계(refresh_eta_accuracy)가 초과분을 함께 삭제한다.
+    """
+
+    __tablename__ = "bus_eta_samples"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    route_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    station_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_stops.id", ondelete="CASCADE"), nullable=False
+    )
+    plate_no: Mapped[str] = mapped_column(String(20), nullable=False)
+    lead_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    error_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("idx_bus_eta_samples_route_station_at", "route_number", "station_id", "observed_at"),
+        # 나이틀리 보존기간 삭제(observed_at 단독 조건)용 인덱스.
+        Index("idx_bus_eta_samples_observed_at", "observed_at"),
+    )
+
+
+class BusEtaAccuracy(Base):
+    """`bus_eta_samples` 사전 집계 — (노선번호, 정류장) ETA 정확도.
+
+    매일 03:47 KST 최근 28일 샘플로 재계산한다. 표본 50 미만 조합은 행을 만들지
+    않는다(신뢰 못 하는 지표는 말하지 않는다). within60_ratio는 |error_sec| ≤ 60
+    비율(0~1).
+    """
+
+    __tablename__ = "bus_eta_accuracy"
+
+    route_number: Mapped[str] = mapped_column(String(20), primary_key=True)
+    station_id: Mapped[int] = mapped_column(
+        ForeignKey("bus_stops.id", ondelete="CASCADE"), primary_key=True
+    )
+    sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    mae_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    bias_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    within60_ratio: Mapped[Decimal] = mapped_column(Numeric(4, 3), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class BusCrowdingCalibration(Base):
     """GBIS crowded 값이 현장과 어긋나는 조합의 표시 하한.
 

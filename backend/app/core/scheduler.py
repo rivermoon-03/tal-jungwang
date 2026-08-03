@@ -219,6 +219,24 @@ async def _subway_realtime_poll_job():
         await mark_fresh("subway")
 
 
+async def _bus_eta_accuracy_refresh_job():
+    """매일 03:47 KST에 bus_eta_accuracy 재계산 (ETA 자가 채점).
+
+    bus_eta_samples 최근 28일치를 (route_number, station_id)별 mae/bias/
+    within60_ratio로 집계하고, 28일 초과 샘플도 함께 삭제한다. purge(03:45)
+    직후·calendar(03:50) 이전, 02:00~03:59 GBIS 폴링 휴식 구간 안쪽 슬롯.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.services.bus_stats import refresh_eta_accuracy
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await refresh_eta_accuracy(session)
+            logger.info("bus_eta_accuracy refresh: %s", result)
+    except Exception:
+        logger.exception("bus_eta_accuracy refresh failed")
+
+
 async def _purge_logs_job():
     """매일 03:45 KST에 로그성 테이블(bus_crowding_logs·bus_arrival_history·
     traffic_history)의 보존기간 초과 행을 배치 삭제.
@@ -254,6 +272,30 @@ async def _push_notification_job():
                 logger.info("푸시 알림 사이클 완료: %s", summary)
     except Exception:
         logger.exception("푸시 알림 사이클 실패")
+
+
+async def _last_train_push_job():
+    """정왕역 지하철 막차 알림 (매분, B1).
+
+    "막차시각 − lead_min == 현재 분" 정밀 매칭이라 매분 크론이 필요하다.
+    02:00~03:59 KST는 막차 이후·첫차 이전 운행 공백이라 DB 세션도 열지 않고
+    즉시 반환한다(버스 폴링과 같은 휴식 구간). 중복 방지는 서비스 내부의
+    Redis 키(구독id+서비스일, TTL 26h)가 맡는다.
+    """
+    hour = datetime.now(_KST).hour
+    if 2 <= hour < 4:
+        return  # 02~03시 운행 공백
+
+    from app.core.database import AsyncSessionLocal
+    from app.services.push_notifier import run_last_train_push_cycle
+
+    try:
+        async with AsyncSessionLocal() as session:
+            summary = await run_last_train_push_cycle(session)
+            if summary.get("sent") or summary.get("removed"):
+                logger.info("막차 알림 사이클 완료: %s", summary)
+    except Exception:
+        logger.exception("막차 알림 사이클 실패")
 
 
 async def _school_board_notices_refresh_job():
@@ -518,6 +560,20 @@ def setup_scheduler():
     )
     logger.info("Log retention purge scheduler configured (daily 03:45 KST)")
 
+    # ── ETA 자가 채점 정확도 재계산 (매일 03:47 KST) ──
+    # bus_eta_samples 28일치를 (route_number, station_id)별 mae/bias/within60으로
+    # 사전 집계. purge(03:45)와 calendar(03:50) 사이, GBIS 폴링 휴식 구간 안쪽.
+    scheduler.add_job(
+        _bus_eta_accuracy_refresh_job,
+        CronTrigger(hour=3, minute=47, timezone="Asia/Seoul"),
+        id="bus_eta_accuracy_refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+    )
+    logger.info("Bus ETA accuracy refresh scheduler configured (daily 03:47 KST)")
+
     # ── 막차/첫차 Web Push 알림 (5분 간격) ──
     # 알림 판정 윈도우가 30분이라 5분 간격이면 놓쳐도 다음 사이클(최대 5분 후)에
     # 자가회복 가능. misfire_grace_time=120으로 짧은 지연은 발화 보장.
@@ -531,6 +587,22 @@ def setup_scheduler():
         misfire_grace_time=120,
     )
     logger.info("Push notification scheduler configured (every 5min)")
+
+    # ── 정왕역 막차 알림 (매분, 02~04시 제외는 잡 내부에서 즉시 반환) ──
+    # "막차 − lead_min == 현재 분" 정밀 매칭이라 CronTrigger(minute="*")로 분 경계에
+    # 정렬한다. misfire_grace_time=30: 30초 넘게 밀린 발화는 그 분을 이미 놓친 것이라
+    # 버린다(coalesce로 중복 발화도 1회로 합침). 놓친 분은 다음 방향 막차 매칭 때
+    # 재시도 기회가 있다(dedup이 하루 1건은 보장).
+    scheduler.add_job(
+        _last_train_push_job,
+        CronTrigger(minute="*", timezone="Asia/Seoul"),
+        id="last_train_push",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=30,
+    )
+    logger.info("Last train push scheduler configured (every 1min, skip 02:00-03:59 KST)")
 
     # ── 전교 게시판 공지 갱신 (60분 간격, DS1) ──
     # TTL=120분(cron 주기의 2배)이라 cron 1회 누락도 다음 회차에서 자가회복.

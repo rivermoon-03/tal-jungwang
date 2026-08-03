@@ -13,7 +13,12 @@ from app.schemas.weather import (
     TimeBucket,
     WeatherWarning,
 )
-from app.services.external.kma import fetch_ultra_srt_ncst, fetch_village_fcst
+from app.services.external.kma import (
+    _base_date_time_fcst,
+    fetch_ultra_srt_fcst,
+    fetch_ultra_srt_ncst,
+    fetch_village_fcst,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +279,12 @@ def _build_forecast(
 CACHE_KEY_AIR = "weather:air"
 CACHE_TTL_AIR = 3600  # 에어코리아는 시간 단위 발표 — 1h면 충분
 
+# 초단기예보(+1~+6h) — 강수·낙뢰 판정용. 스케줄러 잡 없이 이동지수 계산 시
+# cache-aside 로만 채운다(에어코리아와 같은 패턴). 발표가 매시 30분이라 1h TTL이면
+# 항상 한 회차 이내 신선도이고, 실패는 캐시하지 않아 복구 즉시 반영된다.
+CACHE_KEY_ULTRA_FCST = "weather:ultra_fcst"
+CACHE_TTL_ULTRA_FCST = 3600
+
 # level별 표시 라벨. 판정은 compute_walk_index가 한다.
 _WALK_LABEL = {
     "good": "걷기 좋음",
@@ -283,29 +294,50 @@ _WALK_LABEL = {
 }
 
 
-def compute_walk_index(rain_prob: int, temp: int | None, pm_grade: str | None) -> dict:
-    """강수확률·기온·미세먼지 등급 → 4단계 걷기 지수(level/label/reason).
+def compute_walk_index(
+    rain_prob: int,
+    temp: int | None,
+    pm_grade: str | None,
+    *,
+    rain_soon: bool | None = None,
+    lightning: bool = False,
+    source_label: str | None = None,
+) -> dict:
+    """강수·기온·미세먼지(+낙뢰) → 4단계 걷기 지수(level/label/reason/factors).
 
-    보수적 우선순위: 미세 매우나쁨/극한 기온 → indoor, 비 예보·나쁨 → transit.
-    미세먼지 등급이 없으면(None/알수없음) 날씨만으로 판정한다 — 에어코리아
-    활용신청 전에도 지수는 뜬다.
+    보수적 우선순위: 낙뢰 → indoor, 미세 매우나쁨/극한 기온 → indoor,
+    비 예보·나쁨 → transit.
+    - rain_soon 이 주어지면(초단기예보 성공) 강수 판정은 향후 1~2시간 창의
+      실제 강수형태(PTY)로 한다 — 단기예보 강수확률(rain_prob)은 표시용으로만
+      남는다. None 이면 기존 강수확률 임계값(60/30%)으로 폴백한다.
+    - lightning 은 창 내 낙뢰(LGT>0) 감지 — 우산으로 답이 없어 무조건 indoor.
+    - 미세먼지 등급이 없으면(None/알수없음) 날씨만으로 판정한다 — 에어코리아
+      활용신청 전에도 지수는 뜬다.
     """
     t = temp if temp is not None else 20
+    # 강수 판정 입력: 초단기예보(+1~+2h 창) 우선, 없으면 단기예보 강수확률
+    rain_transit = rain_soon if rain_soon is not None else rain_prob >= 60
+    rain_caution = False if rain_soon is not None else rain_prob >= 30
+    rain_reason = "곧 비 예보" if rain_soon else f"강수확률 {rain_prob}%"
+
     # decisive: 등급을 실제로 끌어내린 항목. 어느 것도 아니면 None(= 다 괜찮다).
-    if pm_grade == "매우나쁨" or t <= -10 or t >= 35:
+    if lightning:
+        decisive, reason = "lightning", "낙뢰 예보"
+        level = "indoor"
+    elif pm_grade == "매우나쁨" or t <= -10 or t >= 35:
         decisive = "dust" if pm_grade == "매우나쁨" else "temp"
         reason = f"미세먼지 {pm_grade}" if decisive == "dust" else f"기온 {t}°"
         level = "indoor"
-    elif rain_prob >= 60 or pm_grade == "나쁨" or t <= -5 or t >= 33:
-        if rain_prob >= 60:
-            decisive, reason = "rain", f"강수확률 {rain_prob}%"
+    elif rain_transit or pm_grade == "나쁨" or t <= -5 or t >= 33:
+        if rain_transit:
+            decisive, reason = "rain", rain_reason
         elif pm_grade == "나쁨":
             decisive, reason = "dust", f"미세먼지 {pm_grade}"
         else:
             decisive, reason = "temp", f"기온 {t}°"
         level = "transit"
-    elif rain_prob >= 30 or t >= 30 or t <= 0:
-        if rain_prob >= 30:
+    elif rain_caution or t >= 30 or t <= 0:
+        if rain_caution:
             decisive, reason = "rain", f"강수확률 {rain_prob}%"
         else:
             decisive, reason = "temp", f"기온 {t}°"
@@ -326,7 +358,18 @@ def compute_walk_index(rain_prob: int, temp: int | None, pm_grade: str | None) -
          "value": pm_grade if pm_grade and pm_grade != "알수없음" else "정보 없음",
          "decisive": decisive == "dust"},
     ]
-    return {"level": level, "label": _WALK_LABEL[level], "reason": reason, "factors": factors}
+    if lightning:
+        # 낙뢰 행은 감지됐을 때만 노출한다 — 평상시 "낙뢰 없음" 행은 소음이다.
+        factors.append({"key": "lightning", "label": "낙뢰", "value": "감지됨",
+                        "decisive": decisive == "lightning"})
+    return {
+        "level": level,
+        "label": _WALK_LABEL[level],
+        "reason": reason,
+        "factors": factors,
+        # 판정 출처(예: "14:30 발표 초단기예보 기준") — 팝오버 하단에 노출.
+        "source_label": source_label,
+    }
 
 
 async def _get_air_quality_cached() -> dict | None:
@@ -342,7 +385,81 @@ async def _get_air_quality_cached() -> dict | None:
     return air
 
 
-def _apply_air(result: CurrentWeatherResponse, air: dict | None) -> CurrentWeatherResponse:
+async def _get_ultra_fcst_cached() -> dict | None:
+    """초단기예보(+1~+6h) — 1h 캐시. 실패 시 None(캐시 안 함: 복구 즉시 반영).
+
+    에어코리아(_get_air_quality_cached)와 같은 cache-aside 패턴 — 스케줄러 잡
+    없이 이동지수 계산이 필요할 때만 채운다. slots 는 tuple 키라 JSON 으로 갈 때
+    단기예보 raw 와 같은 "YYYYMMDD_HHMM" 직렬화를 재사용한다.
+    """
+    cached = await get_cached_json(CACHE_KEY_ULTRA_FCST)
+    if cached and isinstance(cached.get("slots"), dict):
+        return {
+            "base_time": cached.get("base_time", ""),
+            "slots": _deserialize_fcst_map(cached["slots"]),
+        }
+
+    ultra = await fetch_ultra_srt_fcst()
+    if ultra:
+        await set_cached_json(
+            CACHE_KEY_ULTRA_FCST,
+            {"base_date": ultra["base_date"], "base_time": ultra["base_time"],
+             "slots": _serialize_fcst_map(ultra["slots"])},
+            CACHE_TTL_ULTRA_FCST,
+        )
+        return {"base_time": ultra["base_time"], "slots": ultra["slots"]}
+    return None
+
+
+def _format_issue_label(base_time: str, kind: str) -> str:
+    """발표시각 "1430" → "14:30 발표 초단기예보 기준" 출처 문구."""
+    hhmm = f"{base_time[:2]}:{base_time[2:]}" if len(base_time) == 4 else base_time
+    return f"{hhmm} 발표 {kind} 기준"
+
+
+def _walk_precip_inputs(ultra: dict | None, now: datetime) -> tuple[bool | None, bool, str]:
+    """이동지수의 강수·낙뢰 입력을 초단기예보 향후 1~2시간 창에서 뽑는다.
+
+    Returns:
+        (rain_soon, lightning, source_label)
+        rain_soon    — True/False: 창 내 강수형태(PTY≠0) 유무.
+                       None: 초단기 없음 → 단기예보 강수확률로 폴백 판정.
+        lightning    — 창 내 낙뢰(LGT>0) 감지 여부.
+        source_label — 판정 출처 문구(팝오버 하단 노출용).
+    """
+    # 폴백 출처: 지금 시각 기준으로 유효한 단기예보 회차(1일 8회 발표).
+    fallback_label = _format_issue_label(_base_date_time_fcst()[1], "단기예보")
+    slots = (ultra or {}).get("slots") or {}
+    today = now.strftime("%Y%m%d")
+    window: list[dict] = []
+    for offset in (1, 2):
+        h = (now.hour + offset) % 24
+        date = today if now.hour + offset < 24 else _next_date(today)
+        slot = slots.get((date, f"{h:02d}00"))
+        if slot:
+            window.append(slot)
+    if not window:
+        # 초단기 조회 실패이거나 캐시가 낡아 창에 걸리는 슬롯이 없다 → 조용한 저하.
+        return None, False, fallback_label
+
+    rain_soon = any(s.get("PTY", "0") not in ("", "0") for s in window)
+    lightning = False
+    for s in window:
+        try:
+            if float(s.get("LGT") or 0) > 0:
+                lightning = True
+                break
+        except (TypeError, ValueError):
+            continue
+    return rain_soon, lightning, _format_issue_label(ultra.get("base_time", ""), "초단기예보")
+
+
+def _apply_air(
+    result: CurrentWeatherResponse,
+    air: dict | None,
+    ultra: dict | None = None,
+    now: datetime | None = None,
+) -> CurrentWeatherResponse:
     """live 캐시 shape을 건드리지 않고 응답 직전에 미세먼지·지수를 얹는다."""
     if air:
         result.pm10 = air.get("pm10")
@@ -351,7 +468,11 @@ def _apply_air(result: CurrentWeatherResponse, air: dict | None) -> CurrentWeath
         if air.get("pm10_grade"):
             result.pm10_grade = air["pm10_grade"]
     pm_grade = result.pm25_grade or (result.pm10_grade if result.pm10_grade != "알수없음" else None)
-    result.walk_index = compute_walk_index(result.rain_prob, result.current_temp, pm_grade)
+    rain_soon, lightning, source_label = _walk_precip_inputs(ultra, now or datetime.now(_KST))
+    result.walk_index = compute_walk_index(
+        result.rain_prob, result.current_temp, pm_grade,
+        rain_soon=rain_soon, lightning=lightning, source_label=source_label,
+    )
     return result
 
 
@@ -416,7 +537,8 @@ async def get_current_weather() -> CurrentWeatherResponse:
 
     payload = await get_or_fetch_with_lock(CACHE_KEY_LIVE, _ttl, _fetch)
     base = CurrentWeatherResponse.model_validate(payload)
-    return _apply_air(base, await _get_air_quality_cached())
+    # 이동지수 강수·낙뢰 판정용 초단기예보 — cache-aside 라 실패해도 응답은 나간다.
+    return _apply_air(base, await _get_air_quality_cached(), await _get_ultra_fcst_cached())
 
 
 async def get_forecast(hours: int = 12) -> ForecastResponse:

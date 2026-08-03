@@ -22,6 +22,18 @@ def _as_list(body: dict, key: str) -> list[dict]:
     return items
 
 
+def _seat_count(value) -> int:
+    """remainSeatCnt 파싱. 누락/비정상은 -1(정보 없음).
+
+    `int(x or -1)` 방식은 0석(만차)을 falsy 로 취급해 -1 로 뭉갠다 — 광역버스
+    잔여좌석 표시에서 "만차"와 "정보 없음"은 정반대의 말이므로 0을 보존한다.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return -1
+
+
 async def fetch_arrivals(station_id: str) -> list[dict]:
     """정류소의 실시간 버스 도착 정보 조회."""
     params = _common_params(stationId=station_id)
@@ -43,7 +55,8 @@ async def fetch_arrivals(station_id: str) -> list[dict]:
             "predict_time_sec2": int(item.get("predictTimeSec2", 0) or 0),
             "location_no1": int(item.get("locationNo1", 0) or 0),
             "location_no2": int(item.get("locationNo2", 0) or 0),
-            "remain_seat1": int(item.get("remainSeatCnt1", -1) or -1),
+            "remain_seat1": _seat_count(item.get("remainSeatCnt1")),
+            "remain_seat2": _seat_count(item.get("remainSeatCnt2")),
             "low_plate1": item.get("lowPlate1", 0) == 1 or item.get("lowPlate1", "0") == "1",
             "plate_no1": item.get("plateNo1", ""),
             "plate_no2": item.get("plateNo2", ""),

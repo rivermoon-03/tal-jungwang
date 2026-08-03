@@ -85,6 +85,95 @@ def test_update_favorites_ok_when_found(client):
     assert resp.json()["data"]["favorite_codes"] == ["shuttle:등교"]
 
 
+def test_subscribe_passes_preferences_through(client):
+    """구독 생성 시 preferences(막차 알림)를 함께 저장할 수 있다."""
+    fake_sub = MagicMock(
+        endpoint="https://ep/1",
+        favorite_codes=[],
+        preferences={"last_train": {"enabled": True, "lead_min": 15}},
+    )
+    with patch(
+        "app.api.push.upsert_subscription", new=AsyncMock(return_value=fake_sub)
+    ) as mock_upsert:
+        resp = client.post(
+            "/api/v1/push/subscribe",
+            json={
+                "endpoint": "https://ep/1",
+                "keys": {"p256dh": "p", "auth": "a"},
+                "favorite_codes": [],
+                "preferences": {"last_train": {"enabled": True, "lead_min": 15}},
+            },
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["preferences"] == {
+        "last_train": {"enabled": True, "lead_min": 15}
+    }
+    assert mock_upsert.await_args.kwargs["preferences"] == {
+        "last_train": {"enabled": True, "lead_min": 15}
+    }
+
+
+def test_subscribe_without_preferences_passes_none(client):
+    """preferences 생략 시 None 전달 — 기존 저장값을 지우지 않는 upsert 계약."""
+    fake_sub = MagicMock(endpoint="https://ep/1", favorite_codes=[], preferences={})
+    with patch(
+        "app.api.push.upsert_subscription", new=AsyncMock(return_value=fake_sub)
+    ) as mock_upsert:
+        resp = client.post(
+            "/api/v1/push/subscribe",
+            json={"endpoint": "https://ep/1", "keys": {"p256dh": "p", "auth": "a"}},
+        )
+
+    assert resp.status_code == 200
+    assert mock_upsert.await_args.kwargs["preferences"] is None
+
+
+def test_update_preferences_ok_when_found(client):
+    fake_sub = MagicMock(
+        endpoint="https://ep/1",
+        preferences={"last_train": {"enabled": True, "lead_min": 30}},
+    )
+    with patch("app.api.push.update_preferences", new=AsyncMock(return_value=fake_sub)):
+        resp = client.put(
+            "/api/v1/push/subscriptions/preferences",
+            json={
+                "endpoint": "https://ep/1",
+                "preferences": {"last_train": {"enabled": True, "lead_min": 30}},
+            },
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    assert body["data"]["preferences"]["last_train"]["enabled"] is True
+
+
+def test_update_preferences_404_when_missing(client):
+    with patch("app.api.push.update_preferences", new=AsyncMock(return_value=None)):
+        resp = client.put(
+            "/api/v1/push/subscriptions/preferences",
+            json={
+                "endpoint": "https://ep/none",
+                "preferences": {"last_train": {"enabled": True, "lead_min": 30}},
+            },
+        )
+
+    assert resp.status_code == 404
+
+
+def test_update_preferences_rejects_invalid_lead_min(client):
+    """lead_min은 15/30/60 화이트리스트 — 그 외 값은 422."""
+    resp = client.put(
+        "/api/v1/push/subscriptions/preferences",
+        json={
+            "endpoint": "https://ep/1",
+            "preferences": {"last_train": {"enabled": True, "lead_min": 45}},
+        },
+    )
+    assert resp.status_code == 422
+
+
 def test_unsubscribe_is_idempotent_200(client):
     with patch("app.api.push.delete_subscription", new=AsyncMock(return_value=None)) as mock_del:
         resp = client.request(

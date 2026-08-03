@@ -93,6 +93,11 @@ class BusArrival(BaseModel):
     next_first_at: str | None = None   # 다음 운행 시작 시각 "HH:MM"
     next_first_day: str | None = None  # "today"(첫차 전) | "tomorrow"(막차 후)
     crowded: int = 0  # 혼잡도 (0=정보없음, 1=여유, 2=보통, 3=혼잡, 4=매우혼잡)
+    # 광역버스 잔여좌석 (GBIS remainSeatCnt). -1=정보 없음, 0=만차, N=잔여 N석.
+    # 구형 캐시 페이로드에는 키가 없으므로 기본값 -1(정보 없음)로 하위호환한다.
+    remain_seat: int = -1
+    # 이 정류장까지 남은 정거장 수 (GBIS locationNo). 0=정보 없음/도착 직전 취급.
+    location_no: int = 0
     # bus_crowding_calibrations 의 표시 하한이 crowded 를 올린 경우 true.
     # 관측값이 아니라는 뜻이므로 화면이 "경험 기준"으로 구분해 표기한다.
     crowded_estimated: bool = False

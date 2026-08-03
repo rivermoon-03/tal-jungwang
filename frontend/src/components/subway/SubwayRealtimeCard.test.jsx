@@ -168,6 +168,40 @@ describe('RealtimeCompactCard — StaleHintBadge', () => {
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
+describe('RealtimeCompactCard — A6 지연 배지', () => {
+  const DELAYED_UP = {
+    ...UP_TRAIN,
+    delay_minutes: 6,
+    delay_since: '2026-05-18T08:02:00+09:00',
+    delay_samples: [5.5, 6.0, 7.0],
+  }
+
+  it('delay_minutes 가 붙은 방향이 있으면 헤더에 "지연 약 +6분" 배지가 뜬다', () => {
+    render(<RealtimeCompactCard {...CARD_PROPS} upTrain={DELAYED_UP} />)
+    expect(screen.getByText('지연 약 +6분')).toBeTruthy()
+  })
+
+  it('지연 배지를 탭하면 근거 팝오버(role=dialog)가 열린다', () => {
+    render(<RealtimeCompactCard {...CARD_PROPS} upTrain={DELAYED_UP} />)
+    fireEvent.click(screen.getByRole('button', { name: /상행 지연 약 6분 감지/ }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByText('상행 지연 감지')).toBeTruthy()
+  })
+
+  it('delay 필드가 없으면 지연 배지가 렌더되지 않는다', () => {
+    render(<RealtimeCompactCard {...CARD_PROPS} />)
+    expect(screen.queryByText(/지연 약 \+/)).toBeNull()
+  })
+
+  it('지연 배지가 delayed 토큰 칩이다 (bg-delayed-bg / text-delayed)', () => {
+    render(<RealtimeCompactCard {...CARD_PROPS} upTrain={DELAYED_UP} />)
+    const btn = screen.getByRole('button', { name: /상행 지연 약 6분 감지/ })
+    expect(btn.className).toContain('bg-delayed-bg')
+    expect(btn.className).toContain('text-delayed')
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
 describe('SubwayDataModeToggle — ui/SegmentTabs (items prop) 연동', () => {
   it('onChange 가 "realtime" / "timetable" id 로 호출된다', () => {
     const onChange = vi.fn()

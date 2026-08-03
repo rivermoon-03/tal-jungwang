@@ -8,9 +8,13 @@
  *
  * API 계약(백엔드):
  *   GET    /push/vapid-public-key            → { public_key }
- *   POST   /push/subscribe                   body { endpoint, keys, favorite_codes }
+ *   POST   /push/subscribe                   body { endpoint, keys, favorite_codes, preferences? }
  *   PUT    /push/subscriptions/favorites      body { endpoint, favorite_codes }
+ *   PUT    /push/subscriptions/preferences    body { endpoint, preferences }
  *   DELETE /push/subscribe                   body { endpoint }
+ *
+ * preferences는 구독별 알림 프리퍼런스 JSONB로,
+ * { last_train: { enabled: bool, lead_min: 15|30|60 } } — B1 정왕역 막차 알림.
  *
  * 네트워크 호출은 프로젝트 공용 apiFetch(useApi.js)를 그대로 재사용한다
  * (in-flight dedup/캐시는 GET에만 적용되고 이 파일의 POST/PUT/DELETE는
@@ -107,7 +111,7 @@ export async function hasActivePushSubscription() {
  * reason이 'denied'면 브라우저가 재요청을 막으므로(Notification.requestPermission이
  * 즉시 'denied'로 resolve) UI가 "브라우저 설정에서 알림을 허용해주세요" 안내를 띄워야 한다.
  */
-export async function subscribeToPush(favoriteCodes = []) {
+export async function subscribeToPush(favoriteCodes = [], preferences = null) {
   if (!isPushSupported() || typeof Notification === 'undefined') {
     return { ok: false, reason: 'unsupported' }
   }
@@ -138,6 +142,8 @@ export async function subscribeToPush(favoriteCodes = []) {
       endpoint: subscription.endpoint,
       keys: { p256dh: json.keys?.p256dh, auth: json.keys?.auth },
       favorite_codes: favoriteCodes,
+      // null이면 필드 자체를 보내지 않는다 — 서버 upsert가 기존 preferences를 유지
+      ...(preferences ? { preferences } : {}),
     }),
   })
 
@@ -177,6 +183,27 @@ export async function syncPushFavorites(favoriteCodes = []) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ endpoint: subscription.endpoint, favorite_codes: favoriteCodes }),
+  })
+
+  return { ok: true }
+}
+
+/**
+ * 이미 구독 중이면 알림 프리퍼런스(막차 알림 등)를 백엔드에 최신화한다(PUT).
+ * 구독이 없으면 아무 것도 하지 않는다 — syncPushFavorites와 같은 v1 스코프
+ * (설정 화면을 열거나 토글/칩을 조작할 때만 동기화).
+ * @param {{ last_train: { enabled: boolean, lead_min: 15|30|60 } }} preferences
+ */
+export async function syncPushPreferences(preferences) {
+  if (!isPushSupported()) return { ok: false, reason: 'unsupported' }
+
+  const subscription = await getExistingSubscription()
+  if (!subscription) return { ok: false, reason: 'not-subscribed' }
+
+  await apiFetch('/push/subscriptions/preferences', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: subscription.endpoint, preferences }),
   })
 
   return { ok: true }

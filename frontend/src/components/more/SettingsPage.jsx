@@ -11,14 +11,15 @@
  *   onBack               () => void
  *   onOpenAppInfo        () => void  — 기존 AppInfoPage 서브페이지로 이동
  *
- * "노선 알림"(F5) 행은 예외적으로 이 컴포넌트가 직접 동작을 갖는다 — 다른
- * 서브페이지로 이동하지 않고 스위치 하나로 Web Push 구독/해제까지 처리한다.
- * (utils/pushNotifications.js 참조. 실제 백엔드는 별도 PR로 머지될 예정.)
+ * "노선 알림"(F5)과 "막차 알림"(B1) 행은 예외적으로 이 컴포넌트가 직접 동작을
+ * 갖는다 — 다른 서브페이지로 이동하지 않고 스위치/칩으로 Web Push 구독·해제와
+ * 서버 프리퍼런스(preferences.last_train) 동기화까지 처리한다.
+ * (utils/pushNotifications.js 참조.)
  */
 import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Palette, Type, LayoutGrid, List, Navigation, Home,
-  Bell, Zap, Utensils, Moon, RefreshCw, MapPin, Globe, Trash2, Info,
+  Bell, BellRing, Zap, Utensils, Moon, RefreshCw, MapPin, Globe, Trash2, Info,
   ChevronRight, Sparkles, CloudSun,
 } from 'lucide-react'
 import DarkModeSegment from './DarkModeSegment'
@@ -30,7 +31,15 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   syncPushFavorites,
+  syncPushPreferences,
 } from '../../utils/pushNotifications'
+
+// B1 막차 알림 리드타임 칩 — 백엔드 화이트리스트(15/30/60)와 동일해야 한다.
+const LAST_TRAIN_LEAD_OPTIONS = [
+  { min: 60, label: '1시간 전' },
+  { min: 30, label: '30분 전' },
+  { min: 15, label: '15분 전' },
+]
 
 // ── 공용 행/섹션 프리미티브 (DESIGN.md sc-set 대응) ──────────────────────
 function SectionLabel({ children }) {
@@ -90,7 +99,7 @@ function ValueChevron({ value, accent = false }) {
 
 // 대부분은 로컬 state만 반영하는 데모 스위치지만(TODO 항목), "노선 알림"(F5)처럼
 // 실제 구독 로직과 연결되는 곳도 있다. onToggle이 없으면(disabled) 탭해도 반응하지 않는다.
-function MiniSwitch({ on, onToggle }) {
+function MiniSwitch({ on, onToggle, label }) {
   const disabled = !onToggle
   return (
     <button
@@ -98,6 +107,7 @@ function MiniSwitch({ on, onToggle }) {
       role="switch"
       aria-checked={on}
       aria-disabled={disabled}
+      aria-label={label}
       disabled={disabled}
       onClick={onToggle}
       className={`relative flex-shrink-0 w-[42px] h-[25px] rounded-pill transition-colors duration-base ease-out ${on ? 'bg-accent' : 'bg-line dark:bg-line-strong'} ${disabled ? 'opacity-50' : ''}`}
@@ -176,15 +186,35 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
     () => (isPushSupported() ? getNotificationPermission() : 'unsupported')
   )
 
+  // ── B1: 막차 알림(정왕역 지하철, lead_min 전 푸시) ─────────────────────
+  // enabled/leadMin은 zustand persist(lastTrainAlert)가 원본이고, 서버
+  // preferences.last_train과는 토글/칩 조작 시 + mount 시 1회 동기화한다.
+  const lastTrainAlert = useAppStore((s) => s.lastTrainAlert)
+  const setLastTrainAlert = useAppStore((s) => s.setLastTrainAlert)
+  const [lastTrainBusy, setLastTrainBusy] = useState(false)
+
+  const lastTrainServerPrefs = (enabled, leadMin) => ({
+    last_train: { enabled, lead_min: leadMin },
+  })
+
   useEffect(() => {
     let cancelled = false
     if (!isPushSupported()) return undefined
     hasActivePushSubscription().then((subscribed) => {
       if (cancelled) return
       setRouteAlertOn(subscribed)
-      // 이미 구독 중이면 화면을 열 때마다 현재 즐겨찾기로 한 번 최신화한다
+      // 이미 구독 중이면 화면을 열 때마다 현재 즐겨찾기/프리퍼런스로 한 번 최신화한다
       // (v1 스코프 — favorites 변경 실시간 워처는 만들지 않음).
-      if (subscribed) syncPushFavorites(favoriteRoutes)
+      if (subscribed) {
+        syncPushFavorites(favoriteRoutes)
+        if (lastTrainAlert.enabled) {
+          syncPushPreferences(lastTrainServerPrefs(true, lastTrainAlert.leadMin))
+        }
+      } else if (lastTrainAlert.enabled) {
+        // 구독이 다른 경로(노선 알림 off, 브라우저 정리 등)로 사라졌으면 서버도
+        // 더는 이 기기로 발송하지 못한다 — 로컬 스위치를 실제 상태로 되돌린다.
+        setLastTrainAlert({ enabled: false })
+      }
     })
     return () => {
       cancelled = true
@@ -199,6 +229,9 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
       if (routeAlertOn) {
         await unsubscribeFromPush()
         setRouteAlertOn(false)
+        // 구독 자체가 사라지므로(endpoint 삭제) 같은 구독을 쓰는 막차 알림도 꺼진다
+        // — UI가 켜진 척하면 안 된다.
+        if (lastTrainAlert.enabled) setLastTrainAlert({ enabled: false })
       } else {
         const result = await subscribeToPush(favoriteRoutes)
         if (result.ok) {
@@ -213,6 +246,49 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
     }
   }
 
+  const handleToggleLastTrain = async () => {
+    if (lastTrainBusy) return
+    setLastTrainBusy(true)
+    try {
+      if (lastTrainAlert.enabled) {
+        // 끄기는 프리퍼런스만 내린다 — 구독은 노선 알림이 계속 쓸 수 있으므로 유지.
+        setLastTrainAlert({ enabled: false })
+        await syncPushPreferences(lastTrainServerPrefs(false, lastTrainAlert.leadMin))
+      } else {
+        const subscribed = await hasActivePushSubscription()
+        if (subscribed) {
+          await syncPushPreferences(lastTrainServerPrefs(true, lastTrainAlert.leadMin))
+          setLastTrainAlert({ enabled: true })
+        } else {
+          // 구독이 없으면 노선 알림과 같은 구독 플로우를 재사용하고,
+          // 생성 요청에 preferences를 실어 왕복 한 번으로 끝낸다.
+          const result = await subscribeToPush(
+            favoriteRoutes,
+            lastTrainServerPrefs(true, lastTrainAlert.leadMin)
+          )
+          if (result.ok) {
+            setLastTrainAlert({ enabled: true })
+            // 같은 endpoint 구독을 공유하므로 노선 알림 스위치도 실제 상태를 반영
+            setRouteAlertOn(true)
+            setRouteAlertPermission('granted')
+          } else if (result.reason === 'denied') {
+            setRouteAlertPermission('denied')
+          }
+        }
+      }
+    } finally {
+      setLastTrainBusy(false)
+    }
+  }
+
+  const handleLastTrainLead = async (min) => {
+    setLastTrainAlert({ leadMin: min })
+    // 켜져 있을 때만 서버 반영 — 꺼진 상태의 칩 선택은 로컬 persist로 충분하다.
+    if (lastTrainAlert.enabled) {
+      await syncPushPreferences(lastTrainServerPrefs(true, min))
+    }
+  }
+
   const routeAlertPermissionDenied = routeAlertPermission === 'denied'
   const routeAlertUnsupported = routeAlertPermission === 'unsupported'
   const routeAlertDesc = routeAlertUnsupported
@@ -220,6 +296,13 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
     : routeAlertPermissionDenied
       ? '브라우저 설정에서 알림을 허용해주세요'
       : '막차·첫차 시각 푸시 (즐겨찾기 노선 기준)'
+  const lastTrainDesc = routeAlertUnsupported
+    ? '이 브라우저는 알림을 지원하지 않아요'
+    : routeAlertPermissionDenied
+      ? '브라우저 설정에서 알림을 허용해주세요'
+      : '정왕역 기준 · 매일'
+  const lastTrainToggleBlocked =
+    routeAlertUnsupported || routeAlertPermissionDenied || lastTrainBusy
 
   const fontLabel = ['작게', '보통', '크게'][fontScale] ?? '보통'
 
@@ -405,6 +488,48 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
               />
             }
           />
+          {/* B1: 정왕역 지하철 막차 알림 — 실동작. 토글은 서버 preferences.last_train과
+              동기화되고, 구독이 없으면 노선 알림과 같은 Web Push 구독 플로우를 재사용한다. */}
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <BellRing size={18} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
+              <div className="flex-1 min-w-0">
+                <p className="text-label font-semibold text-ink dark:text-ink">막차 알림</p>
+                <p className="text-caption text-mute dark:text-mute mt-0.5 leading-snug">{lastTrainDesc}</p>
+              </div>
+              <MiniSwitch
+                on={lastTrainAlert.enabled}
+                onToggle={lastTrainToggleBlocked ? undefined : handleToggleLastTrain}
+                label="막차 알림"
+              />
+            </div>
+            {lastTrainAlert.enabled && (
+              <div
+                className="flex gap-1.5 mt-2.5 pl-[30px]"
+                role="group"
+                aria-label="막차 알림 리드타임"
+              >
+                {LAST_TRAIN_LEAD_OPTIONS.map(({ min, label }) => {
+                  const active = lastTrainAlert.leadMin === min
+                  return (
+                    <button
+                      key={min}
+                      type="button"
+                      onClick={() => handleLastTrainLead(min)}
+                      aria-pressed={active}
+                      className={`px-2.5 py-1.5 rounded-pill text-caption font-semibold pressable transition-colors ${
+                        active
+                          ? 'bg-accent-bg text-accent-ink dark:text-accent-ink'
+                          : 'bg-surface-2 dark:bg-bg text-mute dark:text-mute'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
           <Row
             icon={Zap}
             title="도착 임박 알림"

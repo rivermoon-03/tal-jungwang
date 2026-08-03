@@ -9,10 +9,20 @@ import {
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import { SkeletonArrivalCard } from '../common/Skeleton'
 import ErrorState from '../ui/ErrorState'
+import StatusChip from '../ui/StatusChip.jsx'
 import TransitCard from '../ui/TransitCard.jsx'
 import { formatEta } from '../../utils/eta'
+import { splitFare, formatWon } from '../../utils/taxiSplit'
+import { useTrafficIncidents } from '../../hooks/useTrafficIncidents'
+import { useTaxiDestinations } from '../../hooks/useTaxi'
 import { labelFromLevel, toneFromLevel } from '../../utils/crowdingLevel'
-import { arrivalEntryToSeconds, arrivalSecondsToMinutes, groupArrivalsByRoute } from '../../utils/busArrivalRows'
+import {
+  arrivalEntryToSeconds,
+  arrivalSecondsToMinutes,
+  groupArrivalsByRoute,
+  locationChipFromArrival,
+  seatChipFromArrival,
+} from '../../utils/busArrivalRows'
 import { useActiveBusReports, busReportChipLabel } from '../../hooks/useBusReports'
 import {
   getGbisStationId,
@@ -26,6 +36,14 @@ const DEFAULT_ROUTE_COLOR = '#64748B'
 // 결함 #3 — "5분 이하"가 곧 도착 섹션 + 임박(색만) 톤의 기준. 기존 IMMINENT_THRESHOLD_SEC(60초,
 // "곧 도착" 라벨 전환용)와는 별개 — 이 파일이 새로 정의하는 대시보드 카드 전용 규칙이다.
 const SOON_THRESHOLD_SEC = 5 * 60
+
+// B3 — ITS 돌발 유형 → 라벨. 백엔드가 사고·공사만 내려주지만, 유형이 늘어나도
+// 여기 없는 값은 배너·칩 어디에도 그리지 않는다(모르는 유형으로 겁주지 않기).
+const INCIDENT_TYPE_LABEL = { accident: '사고', construction: '공사' }
+
+// B6 — 다음 첫차가 이 분 안이면 택시 승격 카드를 접는다. 첫차 임박 시엔 기존
+// "오늘/내일 첫차" 정보가 주인공이다.
+const TAXI_PROMO_FIRST_BUS_MIN = 60
 
 function getCommuteGroup(station, category, routeNumber) {
   if (category === '등교') return station === '서울' ? 'from-seoul' : 'from-siheung-city-hall'
@@ -78,6 +96,13 @@ export default function BusPanel() {
     return map
   }, [activeReportsQuery.data])
 
+  // B3 — 통학축 돌발(사고·공사). 저하·미승인 시 빈 배열 → 배너·칩 어디에도 안 그린다.
+  const { incidents } = useTrafficIncidents()
+  const incident = useMemo(
+    () => incidents.find((i) => INCIDENT_TYPE_LABEL[i.type]) ?? null,
+    [incidents]
+  )
+
   // 서울 정류장: 기존 whitelist 방식 유지
   const isSeoulStation = gbisStationId === null
   const allowedRouteNumbers = useMemo(
@@ -93,6 +118,7 @@ export default function BusPanel() {
   if (isSeoulStation) {
     return (
       <div className="space-y-2">
+        <IncidentBanner incident={incident} />
         {routesQuery.loading && <SkeletonArrivalCard />}
         {routesQuery.error && !routesQuery.loading && (
           <ErrorState message="노선 정보 오류" onRetry={routesQuery.refetch} className="py-4" />
@@ -154,7 +180,7 @@ export default function BusPanel() {
     } else if (sec == null && !a.is_tomorrow) {
       fallbackGroups.push(group)
     } else {
-      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal, reportByRoute }))
+      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal, reportByRoute, incident }))
     }
   }
 
@@ -172,8 +198,21 @@ export default function BusPanel() {
   // 첫차 전(자정~새벽)과 막차 후는 둘 다 "지금 안 다닌다"지만 헤더로는 구분한다.
   const allEndedForToday = sleepingGroups.every((g) => g[0].next_first_day !== 'today')
 
+  // B6 — 전 노선이 "오늘 운행 종료"일 때만 택시를 승격한다. 운행 중 노선이 하나라도
+  // 있거나 첫차 전('지금은 운행 안 함')이면 기존 화면 그대로. 오늘 미운행 섹션
+  // (missingRoutes)은 오늘 원래 안 다니는 노선이라 "지금 택시가 대안" 판정과 무관하다.
+  // 첫차가 60분 안이면 카드도 접는다 — 그때는 첫차 정보가 주인공이다.
+  const allEndedOnly =
+    liveRows.length === 0 && fallbackGroups.length === 0 && sleepingGroups.length > 0 && allEndedForToday
+  const firstBusMin = allEndedOnly ? firstBusMinutesAway(sleepingGroups) : null
+  const showTaxiPromo = allEndedOnly && !(firstBusMin != null && firstBusMin <= TAXI_PROMO_FIRST_BUS_MIN)
+
   return (
     <div className="space-y-3">
+      <IncidentBanner incident={incident} />
+
+      {showTaxiPromo && <TaxiPromoCard />}
+
       {imminentRows.length > 0 && (
         <section>
           <h3 className="text-[12px] font-bold text-mute mb-1.5">곧 도착</h3>
@@ -250,7 +289,7 @@ function boardingLabel(arrival, station, direction) {
 }
 
 /** 실시간 ETA가 확보된 그룹 하나 → {sec, node(TransitCard)}. */
-function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute = {} }) {
+function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute = {}, incident = null }) {
   const a = group[0]
   const a2 = group[1] ?? null
   const sec = arrivalEntryToSeconds(a)
@@ -260,17 +299,33 @@ function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute =
   const cfg = getRouteDisplayConfig(a.route_no)
   const { title, viaChip } = getRouteTitleAndVia(a.route_no, a.category ?? direction, a.destination)
   const originText = boardingLabel(a, station, direction)
+
+  // A1 — 광역버스는 혼잡도(재차 인원)보다 잔여좌석이 정확한 신호라 좌석 칩으로
+  // 대체한다. remain_seat이 없거나(-1·구형 캐시) 비광역이면 기존 혼잡도 칩 유지.
+  const seatChip = seatChipFromArrival(a, { isExpress: cfg?.category === 'express' })
+  // A3 — GBIS locationNo(남은 정거장 수) ≥ 1 이면 거리감을 정거장 단위로 보여준다.
+  const locationChip = locationChipFromArrival(a)
   // 라벨은 utils/crowdingLevel 단일 출처. 보정이 값을 올렸으면 "경험 기준"이 붙는다.
-  const crowdedLabel = a.arrival_type === 'realtime'
+  const crowdedLabel = !seatChip && a.arrival_type === 'realtime'
     ? labelFromLevel(a.crowded, { estimated: a.crowded_estimated })
     : null
 
+  // 칩 순서 정책: 실시간 → 혼잡/좌석 → (정거장) → (베타) → 제보 → (경로 돌발) → 경유
   const chips = []
   if (a.arrival_type === 'realtime') chips.push({ label: '실시간', tone: 'realtime' })
-  if (crowdedLabel) chips.push({ label: crowdedLabel, tone: toneFromLevel(a.crowded) })
+  if (seatChip) chips.push(seatChip)
+  else if (crowdedLabel) chips.push({ label: crowdedLabel, tone: toneFromLevel(a.crowded) })
+  if (locationChip) chips.push(locationChip)
+  // 실시간 신규 기능 베타 정책 — 좌석·정거장 칩이 하나라도 보이면 베타 칩 1개만 단다
+  if (seatChip || locationChip) chips.push({ label: '베타', tone: 'beta' })
   // F6 — 활성 만차·결행 제보 경고(혼잡 칩보다 구체적 정보라 경유 칩보다 앞)
   const report = reportByRoute[a.route_no]
   if (report) chips.push({ label: busReportChipLabel(report), tone: 'warn' })
+  // B3 — 서울 방면 축에 돌발이 있으면 그 축을 타는 광역(express) 노선에만 경고 칩.
+  // 시내·간선은 축을 안 타므로 붙이지 않는다(오탐 경고가 신뢰를 깎는다).
+  if (incident && cfg?.category === 'express') {
+    chips.push({ label: `경로 ${INCIDENT_TYPE_LABEL[incident.type]}`, tone: 'warn' })
+  }
   if (viaChip) chips.push({ label: viaChip, tone: 'neutral' })
 
   const imminent = !a.is_tomorrow && sec != null && sec <= SOON_THRESHOLD_SEC
@@ -486,6 +541,107 @@ function NotRunningCard({ route, station, direction, onOpenDetail }) {
         title: `${routeNo} · ${title}`,
       })}
     />
+  )
+}
+
+/**
+ * B3 — occurred_at(백엔드가 항상 KST tz-aware ISO로 내려줌) → "HH:MM".
+ * Date로 파싱하면 기기 시간대로 다시 변환되므로 문자열에서 그대로 읽는다.
+ */
+function incidentHhmm(iso) {
+  const m = /T(\d{2}:\d{2})/.exec(iso ?? '')
+  return m ? m[1] : null
+}
+
+/**
+ * B3 — 통학축 돌발 배너(베타). 인시던트가 없거나 API가 저하되면 null을 반환한다 —
+ * 빈 상태 UI를 그리지 않는 게 규칙이다(배너·칩·네트워크 요청 외 사이드이펙트 금지).
+ */
+function IncidentBanner({ incident }) {
+  if (!incident) return null
+  const head = [incident.road_name, INCIDENT_TYPE_LABEL[incident.type]].filter(Boolean).join(' ')
+  const hhmm = incidentHhmm(incident.occurred_at)
+  return (
+    <div className="flex items-center gap-1.5 rounded-card bg-imminent-bg px-3 py-2">
+      {/* 구분자는 em-dash 대신 "·" — tokenRules.test.js c)가 UI 렌더 텍스트의 em-dash를 금지한다 */}
+      <p className="min-w-0 flex-1 text-[12.5px] font-semibold leading-snug text-imminent">
+        ⚠ {head} · 서울 방면 광역버스 지연 가능{hhmm ? ` · ${hhmm} 확인` : ''}
+      </p>
+      <StatusChip kind="beta" className="shrink-0">베타</StatusChip>
+    </div>
+  )
+}
+
+/**
+ * B6 — sleeping 그룹들의 다음 첫차까지 남은 분(최솟값). 판정 불가면 null.
+ * next_first_day가 'today'가 아니면 내일 같은 시각으로 계산한다 — 자정 직전에
+ * 내일 첫차가 60분 안으로 들어오는 케이스(예: 23:50에 00:30 첫차)를 놓치지 않기 위해.
+ */
+function firstBusMinutesAway(sleepingGroups, now = new Date()) {
+  let min = null
+  for (const group of sleepingGroups) {
+    const a = group[0]
+    if (!a.next_first_at) continue
+    const [h, m] = a.next_first_at.split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) continue
+    const t = new Date(now)
+    t.setHours(h, m, 0, 0)
+    if (a.next_first_day !== 'today') t.setDate(t.getDate() + 1)
+    const diff = (t.getTime() - now.getTime()) / 60000
+    if (diff < 0) continue
+    if (min == null || diff < min) min = diff
+  }
+  return min
+}
+
+/**
+ * B6 — 심야 택시 승격 카드. 전 노선이 "오늘 운행 종료"일 때만 마운트되므로
+ * 요금·시간 조회(useTaxiDestinations — 택시 탭과 같은 엔드포인트·프리셋)도
+ * 그때만 나간다. 조회 실패 시 숫자 줄만 생략하고 버튼은 유지한다.
+ */
+function TaxiPromoCard() {
+  const setSelectedMode = useAppStore((s) => s.setSelectedMode)
+  const { destinations } = useTaxiDestinations()
+  const jeongwang = destinations?.find((d) => d.id === 'jeongwang_station') ?? null
+  const minutes = jeongwang?.duration_seconds != null
+    ? Math.max(1, Math.round(jeongwang.duration_seconds / 60))
+    : null
+  const fee = jeongwang?.taxi_fee > 0 ? jeongwang.taxi_fee : null
+  const half = splitFare(fee, 2)
+
+  const parts = ['학교 정문 → 정왕역']
+  if (minutes != null) parts.push(`약 ${minutes}분`)
+  if (fee != null) parts.push(`약 ${fee.toLocaleString()}원`)
+
+  return (
+    <section className="bg-surface border border-line rounded-card p-3">
+      <h3 className="text-[15px] font-bold text-ink">지금은 택시가 빨라요</h3>
+      {parts.length > 1 && (
+        <p className="mt-0.5 text-[12.5px] font-semibold text-mute tabular-nums">{parts.join(' · ')}</p>
+      )}
+      {half != null && (
+        <p className="text-[12.5px] font-semibold text-mute tabular-nums">2명이 나누면 {formatWon(half)}</p>
+      )}
+      <div className="mt-2.5 flex items-center gap-1.5">
+        <a
+          href="https://t.kakao.com/launch"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-pill bg-accent-bg px-3 py-1.5 text-caption font-semibold text-accent-ink pressable"
+        >
+          카카오T 열기
+        </a>
+        <button
+          type="button"
+          onClick={() => setSelectedMode('taxi')}
+          className="rounded-pill border border-line bg-surface-2 px-3 py-1.5 text-caption font-semibold text-ink pressable"
+        >
+          택시 탭 보기
+        </button>
+      </div>
+      {/* 택시 탭(TaxiPanel)과 같은 고지 문구 — 두 화면이 같은 추정치를 다르게 설명하지 않는다 */}
+      <p className="mt-2 text-[12px] font-medium text-mute">실제 요금·시간과 다를 수 있습니다</p>
+    </section>
   )
 }
 

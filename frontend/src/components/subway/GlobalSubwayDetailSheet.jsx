@@ -5,6 +5,7 @@ import { useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from 
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 import { TimeGridView } from '../schedule/ScheduleDetailModal'
 import StatusChip from '../ui/StatusChip'
+import SubwayCrowdingChart from './SubwayCrowdingChart'
 import { isRealtimeFresh } from './realtimeFreshness'
 
 // DESIGN.md §4 모션 이징 — 시트류(GlobalSubwayLineSheet 등)와 동일 토큰 사용.
@@ -410,6 +411,15 @@ export default function GlobalSubwayDetailSheet() {
                 </button>
               ))}
             </div>
+
+            {/* 시간대 혼잡 (B4) — 교통카드 통계가 적재된 역·방향에서만 그려진다.
+                데이터가 비면 컴포넌트가 null 을 반환해 섹션 자체가 없다. */}
+            <SubwayCrowdingChart
+              station={displayed.station}
+              lineName={displayed.lineName}
+              direction={displayed.direction}
+              enabled={sheetOpen}
+            />
 
             {!ttLoading && trains.length > 0 ? (
               <div data-testid="timetable-grid-section">

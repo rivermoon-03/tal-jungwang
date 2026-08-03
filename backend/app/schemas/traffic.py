@@ -16,6 +16,15 @@ class TrafficResponse(BaseModel):
     updated_at: str
 
 
+class TrafficIncident(BaseModel):
+    """통학축 돌발상황(B3). occurred_at은 KST tz-aware ISO 문자열."""
+
+    type: str                  # "accident" | "construction"
+    road_name: str
+    message: str
+    occurred_at: str | None
+
+
 class TrafficFlowPoint(BaseModel):
     hour: int            # 0..23
     minute: int          # 0 | 30 (half-hour buckets)

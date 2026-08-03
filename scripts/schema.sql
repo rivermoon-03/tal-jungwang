@@ -3399,6 +3399,84 @@ SELECT pg_catalog.setval('traffic_history_id_seq', 2781, true);
 --
 
 -- ============================================================
+-- 2026-08-03 정확도 배치 (A4 ETA 자가 채점 · A5 지하철 도착 이력)
+-- prod_migration_20260803_accuracy_tables.sql 과 동일 내용
+-- ============================================================
+
+-- A4: ETA 자가 채점 오차 샘플 (수집기 detected 도착 판정 시 적재, 28일 보존)
+-- error_sec = 실제도착 epoch − (관측시각 + 예측초). 양수 = 예측보다 늦게 도착.
+-- 보존기간 정리는 retention.py가 아니라 03:47 집계 잡이 함께 수행한다.
+CREATE TABLE IF NOT EXISTS bus_eta_samples (
+    id           SERIAL       PRIMARY KEY,
+    route_number VARCHAR(20)  NOT NULL,
+    station_id   INTEGER      NOT NULL REFERENCES bus_stops(id) ON DELETE CASCADE,
+    plate_no     VARCHAR(20)  NOT NULL,
+    lead_sec     INTEGER      NOT NULL CHECK (lead_sec > 0),
+    error_sec    INTEGER      NOT NULL,
+    observed_at  TIMESTAMPTZ  NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_bus_eta_samples_route_station_at
+    ON bus_eta_samples (route_number, station_id, observed_at);
+CREATE INDEX IF NOT EXISTS idx_bus_eta_samples_observed_at
+    ON bus_eta_samples (observed_at);
+
+-- A4: (노선번호, 정류장) ETA 정확도 집계 — 매일 03:47 KST 재계산.
+-- 표본 50 미만 조합은 행 미생성. within60_ratio = |error_sec| ≤ 60초 비율(0~1).
+CREATE TABLE IF NOT EXISTS bus_eta_accuracy (
+    route_number   VARCHAR(20)  NOT NULL,
+    station_id     INTEGER      NOT NULL REFERENCES bus_stops(id) ON DELETE CASCADE,
+    sample_size    INTEGER      NOT NULL CHECK (sample_size > 0),
+    mae_sec        INTEGER      NOT NULL CHECK (mae_sec >= 0),
+    bias_sec       INTEGER      NOT NULL,
+    within60_ratio NUMERIC(4,3) NOT NULL CHECK (within60_ratio BETWEEN 0 AND 1),
+    updated_at     TIMESTAMPTZ  NOT NULL,
+    PRIMARY KEY (route_number, station_id)
+);
+
+-- A5: 지하철 실측 도착 이력 — 요일별 다이아 정본화(서해선·토요일)의 원료.
+-- 폴링 경로에서 도착 확정 시에만 적재(폴링당 0~2건). 장기 보존.
+CREATE TABLE IF NOT EXISTS subway_arrival_history (
+    id           SERIAL       PRIMARY KEY,
+    station_name VARCHAR(20)  NOT NULL,   -- 정왕|시흥시청|초지
+    line_id      VARCHAR(10)  NOT NULL,   -- 1004|1075|1093 (서울 실시간 API subwayId)
+    direction    VARCHAR(10)  NOT NULL,   -- 상행|하행
+    train_no     VARCHAR(20)  NOT NULL,
+    arrived_at   TIMESTAMPTZ  NOT NULL,
+    day_type     VARCHAR(10)  NOT NULL    -- weekday|saturday|sunday
+);
+
+CREATE INDEX IF NOT EXISTS idx_subway_arrival_stn_line_day
+    ON subway_arrival_history (station_name, line_id, direction, day_type, arrived_at);
+CREATE INDEX IF NOT EXISTS idx_subway_arrival_arrived_at
+    ON subway_arrival_history (arrived_at);
+
+-- ============================================================
+-- 2026-08-03 신규 기능 배치 (B1 막차 푸시 · B4 혼잡 프로파일)
+-- prod_migration_20260803_feature_tables.sql 과 동일 내용
+-- ============================================================
+
+-- B1: 구독별 알림 프리퍼런스 — {"last_train": {"enabled": bool, "lead_min": 15|30|60}}
+-- 모델이 이 컬럼을 SELECT 하므로 백엔드 배포 전에 반드시 선적용해야 한다.
+ALTER TABLE push_subscriptions
+  ADD COLUMN IF NOT EXISTS preferences JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- B4: 지하철 시간대 혼잡 프로파일 (stcis 교통카드 통계, 수동 적재 전용 — cron 없음)
+-- 적재 전에는 비어 있고, 비어 있는 동안 API는 빈 배열·프런트는 섹션 미렌더.
+-- 적재: backend/scripts/load_subway_crowding_profile.py (docstring 참고)
+CREATE TABLE IF NOT EXISTS subway_crowding_profile (
+    station_name varchar(20)  NOT NULL,  -- 정왕|시흥시청|초지
+    line_id      varchar(10)  NOT NULL,  -- 1004(4호선)|1075(수인분당선)|1093(서해선)
+    direction    varchar(10)  NOT NULL CHECK (direction IN ('up', 'down')),
+    day_type     varchar(10)  NOT NULL CHECK (day_type IN ('weekday', 'saturday', 'sunday')),
+    hour         smallint     NOT NULL CHECK (hour BETWEEN 0 AND 23),
+    level        numeric(3,2) NOT NULL CHECK (level >= 0 AND level <= 1),  -- 그룹 내 0~1 정규화 혼잡도
+    source       varchar(50)  NOT NULL,  -- 예: 'stcis-2026-06'
+    updated_at   timestamptz  NOT NULL,
+    PRIMARY KEY (station_name, line_id, direction, day_type, hour)
+);
+
+-- ============================================================
 -- 초기화 후 실행 순서
 -- 1. docker compose down -v && docker compose up -d
 --    (postgres init-script → 스키마 + 시드 적용)

@@ -293,6 +293,91 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
 
 
 // ────────────────────────────────────────────────────────────
+// A1 잔여좌석 칩 · A3 "N정거장 전" 칩 (+ 공유 베타 칩)
+// remain_seat: -1=정보 없음, 0=만차, N=잔여 N석 (백엔드 gbis 파싱 규약).
+// 3401은 광역(express), 5602는 간선(trunk) — busStationConfig 기준.
+// ────────────────────────────────────────────────────────────
+describe('BusPanel — 잔여좌석·정거장 칩 (A1/A3)', () => {
+  function arrivalsWith(extra, routeNo = '3401') {
+    mockUseBusArrivals.mockReturnValue({
+      data: {
+        arrivals: [
+          {
+            route_id: 10,
+            route_no: routeNo,
+            destination: '석수행',
+            category: '등교',
+            arrival_type: 'realtime',
+            depart_at: null,
+            arrive_in_seconds: 600,
+            is_tomorrow: false,
+            crowded: 0,
+            ...extra,
+          },
+        ],
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+  }
+
+  it('광역 노선 remain_seat 11석 이상 → "잔여 N석" 칩 + 베타 칩', () => {
+    arrivalsWith({ remain_seat: 23 })
+    render(<BusPanel />)
+    expect(screen.getByText('잔여 23석')).toBeInTheDocument()
+    expect(screen.getAllByText('베타')).toHaveLength(1)
+  })
+
+  it('광역 노선 remain_seat 0 → "만차" 칩', () => {
+    arrivalsWith({ remain_seat: 0 })
+    render(<BusPanel />)
+    expect(screen.getByText('만차')).toBeInTheDocument()
+  })
+
+  it('remain_seat -1(정보 없음)이면 좌석 칩 대신 기존 혼잡도 칩을 유지한다', () => {
+    arrivalsWith({ remain_seat: -1, crowded: 3 })
+    render(<BusPanel />)
+    expect(screen.queryByText(/잔여 \d+석/)).not.toBeInTheDocument()
+    expect(screen.queryByText('만차')).not.toBeInTheDocument()
+    expect(screen.getByText('혼잡')).toBeInTheDocument()
+    // 좌석·정거장 칩이 없으면 베타 칩도 없다
+    expect(screen.queryByText('베타')).not.toBeInTheDocument()
+  })
+
+  it('비광역 노선(5602)은 remain_seat이 와도 좌석 칩을 그리지 않는다', () => {
+    arrivalsWith({ remain_seat: 8, crowded: 2 }, '5602')
+    render(<BusPanel />)
+    expect(screen.queryByText(/잔여 \d+석/)).not.toBeInTheDocument()
+    expect(screen.getByText('보통')).toBeInTheDocument()
+  })
+
+  it('location_no ≥ 1이면 "N정거장 전" 칩이 보인다', () => {
+    arrivalsWith({ location_no: 4 }, '5602')
+    render(<BusPanel />)
+    expect(screen.getByText('4정거장 전')).toBeInTheDocument()
+    expect(screen.getAllByText('베타')).toHaveLength(1)
+  })
+
+  it('좌석 칩과 정거장 칩이 함께 보여도 베타 칩은 하나만 단다', () => {
+    arrivalsWith({ remain_seat: 15, location_no: 2 })
+    render(<BusPanel />)
+    expect(screen.getByText('잔여 15석')).toBeInTheDocument()
+    expect(screen.getByText('2정거장 전')).toBeInTheDocument()
+    expect(screen.getAllByText('베타')).toHaveLength(1)
+  })
+
+  it('구형 캐시(remain_seat/location_no 키 없음)에서도 칩 없이 정상 렌더된다', () => {
+    arrivalsWith({})
+    render(<BusPanel />)
+    expect(screen.getByText('3401')).toBeInTheDocument()
+    expect(screen.queryByText(/잔여 \d+석/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/정거장 전/)).not.toBeInTheDocument()
+    expect(screen.queryByText('베타')).not.toBeInTheDocument()
+  })
+})
+
+// ────────────────────────────────────────────────────────────
 // 운행 시간대 밖 노선 — 달 + Zzz
 // 자정 직후 프로덕션에서 막차가 끊긴 노선이 "실시간 연결 중 · 잠시 후 다시 확인"
 // 으로 떠 있었다. 오지 않을 차를 기다리게 만드는 화면이라 상태를 먼저 말한다.

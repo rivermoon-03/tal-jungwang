@@ -25,9 +25,9 @@ class HourTemp(BaseModel):
 class WalkFactor(BaseModel):
     """이동 지수가 본 항목 하나. 툴팁이 판정 근거를 그대로 보여주기 위한 재료다."""
 
-    key: str        # temp | rain | dust
-    label: str      # 기온 / 강수확률 / 미세먼지
-    value: str      # "31°" / "0%" / "좋음" / "정보 없음"
+    key: str        # temp | rain | dust | lightning
+    label: str      # 기온 / 강수확률 / 미세먼지 / 낙뢰
+    value: str      # "31°" / "0%" / "좋음" / "감지됨" / "정보 없음"
     decisive: bool = False  # 이 항목이 등급을 결정했는가
 
 
@@ -39,6 +39,8 @@ class WalkIndex(BaseModel):
     reason: str  # 판정 근거 한 줄 (예: "14시 소나기 60%")
     # 항목별 근거. 칩만 보면 "왜 걷기 좋은데?"에 답이 없어서, 탭하면 이걸 펼친다.
     factors: list[WalkFactor] = []
+    # 강수 판정 출처("14:30 발표 초단기예보 기준" 등). 구버전 캐시 응답이면 None.
+    source_label: str | None = None
 
 
 class CurrentWeatherResponse(BaseModel):

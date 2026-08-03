@@ -129,6 +129,12 @@ vi.mock('./SubwayCountdown', () => ({
   default: () => null,
 }))
 
+// 혼잡 차트는 자체 테스트(SubwayCrowdingChart.test.jsx)에서 검증 — 여기선
+// 네트워크(useApi) 격리를 위해 미렌더 상태(데이터 없음)로 고정한다.
+vi.mock('./SubwayCrowdingChart', () => ({
+  default: () => null,
+}))
+
 import GlobalSubwayDetailSheet from './GlobalSubwayDetailSheet'
 
 // ══════════════════════════════════════════════════════════════════════════════

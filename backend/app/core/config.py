@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     TMAP_APP_KEY: str = ""
     DATA_GO_KR_SERVICE_KEY: str = ""
     SEOUL_SUBWAY_KEY: str = ""
+    # ITS(국가교통정보센터)는 data.go.kr 과 키 체계가 다르다 — its.go.kr/opendata 에서
+    # 따로 발급받은 키가 필요하다(2026-08-03 실측: data.go.kr 키로 호출 시 resultCode
+    # 4005 '존재하지 않는 인증키'). 공유 키에 섞으면 기상청·GBIS·에어코리아가 함께
+    # 죽으므로 반드시 별도 변수로 둔다. 비어 있으면 돌발 배너 기능만 조용히 꺼진다.
+    ITS_API_KEY: str = ""
 
     # ── Web Push (VAPID) ─────────────────────────────────────
     # py_vapid CLI로 생성: `pip install py-vapid && vapid --gen`

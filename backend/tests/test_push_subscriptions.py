@@ -8,6 +8,7 @@ import pytest
 from app.services.push_subscriptions import (
     delete_subscription,
     update_favorites,
+    update_preferences,
     upsert_subscription,
 )
 
@@ -88,6 +89,87 @@ async def test_update_favorites_updates_existing():
 
     assert result is existing
     assert existing.favorite_codes == ["shuttle:등교"]
+    db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_upsert_subscription_without_preferences_keeps_existing():
+    """preferences=None 재구독(노선 알림 토글)이 막차 알림 설정을 지우면 안 된다."""
+    existing = MagicMock()
+    existing.preferences = {"last_train": {"enabled": True, "lead_min": 15}}
+    db = _db_returning(existing)
+
+    await upsert_subscription(
+        db, endpoint="https://ep/1", p256dh="p", auth="a", favorite_codes=[]
+    )
+
+    assert existing.preferences == {"last_train": {"enabled": True, "lead_min": 15}}
+
+
+@pytest.mark.asyncio
+async def test_upsert_subscription_merges_preferences_when_given():
+    existing = MagicMock()
+    existing.preferences = {"future_pref": {"x": 1}}
+    db = _db_returning(existing)
+
+    await upsert_subscription(
+        db,
+        endpoint="https://ep/1",
+        p256dh="p",
+        auth="a",
+        favorite_codes=[],
+        preferences={"last_train": {"enabled": True, "lead_min": 30}},
+    )
+
+    # 최상위 키 병합 — 다른 종류의 프리퍼런스는 보존
+    assert existing.preferences == {
+        "future_pref": {"x": 1},
+        "last_train": {"enabled": True, "lead_min": 30},
+    }
+
+
+@pytest.mark.asyncio
+async def test_upsert_subscription_creates_new_with_preferences():
+    db = _db_returning(None)
+
+    await upsert_subscription(
+        db,
+        endpoint="https://ep/1",
+        p256dh="p",
+        auth="a",
+        favorite_codes=[],
+        preferences={"last_train": {"enabled": True, "lead_min": 60}},
+    )
+
+    added = db.add.call_args[0][0]
+    assert added.preferences == {"last_train": {"enabled": True, "lead_min": 60}}
+
+
+@pytest.mark.asyncio
+async def test_update_preferences_returns_none_when_missing():
+    db = _db_returning(None)
+    result = await update_preferences(
+        db, "https://ep/none", {"last_train": {"enabled": True, "lead_min": 30}}
+    )
+    assert result is None
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_update_preferences_merges_top_level_keys():
+    existing = MagicMock()
+    existing.preferences = {"last_train": {"enabled": False, "lead_min": 30}, "other": 1}
+    db = _db_returning(existing)
+
+    result = await update_preferences(
+        db, "https://ep/1", {"last_train": {"enabled": True, "lead_min": 15}}
+    )
+
+    assert result is existing
+    assert existing.preferences == {
+        "last_train": {"enabled": True, "lead_min": 15},
+        "other": 1,
+    }
     db.commit.assert_awaited_once()
 
 

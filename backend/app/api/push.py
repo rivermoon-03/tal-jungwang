@@ -9,12 +9,14 @@ from app.core.limiter import limiter
 from app.schemas.common import ApiResponse
 from app.schemas.push import (
     PushFavoritesUpdateRequest,
+    PushPreferencesUpdateRequest,
     PushSubscribeRequest,
     PushUnsubscribeRequest,
 )
 from app.services.push_subscriptions import (
     delete_subscription,
     update_favorites,
+    update_preferences,
     upsert_subscription,
 )
 
@@ -46,8 +48,16 @@ async def subscribe(
         p256dh=payload.keys.p256dh,
         auth=payload.keys.auth,
         favorite_codes=payload.favorite_codes,
+        # 생략(None)이면 기존 preferences 유지 — 노선 알림 재구독이 막차 설정을 안 지운다.
+        preferences=payload.preferences.model_dump() if payload.preferences else None,
     )
-    return ApiResponse.ok({"endpoint": sub.endpoint, "favorite_codes": sub.favorite_codes})
+    return ApiResponse.ok(
+        {
+            "endpoint": sub.endpoint,
+            "favorite_codes": sub.favorite_codes,
+            "preferences": sub.preferences,
+        }
+    )
 
 
 @router.put("/subscriptions/favorites")
@@ -61,6 +71,20 @@ async def update_subscription_favorites(
     if sub is None:
         raise HTTPException(status_code=404, detail="구독을 찾을 수 없습니다.")
     return ApiResponse.ok({"endpoint": sub.endpoint, "favorite_codes": sub.favorite_codes})
+
+
+@router.put("/subscriptions/preferences")
+@limiter.limit("60/minute")
+async def update_subscription_preferences(
+    request: Request,
+    payload: PushPreferencesUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """구독별 알림 프리퍼런스(막차 알림 등) 갱신. lead_min은 스키마의 Literal(15/30/60)로 검증."""
+    sub = await update_preferences(db, payload.endpoint, payload.preferences.model_dump())
+    if sub is None:
+        raise HTTPException(status_code=404, detail="구독을 찾을 수 없습니다.")
+    return ApiResponse.ok({"endpoint": sub.endpoint, "preferences": sub.preferences})
 
 
 @router.delete("/subscribe")

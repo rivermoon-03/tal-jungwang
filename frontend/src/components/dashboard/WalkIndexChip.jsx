@@ -4,10 +4,11 @@
  * 예전에는 `title` 속성 하나로 근거를 달았는데, 네이티브 툴팁은 **터치에서 뜨지
  * 않는다**. 이 앱은 대부분 폰으로 보므로 "걷기 좋음"의 근거를 사실상 아무도
  * 볼 수 없었다. 그래서 탭하면 열리는 팝오버로 바꾸고, 서버가 준 항목별 근거
- * (기온·강수확률·미세먼지)를 그대로 펼친다 — 판정을 끌어내린 항목에는 표시를 단다.
+ * (기온·강수확률·미세먼지, 낙뢰 감지 시 낙뢰 행)를 그대로 펼친다 — 판정을
+ * 끌어내린 항목에는 표시를 달고, 하단에 판정 출처(발표 회차)를 한 줄 남긴다.
  *
  * Props:
- *   walkIndex {level, label, reason, factors[]}
+ *   walkIndex {level, label, reason, factors[], sourceLabel}
  */
 import { useEffect, useId, useRef, useState } from 'react'
 
@@ -66,7 +67,12 @@ export default function WalkIndexChip({ walkIndex }) {
             {factors.map((f) => (
               <p key={f.key} className="flex items-center gap-1.5 text-caption">
                 <span className="flex-1 min-w-0 truncate text-mute">{f.label}</span>
-                <span className={`tabular-nums font-semibold ${f.decisive ? 'text-imminent' : 'text-ink-2'}`}>
+                {/* 낙뢰 행은 존재 자체가 경고라 decisive 여부와 무관하게 imminent 톤 */}
+                <span
+                  className={`tabular-nums font-semibold ${
+                    f.decisive || f.key === 'lightning' ? 'text-imminent' : 'text-ink-2'
+                  }`}
+                >
                   {f.value}
                 </span>
                 {f.decisive && (
@@ -77,6 +83,12 @@ export default function WalkIndexChip({ walkIndex }) {
               </p>
             ))}
           </div>
+          {walkIndex.sourceLabel && (
+            // 판정 출처(발표 회차). 초단기예보로 판정했는지, 단기예보로 저하됐는지 드러낸다.
+            <p className="mt-2 border-t border-line pt-2 text-micro text-mute">
+              {walkIndex.sourceLabel}
+            </p>
+          )}
         </div>
       )}
     </span>
