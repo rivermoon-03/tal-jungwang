@@ -20,15 +20,15 @@ export const ROUTE_COLOR_MAP = {
   '수인분당': '#F5A623',
   '4호선':  '#1B5FAD',
   '서해선': '#75bf43',
-  '셔틀':   '#12a594',
+  '셔틀':   '#5b3aa8',
   '지하철': '#F5A623',
   'bus':    '#2563EB',
   'subway': '#F5A623',
-  'shuttle':'#12a594',
+  'shuttle':'#5b3aa8',
 }
 
-/** 기본 fallback 색 */
-const DEFAULT_COLOR = '#2563EB'
+/** 기본 fallback 색 — MarkerSheet 도 같은 값을 쓴다 */
+export const DEFAULT_COLOR = '#2563EB'
 
 export function resolveColor(routeCode, routeColor) {
   if (routeColor) return routeColor

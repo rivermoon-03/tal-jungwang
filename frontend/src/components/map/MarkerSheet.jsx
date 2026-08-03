@@ -22,7 +22,7 @@
 import { useState } from 'react'
 import { Drawer } from 'vaul'
 import { MapPin, Star, StarOff, X, Navigation, Info, ChevronRight } from 'lucide-react'
-import { ROUTE_COLOR_MAP } from './MarkerChip'
+import { DEFAULT_COLOR, ROUTE_COLOR_MAP } from './MarkerChip'
 import useAppStore from '../../stores/useAppStore'
 import RouteSpine from './RouteSpine'
 import { staggerStyle } from '../../utils/motion'
@@ -36,7 +36,7 @@ const STATUS_DOT = {
 
 function resolveColor(routeCode, routeColor) {
   if (routeColor) return routeColor
-  return ROUTE_COLOR_MAP[routeCode] ?? '#1b3a6e'
+  return ROUTE_COLOR_MAP[routeCode] ?? DEFAULT_COLOR
 }
 
 function groupArrivalsByRoute(arrivals) {
