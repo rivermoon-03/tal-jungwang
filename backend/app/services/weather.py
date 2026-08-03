@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.core.cache import get_cached_json, set_cached_json
+from app.core.cache import get_cached_json, get_or_fetch_with_lock, get_redis, set_cached_json
 from app.schemas.weather import (
     CurrentWeatherResponse,
     ForecastItem,
@@ -26,6 +26,10 @@ CACHE_TTL_LIVE = 3600      # 1시간 — 초단기실황, 사용자 요구에 �
 # 외부 API 장애로 실황이 비어버린 응답(기온 null)을 1시간 굳히면 그동안 히어로에
 # 기온이 통째로 사라진다(2026-08 실제 장애). 저하 응답은 짧게만 캐시해 자가회복시킨다.
 CACHE_TTL_LIVE_DEGRADED = 120
+# 실황 수집 실패 사유. Railway 로그를 밖에서 읽을 수 없어 /health 로 내보낸다 —
+# "기온이 또 안 나온다"를 추측이 아니라 사유로 답하기 위한 장치다.
+CACHE_KEY_LIVE_ERROR = "weather:live:error"
+CACHE_TTL_LIVE_ERROR = 6 * 3600
 CACHE_TTL_FORECAST = 10800  # 3시간 — 단기예보 발표 주기(02·05·08·11·14·17·20·23시)와 동기화
 
 # 기상청 SKY 코드 → 문자열/아이콘 매핑
@@ -287,24 +291,42 @@ def compute_walk_index(rain_prob: int, temp: int | None, pm_grade: str | None) -
     활용신청 전에도 지수는 뜬다.
     """
     t = temp if temp is not None else 20
+    # decisive: 등급을 실제로 끌어내린 항목. 어느 것도 아니면 None(= 다 괜찮다).
     if pm_grade == "매우나쁨" or t <= -10 or t >= 35:
-        reason = f"미세먼지 {pm_grade}" if pm_grade == "매우나쁨" else f"기온 {t}°"
+        decisive = "dust" if pm_grade == "매우나쁨" else "temp"
+        reason = f"미세먼지 {pm_grade}" if decisive == "dust" else f"기온 {t}°"
         level = "indoor"
     elif rain_prob >= 60 or pm_grade == "나쁨" or t <= -5 or t >= 33:
         if rain_prob >= 60:
-            reason = f"강수확률 {rain_prob}%"
+            decisive, reason = "rain", f"강수확률 {rain_prob}%"
         elif pm_grade == "나쁨":
-            reason = f"미세먼지 {pm_grade}"
+            decisive, reason = "dust", f"미세먼지 {pm_grade}"
         else:
-            reason = f"기온 {t}°"
+            decisive, reason = "temp", f"기온 {t}°"
         level = "transit"
     elif rain_prob >= 30 or t >= 30 or t <= 0:
-        reason = f"강수확률 {rain_prob}%" if rain_prob >= 30 else f"기온 {t}°"
+        if rain_prob >= 30:
+            decisive, reason = "rain", f"강수확률 {rain_prob}%"
+        else:
+            decisive, reason = "temp", f"기온 {t}°"
         level = "ok"
     else:
-        reason = "지금 날씨가 걷기에 좋아요"
+        decisive, reason = None, "지금 날씨가 걷기에 좋아요"
         level = "good"
-    return {"level": level, "label": _WALK_LABEL[level], "reason": reason}
+
+    # 기온이 없을 때 20°로 가정하고 판정하므로, 그 사실을 값에 드러낸다 —
+    # 툴팁이 "기온 20°"라고 단정하면 관측 실패를 사실처럼 보여주게 된다.
+    factors = [
+        {"key": "temp", "label": "기온",
+         "value": f"{temp}°" if temp is not None else "정보 없음",
+         "decisive": decisive == "temp"},
+        {"key": "rain", "label": "강수확률", "value": f"{rain_prob}%",
+         "decisive": decisive == "rain"},
+        {"key": "dust", "label": "미세먼지",
+         "value": pm_grade if pm_grade and pm_grade != "알수없음" else "정보 없음",
+         "decisive": decisive == "dust"},
+    ]
+    return {"level": level, "label": _WALK_LABEL[level], "reason": reason, "factors": factors}
 
 
 async def _get_air_quality_cached() -> dict | None:
@@ -333,6 +355,17 @@ def _apply_air(result: CurrentWeatherResponse, air: dict | None) -> CurrentWeath
     return result
 
 
+async def record_live_error() -> None:
+    """직전 기상청 호출이 왜 비었는지 남긴다(/health 의 weather_error)."""
+    from app.services.external import kma as _kma
+
+    await set_cached_json(
+        CACHE_KEY_LIVE_ERROR,
+        {"reason": _kma.LAST_ERROR or "사유 미상", "at": datetime.now(_KST).isoformat()},
+        CACHE_TTL_LIVE_ERROR,
+    )
+
+
 async def store_live_cache(result: CurrentWeatherResponse) -> None:
     """실황 캐시 기록 — 저하 응답(기온 없음)을 정상 TTL로 굳히지 않는다.
 
@@ -343,7 +376,14 @@ async def store_live_cache(result: CurrentWeatherResponse) -> None:
     """
     if result.current_temp is not None:
         await set_cached_json(CACHE_KEY_LIVE, result.model_dump(), CACHE_TTL_LIVE)
+        try:
+            redis = await get_redis()
+            await redis.delete(CACHE_KEY_LIVE_ERROR)
+        except Exception:
+            pass
         return
+
+    await record_live_error()
 
     existing = await get_cached_json(CACHE_KEY_LIVE)
     if existing and existing.get("current_temp") is not None:
@@ -354,25 +394,29 @@ async def store_live_cache(result: CurrentWeatherResponse) -> None:
 
 
 async def get_current_weather() -> CurrentWeatherResponse:
-    """현재 날씨 조회 (Redis 캐시 우선, 미스 시 기상청 API) + 미세먼지·이동 지수."""
-    cached = await get_cached_json(CACHE_KEY_LIVE)
-    if cached:
-        try:
-            base = CurrentWeatherResponse.model_validate(cached)
-            return _apply_air(base, await _get_air_quality_cached())
-        except Exception:
-            pass
+    """현재 날씨 조회 (Redis 캐시 우선, 미스 시 기상청 API) + 미세먼지·이동 지수.
 
-    ncst_items = await fetch_ultra_srt_ncst()
-    fcst_items = await fetch_village_fcst(hours=12)
+    캐시 미스는 single-flight 로 묶는다. 예전에는 평범한 cache-aside 라, 실황이
+    비어 저하 캐시(120초)가 깔리면 사용자 수만큼 기상청을 두 번씩(실황+예보)
+    두드렸다 — 외부가 흔들릴 때 호출량이 오히려 폭증해 회복을 늦추는 구조였다.
+    """
 
-    now = datetime.now(_KST)
-    ncst = _ncst_map(ncst_items)
-    fcst = _fcst_map(fcst_items)
+    async def _fetch() -> dict:
+        ncst_items = await fetch_ultra_srt_ncst()
+        fcst_items = await fetch_village_fcst(hours=12)
+        now = datetime.now(_KST)
+        result = _build_current(_ncst_map(ncst_items), _fcst_map(fcst_items), now)
+        if result.current_temp is None:
+            await record_live_error()
+        return result.model_dump()
 
-    result = _build_current(ncst, fcst, now)
-    await store_live_cache(result)
-    return _apply_air(result, await _get_air_quality_cached())
+    def _ttl(payload: dict) -> int:
+        # 기온이 없으면 저하 응답 — 1시간짜리로 굳히지 않고 짧게만 둔다.
+        return CACHE_TTL_LIVE if payload.get("current_temp") is not None else CACHE_TTL_LIVE_DEGRADED
+
+    payload = await get_or_fetch_with_lock(CACHE_KEY_LIVE, _ttl, _fetch)
+    base = CurrentWeatherResponse.model_validate(payload)
+    return _apply_air(base, await _get_air_quality_cached())
 
 
 async def get_forecast(hours: int = 12) -> ForecastResponse:
@@ -395,7 +439,7 @@ async def get_forecast(hours: int = 12) -> ForecastResponse:
     return ForecastResponse(items=result.items[:hours])
 
 
-async def refresh_weather_live_cache() -> None:
+async def refresh_weather_live_cache() -> bool:
     """APScheduler에서 매시간 호출 — 초단기실황(weather:live) 캐시만 갱신.
 
     현재 기온/체감/실황 상태를 1시간 주기로 갱신한다.
@@ -432,8 +476,13 @@ async def refresh_weather_live_cache() -> None:
         result = _build_current(ncst, fcst, now)
         await store_live_cache(result)
         logger.info("초단기실황 캐시 갱신 완료 (temp=%s°)", result.current_temp)
+        # 기온이 없으면 수집이 실패한 것이다. 예전에는 여기서도 "성공"으로 쳐서
+        # /health 의 freshness 가 멀쩡해 보였고, 기온이 며칠 비어 있어도 아무도
+        # 몰랐다. 관측치가 실제로 들어왔을 때만 성공으로 돌려준다.
+        return result.current_temp is not None
     except Exception:
         logger.exception("초단기실황 캐시 갱신 실패")
+        return False
 
 
 async def refresh_weather_forecast_cache() -> None:

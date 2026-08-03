@@ -37,8 +37,10 @@ async def _weather_live_refresh_job():
     from app.services.weather import refresh_weather_live_cache
 
     try:
-        await refresh_weather_live_cache()
-        await mark_fresh("weather")
+        # 관측치가 실제로 들어왔을 때만 신선도를 갱신한다 — 실패해도 갱신하면
+        # /health 가 "정상"으로 보여 기온 누락을 놓친다.
+        if await refresh_weather_live_cache():
+            await mark_fresh("weather")
     except Exception:
         logger.exception("초단기실황 캐시 갱신 실패")
 
