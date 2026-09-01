@@ -1,6 +1,8 @@
 # 로컬 어드민 (커밋 제외)
 manage/
 key.txt
+.*.kate-swp
+*.kate-swp
 
 # Git worktrees
 .worktrees/

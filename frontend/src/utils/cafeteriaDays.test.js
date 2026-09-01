@@ -281,3 +281,52 @@ describe('isMenuWeekStale — 지난주 식단 판정', () => {
     expect(isMenuWeekStale('7.27', 2026, [])).toBe(false)
   })
 })
+
+describe('월 경계 주차 (8/31~9/5) — 실제 날짜 기준 처리', () => {
+  // 2026-08-31(월) ~ 2026-09-05(토). by_day 키는 day-of-month라 숫자순으로
+  // 정렬하면 '31'이 맨 뒤로 밀리고, 9월 키들의 요일도 8월로 계산돼 어긋난다.
+  const weekStart = '8.31'
+  const year = 2026
+  const dayKeys = ['31', '1', '2', '3', '4', '5']
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-01T09:00:00+09:00'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('요일 라벨이 실제 날짜 기준으로 매겨진다', () => {
+    const map = buildDayLabelMap(weekStart, year, dayKeys)
+    expect(map['31']).toBe('31일(월)')
+    expect(map['1']).toBe('1일(화)')
+    expect(map['2']).toBe('2일(수)')
+    expect(map['3']).toBe('3일(목)')
+    expect(map['4']).toBe('4일(금)')
+    expect(map['5']).toBe('5일(토)')
+  })
+
+  it('9/1이 오늘로 잡힌다', () => {
+    expect(getTodayDayKey(weekStart, year, dayKeys)).toBe('1')
+  })
+
+  it('키 정렬이 31 → 1 → 2 순서가 된다', () => {
+    const cafeteria = {
+      meals: [{ type: '중식', by_day: { 31: [], 1: [], 2: [], 3: [], 4: [], 5: [] } }],
+    }
+    expect(extractDayKeys(cafeteria, weekStart, year)).toEqual(['31', '1', '2', '3', '4', '5'])
+    expect(getFirstDayKey(dayKeys, weekStart, year)).toBe('31')
+  })
+
+  it('주차 안이므로 stale이 아니다', () => {
+    expect(isMenuWeekStale(weekStart, year, dayKeys)).toBe(false)
+  })
+
+  it('오늘 메뉴가 없으면 다음 메뉴 있는 날(2일)로 폴백한다', () => {
+    const cafeteria = {
+      meals: [{ type: '중식', by_day: { 31: ['칼국수'], 1: [], 2: ['스팸마요덮밥'], 3: [], 4: [], 5: [] } }],
+    }
+    expect(getNearestMenuDayKey(weekStart, year, dayKeys, cafeteria)).toBe('2')
+  })
+})

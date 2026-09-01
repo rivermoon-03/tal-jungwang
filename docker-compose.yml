@@ -8,6 +8,8 @@ services:
       # 여름방학 셔틀 시드 — schema.sql 기본 시드에 없는 방학 기간을 로컬에도 동일 반영
       # (idempotent 마이그레이션이라 초기화 시 그대로 실행해도 안전)
       - ./scripts/prod_migration_20260802_summer_vacation_shuttle.sql:/docker-entrypoint-initdb.d/02_summer_vacation_shuttle.sql
+      # 2학기 셔틀 시드 - 9/1 개강 이후 운행 기간이 비면 시간표가 통째로 안 뜬다
+      - ./scripts/prod_migration_20260901_fall_semester_shuttle.sql:/docker-entrypoint-initdb.d/03_fall_semester_shuttle.sql
     ports:
       - "127.0.0.1:5432:5432"   # 로컬 전용
     healthcheck:

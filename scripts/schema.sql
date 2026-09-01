@@ -3351,7 +3351,7 @@ SELECT pg_catalog.setval('map_marker_routes_id_seq', 14, true);
 -- Name: map_markers_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('map_markers_id_seq', 12, true);
+SELECT pg_catalog.setval('map_markers_id_seq', 15, true);
 
 
 --
@@ -3372,21 +3372,21 @@ SELECT pg_catalog.setval('schedule_periods_id_seq', 1, true);
 -- Name: shuttle_routes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('shuttle_routes_id_seq', 6, true);
+SELECT pg_catalog.setval('shuttle_routes_id_seq', 8, true);
 
 
 --
 -- Name: shuttle_timetable_entries_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('shuttle_timetable_entries_id_seq', 121, true);
+SELECT pg_catalog.setval('shuttle_timetable_entries_id_seq', 157, true);
 
 
 --
 -- Name: subway_timetable_entries_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('subway_timetable_entries_id_seq', 2141, true);
+SELECT pg_catalog.setval('subway_timetable_entries_id_seq', 3029, true);
 
 
 --

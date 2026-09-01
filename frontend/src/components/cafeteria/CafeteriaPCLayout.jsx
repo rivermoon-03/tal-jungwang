@@ -107,7 +107,10 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
 
   const cafeteriaForDays = data?.cafeterias?.[selectedVenueIdx] ?? null
 
-  const dayKeys = useMemo(() => extractDayKeys(cafeteriaForDays), [cafeteriaForDays])
+  const dayKeys = useMemo(
+    () => extractDayKeys(cafeteriaForDays, data?.week_start, data?.year),
+    [cafeteriaForDays, data?.week_start, data?.year]
+  )
 
   const dayLabelMap = useMemo(
     () => buildDayLabelMap(data?.week_start, data?.year, dayKeys),
@@ -121,7 +124,7 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
     if (today && hasDayMenu(cafeteriaForDays, today)) return today
     const nearest = getNearestMenuDayKey(data?.week_start, data?.year, dayKeys, cafeteriaForDays)
     if (nearest) return nearest
-    return getFirstDayKey(dayKeys)
+    return getFirstDayKey(dayKeys, data?.week_start, data?.year)
   }, [selectedDay, dayKeys, data?.week_start, data?.year, cafeteriaForDays])
 
   const cafeteria = data?.cafeterias?.[selectedVenueIdx] ?? null

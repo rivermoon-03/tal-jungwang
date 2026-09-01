@@ -55,8 +55,8 @@ export default function FacilitiesPage() {
   const cafeteriaForDays = data?.cafeterias?.[selectedCafeteriaIdx] ?? null
 
   const dayKeys = useMemo(
-    () => extractDayKeys(cafeteriaForDays),
-    [cafeteriaForDays]
+    () => extractDayKeys(cafeteriaForDays, data?.week_start, data?.year),
+    [cafeteriaForDays, data?.week_start, data?.year]
   )
 
   // 요일 라벨 맵 구성
@@ -75,7 +75,7 @@ export default function FacilitiesPage() {
     const nearest = getNearestMenuDayKey(data?.week_start, data?.year, dayKeys, cafeteriaForDays)
     if (nearest) return nearest
     // 메뉴 있는 날이 하나도 없으면 첫 번째 날 표시 (미운영 안내라도 보여줌)
-    return getFirstDayKey(dayKeys)
+    return getFirstDayKey(dayKeys, data?.week_start, data?.year)
   }, [selectedDay, dayKeys, data?.week_start, data?.year, cafeteriaForDays])
 
   const cafeteria = data?.cafeterias?.[selectedCafeteriaIdx] ?? null

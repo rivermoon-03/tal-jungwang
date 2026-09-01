@@ -102,7 +102,7 @@ export function findExamEvent(events, now = new Date()) {
 export function summarizeTodayMenu(data) {
   const cafeteria = data?.cafeterias?.[0]
   if (!cafeteria?.meals?.length) return null
-  const dayKeys = extractDayKeys(cafeteria)
+  const dayKeys = extractDayKeys(cafeteria, data?.week_start, data?.year)
   if (isMenuWeekStale(data?.week_start, data?.year, dayKeys)) return null
   const todayKey = getTodayDayKey(data?.week_start, data?.year, dayKeys)
   if (!todayKey) return null

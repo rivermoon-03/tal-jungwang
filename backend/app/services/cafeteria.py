@@ -35,7 +35,10 @@ _BOOKCODE_RE = re.compile(r"bookcode\s*=\s*['\"]([A-Z0-9]+)['\"]")
 _FILE_URL_RE = re.compile(r'file_url="([^"]+\.xlsx?[^"]*)"')
 _FILE_NAME_RE = re.compile(r'<file\s+name="([^"]+)"')
 
-_DATE_HEADER_RE = re.compile(r"^(\d{1,2})일")
+# 날짜 헤더는 보통 "31일"이지만, 주가 달을 넘기면 그 첫 칸만 "9/1일"처럼
+# 월을 앞에 붙여 온다(2026-08-31 주차 실측). 월 표기를 옵션으로 받지 않으면
+# 그 칸이 통째로 누락돼 해당 요일 식단이 사라진다.
+_DATE_HEADER_RE = re.compile(r"^(?:(\d{1,2})\s*[/.]\s*)?(\d{1,2})\s*일")
 _MEAL_HEADER_RE = re.compile(r"^(천원의\s*아침밥|중식|석식|조식|간식)")
 _TIME_RE = re.compile(r"(\d{1,2}:\d{2})\s*[\n~\-]+\s*(\d{1,2}:\d{2})")
 _TITLE_TIP_RE = re.compile(r"TIP\s*학생식당")
@@ -101,7 +104,7 @@ def _find_date_columns(ws, row: int) -> list[tuple[int, str]]:
         text = _clean(ws.cell(row=row, column=c).value)
         m = _DATE_HEADER_RE.match(text)
         if m:
-            cols.append((c, m.group(1)))
+            cols.append((c, m.group(2)))
     return cols
 
 
@@ -183,6 +186,24 @@ def _parse_xlsx(content: bytes) -> dict:
     return {"week_start": week_start, "cafeterias": cafeterias}
 
 
+def _resolve_week_year(week_start: str, now: datetime) -> int:
+    """시트명(M.D)과 현재 KST 시각으로 그 주차의 연도를 정한다.
+
+    보통은 받은 시점의 연도가 곧 주차의 연도지만, 12월 말에 시작하는 주차를
+    해가 바뀐 뒤 받으면(또는 1월 첫 주차를 12월 말에 미리 받으면) 한 해가
+    어긋난다. 프런트가 이 연도로 요일을 계산하므로 여기서 보정한다.
+    """
+    try:
+        month = int(str(week_start).split(".")[0])
+    except (TypeError, ValueError):
+        return now.year
+    if month == 12 and now.month == 1:
+        return now.year - 1
+    if month == 1 and now.month == 12:
+        return now.year + 1
+    return now.year
+
+
 # ── 공개 API ────────────────────────────────────────────────────────────────
 
 async def get_menu(force_refresh: bool = False) -> dict | None:
@@ -206,7 +227,7 @@ async def get_menu(force_refresh: bool = False) -> dict | None:
     now = datetime.now(KST)
     result = {
         **parsed,
-        "year": now.year,
+        "year": _resolve_week_year(parsed.get("week_start", ""), now),
         "source_file": file_name,
         "fetched_at": now.isoformat(),
     }
