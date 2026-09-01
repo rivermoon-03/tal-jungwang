@@ -141,6 +141,9 @@ async def invalidate_shuttle_cache() -> int:
     새로 추가된 기간을 가리지 않도록 정리한다.
     """
     cleared = await delete_keys("shuttle:period:*")
+    # 'shuttle:period:*' 는 복수형 키(shuttle:periods:<date>)에 걸리지 않는다 -
+    # 빠뜨리면 마이그레이션 후 재배포해도 기간 전환 칩이 최대 1시간 옛 목록을 든다.
+    cleared += await delete_keys("shuttle:periods:*")
     cleared += await delete_keys("shuttle:entries:*")
     return cleared
 

@@ -130,3 +130,19 @@ def test_방학_마이그레이션_SQL_핵심_불변식():
         "CHECK (variant IN ('seasonal', 'reduced', 'normal'))",
     ]:
         assert token in sql, f"누락: {token}"
+
+
+@pytest.mark.asyncio
+async def test_캐시_무효화가_기간_목록_키까지_지운다():
+    """'shuttle:period:*' 패턴은 복수형 키(shuttle:periods:<date>)를 못 잡는다.
+
+    마이그레이션으로 새 학기 기간을 넣고 재배포해도 기간 전환 칩이 옛 목록을
+    최대 1시간 들고 있던 원인 - 무효화 패턴에 복수형을 따로 넣어야 한다.
+    """
+    with patch.object(shuttle_service, "delete_keys", new=AsyncMock(return_value=1)) as mock:
+        cleared = await shuttle_service.invalidate_shuttle_cache()
+
+    patterns = [c.args[0] for c in mock.call_args_list]
+    assert "shuttle:periods:*" in patterns
+    assert {"shuttle:period:*", "shuttle:entries:*"} <= set(patterns)
+    assert cleared == len(patterns)
