@@ -294,6 +294,92 @@ describe('ScheduleDetailModal — 버스 운행 종료 안내', () => {
   })
 })
 
+// 버스 리스트 뷰가 옛 평평한 PastRow/TimeRow 대신 셔틀·지하철 상세와 같은
+// 시(hour) 그룹 + "지금" 앵커 규격(HourGroupTimetable)을 쓰는지 검증한다.
+describe('ScheduleDetailModal — 버스 리스트 뷰는 시(hour) 그룹 + 지금 앵커 규격', () => {
+  afterEach(() => {
+    busTimetable.mockReturnValue({ data: null, loading: false, error: null })
+  })
+
+  it('시각을 시(hour) 단위로 묶어 헤더를 보여주고, 지난 시각과 다음 차 사이에 지금 앵커를 끼운다', () => {
+    // 시스템 시각 08:15(beforeEach) — 07:30·08:00은 지남, 08:30이 다음 차.
+    busTimetable.mockReturnValue({
+      data: {
+        schedule_type: 'weekday',
+        times: ['07:30', '08:00', '08:30', '09:15'],
+        origin_stop_name: '강남역',
+      },
+      loading: false,
+      error: null,
+    })
+    render(
+      <ScheduleDetailModal open onClose={() => {}} type="bus" routeCode="20-1" title="20-1" />
+    )
+
+    // 시(hour) 헤더 — timetableGroups.js 관례대로 앞자리 0을 유지한다.
+    expect(screen.getByText('07시')).toBeInTheDocument()
+    expect(screen.getByText('08시')).toBeInTheDocument()
+    expect(screen.getByText('09시')).toBeInTheDocument()
+
+    // "지금" 앵커 — anchorLabel(eta.js 위임)이 만든 문구 그대로.
+    const anchor = document.querySelector('[data-testid="now-anchor-line"]')
+    expect(anchor).toBeInTheDocument()
+    expect(anchor).toHaveTextContent('지금 08:15 · 다음 15분')
+
+    // 다음 차(08:30)는 앵커 뒤(같은 08시 그룹 안, 08:00 다음)에 온다 — 결함 4 재발 방지.
+    // PC 경로는 createPortal로 document.body에 붙으므로 render()의 container가 아니라
+    // document 전체에서 순서를 본다.
+    const html = document.body.innerHTML
+    expect(html.indexOf('now-anchor-line')).toBeLessThan(html.indexOf('08:30'))
+    expect(html.indexOf('08:00')).toBeLessThan(html.indexOf('now-anchor-line'))
+  })
+
+  it('승차 위치를 origin_stop_name으로 보여준다(stopId가 없는 단독 호출)', () => {
+    busTimetable.mockReturnValue({
+      data: { schedule_type: 'weekday', times: ['09:15'], origin_stop_name: '강남역' },
+      loading: false,
+      error: null,
+    })
+    render(
+      <ScheduleDetailModal open onClose={() => {}} type="bus" routeCode="20-1" title="20-1" />
+    )
+    expect(screen.getByText('강남역 승차')).toBeInTheDocument()
+  })
+
+  it('commute-context source 헤더가 이미 정류장명을 보여주면 승차 위치 줄을 중복 렌더하지 않는다', () => {
+    busTimetable.mockReturnValue({
+      data: { schedule_type: 'weekday', times: ['09:15'], origin_stop_name: '강남역' },
+      loading: false,
+      error: null,
+    })
+    const commuteContext = {
+      route_number: '99-2',
+      group_key: 'to-wolgot',
+      origin_label: '강남역',
+      destination_label: '학교',
+      journey_labels: ['강남역', '학교'],
+      sources: [
+        { id: 1, type: 'timetable', role: 'boarding_arrival', stop_id: 17, display_label: '강남역 승차', station_label: '강남역' },
+      ],
+    }
+    render(
+      <ScheduleDetailModal
+        open
+        onClose={() => {}}
+        type="bus"
+        routeCode="99-2"
+        routeId={15}
+        category="하교"
+        commuteGroup="to-wolgot"
+        commuteContext={commuteContext}
+        title="99-2 · 학교 방면"
+      />
+    )
+    // source 헤더(h3)의 "강남역 승차" 한 번만 있어야 한다 — BusContent가 같은 문구를 또 그리면 안 된다.
+    expect(screen.getAllByText('강남역 승차')).toHaveLength(1)
+  })
+})
+
 // 모바일 경로가 vaul(Drawer)에서 ui/Sheet로 이관됐다 — 예전엔 이 경로를 테스트하려면
 // ResizeObserver 등 별도 jsdom 폴리필이 필요해 PC 경로만 테스트했다(파일 머리말
 // 참고). Sheet는 그런 요구가 없어 모바일 경로도 그대로 검증할 수 있다.

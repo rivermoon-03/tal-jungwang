@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { Home, Clock, UtensilsCrossed, Store, Megaphone } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Home, Clock, Building2, Megaphone, MoreHorizontal } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
+import usePathname from '../../hooks/usePathname'
 import DockQuickAccess from './DockQuickAccess'
 
 // 독이 화면 하단에서 실제로 가리는 높이(결함 #7 · #8). bottom-[14px] 오프셋 +
@@ -13,66 +14,57 @@ export const DOCK_RESERVED_PX = 76
 // 모바일 floating dock. 아이콘 + 12px 라벨(아이콘 아래).
 // 활성 = accent, 비활성 = white/60.
 // 위치: bottom 14px / left 14px / right 14px. radius 22px.
-// 5탭: 홈/시간표/학식/매장/공지.
-// 시간표·학식은 학생이 가장 자주 여는 두 화면인데 한 단계 안쪽(홈 뷰 전환, 학교시설
-// 서브탭)에 묻혀 있었다 — 각각 1탭씩으로 끌어올린다. 그 대신 더보기는 독에서 뺀다
-// (도달 경로는 HomeWeatherHero.jsx의 "히어로 옵션" 아이콘 그룹으로 옮김 — 그쪽
-// goToMore 주석 참고).
+// 5탭: 홈/시간표/학교시설/공지/더보기.
+// 예전엔 학식·매장이 같은 /facilities 페이지의 서로 다른 탭인데도 독 칸을 두 개
+// 나눠 썼다(사용자 요구: "홈 시간표 학식/매장 공지 더보기 이렇게 5개로 개편해" →
+// 검토 결과 학식과 매장을 한 칸으로 합치는 쪽으로 정리). 합친 탭 라벨은
+// "학식/매장"이 아니라 "학교시설"을 쓴다 — 이 페이지는 학식·매장 외에 도서관
+// 탭도 갖고 있어 "학식/매장"이라 부르면 도서관이 라벨 밖으로 빠지고, PC
+// 사이드바(pcNavTabs.js PC_TABS)와 페이지 제목(PageHeader)이 이미 "학교시설"을
+// 쓰고 있어 같은 화면을 독만 다른 이름으로 부르는 일을 피할 수 있다. 진입 탭은
+// FacilitiesPage의 기본 탭(매장)을 그대로 따르도록 쿼리 없이 /facilities로 연다.
+// 더보기는 독으로 되돌아왔다 — 예전엔 히어로 상단 아이콘 줄로 옮겼었지만, 학식·
+// 매장이 합쳐지며 독에 빈 칸이 생겨 그 자리를 다시 채운다(히어로 쪽 중복 버튼은
+// 뺐다 — HomeWeatherHero.jsx 참고).
 // 홈 탭 롱프레스(500ms) → 즐겨찾기 팝오버(기존 동작 유지).
 // 결함 #31: 라벨 없이 아이콘만으로는 초행 사용자가 탭 의미를 알기 어려웠다
 // — 아이콘 아래 12px 라벨을 추가하되 터치 타깃(44px)은 그대로 유지한다.
 
 const TABS = [
-  { id: 'home',     Icon: Home,            href: '/',                       label: '홈'   },
-  { id: 'schedule', Icon: Clock,           href: '/schedule',               label: '시간표' },
-  { id: 'diet',     Icon: UtensilsCrossed, href: '/facilities?tab=diet',    label: '학식' },
-  { id: 'venues',   Icon: Store,           href: '/facilities?tab=venues',  label: '매장' },
-  { id: 'notices',  Icon: Megaphone,       href: '/notices',                label: '공지' },
+  { id: 'home',        Icon: Home,          href: '/',           label: '홈'     },
+  { id: 'schedule',    Icon: Clock,         href: '/schedule',   label: '시간표' },
+  { id: 'facilities',  Icon: Building2,     href: '/facilities', label: '학교시설' },
+  { id: 'notices',     Icon: Megaphone,     href: '/notices',    label: '공지'   },
+  { id: 'more',        Icon: MoreHorizontal, href: '/more',      label: '더보기' },
 ]
 
 /**
- * pathname + search 로 활성 탭을 가른다. 학식/매장은 같은 경로(/facilities)를
- * ?tab= 값으로만 구분하므로 pathname만 보면 두 탭이 동시에 활성으로 보인다
- * (요구사항: "/facilities?tab=venues 에서 매장만 활성이어야지 학식까지 활성이면 안 된다").
+ * pathname으로 활성 탭을 가른다. 학식/매장/도서관은 모두 같은 /facilities
+ * 페이지의 하위 탭이라(?tab=으로만 구분) 독에서는 더 이상 서로 다른 탭으로
+ * 나누지 않는다 — /facilities 경로 전체가 "학교시설" 한 탭이라, 쿼리를 볼
+ * 필요가 없어졌다(예전엔 학식/매장을 가르려고 search까지 함께 추적했다).
  *
- * 결함 #12 — 매칭 실패 시 무조건 'home'을 반환하던 폴백을 제거했다. /more,
- * /favorites, /settings 등 다섯 탭 어디에도 속하지 않는 화면에서도 독이 "홈"을
- * 활성으로 칠하고 aria-current="page"까지 붙여, 사용자가 실제로는 홈이 아닌
- * 화면에서 홈 탭이 눌린 것처럼 보였다. 홈은 실제 홈 경로(정확히 '/')일 때만
- * 활성이고, 그 외 다섯 탭에 안 속하는 경로는 아무 탭도 활성이 아니어야 한다.
+ * 결함 #12 — 매칭 실패 시 무조건 'home'을 반환하던 폴백을 제거했다. /more가
+ * 이제 독의 다섯 번째 탭이 됐으므로 그 경로는 명시적으로 'more'를 반환하고,
+ * 그 외 다섯 탭 어디에도 속하지 않는 화면(/favorites, /settings 등)은
+ * 여전히 아무 탭도 활성이 아니다. 홈은 실제 홈 경로(정확히 '/')일 때만 활성이다.
  */
-function getActiveId(pathname, search) {
+function getActiveId(pathname) {
   if (pathname.startsWith('/schedule')) return 'schedule'
   if (pathname.startsWith('/notices'))  return 'notices'
-  // /cafeteria/:id 는 매장 상세 페이지다 — 매장 탭의 연장으로 본다.
-  if (pathname.startsWith('/cafeteria/')) return 'venues'
-  // /facilities 와 그 옛 주소 /cafeteria(슬래시 없음, 북마크·위젯 딥링크)는
-  // ?tab= 으로만 학식/매장을 가른다. FacilitiesPage의 기본 탭이 매장이라
-  // 쿼리가 없을 때도 매장에 맞춘다(페이지 실제 초기 화면과 독의 활성 표시를 맞춤).
-  if (pathname.startsWith('/facilities') || pathname === '/cafeteria') {
-    return new URLSearchParams(search).get('tab') === 'diet' ? 'diet' : 'venues'
+  if (pathname.startsWith('/more'))     return 'more'
+  // /facilities(학식·매장·도서관 서브탭 전부)와 그 옛 주소 /cafeteria(탭
+  // 페이지·상세 페이지 모두, 북마크·위젯 딥링크)는 전부 학교시설 한 탭이다.
+  if (pathname.startsWith('/facilities') || pathname.startsWith('/cafeteria')) {
+    return 'facilities'
   }
   if (pathname === '/') return 'home'
   return null
 }
 
-function currentLocation() {
-  if (typeof window === 'undefined') return { pathname: '/', search: '' }
-  return { pathname: window.location.pathname, search: window.location.search }
-}
-
 export default function FloatingDock() {
-  // usePathname은 pathname만 추적해 쿼리만 바뀌는 학식↔매장 전환에는 반응하지
-  // 않는다(같은 /facilities라 pathname 값이 그대로다) — pathname+search를 함께
-  // 들고 popstate마다 갱신한다.
-  const [location, setLocation] = useState(currentLocation)
-  useEffect(() => {
-    const onChange = () => setLocation(currentLocation())
-    window.addEventListener('popstate', onChange)
-    return () => window.removeEventListener('popstate', onChange)
-  }, [])
-
-  const activeId = getActiveId(location.pathname, location.search)
+  const pathname = usePathname()
+  const activeId = getActiveId(pathname)
   const [longPressActive, setLongPressActive] = useState(false)
   const longPressTimerRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
@@ -98,10 +90,12 @@ export default function FloatingDock() {
     if (href === '/') {
       useAppStore.getState().setHomeView('now')
     }
-    // href가 쿼리를 포함할 수 있어(예: /facilities?tab=diet) pathname만으로
-    // "이미 그 화면"을 판정하면 늘 다르다고 나와 매번 새 히스토리 항목이 쌓인다.
-    const current = window.location.pathname + window.location.search
-    if (current !== href) {
+    // 예전엔 href가 쿼리를 포함할 수 있어(예: /facilities?tab=diet) pathname만
+    // 비교하면 늘 다르다고 나와 매번 새 히스토리 항목이 쌓였다. 이제 다섯 탭 href가
+    // 전부 쿼리 없는 순수 경로라 pathname만 비교해도 된다 — PCSidebar의
+    // navigateToPcTab과 같은 판정이라, 예를 들어 /facilities?tab=diet에서
+    // "학교시설" 탭을 다시 눌러도 보고 있던 서브탭이 쿼리째 날아가지 않는다.
+    if (window.location.pathname !== href) {
       window.history.pushState({}, '', href)
       window.dispatchEvent(new PopStateEvent('popstate'))
     }

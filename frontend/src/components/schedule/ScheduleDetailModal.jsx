@@ -84,78 +84,6 @@ function scheduleTypeLabel(type) {
 
 // ─── shared list row ────────────────────────────────────────────────────
 
-function TimeRow({ time, isNext, isLast, destination, note, rowRef, bell, variant = null, hideCountdown = false }) {
-  const isHHMM = typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)
-  const mins = isHHMM && !hideCountdown ? minutesUntil(time) : null
-  const variantMeta = variant ? PERIOD_VARIANTS[variant] : null
-  return (
-    <div
-      ref={rowRef}
-      className={`relative flex items-center gap-3 px-4 py-3 rounded-mini transition-colors ${
-        isNext
-          ? 'bg-accent/8 dark:bg-accent/12'
-          : ''
-      }`}
-    >
-      {isNext && (
-        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] bg-accent dark:bg-accent rounded-full" />
-      )}
-      <span
-        className={`${
-          isHHMM
-            ? (isNext ? 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0 pl-1.5' : 'text-eta-mob font-bold tabular-nums tracking-tight flex-shrink-0')
-            : 'text-sm font-bold leading-snug break-keep min-w-0'
-        } ${isNext ? 'text-accent dark:text-accent' : 'text-ink dark:text-ink'}`}
-      >
-        {time}
-      </span>
-      {variantMeta && (
-        <span
-          aria-label={variantMeta.label}
-          title={variantMeta.label}
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${variantMeta.dotClass}`}
-        />
-      )}
-      {(destination || note) && (
-        <span className="text-meta font-medium text-mute dark:text-mute truncate">
-          {destination || note}
-        </span>
-      )}
-      <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-        {isNext && (
-          <span className="text-micro font-semibold px-2.5 py-0.5 rounded-full bg-accent dark:bg-accent text-white dark:text-ink tracking-wide">
-            다음
-          </span>
-        )}
-        {isLast && (
-          <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink">
-            막차
-          </span>
-        )}
-        {mins != null && (
-          <span
-            className={`text-meta font-semibold tabular-nums tracking-tight ${
-              isNext ? 'text-accent dark:text-accent' : 'text-mute dark:text-mute'
-            }`}
-          >
-            {fmtDelta(mins)}
-          </span>
-        )}
-        {bell}
-      </div>
-    </div>
-  )
-}
-
-function PastRow({ time }) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-2 opacity-50">
-      <span className="text-meta font-semibold text-mute dark:text-mute tabular-nums">{time}</span>
-      <span className="text-caption font-medium text-line-strong dark:text-line-strong ml-auto">지난 시각</span>
-    </div>
-  )
-}
-
 function TimeGrid({ times }) {
   if (!times.length) return null
   return (
@@ -173,7 +101,7 @@ function TimeGrid({ times }) {
 }
 
 // ─── 그리드 뷰 (Phase D — DESIGN.md 시안 "시간표 · A") ────────────────────
-// 리스트 뷰(TimeRow/PastRow)와 같은 오늘 전체 시각을 4열 그리드로 보여준다.
+// 리스트 뷰(HourGroupTimetable)와 같은 오늘 전체 시각을 4열 그리드로 보여준다.
 // 다음 차만 accent 채움, 지난 시각은 흐리게 — 인라인 반올림/포맷 로직 없이
 // 순수 표시 전용(날짜 계산은 각 Content 컴포넌트가 기존 헬퍼로 미리 끝낸다).
 export function TimeGridView({ items, gridRef }) {
@@ -254,7 +182,7 @@ function ViewModeToggle({ value, onChange }) {
 
 // ─── per-type content ───────────────────────────────────────────────────
 
-function BusContent({ routeCode, routeId = null, stopId = null, category = null, accentColor, viewMode = 'list', scrollContainerRef }) {
+function BusContent({ routeCode, routeId = null, stopId = null, category = null, viewMode = 'list', scrollContainerRef }) {
   // routeId가 있으면 방향 정확한 /bus/timetable/{route_id} 사용 (등교/하교 분리 route에 필수)
   const useScopedRoute = stopId != null || category != null
   const byId    = useBusTimetable(useScopedRoute ? null : routeId)
@@ -317,26 +245,24 @@ function BusContent({ routeCode, routeId = null, stopId = null, category = null,
           {scheduleTypeLabel(data.schedule_type)} 시간표 · 첫차 {allTimes[0]} ~ 막차 {allTimes[allTimes.length - 1]} · 총 {allTimes.length}회 · 남은 {futureCount}회
         </p>
       )}
+      {/* 승차 위치 — 셔틀의 SHUTTLE_BOARDING_INFO와 같은 자리. 셔틀은 방향별 하드코딩이지만
+          버스는 백엔드가 이 노선에 연결된 기점 정류장명(origin_stop_name)을 이미 내려준다
+          (RouteDetailPage가 같은 필드를 "OO 출발 시각"으로 이미 쓰고 있다 — 지어낸 값이 아님).
+          stopId를 이미 넘겨받은 호출(BusContextDetail의 source 블록)은 그 위에서 같은 정보를
+          "OO 승차" 헤더로 이미 보여주므로 여기서는 중복하지 않는다. */}
+      {stopId == null && data?.origin_stop_name && (
+        <p className="flex items-start gap-1.5 px-1 mb-1 text-caption font-medium text-mute dark:text-mute leading-snug">
+          <MapPin size={13} aria-hidden className="mt-0.5 flex-shrink-0" />
+          {data.origin_stop_name} 승차
+        </p>
+      )}
       {viewMode === 'grid' ? (
         <>
           <TimeGridView items={items} gridRef={nextRef} />
           <NextMeta nextTime={allTimes[firstFutureIdx] ?? null} />
         </>
       ) : (
-        items.map((it) =>
-          it.isPast
-            ? <PastRow key={`p-${it.key}`} time={it.time} />
-            : (
-              <TimeRow
-                key={`f-${it.key}`}
-                time={it.time}
-                isNext={it.isNext}
-                isLast={it.isLast}
-                accentColor={accentColor}
-                rowRef={it.isNext ? nextRef : undefined}
-              />
-            )
-        )
+        <HourGroupTimetable items={items} now={now} nextRef={nextRef} />
       )}
       <BusReportRow routeNo={routeCode} stationKey={stopId} />
     </div>
@@ -1021,9 +947,9 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
 const TYPE_LABEL = { bus: '버스', subway: '지하철', shuttle: '셔틀' }
 const TYPE_COLOR = { bus: '#3B82F6', subway: '#F5A623', shuttle: '#1b3a6e' }
 
-function BusContextDetail({ context, routeCode, routeId, category, color, viewMode, scrollContainerRef }) {
+function BusContextDetail({ context, routeCode, routeId, category, viewMode, scrollContainerRef }) {
   if (!context?.sources?.length) {
-    return <BusContent routeCode={routeCode} routeId={routeId} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
+    return <BusContent routeCode={routeCode} routeId={routeId} category={category} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
   }
 
   // 여정 요약의 두 줄이 같은 내용이면 한 줄만 남긴다. origin → destination 이
@@ -1057,7 +983,7 @@ function BusContextDetail({ context, routeCode, routeId, category, color, viewMo
             </span>
           </div>
           {source.type === 'timetable' ? (
-            <BusContent routeCode={routeCode} routeId={routeId} stopId={source.stop_id} category={category} accentColor={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
+            <BusContent routeCode={routeCode} routeId={routeId} stopId={source.stop_id} category={category} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />
           ) : (
             <BusHistoryContent routeNumber={routeCode} category={category} trackedStopId={source.stop_id} stationLabel={source.station_label} scrollContainerRef={scrollContainerRef} />
           )}
@@ -1277,7 +1203,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
             <RouteProgressStrip routeNo={routeCode} stationId={activeStopId} hasArrival={false} />
           </div>
         )}
-        {type === 'bus' && <BusContextDetail context={activeContext} routeCode={routeCode} routeId={routeId} category={category} color={color} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
+        {type === 'bus' && <BusContextDetail context={activeContext} routeCode={routeCode} routeId={routeId} category={category} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
         {type === 'subway' && <SubwayContent accentColor={color} subwayKey={subwayKey} viewMode={viewMode} scrollContainerRef={scrollContainerRef} />}
         {type === 'shuttle' && (
           <ShuttleContent

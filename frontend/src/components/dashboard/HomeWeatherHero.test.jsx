@@ -120,20 +120,14 @@ describe('HomeWeatherHero — 항상 펼쳐진 스트립 + 본문(아코디언 �
     expect(storeState.setSearchOpen).toHaveBeenCalledWith(true)
   })
 
-  // 더보기 진입점 — 예전엔 App.jsx가 position:fixed 오버레이 버튼으로 그려
-  // 모든 모바일 화면 위에 떠 있었고, 이 스트립의 뷰 토글 아이콘과 같은 자리에
-  // 겹쳐 그 아이콘을 가리는 버그가 났다(사용자 실측). 문서 흐름 안(히어로
-  // 옵션 그룹의 4번째 아이콘)으로 옮겼다 — 겹침 없이 상시 노출되는지, 눌렀을 때
-  // 여전히 /more로 이동하는지 검증한다.
-  it('더보기 버튼은 항상 보이고, 클릭 시 /more로 이동한다(옛 고정 오버레이 대체)', () => {
-    window.history.replaceState({}, '', '/')
+  // 더보기 버튼 제거 — 학식/매장 독 탭이 "학교시설" 한 탭으로 합쳐지며 독에
+  // 빈 칸이 생겼고, 더보기가 다시 독의 정식 탭으로 돌아갔다(FloatingDock.jsx
+  // 참고). 히어로 옵션 그룹에 같은 진입점을 또 두면 중복이라 여기서는 뺐다 —
+  // "히어로 옵션" 그룹은 날씨/식당/검색 세 칸으로 되돌아간다.
+  it('히어로 옵션 그룹에는 더보기 버튼이 없다(독으로 돌아감, 중복 방지)', () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
 
-    const moreButton = screen.getByLabelText('더보기')
-    expect(moreButton).toBeInTheDocument()
-
-    fireEvent.click(moreButton)
-    expect(window.location.pathname).toBe('/more')
+    expect(screen.queryByLabelText('더보기')).not.toBeInTheDocument()
   })
 
   it('큰 온도 토큰(text-hero-temp)이 항상 렌더된다', () => {
@@ -414,10 +408,10 @@ describe('HomeWeatherHero — 스트립 뷰 토글의 44px 히트영역', () => 
   // 예전엔 날씨/식당/검색 토글이 28px(w-7 h-7)라 손가락 터치 타깃 최소치(44px) 미달이었다.
   // ui/IconButton을 -inset-2(8px)로 겹쳐 히트영역만 44px로 키우고, 보이는 배지(28px)는
   // 그대로 둔다 — 두 가지를 함께 고정한다.
-  it('날씨/식당/검색/더보기 토글의 실제 클릭 가능 버튼이 44px 이상의 히트영역 클래스를 갖는다', () => {
+  it('날씨/식당/검색 토글의 실제 클릭 가능 버튼이 44px 이상의 히트영역 클래스를 갖는다', () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
 
-    for (const label of ['날씨 보기', '식당 보기', '검색', '더보기']) {
+    for (const label of ['날씨 보기', '식당 보기', '검색']) {
       const hitTarget = screen.getByLabelText(label)
       expect(hitTarget.tagName).toBe('BUTTON')
       // IconButton 정본의 44px 박스(min-h-[44px] min-w-[44px])를 그대로 쓴다.
@@ -494,5 +488,40 @@ describe('HomeWeatherHero — .whero-panel 진입 애니메이션이 stacking co
   it('from 키프레임의 진입 이동(translateY(-4px))은 그대로 유지한다(시각적 회귀 방지)', () => {
     const block = extractBlock(css, '@keyframes whero-panel-in')
     expect(block).toMatch(/from\s*{\s*opacity:\s*0;\s*transform:\s*translateY\(-4px\);\s*}/)
+  })
+})
+
+// 사용자 실측 — 라이트 테마 모바일에서 하늘 그라데이션이 모드 탭 바로 위에서
+// 색이 딱 끊겨 보였다. .whero가 background-size: 100% 340px로 그라데이션
+// 높이를 340px로 못박고 있었는데, 실제 히어로 높이는(아코디언 제거 + 기온
+// 없을 때 큰 온도 자리를 접는 처리 + --tj-font-scale에 따라) 340px보다 짧을
+// 수 있다. 그러면 배경 이미지가 요소 바닥에 닿기 전에 잘려, 마지막 스톱
+// (sky-c)에 닿지 못한 중간색으로 끝나고 그 아래 .whero-seam과 색이 어긋난다.
+describe('HomeWeatherHero — 하늘 그라데이션이 히어로 실제 높이를 따라간다(결함: 하단 잘림)', () => {
+  const css = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'HomeWeatherHero.css'), 'utf8')
+
+  function extractBlock(source, startMarker) {
+    const start = source.indexOf(startMarker)
+    expect(start, `${startMarker} 블록을 찾지 못했다`).toBeGreaterThan(-1)
+    let depth = 0
+    let i = start
+    for (; i < source.length; i++) {
+      if (source[i] === '{') depth++
+      else if (source[i] === '}') {
+        depth--
+        if (depth === 0) break
+      }
+    }
+    return source.slice(start, i + 1)
+  }
+
+  it('.whero의 background-size가 고정 px 높이를 쓰지 않는다(340px 등)', () => {
+    const block = extractBlock(css, '.whero {')
+    expect(block).not.toMatch(/background-size:\s*100%\s*\d+px/)
+  })
+
+  it('.whero의 배경 그라데이션이 요소 실제 높이(100%)에 맞춰 늘어나 마지막 스톱이 항상 바닥에 닿는다', () => {
+    const block = extractBlock(css, '.whero {')
+    expect(block).toMatch(/background-size:\s*100%\s*100%/)
   })
 })

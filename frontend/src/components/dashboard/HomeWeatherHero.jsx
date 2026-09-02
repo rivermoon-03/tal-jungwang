@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Sun, MapPin, Utensils, Wind, Search, MoreHorizontal } from 'lucide-react'
+import { Sun, MapPin, Utensils, Wind, Search } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useAppStore from '../../stores/useAppStore'
@@ -92,22 +92,6 @@ function pickOpenVenues(count) {
 function goToCafeteria() {
   if (window.location.pathname !== '/cafeteria') {
     window.history.pushState({}, '', '/cafeteria')
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  }
-}
-
-/**
- * '/more'로 이동 — 모바일 더보기 진입점. 예전엔 App.jsx가 position:fixed
- * 오버레이 버튼으로 그렸는데, 모든 모바일 화면 위에 항상 떠서 이 히어로
- * 스트립의 뷰 토글 아이콘과 같은 자리에 겹쳐 그 아이콘을 가리는 버그가
- * 났다(사용자 실측). "히어로 옵션" 그룹은 이미 스트립 한 줄을 이루는
- * 문서 흐름 안 자리라, 더보기도 같은 자리에 아이콘 하나로 넣으면 겹침 없이
- * 상시 노출된다. 홈 화면(지금 뷰)에서만 보이지만, 하단 독의 "홈" 탭은 모든
- * 모바일 화면에 항상 떠 있어 최대 두 번(홈 → 더보기)이면 어디서든 닿는다.
- */
-function goToMore() {
-  if (window.location.pathname !== '/more') {
-    window.history.pushState({}, '', '/more')
     window.dispatchEvent(new PopStateEvent('popstate'))
   }
 }
@@ -374,7 +358,12 @@ export default function HomeWeatherHero({ onOpenMap }) {
         >
           {/* 아이콘(14px)·배지(28px) 시각 크기는 그대로 두고, IconButton을 부모
               대비 -inset-2(8px)로 겹쳐 44px 히트영역만 얹는다 — 레이아웃 폭에는
-              반영되지 않으므로 유리 알약(whero-chip) 자체의 크기는 변하지 않는다. */}
+              반영되지 않으므로 유리 알약(whero-chip) 자체의 크기는 변하지 않는다.
+              더보기 아이콘은 한때 여기 4번째로 있었다(App.jsx의 옛 고정 오버레이
+              버튼을 옮겨온 자리). 이제 독의 학식·매장 두 탭이 "학교시설" 한
+              탭으로 합쳐지며 독에 빈 칸이 생겼고, 더보기가 그 자리로 되돌아갔다
+              (FloatingDock.jsx 참고) — 같은 진입점을 두 곳에 두면 중복이라 여기서는
+              뺐다. 날씨/식당/검색 세 칸만 다시 남는다. */}
           <span className="relative inline-flex w-7 h-7">
             <IconButton
               type="button"
@@ -414,21 +403,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
             >
               <span className="whero-toggle flex items-center justify-center w-7 h-7 rounded-badge transition-transform duration-press active:scale-[0.92]">
                 <Search size={14} aria-hidden="true" />
-              </span>
-            </IconButton>
-          </span>
-          {/* 더보기 — App.jsx의 옛 고정 오버레이 버튼을 여기로 옮겼다(goToMore
-              주석 참고). 다른 세 아이콘과 같은 문서 흐름 안 자리라 무엇도
-              가리지 않는다. */}
-          <span className="relative inline-flex w-7 h-7">
-            <IconButton
-              type="button"
-              onClick={goToMore}
-              label="더보기"
-              className="absolute -inset-2 !bg-transparent hover:!bg-transparent active:!bg-transparent"
-            >
-              <span className="whero-toggle flex items-center justify-center w-7 h-7 rounded-badge transition-transform duration-press active:scale-[0.92]">
-                <MoreHorizontal size={14} aria-hidden="true" />
               </span>
             </IconButton>
           </span>

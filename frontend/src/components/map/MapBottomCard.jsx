@@ -8,6 +8,7 @@
  * 프로젝트 Tailwind + var(--tj-*) 토큰으로 옮긴 것.
  */
 import EmptyState from '../ui/EmptyState'
+import DataBadge from '../ui/DataBadge'
 
 const STATUS_TONE_CLASS = {
   ease: 'bg-ease/15 text-ease',
@@ -19,6 +20,7 @@ const MINI_TONE_CLASS = {
   ease: 'text-ease',
   imminent: 'text-imminent',
   delayed: 'text-delayed',
+  muted: 'text-mute',
 }
 
 export default function MapBottomCard({
@@ -44,28 +46,26 @@ export default function MapBottomCard({
         <div aria-hidden="true" className="mx-auto mb-3 h-[5px] w-[38px] rounded-pill bg-line-strong" />
       )}
 
+      {/* "실시간" 배지는 정류장 이름 옆(헤더)에 걸지 않는다. 거기 걸면 아래
+          노선 미니카드 전체가 실시간인 것처럼 읽힌다 — live는 대표(primary)
+          노선 하나의 실시간 여부라 그 줄에만 붙인다. */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-body-sm font-extrabold text-ink">{stationName}</h3>
-        <div className="flex flex-none items-center gap-[6px]">
-          {live && (
-            <span className="inline-flex items-center gap-[6px] rounded-pill bg-accent px-[10px] py-[3px] text-chip font-bold text-white">
-              <span aria-hidden="true" className="h-[6px] w-[6px] rounded-pill bg-white animate-dot-blink" />
-              실시간
-            </span>
-          )}
-          {statusLabel && (
-            <span className={`rounded-pill px-[11px] py-[4px] text-chip font-bold ${statusClass}`}>
-              {statusLabel}
-            </span>
-          )}
-        </div>
+        {statusLabel && (
+          <span className={`flex-none rounded-pill px-[11px] py-[4px] text-chip font-bold ${statusClass}`}>
+            {statusLabel}
+          </span>
+        )}
       </div>
 
       {(routeName || direction) && (
-        <p className="text-caption font-semibold text-ink-2">
-          {routeName}
-          {routeName && direction ? ' · ' : ''}
-          {direction}
+        <p className="flex items-center gap-[6px] text-caption font-semibold text-ink-2">
+          <span>
+            {routeName}
+            {routeName && direction ? ' · ' : ''}
+            {direction}
+          </span>
+          <DataBadge state={live ? 'live' : 'timetable'} />
         </p>
       )}
 
@@ -115,12 +115,18 @@ export default function MapBottomCard({
                 </span>
                 <span className="truncate text-caption font-bold text-ink">{route.name}</span>
               </span>
-              <span
-                className={`block tabular-nums text-display font-extrabold tracking-[-0.02em] ${
-                  MINI_TONE_CLASS[route.tone] ?? 'text-ink'
-                }`}
-              >
-                {route.etaText}
+              <span className="flex items-center gap-[6px]">
+                <span
+                  className={`tabular-nums text-display font-extrabold tracking-[-0.02em] ${
+                    MINI_TONE_CLASS[route.tone] ?? 'text-ink'
+                  }`}
+                >
+                  {route.etaText}
+                </span>
+                {/* 노선별 실시간/시간표 출처. source가 null이면(운행 정보 없음)
+                    배지를 그리지 않는다 — "시간표"를 달면 마치 다음 출발
+                    시각이 있는 것처럼 보여 오히려 오해를 만든다. */}
+                {route.source && <DataBadge state={route.source} compact />}
               </span>
               {route.sub && <span className="block text-meta font-normal text-mute">{route.sub}</span>}
             </button>

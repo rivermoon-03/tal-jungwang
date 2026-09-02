@@ -22,25 +22,27 @@ describe('FloatingDock', () => {
     vi.unstubAllGlobals()
   })
 
-  it('탭 5개(홈/시간표/학식/매장/공지) aria-label + 시각 텍스트 라벨(12px) + href', () => {
+  it('탭 5개(홈/시간표/학교시설/공지/더보기) aria-label + 시각 텍스트 라벨(12px) + href', () => {
     render(<FloatingDock />)
     expect(screen.getByLabelText('홈')).toHaveAttribute('href', '/')
     expect(screen.getByLabelText('시간표')).toHaveAttribute('href', '/schedule')
-    expect(screen.getByLabelText('학식')).toHaveAttribute('href', '/facilities?tab=diet')
-    expect(screen.getByLabelText('매장')).toHaveAttribute('href', '/facilities?tab=venues')
+    // 학식/매장 두 탭은 "학교시설" 한 탭으로 합쳤다 — 진입 탭은 FacilitiesPage의
+    // 기본 탭(매장)을 그대로 따르도록 쿼리 없이 연다.
+    expect(screen.getByLabelText('학교시설')).toHaveAttribute('href', '/facilities')
     expect(screen.getByLabelText('공지')).toHaveAttribute('href', '/notices')
-    // 더보기는 독에서 빠졌다(App.jsx의 상시 진입점으로 이동).
-    expect(screen.queryByLabelText('더보기')).toBeNull()
-    expect(screen.queryByLabelText('학교시설')).toBeNull()
+    // 더보기는 학식/매장이 합쳐지며 생긴 빈 칸을 채우며 독으로 돌아왔다.
+    expect(screen.getByLabelText('더보기')).toHaveAttribute('href', '/more')
+    expect(screen.queryByLabelText('학식')).toBeNull()
+    expect(screen.queryByLabelText('매장')).toBeNull()
     // 결함 #31 수정 — 아이콘 아래 시각 텍스트 라벨이 보여야 한다.
-    expect(screen.getAllByText('학식').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('학교시설').length).toBeGreaterThan(0)
     const label = screen.getByText('시간표')
     expect(label.className).toContain('text-meta')
   })
 
   it('탭 5개 모두 44px 이상 터치 타깃을 유지한다', () => {
     render(<FloatingDock />)
-    for (const name of ['홈', '시간표', '학식', '매장', '공지']) {
+    for (const name of ['홈', '시간표', '학교시설', '공지', '더보기']) {
       const link = screen.getByLabelText(name)
       expect(link.className).toContain('min-w-[44px]')
       expect(link.className).toContain('min-h-[44px]')
@@ -52,8 +54,9 @@ describe('FloatingDock', () => {
     render(<FloatingDock />)
     expect(screen.getByLabelText('홈')).toHaveAttribute('aria-current', 'page')
     expect(screen.getByLabelText('시간표')).not.toHaveAttribute('aria-current')
-    expect(screen.getByLabelText('학식')).not.toHaveAttribute('aria-current')
-    expect(screen.getByLabelText('매장')).not.toHaveAttribute('aria-current')
+    expect(screen.getByLabelText('학교시설')).not.toHaveAttribute('aria-current')
+    expect(screen.getByLabelText('공지')).not.toHaveAttribute('aria-current')
+    expect(screen.getByLabelText('더보기')).not.toHaveAttribute('aria-current')
   })
 
   it('/schedule 에서는 시간표 탭만 활성이다', () => {
@@ -63,45 +66,60 @@ describe('FloatingDock', () => {
     expect(screen.getByLabelText('홈')).not.toHaveAttribute('aria-current')
   })
 
-  // 학식/매장은 같은 경로(/facilities)를 ?tab= 값으로만 가른다 — pathname만 보면
-  // 두 탭이 동시에 활성으로 보이는 회귀가 나기 쉽다.
-  it('/facilities?tab=diet 에서는 학식만 활성이고 매장은 활성이 아니다', () => {
-    setPath('/facilities?tab=diet')
-    render(<FloatingDock />)
-    expect(screen.getByLabelText('학식')).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByLabelText('매장')).not.toHaveAttribute('aria-current')
-  })
+  // 학식/매장/도서관은 전부 같은 /facilities 페이지의 하위 탭이다(?tab=으로만
+  // 구분) — 독에서는 더 이상 서로 다른 탭으로 나누지 않으므로, 쿼리가 무엇이든
+  // "학교시설" 한 탭만 활성이면 된다.
+  it.each(['?tab=diet', '?tab=venues', '?tab=library', ''])(
+    '/facilities%s 에서는 학교시설 탭이 활성이다',
+    (query) => {
+      setPath(`/facilities${query}`)
+      render(<FloatingDock />)
+      expect(screen.getByLabelText('학교시설')).toHaveAttribute('aria-current', 'page')
+    }
+  )
 
-  it('/facilities?tab=venues 에서는 매장만 활성이고 학식은 활성이 아니다', () => {
-    setPath('/facilities?tab=venues')
-    render(<FloatingDock />)
-    expect(screen.getByLabelText('매장')).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByLabelText('학식')).not.toHaveAttribute('aria-current')
-  })
-
-  it('/facilities (쿼리 없음)는 매장 기본값과 맞춰 매장이 활성이다', () => {
-    setPath('/facilities')
-    render(<FloatingDock />)
-    expect(screen.getByLabelText('매장')).toHaveAttribute('aria-current', 'page')
-  })
-
-  // 옛 주소 /cafeteria(북마크·위젯 딥링크)도 학식/매장 구분이 유지되어야 한다.
-  it('/cafeteria?tab=diet 옛 주소에서도 학식이 활성이다', () => {
+  // 옛 주소 /cafeteria(북마크·위젯 딥링크, 탭 페이지와 매장 상세 둘 다)도
+  // 학교시설 탭으로 묶여야 한다.
+  it('/cafeteria?tab=diet 옛 주소에서도 학교시설이 활성이다', () => {
     setPath('/cafeteria?tab=diet')
     render(<FloatingDock />)
-    expect(screen.getByLabelText('학식')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText('학교시설')).toHaveAttribute('aria-current', 'page')
   })
 
-  it('/cafeteria/gs25 매장 상세에서는 매장 탭이 활성이다', () => {
+  it('/cafeteria/gs25 매장 상세에서도 학교시설 탭이 활성이다', () => {
     setPath('/cafeteria/gs25')
     render(<FloatingDock />)
-    expect(screen.getByLabelText('매장')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText('학교시설')).toHaveAttribute('aria-current', 'page')
   })
 
-  it('학식 탭 클릭 시 /facilities?tab=diet 로 이동한다', () => {
+  it('/more 에서는 더보기 탭만 활성이다', () => {
+    setPath('/more')
+    render(<FloatingDock />)
+    expect(screen.getByLabelText('더보기')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText('홈')).not.toHaveAttribute('aria-current')
+  })
+
+  it('학교시설 탭 클릭 시 /facilities 로 이동한다', () => {
     setPath('/')
     render(<FloatingDock />)
-    fireEvent.click(screen.getByLabelText('학식'))
+    fireEvent.click(screen.getByLabelText('학교시설'))
+    expect(window.location.pathname + window.location.search).toBe('/facilities')
+  })
+
+  it('더보기 탭 클릭 시 /more 로 이동한다', () => {
+    setPath('/')
+    render(<FloatingDock />)
+    fireEvent.click(screen.getByLabelText('더보기'))
+    expect(window.location.pathname).toBe('/more')
+  })
+
+  // 학교시설 탭 href는 쿼리가 없는 순수 경로다 — 이미 /facilities?tab=diet 같은
+  // 서브탭 화면에 있을 때 같은 탭을 다시 눌러도 보고 있던 서브탭이 쿼리째
+  // 날아가지 않아야 한다(pathname만 비교, PCSidebar의 navigateToPcTab과 동일 판정).
+  it('/facilities?tab=diet 에서 학교시설 탭을 다시 눌러도 쿼리가 그대로 유지된다', () => {
+    setPath('/facilities?tab=diet')
+    render(<FloatingDock />)
+    fireEvent.click(screen.getByLabelText('학교시설'))
     expect(window.location.pathname + window.location.search).toBe('/facilities?tab=diet')
   })
 
@@ -211,9 +229,10 @@ describe('FloatingDock', () => {
 
 /**
  * 결함 #12 — getActiveId가 매칭 실패 시 무조건 'home'을 반환하던 폴백을
- * 없앴다. /more, /favorites 처럼 다섯 탭 어디에도 속하지 않는 화면에서는
- * 독이 "홈"을 활성으로 칠하면 안 되고(aria-current도 안 붙어야 한다),
- * 홈은 실제 홈 경로('/')일 때만 활성이어야 한다.
+ * 없앴다. /favorites, /settings 처럼 다섯 탭 어디에도 속하지 않는 화면에서는
+ * 독이 "홈"을 활성으로 칠하면 안 되고(aria-current도 안 붙어야 한다), 홈은
+ * 실제 홈 경로('/')일 때만 활성이어야 한다. /more는 이제 다섯 탭 중 하나(더보기)
+ * 라 이 목록에서 뺐다 — 별도로 "더보기 탭만 활성"을 검증한다(위 describe 참고).
  */
 describe('FloatingDock — 다섯 탭에 안 속하는 경로에서는 아무 탭도 활성이 아니다(결함 #12)', () => {
   beforeEach(() => {
@@ -227,12 +246,12 @@ describe('FloatingDock — 다섯 탭에 안 속하는 경로에서는 아무 �
     vi.unstubAllGlobals()
   })
 
-  it.each(['/more', '/favorites', '/settings', '/help', '/about', '/privacy'])(
+  it.each(['/favorites', '/settings', '/help', '/about', '/privacy'])(
     '%s 에서는 다섯 탭 중 어느 것도 aria-current가 없다(홈도 포함)',
     (path) => {
       setPath(path)
       render(<FloatingDock />)
-      for (const name of ['홈', '시간표', '학식', '매장', '공지']) {
+      for (const name of ['홈', '시간표', '학교시설', '공지', '더보기']) {
         expect(screen.getByLabelText(name)).not.toHaveAttribute('aria-current')
       }
     }
@@ -317,9 +336,9 @@ describe('FloatingDock — 홈 탭을 누르면 homeView를 "now"로 되돌린�
     expect(useAppStore.getState().homeView).toBe('timetable')
   })
 
-  it('홈이 아닌 다른 탭(학식)을 눌러도 homeView는 그대로다', () => {
+  it('홈이 아닌 다른 탭(학교시설)을 눌러도 homeView는 그대로다', () => {
     render(<FloatingDock />)
-    fireEvent.click(screen.getByLabelText('학식'))
+    fireEvent.click(screen.getByLabelText('학교시설'))
     expect(useAppStore.getState().homeView).toBe('timetable')
   })
 })

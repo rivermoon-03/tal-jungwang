@@ -57,7 +57,15 @@ export default function useMapBottomCardData() {
               ? '곧 도착'
               : `${row.minutes}분`
             : row.etaText,
-        tone: row.imminent ? 'imminent' : 'ease',
+        // row.etaTone이 'none'이면 시간표에도 다음 출발이 없다는 뜻(formatEta의
+        // "운행 정보 없음"). 이때는 초록 ease 톤 대신 muted로 눌러 3400(시간표
+        // 기반 9분)과 5200(운행 정보 없음)이 색으로도 구분되게 한다.
+        tone: row.imminent ? 'imminent' : row.etaTone === 'none' ? 'muted' : 'ease',
+        // 노선별 정보 출처. 카드 전체를 first 하나의 isRealtime으로 물들이던
+        // 버그(아래 live)를 노선 단위로 바로잡는다 — 실시간이면 'live', 실시간은
+        // 아니지만 시간표상 다음 출발이 있으면 'timetable', 그마저 없으면(운행
+        // 정보 없음) null로 둬 미니카드가 배지를 그리지 않게 한다.
+        source: row.isRealtime ? 'live' : row.etaTone === 'none' ? null : 'timetable',
       })),
     [rows]
   )
@@ -82,6 +90,10 @@ export default function useMapBottomCardData() {
     loading: arrivalsQuery.loading,
     error: arrivalsQuery.error,
     isSeoulStation,
+    // first(대표/최속 노선) 하나의 실시간 여부다. MapBottomCard는 이 값을
+    // 정류장 이름 옆(헤더)이 아니라 primary 노선 줄에만 붙인다 — 헤더에 걸면
+    // 아래 노선 미니카드 전체가 실시간인 것처럼 읽힌다(routes[].source가
+    // 노선별 실제 출처를 따로 들고 있다).
     live: !!first?.isRealtime,
     stationLabel: getBusStationDisplay(selectedBusStation) || selectedBusStation,
     statusLabel: first ? (first.imminent ? '임박' : '여유') : null,
