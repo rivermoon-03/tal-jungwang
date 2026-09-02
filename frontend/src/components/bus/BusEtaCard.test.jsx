@@ -67,8 +67,8 @@ describe('BusEtaCard', () => {
       expect(screen.getByText('실시간 수신 중')).toBeInTheDocument()
       // 옛 문구가 남아 있으면 안 된다 (A4 카피 교체)
       expect(screen.queryByText('GBIS 도착 정보 수신 중')).not.toBeInTheDocument()
-      // 첫차: 195s → ceil(195/60) = 4분 후
-      expect(screen.getByText('4분 후')).toBeInTheDocument()
+      // 첫차: 195s → eta.js floor(195/60) = 3분 후
+      expect(screen.getByText('3분 후')).toBeInTheDocument()
       // 절대 시각
       expect(screen.getByText('21:01 도착 예정')).toBeInTheDocument()
       // 다음 한 대 — 840s → 14분 후
@@ -86,11 +86,11 @@ describe('BusEtaCard', () => {
           predictedEta={null}
         />
       )
-      expect(screen.getByText('4분 후')).toBeInTheDocument()
+      expect(screen.getByText('3분 후')).toBeInTheDocument()
       expect(screen.queryByText('다음 한 대')).not.toBeInTheDocument()
     })
 
-    it('shows "곧 도착" when primary < 60s', () => {
+    it('shows "곧 도착" when primary is within the imminent threshold (90s)', () => {
       render(
         <BusEtaCard
           realtimeEta={{
@@ -101,6 +101,26 @@ describe('BusEtaCard', () => {
         />
       )
       expect(screen.getByText('곧 도착')).toBeInTheDocument()
+    })
+
+    // 회귀 방지 — 예전엔 "곧 도착" 텍스트 임계(60초)와 빨간 강조 임계(180초)가
+    // 서로 달라 "2분 후"(120~179초)가 빨갛게 떴다. 이제 텍스트/강조 둘 다
+    // eta.js의 IMMINENT_THRESHOLD_SEC(90초) 하나를 쓰므로, 90초보다 큰 값은
+    // 절대 강조되지 않는다.
+    it('does not mark a non-imminent "N분 후" value as imminent (2분 후 회귀 방지)', () => {
+      const { container } = render(
+        <BusEtaCard
+          realtimeEta={{
+            primary: { arrive_in_seconds: 120, arrive_at_hhmm: '21:01' },
+            secondary: null,
+          }}
+          predictedEta={null}
+        />
+      )
+      expect(screen.getByText('2분 후')).toBeInTheDocument()
+      const etaEl = screen.getByText('2분 후')
+      expect(etaEl.className).not.toMatch(/text-imminent/)
+      expect(container.innerHTML).not.toMatch(/text-imminent/)
     })
 
     it('shows "이미 도착" when primary < 0', () => {

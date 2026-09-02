@@ -22,6 +22,7 @@ vi.mock('./hooks/useTheme', () => ({ useTheme: () => {} }))
 vi.mock('./hooks/useMore',  () => ({ useNotices: () => ({ data: [] }) }))
 vi.mock('./pages/RouteDetailPage', () => ({ default: ({ routeNumber }) => <div data-testid="route-detail-page">RouteDetailPage-{routeNumber}</div> }))
 vi.mock('./pages/CafeteriaVenueDetailPage', () => ({ default: ({ venueId }) => <div data-testid="cafeteria-venue-detail-page">CafeteriaVenueDetailPage-{venueId}</div> }))
+vi.mock('./pages/FavoritesPage', () => ({ default: () => <div data-testid="favorites-page">FavoritesPage</div> }))
 vi.mock('./hooks/useMediaQuery', () => ({
   default: () => false,
   useIsDesktop: () => isDesktopMock,
@@ -176,5 +177,39 @@ describe('App', () => {
     const { container } = render(<App />)
     const wrapper = container.querySelector('main').parentElement
     expect(wrapper.className).toContain('min-h-0')
+  })
+
+  it('/favorites: 즐겨찾기 페이지가 마운트된다', async () => {
+    setPath('/favorites')
+    render(<App />)
+    expect(await screen.findByTestId('favorites-page')).toBeInTheDocument()
+  })
+
+  // PCMainShell 을 감싸는 래퍼에 key={currentPage} 가 있으면 탭을 옮길 때마다
+  // 셸이 remount 되고 그 안의 MapView(kakao.maps.Map · GPS watch · 타일 캐시)가
+  // 같이 죽는다. 같은 DOM 노드가 유지되는지로 검증한다.
+  it('PC: 탭을 옮겨도 PCMainShell 이 remount 되지 않는다', async () => {
+    isDesktopMock = true
+    setPath('/')
+    const { rerender } = render(<App />)
+    const before = screen.getByTestId('pc-main-shell')
+
+    setPath('/facilities')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    rerender(<App />)
+    await screen.findByText('FacilitiesPage')
+
+    expect(screen.getByTestId('pc-main-shell')).toBe(before)
+  })
+
+  // 페이지 전환 페이드는 지도 위 오버레이에만 걸린다 — 셸 자체에 걸면 위 회귀가 난다.
+  it('PC: 페이지 오버레이에만 tj-tab-fade 가 붙는다', async () => {
+    isDesktopMock = true
+    setPath('/facilities')
+    const { container } = render(<App />)
+    await screen.findByText('FacilitiesPage')
+    const faded = container.querySelectorAll('.tj-tab-fade')
+    expect(faded).toHaveLength(1)
+    expect(faded[0]).toHaveTextContent('FacilitiesPage')
   })
 })

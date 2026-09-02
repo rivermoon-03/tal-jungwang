@@ -1,13 +1,16 @@
 import { useEffect } from 'react'
 import useAppStore from '../stores/useAppStore'
 
-const THEME_LIGHT = '#ffffff'
-const THEME_DARK  = '#000000'
+// PWA theme-color 는 OS 상태바/브라우저 크롬 색이다. 앱 배경(--tj-bg)과 다른 값을
+// 넣으면 화면 위아래 가장자리에 색 경계가 그대로 보인다.
+// 예전에는 다크를 OLED 순검정(#000)으로 뒀는데, DESIGN.md §6 에서 순검정을 폐기하고
+// sage 사다리(#101211)로 옮긴 뒤에도 이 상수만 남아 매 다크 진입마다 검은 띠가 생겼다.
+// 두 값은 index.css 의 --tj-bg 라이트/다크와 항상 같아야 한다.
+const THEME_LIGHT = '#fbfdfc'
+const THEME_DARK  = '#101211'
 
 /**
  * useTheme — themeMode에 따라 다크 클래스 + PWA theme-color 동기화.
- *
- * 2026-04-19 리디자인: OLED Pure Black 기준 (#000). coral / headerCollapsed 조건 제거.
  */
 export function useTheme() {
   const themeMode = useAppStore((s) => s.themeMode)

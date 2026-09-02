@@ -15,7 +15,7 @@
  */
 import { useMemo } from 'react'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
-import { crowdedLabel } from '../../utils/crowdingPalette'
+import { labelFromRatio } from '../../utils/crowdingLevel'
 import { mergeToHourly, crowdedToneStyle, isWeekendNow } from '../../utils/crowdingHeatmap'
 import { getKstHour } from '../../utils/timeOfDay'
 import EmptyState from '../ui/EmptyState'
@@ -95,7 +95,9 @@ export default function RouteCrowdingSection({ routeNumber }) {
             지금({liveDayType === 'weekday' ? '평일' : '주말'} {liveHour}시)
           </span>
           <span className="block text-body font-bold text-ink dark:text-ink mt-0.5">
-            {liveBucket?.crowded != null ? crowdedLabel(liveBucket.crowded) : '정보 없음'}
+            {liveBucket?.ratio != null
+              ? labelFromRatio(liveBucket.ratio, { estimated: liveBucket.estimated, reliable: liveBucket.reliable })
+              : '정보 없음'}
           </span>
         </div>
         {liveBucket?.samples > 0 && (
@@ -115,9 +117,9 @@ export default function RouteCrowdingSection({ routeNumber }) {
               </span>
               <div className="flex-1 grid grid-cols-[repeat(24,minmax(0,1fr))] gap-[2px]">
                 {row.hourly.map((b) => {
-                  const tone = crowdedToneStyle(b.crowded)
-                  const label = b.crowded != null
-                    ? `${row.label} ${b.hour}시: ${crowdedLabel(b.crowded)} (표본 ${b.samples}건)`
+                  const tone = crowdedToneStyle(b.ratio)
+                  const label = b.ratio != null
+                    ? `${row.label} ${b.hour}시: ${labelFromRatio(b.ratio, { estimated: b.estimated, reliable: b.reliable })} (표본 ${b.samples}건)`
                     : `${row.label} ${b.hour}시: 데이터 없음`
                   return (
                     <div
@@ -148,20 +150,21 @@ export default function RouteCrowdingSection({ routeNumber }) {
         </div>
       </div>
 
-      {/* 범례 — 색만으로 구분하지 않도록 텍스트 병기 */}
+      {/* 범례 — 색만으로 구분하지 않도록 텍스트 병기. 대표값은 crowdingLevel의
+          RATIO_THRESHOLDS 구간을 그대로 따른다(라벨과 색이 다른 기준을 말하면 안 된다). */}
       <div className="flex items-center gap-3 mt-2 flex-wrap">
-        <LegendDot toneCrowded={1} text="여유" />
-        <LegendDot toneCrowded={2.5} text="보통" />
-        <LegendDot toneCrowded={3.5} text="혼잡" />
-        <LegendDot toneCrowded={4} text="매우혼잡" />
-        <LegendDot toneCrowded={null} text="데이터 없음" />
+        <LegendDot toneRatio={0} text="여유" />
+        <LegendDot toneRatio={0.1} text="보통" />
+        <LegendDot toneRatio={0.25} text="붐빔" />
+        <LegendDot toneRatio={0.5} text="매우 붐빔" />
+        <LegendDot toneRatio={null} text="데이터 없음" />
       </div>
     </section>
   )
 }
 
-function LegendDot({ toneCrowded, text }) {
-  const tone = crowdedToneStyle(toneCrowded)
+function LegendDot({ toneRatio, text }) {
+  const tone = crowdedToneStyle(toneRatio)
   return (
     <span className="inline-flex items-center gap-1.5 text-caption text-mute dark:text-mute font-medium">
       <span className={`w-2.5 h-2.5 rounded-full ${tone.className}`} style={tone.style} />

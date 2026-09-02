@@ -1,61 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { X, Bookmark } from 'lucide-react'
+import { X, Bookmark, ChevronRight } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
+import { parseFavCode } from '../../utils/favCode'
 
 // DockQuickAccess — dock 위 팝오버. 즐겨찾기 최대 4건.
 // FloatingDock 롱프레스 시 표시. onClose로 닫기.
 // 각 항목 탭 → setDetailModal + 팝오버 닫기
 // 즐겨찾기 0건 → 안내 메시지.
 // ESC / 바깥 탭으로 닫힘.
-
-function parseShuttleFav(favCode) {
-  if (!favCode.startsWith('shuttle:')) return null
-  const rest = favCode.slice(8)
-  const isCampus2 = rest.startsWith('2캠 ')
-  const campusTag = isCampus2 ? '2캠 ' : ''
-  const label = rest.slice(campusTag.length)
-  return {
-    type: 'shuttle',
-    routeCode: `${campusTag}셔틀${label}`,
-    title: `${campusTag}셔틀버스 ${label}`,
-    favCode,
-  }
-}
-
-function parseBusFav(favCode) {
-  const match = favCode.match(/^(등교|하교|기타):(.+)$/)
-  if (!match) return null
-  const [, category, routeNumber] = match
-  return {
-    type: 'bus',
-    routeCode: routeNumber,
-    title: `${routeNumber} (${category})`,
-    favCode,
-    category,
-  }
-}
-
-function parseSubwayFav(favCode) {
-  if (!favCode.startsWith('subway:')) return null
-  const parts = favCode.split(':')
-  const station = parts[1] ?? '정왕'
-  const dir = parts[2] ?? 'up'
-  const dirLabel = dir === 'up' ? '왕십리행' : dir === 'down' ? '인천행' : '행선지'
-  return {
-    type: 'subway',
-    routeCode: `${station} (${dirLabel})`,
-    title: `${station} ${dirLabel}`,
-    favCode,
-    station,
-    dir,
-  }
-}
-
-function parseFavCode(favCode) {
-  if (favCode.startsWith('shuttle:')) return parseShuttleFav(favCode)
-  if (favCode.startsWith('subway:')) return parseSubwayFav(favCode)
-  return parseBusFav(favCode)
-}
 
 export default function DockQuickAccess({ onClose }) {
   const favorites = useAppStore((s) => s.favorites)
@@ -64,6 +16,15 @@ export default function DockQuickAccess({ onClose }) {
 
   const routes = favorites?.routes ?? []
   const displayItems = routes.slice(0, 4).map(parseFavCode).filter(Boolean)
+  // 팝오버는 4건까지만 보여준다. 나머지를 볼 방법이 없으면 즐겨찾기가 사실상
+  // 4칸짜리 기능이 되므로, 전체 목록(/favorites)으로 나가는 길을 항상 열어 둔다.
+  const hiddenCount = Math.max(0, routes.length - displayItems.length)
+
+  const goAll = () => {
+    window.history.pushState({}, '', '/favorites')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    onClose()
+  }
 
   const handleItemClick = (item) => {
     if (!item) return
@@ -127,6 +88,14 @@ export default function DockQuickAccess({ onClose }) {
           ))}
         </div>
       )}
+      <button
+        type="button"
+        onClick={goAll}
+        className="flex w-full min-h-[44px] items-center justify-between gap-2 border-t border-line-soft dark:border-line-soft px-4 text-caption font-semibold text-accent-ink dark:text-accent-ink hover:bg-surface-2 dark:hover:bg-surface-2"
+      >
+        <span>{hiddenCount > 0 ? `즐겨찾기 전체 보기 (+${hiddenCount})` : '즐겨찾기 전체 보기'}</span>
+        <ChevronRight size={16} className="flex-none" aria-hidden="true" />
+      </button>
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(4px); }

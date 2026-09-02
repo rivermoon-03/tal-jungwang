@@ -18,6 +18,8 @@ import ErrorState from '../components/ui/ErrorState'
 import CafeteriaVenues from '../components/cafeteria/CafeteriaVenues'
 import LibrarySection from '../components/facilities/LibrarySection'
 import MealGridSection from '../components/cafeteria/MealGridSection'
+import NowBadge from '../components/cafeteria/NowBadge'
+import DayChips from '../components/cafeteria/DayChips'
 import CafeteriaPCLayout from '../components/cafeteria/CafeteriaPCLayout'
 import { useCafeteriaMenu } from '../hooks/useCafeteria'
 import { useIsDesktop } from '../hooks/useMediaQuery'
@@ -32,6 +34,8 @@ import {
   isMenuWeekStale,
 } from '../utils/cafeteriaDays'
 import { formatUpdated } from '../utils/cafeteriaFormat'
+import { isMealTypeOpenNow } from '../utils/cafeteriaMenuVenue'
+import { useNow } from '../hooks/useNow'
 
 // 메인 탭 정의. id 는 기존 딥링크(/cafeteria?tab=diet|venues)와 PC 사이드바
 // 서브내비가 쓰던 값이라 그대로 둔다 — 라벨만 탭 이름에 맞춰 바꾼다.
@@ -59,6 +63,17 @@ export default function FacilitiesPage() {
     [cafeteriaForDays, data?.week_start, data?.year]
   )
 
+  // 1분 주기 tick — CafeteriaPCLayout과 같은 패턴(useNow가 visibility 정리 담당).
+  const nowMs = useNow(60_000)
+  const nowDate = useMemo(() => new Date(nowMs), [nowMs])
+
+  // 오늘이 이번 주차 안에 있으면 그 날짜 키. 요일 칩의 "오늘" 표시와
+  // 끼니 배지의 "지금" 판정이 같은 값을 본다.
+  const todayKey = useMemo(
+    () => getTodayDayKey(data?.week_start, data?.year, dayKeys),
+    [data?.week_start, data?.year, dayKeys]
+  )
+
   // 요일 라벨 맵 구성
   const dayLabelMap = useMemo(
     () => buildDayLabelMap(data?.week_start, data?.year, dayKeys),
@@ -69,14 +84,13 @@ export default function FacilitiesPage() {
   // 오늘에 메뉴가 없으면 가장 가까운 메뉴 있는 날로 폴백.
   const effectiveDay = useMemo(() => {
     if (selectedDay && dayKeys.includes(selectedDay)) return selectedDay
-    const today = getTodayDayKey(data?.week_start, data?.year, dayKeys)
-    if (today && hasDayMenu(cafeteriaForDays, today)) return today
+    if (todayKey && hasDayMenu(cafeteriaForDays, todayKey)) return todayKey
     // 오늘 메뉴 없거나 오늘이 dayKeys에 없는 경우: 가장 가까운 메뉴 있는 날
     const nearest = getNearestMenuDayKey(data?.week_start, data?.year, dayKeys, cafeteriaForDays)
     if (nearest) return nearest
     // 메뉴 있는 날이 하나도 없으면 첫 번째 날 표시 (미운영 안내라도 보여줌)
     return getFirstDayKey(dayKeys, data?.week_start, data?.year)
-  }, [selectedDay, dayKeys, data?.week_start, data?.year, cafeteriaForDays])
+  }, [selectedDay, dayKeys, todayKey, data?.week_start, data?.year, cafeteriaForDays])
 
   const cafeteria = data?.cafeterias?.[selectedCafeteriaIdx] ?? null
   const updatedLabel = formatUpdated(data?.fetched_at)
@@ -91,15 +105,16 @@ export default function FacilitiesPage() {
     [data?.cafeterias]
   )
 
-  // 요일 칩 items (hasMenu: 해당 날 메뉴 존재 여부)
+  // 요일 칩 items (hasMenu: 해당 날 메뉴 존재 여부, isToday: 오늘 여부)
   const dayChipItems = useMemo(
     () =>
       dayKeys.map((dk) => ({
         id: dk,
         label: dayLabelMap[dk] ?? `${dk}일`,
         hasMenu: hasDayMenu(cafeteriaForDays, dk),
+        isToday: dk === todayKey,
       })),
-    [dayKeys, dayLabelMap, cafeteriaForDays]
+    [dayKeys, dayLabelMap, cafeteriaForDays, todayKey]
   )
 
   // PC 레이아웃 분기
@@ -158,32 +173,7 @@ export default function FacilitiesPage() {
           {/* 요일 칩 — hasMenu 없는 날은 흐리게 표시 */}
           {dayChipItems.length > 0 && (
             <div className="px-4 pb-3 flex-shrink-0 overflow-x-auto">
-              <div className="flex items-center gap-2 overflow-x-auto">
-                {dayChipItems.map((item) => {
-                  const isActive = item.id === effectiveDay
-                  return (
-                    <button
-                      key={item.id}
-                      aria-pressed={isActive}
-                      data-has-menu={item.hasMenu ? 'true' : 'false'}
-                      onClick={() => setSelectedDay(item.id)}
-                      className={[
-                        'inline-flex items-center justify-center',
-                        'h-[38px] px-4 rounded-pill',
-                        'text-label font-semibold whitespace-nowrap select-none',
-                        'transition-colors duration-press',
-                        isActive
-                          ? 'bg-accent-bg text-accent-ink'
-                          : item.hasMenu
-                            ? 'bg-surface-2 text-ink-2'
-                            : 'bg-surface-2 text-ink-2 opacity-40',
-                      ].join(' ')}
-                    >
-                      {item.label}
-                    </button>
-                  )
-                })}
-              </div>
+              <DayChips items={dayChipItems} value={effectiveDay} onChange={setSelectedDay} />
             </div>
           )}
 
@@ -236,13 +226,21 @@ export default function FacilitiesPage() {
                 className="flex flex-col animate-fade-in"
                 key={`${selectedCafeteriaIdx}:${effectiveDay}`}
               >
-                {cafeteria.meals.map((meal, i) => (
-                  <MealGridSection
-                    key={`${meal.type}-${i}`}
-                    meal={meal}
-                    dayKey={effectiveDay}
-                  />
-                ))}
+                {cafeteria.meals.map((meal, i) => {
+                  // "지금 운영 중" 판정은 오늘을 보고 있을 때만 뜻이 있다.
+                  // 다른 요일을 넘겨보는 중에 오늘 기준 배지가 붙으면 거짓말이 된다.
+                  const isNow =
+                    effectiveDay === todayKey &&
+                    isMealTypeOpenNow(cafeteria.name, meal.type, nowDate)
+                  return (
+                    <MealGridSection
+                      key={`${meal.type}-${i}`}
+                      meal={meal}
+                      dayKey={effectiveDay}
+                      badge={isNow ? <NowBadge /> : null}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>

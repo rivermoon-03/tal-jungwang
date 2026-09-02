@@ -7,6 +7,7 @@ import { useWeather } from '../../hooks/useWeather'
 import { SKY_ICON, SKY_TEXT } from '../stats/skyDisplay'
 import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import { PC_TABS, getActivePcTabId, navigateToPcTab } from '../common/pcNavTabs'
+import { parseFavCode } from '../../utils/favCode'
 import NoticesPopover from '../common/NoticesPopover'
 
 // "값 없음"으로 취급하는 미세먼지 등급 표기 — 백엔드가 측정 실패 시 null이
@@ -86,6 +87,7 @@ export default function PCSidebar() {
   const toggleDarkMode = useAppStore((s) => s.toggleDarkMode)
   const favorites = useAppStore((s) => s.favorites)
   const favoriteRoutes = favorites?.routes ?? []
+  const setDetailModal = useAppStore((s) => s.setDetailModal)
 
   const pcCafeteriaTab = useAppStore((s) => s.pcCafeteriaTab)
   const setPcCafeteriaTab = useAppStore((s) => s.setPcCafeteriaTab)
@@ -100,7 +102,16 @@ export default function PCSidebar() {
   const [noticesOpen, setNoticesOpen] = useState(false)
   const bellRef = useRef(null)
 
-  const goSettings = (e) => navigateToPcTab(e, '/more')
+  // 즐겨찾기 항목을 누르면 그 노선의 상세 시트를 연다.
+  // 예전에는 모든 행이 goSettings 에 묶여 있어서 무엇을 눌러도 /more 로 갔다 —
+  // hover 상태는 정상이라 눌리는 것처럼 보이기만 했다.
+  // 모바일 팝오버(DockQuickAccess)와 같은 parseFavCode + setDetailModal 경로를 쓴다.
+  const openFavorite = (favCode) => () => {
+    const item = parseFavCode(favCode)
+    if (!item) return
+    const { type, routeCode, title, ...rest } = item
+    setDetailModal({ type, routeCode, title, ...rest })
+  }
 
   // 컨텍스트 서브내비 클릭 — store를 먼저 갱신해 콘텐츠가 즉시 반응하게 하고,
   // 현재 경로가 상위 탭 루트가 아니면(예: 식당 상세 페이지) 그리로 되돌린다.
@@ -128,13 +139,17 @@ export default function PCSidebar() {
       window.history.replaceState({}, '', url)
     }
   }
-  // 지도 서브내비 — "시간표"는 /schedule 페이지(좌 목록 / 우 상세 2단)로 간다.
+  // 지도 서브내비 — "지금"과 "시간표"는 지도 탭의 두 관점이지 다른 페이지가 아니다.
+  // 예전에는 "시간표"만 /schedule 로 pushState 했는데, 그러면 PCMainShell 의
+  // showFloating(=!children) 이 false 가 되면서 도킹 패널이 통째로 unmount 되고
+  // 지도 위에 불투명 페이지가 덮였다 — 사이드바가 하위 뷰처럼 보여 주는 것과
+  // 실제 동작이 어긋나던 자리다. 이제 store 만 바꾸고 주소는 지도 홈(/)에 둔다.
+  // (딥링크 /schedule 은 여전히 독립 페이지로 살아 있다.)
   const selectMapView = (id) => (e) => {
     e.preventDefault()
     setHomeView(id)
-    const url = id === 'timetable' ? '/schedule' : '/'
-    if (window.location.pathname !== url) {
-      window.history.pushState({}, '', url)
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/')
       window.dispatchEvent(new PopStateEvent('popstate'))
     }
   }
@@ -245,8 +260,8 @@ export default function PCSidebar() {
                 <li key={routeKey}>
                   <button
                     type="button"
-                    onClick={goSettings}
-                    className="pressable flex w-full items-center gap-[11px] rounded-button py-[7px] pl-[22px] pr-3 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+                    onClick={openFavorite(routeKey)}
+                    className="pressable flex min-h-[44px] w-full items-center gap-[11px] rounded-button py-[7px] pl-[22px] pr-3 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
                   >
                     {isSubway
                       ? <Train size={15} className="flex-none text-mute" aria-hidden="true" />
