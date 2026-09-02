@@ -18,6 +18,8 @@ import CafeteriaVenues from './CafeteriaVenues'
 import LibrarySection from '../facilities/LibrarySection'
 import useAppStore from '../../stores/useAppStore'
 import { useNow } from '../../hooks/useNow'
+import NowBadge from './NowBadge'
+import DayChips from './DayChips'
 import { formatUpdated } from '../../utils/cafeteriaFormat'
 import { isMealTypeOpenNow, getCafeteriaStatus, isCafeteriaStatusOpen } from '../../utils/cafeteriaMenuVenue'
 import {
@@ -36,14 +38,6 @@ function navigateToVenueDetail(venueId) {
 }
 
 /** 끼니 카드가 "지금" 운영 중일 때 헤더에 붙는 작은 pill */
-function NowBadge() {
-  return (
-    <span className="ml-auto px-2 py-0.5 rounded-pill text-caption font-semibold bg-chip-green-bg text-chip-green-fg">
-      지금
-    </span>
-  )
-}
-
 /** 운영상태 pill — CafeteriaVenueRail의 StatusPill과 동일한 표시 규칙(unknown이면 숨김). */
 function StatusPill({ status, primaryLabel }) {
   if (status === 'unknown') return null
@@ -129,14 +123,20 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
 
   const cafeteria = data?.cafeterias?.[selectedVenueIdx] ?? null
 
+  const todayKey = useMemo(
+    () => getTodayDayKey(data?.week_start, data?.year, dayKeys),
+    [data?.week_start, data?.year, dayKeys]
+  )
+
   const dayChipItems = useMemo(
     () =>
       dayKeys.map((dk) => ({
         id: dk,
         label: dayLabelMap[dk] ?? `${dk}일`,
         hasMenu: hasDayMenu(cafeteriaForDays, dk),
+        isToday: dk === todayKey,
       })),
-    [dayKeys, dayLabelMap, cafeteriaForDays]
+    [dayKeys, dayLabelMap, cafeteriaForDays, todayKey]
   )
 
   function handleSelectVenue(idx) {
@@ -224,32 +224,7 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
                   <h2 className="text-head font-bold text-ink">{cafeteria.name} 식단</h2>
 
                   {dayChipItems.length > 0 && (
-                    <div className="flex items-center gap-2 overflow-x-auto">
-                      {dayChipItems.map((item) => {
-                        const isActive = item.id === effectiveDay
-                        return (
-                          <button
-                            key={item.id}
-                            aria-pressed={isActive}
-                            data-has-menu={item.hasMenu ? 'true' : 'false'}
-                            onClick={() => setSelectedDay(item.id)}
-                            className={[
-                              'inline-flex items-center justify-center',
-                              'h-[38px] px-4 rounded-pill',
-                              'text-label font-semibold whitespace-nowrap select-none',
-                              'transition-colors duration-press',
-                              isActive
-                                ? 'bg-accent-bg text-accent-ink'
-                                : item.hasMenu
-                                  ? 'bg-surface-2 text-ink-2'
-                                  : 'bg-surface-2 text-ink-2 opacity-40',
-                            ].join(' ')}
-                          >
-                            {item.label}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <DayChips items={dayChipItems} value={effectiveDay} onChange={setSelectedDay} />
                   )}
                 </div>
 

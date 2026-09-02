@@ -2,8 +2,20 @@ import { useMemo, useState } from 'react'
 import MapView from '../map/MapView'
 import MapLegendOnboarding from '../map/MapLegendOnboarding'
 import PCMapDockPanel from '../map/PCMapDockPanel'
+import SegmentedControl from '../ui/SegmentedControl'
+import SchedulePage from '../schedule/SchedulePage'
 import useAppStore from '../../stores/useAppStore'
 import useMapBottomCardData from '../../hooks/useMapBottomCardData'
+
+// pages/SchedulePage 는 props 를 전달하지 않는 /schedule 전용 래퍼라, 모바일
+// Dashboard 와 같이 컴포넌트를 직접 쓴다 — 그래야 embedded 가 실제로 전달된다.
+// lazy 로 두면 Dashboard 가 같은 모듈을 정적 import 하고 있어 청크가 갈리지 않는다
+// (rollup INEFFECTIVE_DYNAMIC_IMPORT). 어차피 같은 청크라면 정적 import 가 낫다.
+
+const MAP_VIEWS = [
+  { value: 'now', label: '지금' },
+  { value: 'timetable', label: '시간표' },
+]
 
 // 모드 필터 칩. 현재 실데이터(useMapBottomCardData)는 버스만 제공한다 — 셔틀/
 // 지하철/택시를 하단 카드에 합류시키는 작업은 후속 범위(TODO 참고).
@@ -32,6 +44,12 @@ export default function PCMainShell({ children }) {
   const handleMarkerClick = (id) => setSelectedIdStore(selectedId === id ? null : id)
 
   const showFloating = !children
+
+  // 지도 탭의 두 관점. 모바일 Dashboard 가 homeView 로 "지금 ↔ 시간표"를 제자리에서
+  // 바꾸는 것과 같은 방식이다. 여기서도 MapView 는 손대지 않고 도킹 패널 내용만 바꾼다.
+  const homeView = useAppStore((s) => s.homeView)
+  const setHomeView = useAppStore((s) => s.setHomeView)
+  const showTimetable = showFloating && homeView === 'timetable'
 
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('bus')
@@ -96,7 +114,23 @@ export default function PCMainShell({ children }) {
 
   return (
     <div className="relative hidden h-full w-full overflow-hidden md:flex">
-      {showFloating && (
+      {showTimetable && (
+        <aside className="relative z-20 flex h-full w-[380px] flex-none flex-col overflow-hidden border-r border-line bg-surface dark:bg-surface xl:w-[440px]">
+          <div className="flex-none px-3 pb-2 pt-3">
+            <SegmentedControl
+              options={MAP_VIEWS}
+              value={homeView}
+              onChange={setHomeView}
+              ariaLabel="지도 보기 전환"
+            />
+          </div>
+          <div className="min-h-0 flex-1">
+            <SchedulePage embedded />
+          </div>
+        </aside>
+      )}
+
+      {showFloating && !showTimetable && (
         <PCMapDockPanel
           collapsed={panelCollapsed}
           onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
@@ -122,7 +156,7 @@ export default function PCMainShell({ children }) {
           showControls={showFloating}
         />
 
-        {showFloating && <MapLegendOnboarding />}
+        {showFloating && !showTimetable && <MapLegendOnboarding />}
 
         {!showFloating && (
           <div className="absolute inset-0 z-30 overflow-y-auto bg-bg dark:bg-bg">

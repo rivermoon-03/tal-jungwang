@@ -173,7 +173,7 @@ async def _fetch_traffic_payload() -> dict:
 
 @router.get("")
 @limiter.limit("30/minute")
-async def get_traffic(request: Request):
+async def get_traffic(request: Request, response: Response):
     """주요 도로 실시간 교통 정보 조회.
 
     한국공학대 ↔ 정왕역 경로를 TMAP으로 탐색하고,
@@ -181,9 +181,13 @@ async def get_traffic(request: Request):
     출퇴근 시간대(07~09, 16~18) Redis 캐싱 60초, 평시 300초.
     캐시 미스 시 single-flight 락으로 동시 요청의 TMAP 중복 호출을 방지한다.
     """
+    ttl = _traffic_ttl()
+    response.headers["Cache-Control"] = (
+        f"public, max-age={ttl}, stale-while-revalidate={ttl * 5}"
+    )
     payload = await get_or_fetch_with_lock(
         _TRAFFIC_LIVE_CACHE_KEY,
-        _traffic_ttl(),
+        ttl,
         _fetch_traffic_payload,
     )
     return ApiResponse[TrafficResponse].ok(payload)
@@ -275,6 +279,7 @@ _FLOW_CACHE_TTL = 1800  # 30분 — 곡선은 히스토리 누적 속도가 느�
 @limiter.limit("30/minute")
 async def traffic_flow(
     request: Request,
+    response: Response,
     day_type: str = Query("weekday", pattern="^(weekday|weekend)$"),
     direction: str | None = Query(None, pattern="^(to_school|to_station)$"),
     db: AsyncSession = Depends(get_db),
@@ -283,6 +288,9 @@ async def traffic_flow(
 
     direction 미지정 시 양방향 평균.
     """
+    response.headers["Cache-Control"] = (
+        f"public, max-age={_FLOW_CACHE_TTL}, stale-while-revalidate={_FLOW_CACHE_TTL * 5}"
+    )
     cache_key = f"traffic:flow:{day_type}:{direction or 'all'}"
     cached = await get_cached_json(cache_key)
     if cached is not None:

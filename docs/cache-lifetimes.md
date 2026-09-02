@@ -100,7 +100,8 @@ cache-aside로 자가회복"이다. 이 저장소는 두 가지 다른 회복 �
 | `GET /api/v1/map/markers` | 3600s | 86400s | 표2 map 마커(TTL 24h) |
 | `GET /api/v1/dashboard` | 10s | 30s | 여러 도메인 합성(가장 짧은 실시간 기준) |
 | `GET /api/v1/recommend/transport` | 10s | 30s | 실시간 도착 기반 |
-| `GET /api/v1/traffic` | 동적(러시 60s / 평시 300s, `_traffic_ttl`) | — | DB 직접(`traffic_history`), 경계 clamp로 stale 방지 |
+| `GET /api/v1/traffic` | 동적(러시 60s / 평시 300s, `_traffic_ttl`) | max-age의 5배(동적) | cache-aside(`traffic:live`, TMAP 직접 호출) — Redis TTL이 HTTP max-age와 동일값(`_traffic_ttl`), 경계 clamp로 stale 방지 |
+| `GET /api/v1/traffic/flow` | 1800s | 9000s | cache-aside(`traffic:flow:{day_type}:{direction}`, TTL 1800s `_FLOW_CACHE_TTL`) — DB(`traffic_history`) 직접 집계 |
 
 ## 발견한 위반/주의 사항 요약
 

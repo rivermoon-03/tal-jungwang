@@ -239,7 +239,7 @@ async def _bus_eta_accuracy_refresh_job():
 
 async def _purge_logs_job():
     """매일 03:45 KST에 로그성 테이블(bus_crowding_logs·bus_arrival_history·
-    traffic_history)의 보존기간 초과 행을 배치 삭제.
+    traffic_history·subway_arrival_history)의 보존기간 초과 행을 배치 삭제.
 
     stats(03:30)·rewarm(03:40) 다음, 버스 폴링 휴식(02~04시) 안쪽이라
     운영 트래픽/다른 나이틀리 job과 겹치지 않는다.
@@ -547,8 +547,9 @@ def setup_scheduler():
     logger.info("Static cache rewarm scheduler configured (daily 03:40 KST)")
 
     # ── 로그 테이블 보존정책 정리 (매일 03:45 KST) ──
-    # bus_crowding_logs(90d)·bus_arrival_history(90d)·traffic_history(180d)를
-    # 배치 삭제. stats(03:30)·rewarm(03:40) 다음, 폴링 휴식 구간 안쪽.
+    # bus_crowding_logs(90d)·bus_arrival_history(90d)·traffic_history(180d)·
+    # subway_arrival_history(90d)를 배치 삭제. stats(03:30)·rewarm(03:40)
+    # 다음, 폴링 휴식 구간 안쪽.
     scheduler.add_job(
         _purge_logs_job,
         CronTrigger(hour=3, minute=45, timezone="Asia/Seoul"),

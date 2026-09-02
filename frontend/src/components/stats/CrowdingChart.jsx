@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
-import { crowdedColor, crowdedLabel } from '../../utils/crowdingPalette'
+import { crowdedColor } from '../../utils/crowdingPalette'
+import { labelFromRatio } from '../../utils/crowdingLevel'
 
 // 48개 버킷(30분) × 높이 = 혼잡도/4. 호버하면 tooltip + 현재 시각 dashed line.
 const W = 320
@@ -208,7 +209,10 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
             {String(active.hour).padStart(2, '0')}:{String(active.minute).padStart(2, '0')}
           </div>
           <div className="text-label font-bold text-center" style={{ color: crowdedColor(active.point.crowded) }}>
-            {crowdedLabel(active.point.crowded)}
+            {labelFromRatio(active.point.ratio, {
+              estimated: active.point.estimated,
+              reliable: active.point.reliable,
+            })}
           </div>
           <div className="text-caption text-mute text-center tabular-nums">
             평균 {active.point.crowded.toFixed(2)} · {active.point.samples}건

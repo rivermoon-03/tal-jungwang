@@ -20,17 +20,17 @@
  * 항상 존재하므로 "도착 기록 보기" 같은 중복 링크가 필요 없다 — 결함 #30).
  *
  * ETA 숫자 강조는 색만 바꾼다(--tj-imminent) — 배경/보더는 그대로 유지.
+ *
+ * "초 → 표시 문자열" 변환과 임박(강조) 판정은 utils/eta.js에 위임한다 — 예전엔
+ * 이 컴포넌트가 90초 임계를 로컬로 복제해 들고 있어 BusEtaCard(당시 60/180초
+ * 이중 임계)와 서로 다른 기준으로 어긋났다.
  */
+import { formatEta, isImminent } from '../../utils/eta'
 
-// arrive_in_seconds → "N분" / "곧 도착" 라벨. 90초 이하는 임박으로 본다.
+// arrive_in_seconds → "N분" / "곧 도착" 라벨. null이면 카드 문구는 '정보 없음'.
 function etaLabel(sec) {
   if (sec == null) return null
-  if (sec <= 90) return '곧 도착'
-  return `${Math.ceil(sec / 60)}분`
-}
-
-function isImminent(sec) {
-  return sec != null && sec <= 90
+  return formatEta(sec).text
 }
 
 export default function ArrivalEtaCard({ histData, histLoading, nextScheduled }) {

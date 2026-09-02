@@ -112,10 +112,30 @@ export default function RouteCrowdingSummary({ routeNumber }) {
                   </span>
                 ))}
               </div>
+
+              {/* 범례 — 색 의미가 title 툴팁에만 있으면 모바일 터치에서 확인이 안 되므로
+                  화면에 상시 보이는 텍스트 범례를 둔다. */}
+              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                <LegendDot toneRatio={0} text="여유" />
+                <LegendDot toneRatio={0.1} text="보통" />
+                <LegendDot toneRatio={0.25} text="붐빔" />
+                <LegendDot toneRatio={0.5} text="매우 붐빔" />
+                <LegendDot toneRatio={null} text="데이터 없음" />
+              </div>
             </div>
           )}
         </>
       )}
     </section>
+  )
+}
+
+function LegendDot({ toneRatio, text }) {
+  const tone = crowdedToneStyle(toneRatio)
+  return (
+    <span className="inline-flex items-center gap-1.5 text-caption text-mute dark:text-mute font-medium">
+      <span className={`w-2.5 h-2.5 rounded-full ${tone.className}`} style={tone.style} />
+      {text}
+    </span>
   )
 }
