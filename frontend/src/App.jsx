@@ -44,6 +44,7 @@ const MorePage = lazyWithReload(() => import('./pages/MorePage'))
 const RouteDetailPage = lazyWithReload(() => import('./pages/RouteDetailPage'))
 const CafeteriaVenueDetailPage = lazyWithReload(() => import('./pages/CafeteriaVenueDetailPage'))
 const PrivacyPage = lazyWithReload(() => import('./pages/PrivacyPage'))
+const FavoritesPage = lazyWithReload(() => import('./pages/FavoritesPage'))
 
 const VALID_HASH_TABS = ['main', 'map', 'transit', 'subway', 'more']
 
@@ -64,6 +65,7 @@ function pathnameToPage(pathname) {
   if (pathname.startsWith('/notices'))    return 'notices'
   if (pathname.startsWith('/more'))       return 'more-page'
   if (pathname.startsWith('/route/'))     return 'route-detail'
+  if (pathname.startsWith('/favorites'))  return 'favorites'
   return null
 }
 
@@ -246,6 +248,9 @@ export default function App() {
   } else if (currentPage === 'cafeteria-venue') {
     pageContent = <CafeteriaVenueDetailPage venueId={venueId} />
     mobileContent = <CafeteriaVenueDetailPage venueId={venueId} />
+  } else if (currentPage === 'favorites') {
+    pageContent = <FavoritesPage />
+    mobileContent = <FavoritesPage />
   } else {
     // 지도(기본) 페이지 — PC는 PCMainShell이 children=null을 받아 풀사이즈 지도 +
     // 플로팅 검색/도착 카드로 직접 그린다(PCMapDashboard는 더 이상 쓰지 않음).
@@ -270,11 +275,23 @@ export default function App() {
                 계속 돌면서 store를 덮어쓰는 부작용이 발생함 (PCStationPicker auto-sync 등). */}
             <Suspense fallback={<div className="h-full" />}>
               {isDesktop ? (
-                <div key={currentPage ?? 'home'} className="h-full tj-tab-fade">
+                /* PCMainShell 에는 key 를 주지 않는다. 여기에 key={currentPage} 가
+                   있으면 탭을 옮길 때마다 셸 전체가 remount 되면서 그 안의 MapView 가
+                   같이 죽는다 — PCMainShell 이 "지도는 절대 unmount 하지 않는다"고
+                   밝힌 의도가 상위 래퍼에서 무효화되던 자리다(kakao.maps.Map 재생성,
+                   GPS watch 해제, 열려 있던 시트 소실). 페이지 전환 페이드는 지도 위에
+                   덮이는 오버레이 쪽에만 걸어 준다. */
+                <div className="h-full">
                   {/* 지도 홈(currentPage=null)에서는 children=null → PCMainShell이
                       풀사이즈 지도 + 플로팅 오버레이를 직접 그린다. 그 외 페이지는
                       children으로 받은 pageContent가 지도 위 불투명 패널을 채운다. */}
-                  <PCMainShell>{pageContent}</PCMainShell>
+                  <PCMainShell>
+                    {pageContent && (
+                      <div key={currentPage} className="h-full tj-tab-fade">
+                        {pageContent}
+                      </div>
+                    )}
+                  </PCMainShell>
                 </div>
               ) : (
                 <div key={currentPage ?? 'home'} className="h-full overflow-auto tj-tab-fade">

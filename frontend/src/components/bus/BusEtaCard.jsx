@@ -15,14 +15,23 @@ import { memo, useMemo, useState } from 'react'
 import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
+import { formatEta, isImminent } from '../../utils/eta'
 
-// arrive_in_seconds → 표시 문자열 + imminent 여부
+// arrive_in_seconds → 표시 문자열 + imminent 여부.
+//
+// "초 → 표시 문자열" 변환과 임박 임계값은 utils/eta.js에 위임한다. 예전엔 이
+// 함수가 텍스트 전환은 60초, 빨간 강조는 180초로 서로 다른 임계를 써서
+// "2분 후"(120~179초)가 빨갛게 뜨는 버그가 있었다 — 이제 둘 다 eta.js의
+// IMMINENT_THRESHOLD_SEC(90초) 하나로 맞춘다.
+// "이미 도착"(음수)은 eta.js에 없는 이 카드만의 상태라 여기서 얹는다.
 function formatEtaLocal(sec) {
   if (sec == null) return { text: '·', imminent: false }
   if (sec < 0) return { text: '이미 도착', imminent: true }
-  if (sec < 60) return { text: '곧 도착', imminent: true }
-  const mins = Math.ceil(sec / 60)
-  return { text: `${mins}분 후`, imminent: sec <= 180 }
+  const { text } = formatEta(sec)
+  // eta.js는 접미사 없는 "N분"을 준다 — 이 카드는 "N분 후"로 붙여 쓴다.
+  // ("곧 도착"이나 60분 초과의 절대 시각(HH:MM)에는 접미사를 붙이지 않는다.)
+  const suffixed = /^\d+분$/.test(text) ? `${text} 후` : text
+  return { text: suffixed, imminent: isImminent(sec) }
 }
 
 function BusEtaCard({ realtimeEta = null, predictedEta = null }) {

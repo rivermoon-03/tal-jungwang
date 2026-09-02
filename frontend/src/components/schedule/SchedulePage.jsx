@@ -901,7 +901,10 @@ export default function SchedulePage({ embedded = false, viewSwitch = null }) {
     // PC 2단에서는 우측 상세가 이전 모드의 노선을 계속 보여주는 문제가 있었다
     // (버스에서 지하철 상세를 연 뒤 셔틀 탭으로 가면 지하철 상세가 남음).
     setSelectedDetail(null)
-    navigateSchedule({ type: next })
+    // 임베드(홈/지도 탭의 "시간표" 보기)일 때 주소는 호스트 것이다. 여기서
+    // /schedule 로 덮어쓰면 새로고침이나 링크 공유에서 지도 대신 독립
+    // 시간표 페이지가 열려, 지도 탭에 머물러 있다는 전제가 깨진다.
+    if (!embedded) navigateSchedule({ type: next })
   }
 
   // favKey 스키마(utils/favKey.js) 단일화 — 별 저장은 항상 favorites.keys에

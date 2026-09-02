@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
-import { crowdedColor, crowdedLabel, ROUTE_ACCENTS } from '../../utils/crowdingPalette'
+import { crowdedColor, ROUTE_ACCENTS } from '../../utils/crowdingPalette'
+import { labelFromRatio } from '../../utils/crowdingLevel'
 import ChartSkeleton from './ChartSkeleton'
 import CrowdingChart from './CrowdingChart'
 
@@ -125,7 +126,10 @@ export default function CrowdingCard() {
                 className="text-eta font-bold tracking-tight leading-none"
                 style={{ color: crowdedColor(currentPoint.crowded) }}
               >
-                {crowdedLabel(currentPoint.crowded)}
+                {labelFromRatio(currentPoint.ratio, {
+                  estimated: currentPoint.estimated,
+                  reliable: currentPoint.reliable,
+                })}
               </div>
             ) : (
               <div className="text-title font-bold text-mute leading-none">--</div>
@@ -140,7 +144,10 @@ export default function CrowdingCard() {
                 className="text-head font-bold"
                 style={{ color: crowdedColor(futurePeak.crowded) }}
               >
-                {crowdedLabel(futurePeak.crowded)}
+                {labelFromRatio(futurePeak.ratio, {
+                  estimated: futurePeak.estimated,
+                  reliable: futurePeak.reliable,
+                })}
               </div>
             </div>
           )}

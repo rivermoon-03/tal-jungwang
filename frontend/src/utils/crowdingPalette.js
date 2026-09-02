@@ -27,17 +27,6 @@ export function crowdedColor(v) {
   return `rgb(${STOPS[STOPS.length - 1].rgb.join(',')})`
 }
 
-// DEPRECATED — 평균(1.0~4.0) 축 라벨. 하한이 1이라 값 1인 버스와 3인 버스가 섞이면
-// 2("보통")로 뭉개진다. 신규 코드는 utils/crowdingLevel.labelFromRatio 를 쓴다.
-// 남아 있는 사용처는 현재 마운트되지 않는 stats/RouteCrowdingSection·CrowdingChart 뿐이다.
-export function crowdedLabel(v) {
-  if (v == null) return '정보없음'
-  if (v < 1.35) return '여유'
-  if (v < 2.5) return '보통'
-  if (v < 3.5) return '혼잡'
-  return '매우혼잡'
-}
-
 // 노선별 포인트 컬러 — 탭 인디케이터와 상단 halo에만 쓴다.
 // 카드 배경은 4개 노선이 공유하는 중성 슬레이트라 막대 색과 충돌하지 않는다.
 export const ROUTE_ACCENTS = {

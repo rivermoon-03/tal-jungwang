@@ -1,11 +1,29 @@
-// 남은 초가 이 값 미만이면 "곧 도착/출발" 라벨로 바꿔 표시한다.
-// (tick으로 매초 깎인 뒤에도 사용자가 "1분 → 0분 → 곧" 단계로 읽게 하기보다
-//  60초 이하에서 곧바로 임박 라벨을 띄워 직관을 맞춘다.)
-export const IMMINENT_THRESHOLD_SEC = 60
+/**
+ * arrivalTime.js — 도착 시간 표시 유틸.
+ *
+ * "초 → 표시 문자열" 규칙(임박 임계값·라운딩·60분 초과 절대시각 전환)은
+ * utils/eta.js가 표준이다. 이 파일은 이미 여러 화면(BusArrivalCard,
+ * NearestStopCard, SchedulePage, busArrivalRows 등)이 쓰는 공개 API
+ * (IMMINENT_THRESHOLD_SEC / isImminent / imminentLabel / describeArrival /
+ * formatArrival / formatArrivalFromTime / getFirstBusLabel) 시그니처를
+ * 유지한 채, 내부 규칙만 eta.js에 위임한다.
+ *
+ * formatArrival(secondsLeft)
+ *   secondsLeft: 지금부터 도착까지 남은 초 (백엔드 arrive_in_seconds 필드)
+ *   반환값:
+ *     - secondsLeft == null    → null  (표시 없음)
+ *     - secondsLeft < 0        → "곧 출발"
+ *     - 임박 임계 이하(eta.js) → "곧 도착"
+ *     - 남은 시간 ≤ 60분      → "N분"
+ *     - 남은 시간 > 60분      → "HH:MM" (절대 시각, KST)
+ *
+ * formatArrivalFromTime(departAtStr)
+ *   departAtStr: "HH:MM" 또는 "HH:MM:SS" 형식의 출발 시각 문자열
+ *   지금 시각과 비교하여 위와 동일한 규칙으로 반환.
+ */
+import { IMMINENT_THRESHOLD_SEC, isImminent, formatEta } from './eta'
 
-export function isImminent(seconds) {
-  return seconds != null && seconds < IMMINENT_THRESHOLD_SEC
-}
+export { IMMINENT_THRESHOLD_SEC, isImminent }
 
 /**
  * mode에 따라 "곧 도착"(버스/지하철) 또는 "곧 출발"(셔틀) 반환.
@@ -20,44 +38,23 @@ export function imminentLabel(mode = 'arrive') {
  */
 export function describeArrival(seconds, { mode = 'arrive' } = {}) {
   if (seconds == null) return { imminent: false, minutes: null, label: null }
-  if (seconds < IMMINENT_THRESHOLD_SEC) {
+  if (isImminent(seconds)) {
     return { imminent: true, minutes: 0, label: imminentLabel(mode) }
   }
-  const minutes = Math.max(1, Math.ceil(seconds / 60))
+  const minutes = Math.max(1, Math.floor(seconds / 60))
   return { imminent: false, minutes, label: `${minutes}분` }
 }
 
 /**
- * arrivalTime.js — 도착 시간 표시 유틸
- *
- * formatArrival(secondsLeft)
- *   secondsLeft: 지금부터 출발까지 남은 초 (백엔드 arrive_in_seconds 필드)
- *   반환값:
- *     - secondsLeft == null  → null  (표시 없음)
- *     - 남은 시간 ≤ 60분    → "N분"
- *     - 남은 시간 > 60분    → "HH:MM" (절대 시각)
- *     - secondsLeft < 0     → "곧 출발"
- *
- * formatArrivalFromTime(departAtStr)
- *   departAtStr: "HH:MM" 또는 "HH:MM:SS" 형식의 출발 시각 문자열
- *   지금 시각과 비교하여 위와 동일한 규칙으로 반환.
- */
-
-/**
- * 남은 초를 기반으로 도착 표시 문자열을 반환.
+ * 남은 초를 기반으로 도착 표시 문자열을 반환한다. 음수(이미 지남)만 이 함수
+ * 고유의 "곧 출발" 라벨로 처리하고, 나머지는 eta.js formatEta에 위임한다.
  * @param {number|null} secondsLeft
  * @returns {string|null}
  */
 export function formatArrival(secondsLeft) {
   if (secondsLeft == null) return null
   if (secondsLeft < 0) return '곧 출발'
-  const mins = Math.ceil(secondsLeft / 60)
-  if (mins <= 60) return `${mins}분`
-  // > 60분 → 절대 시각으로 표시
-  const arrival = new Date(Date.now() + secondsLeft * 1000)
-  const hh = String(arrival.getHours()).padStart(2, '0')
-  const mm = String(arrival.getMinutes()).padStart(2, '0')
-  return `${hh}:${mm}`
+  return formatEta(secondsLeft).text
 }
 
 /**
@@ -81,10 +78,10 @@ export function formatArrivalFromTime(departAtStr) {
   // 이미 지났거나 12시간 초과이면 표시 안 함
   if (diffSec < 0 || diffSec > 12 * 60 * 60) return null
 
-  const mins = Math.ceil(diffSec / 60)
-  if (mins <= 60) return `${mins}분`
+  if (diffSec <= 60 * 60) return formatEta(diffSec).text
 
-  // 60분 초과 → 절대 시각은 입력 문자열에서 직접 추출 (Date.now() drift 방지)
+  // 60분 초과 → 절대 시각은 입력 문자열에서 직접 추출 (Date.now() drift 방지 —
+  // eta.js formatEta의 now+seconds 합산 대신 원본 HH:MM을 그대로 쓴다)
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
