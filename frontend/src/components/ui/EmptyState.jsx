@@ -23,6 +23,7 @@ export default function EmptyState({
   action,
   actionLabel,
   onAction,
+  size = 'md',
   className = '',
 }) {
   // action(레거시 객체형)이 있으면 그대로 쓰고, 없으면 actionLabel/onAction 조합으로 구성.
@@ -30,7 +31,10 @@ export default function EmptyState({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-3 py-10 px-6 text-center ${className}`}
+      role="status"
+      className={`flex flex-col items-center justify-center text-center ${
+        size === 'sm' ? 'gap-2 px-4 py-8' : 'gap-3 px-6 py-10'
+      } ${className}`}
     >
       {icon && (
         <span
@@ -64,7 +68,7 @@ export default function EmptyState({
         <button
           type="button"
           onClick={resolvedAction.onClick}
-          className="mt-1 px-5 min-h-[40px] text-caption font-bold rounded-btn bg-surface-2 text-mute active:scale-[0.94] transition-transform duration-press ease-spring"
+          className="mt-1 px-5 min-h-[44px] text-caption font-bold rounded-btn bg-surface-2 text-mute active:scale-[0.94] transition-transform duration-press ease-spring"
         >
           {resolvedAction.label}
         </button>

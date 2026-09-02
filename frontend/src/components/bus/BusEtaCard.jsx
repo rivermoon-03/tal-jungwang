@@ -114,7 +114,7 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
             // 신뢰를, 편차 큰 노선은 여유 이동을 말한다 — 색만으로 구분하지 않고
             // 문구 자체가 다르다.
             <p
-              className={`mt-2 text-[12.5px] font-medium ${
+              className={`mt-2 text-caption font-medium ${
                 accuracyGood
                   ? 'text-ease dark:text-ease'
                   : 'text-imminent dark:text-imminent'

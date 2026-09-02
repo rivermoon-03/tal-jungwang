@@ -5,6 +5,7 @@ import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStati
 import { RouteProgressStrip } from './BusArrivalCard'
 import BusStatsHeader from './BusStatsHeader'
 import DataBadge from '../ui/DataBadge'
+import IconButton from '../ui/IconButton'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
 import { scrollToCenterX } from '../../utils/scrollToCenter'
 
@@ -67,7 +68,7 @@ function RealtimeWaypointDetail({ routeNo, stationId }) {
             {columns.map((col) => (
               <div
                 key={col.date}
-                className="shrink-0 w-28 rounded-xl border border-line dark:border-line bg-surface dark:bg-surface overflow-hidden"
+                className="shrink-0 w-28 rounded-tile border border-line dark:border-line bg-surface dark:bg-surface overflow-hidden"
               >
                 <div className="px-3 py-2 bg-surface-2 dark:bg-line border-b border-line dark:border-line">
                   <p className="text-caption font-bold text-ink-2 dark:text-mute truncate">{col.label}</p>
@@ -168,9 +169,9 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
   return (
     <div className="flex flex-col h-full animate-slide-in-right bg-bg dark:bg-bg">
       <div className="flex items-center gap-3 px-4 pt-4 pb-3.5">
-        <button onClick={onBack} aria-label="뒤로" className="w-9 h-9 rounded-mini bg-line dark:bg-line text-ink dark:text-ink flex items-center justify-center pressable">
+        <IconButton onClick={onBack} label="뒤로" variant="surface">
           <ChevronLeft size={20} strokeWidth={2.5} />
-        </button>
+        </IconButton>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-page-ttl text-ink dark:text-ink">{routeNo}번</h2>

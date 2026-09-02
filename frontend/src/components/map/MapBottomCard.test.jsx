@@ -74,4 +74,26 @@ describe('MapBottomCard', () => {
     render(<MapBottomCard stationName="정왕역 정류장" primary={PRIMARY} routes={[]} />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
+
+  it('긴 노선 배지("시흥33", "20-1")가 고정 폭에 눌려 줄바꿈되지 않는다', () => {
+    const { container } = render(
+      <MapBottomCard
+        stationName="한국공학대학교"
+        primary={PRIMARY}
+        routes={[
+          { id: 'r1', badge: '시흥33', color: '#12a594', name: '한국공대 출발', etaText: '5분' },
+          { id: 'r2', badge: '20-1', color: '#1B5FAD', name: '아이파크아파트방면', etaText: '9분' },
+        ]}
+      />
+    )
+    const badges = [...container.querySelectorAll('span[aria-hidden="true"]')].filter((el) =>
+      ['시흥33', '20-1'].includes(el.textContent)
+    )
+    expect(badges).toHaveLength(2)
+    for (const badge of badges) {
+      const classes = badge.className.split(' ')
+      expect(classes).toContain('whitespace-nowrap')
+      expect(classes).not.toContain('w-[26px]')
+    }
+  })
 })

@@ -30,7 +30,7 @@ export default function DarkModeSegment() {
             aria-pressed={active}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all pressable
               ${active
-                ? 'shadow-sm text-white'
+                ? 'shadow-sh-card text-white'
                 : 'text-ink-2 dark:text-mute hover:text-ink dark:hover:text-ink'
               }`}
             style={{

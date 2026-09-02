@@ -1,8 +1,10 @@
 /**
  * ScheduleDetailModal — bottom-sheet modal with full upcoming schedule.
  * - 세로 리스트 + "다음" 배지 + "N분 뒤"
- * - 모바일: vaul(Drawer) 기반 스와이프 다운 닫기(Phase C). PC: 좌측 패널 내
- *   콘텐츠 교체형 크로스페이드(기존 UX 유지, vaul 미적용 — 오프캔버스 슬라이드가 아님).
+ * - 모바일: ui/Sheet(백드롭·Escape·포커스 트랩·z 토큰을 위임, 예전 vaul 기반
+ *   스와이프 다운 닫기는 제거). PC: 좌측 패널 내 콘텐츠 교체형 크로스페이드
+ *   (기존 UX 유지 — 오프캔버스 슬라이드가 아니라 Sheet의 bottom/center 배치로는
+ *   표현할 수 없는 도킹 패널이라 Sheet를 쓰지 않는다).
  * - FloatingDock 위로 띄워지도록 bottom padding 확보
  * - pcMode="overlay"(기본, GlobalDetailModal 용) — PCMainShell 좌측 38% 패널 위에
  *   fixed portal로 뜬다(맵 홈 전용 geometry 가정).
@@ -11,7 +13,6 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Drawer } from 'vaul'
 import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats, useBusCommuteContexts } from '../../hooks/useBus'
@@ -20,6 +21,9 @@ import { useSubwayTimetable } from '../../hooks/useSubway'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
 import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
 import Skeleton from '../common/Skeleton'
+import Sheet from '../ui/Sheet'
+import IconButton from '../ui/IconButton'
+import ErrorState from '../ui/ErrorState'
 import { RouteProgressStrip } from '../bus/BusArrivalCard'
 import { ROUTE_WAYPOINTS, getGbisStationIdForRoute, getRouteDisplayConfig } from '../dashboard/busStationConfig'
 import BusStatsHeader from '../bus/BusStatsHeader'
@@ -27,7 +31,9 @@ import BusEtaCard from '../bus/BusEtaCard'
 import { scrollToCenter } from '../../utils/scrollToCenter'
 import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
 import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
-import { buildDisplayList, DIRECTION_LABELS } from '../shuttle/shuttleSchedule'
+import { buildDisplayList, DIRECTION_LABELS, annotateShuttleEntries, buildShuttleGroups } from '../shuttle/shuttleSchedule'
+import ShuttleTimetableGroups from '../shuttle/ShuttleTimetableGroups'
+import HourGroupTimetable from './HourGroupTimetable'
 import { canSubmitBusSignal, submitBusSignal } from '../../hooks/useBusReports'
 import {
   PERIOD_VARIANTS,
@@ -256,7 +262,7 @@ function BusContent({ routeCode, routeId = null, stopId = null, category = null,
     stopId: stopId ?? undefined,
     category: category ?? undefined,
   })
-  const { data, loading, error } = useScopedRoute || routeId == null ? byRoute : byId
+  const { data, loading, error, refetch } = useScopedRoute || routeId == null ? byRoute : byId
   const nextRef = useRef(null)
   const now = new Date()
   const allTimes = data?.times ?? []
@@ -276,7 +282,7 @@ function BusContent({ routeCode, routeId = null, stopId = null, category = null,
   }, [data, scrollContainerRef])
 
   if (loading) return <LoadingList />
-  if (error) return <ErrorMsg />
+  if (error) return <ErrorMsg onRetry={refetch} />
   if (!allTimes.length) return <EmptyMsg text="오늘 운행 정보가 없어요" />
 
   const items = allTimes.map((t, i) => {
@@ -399,12 +405,12 @@ const SUBWAY_KEY_META = {
 }
 
 function SubwayContent({ accentColor, subwayKey, viewMode = 'list', scrollContainerRef }) {
-  const { data, loading, error } = useSubwayTimetable()
+  const { data, loading, error, refetch } = useSubwayTimetable()
   const now = new Date()
   const nowStr = toHHMM(now)
 
   if (loading) return <LoadingList />
-  if (error) return <ErrorMsg />
+  if (error) return <ErrorMsg onRetry={refetch} />
   if (!data) return <EmptyMsg text="시간표 정보가 없어요" />
 
   // 단일 방향 모드 (카드에서 특정 방향 클릭)
@@ -455,18 +461,22 @@ function SubwayContent({ accentColor, subwayKey, viewMode = 'list', scrollContai
   )
 }
 
-function DirectionBlock({ label, allItems = [], items, accentColor, viewMode = 'list', nowStr, scrollContainerRef }) {
+// 색은 이제 노선색 인라인이 아니라 토큰으로 그린다 — 넘겨받던 accentColor 는 쓰지 않는다.
+function DirectionBlock({ label, allItems = [], items, viewMode = 'list', nowStr, scrollContainerRef }) {
   const nextRef = useRef(null)
   const allDone = items.length === 0
+  const now = new Date()
   useEffect(() => {
     scrollToCenter(scrollContainerRef?.current, nextRef.current)
   }, [items.length, scrollContainerRef])
 
-  // 그리드 뷰용 전체(과거+다음+이후) 항목 — allDone(금일 종료)일 땐 기존 TimeGrid(과거 전용) 그대로 사용.
+  // 하루 전체(과거+다음+이후) 항목 — 그리드 뷰와 새 시(hour) 그룹 리스트 뷰가 함께 쓴다.
+  // allDone(금일 종료)일 땐 기존 TimeGrid(과거 전용) 그대로 사용.
   const firstFutureIdx = allItems.findIndex((t) => (t.depart_at ?? '') >= nowStr)
   const gridItems = allItems.map((t, i) => ({
     key: `${t.depart_at}-${i}`,
     time: t.depart_at,
+    sub: t.destination,
     isPast: firstFutureIdx === -1 ? true : i < firstFutureIdx,
     isNext: i === firstFutureIdx,
     isLast: i === allItems.length - 1,
@@ -492,19 +502,7 @@ function DirectionBlock({ label, allItems = [], items, accentColor, viewMode = '
           <NextMeta nextTime={items[0]?.depart_at ?? null} />
         </>
       ) : (
-        <div className="flex flex-col gap-2">
-          {items.map((t, i) => (
-            <TimeRow
-              key={`${t.depart_at}-${i}`}
-              time={t.depart_at}
-              destination={t.destination}
-              isNext={i === 0}
-              isLast={i === items.length - 1}
-              accentColor={accentColor}
-              rowRef={i === 0 ? nextRef : undefined}
-            />
-          ))}
-        </div>
+        <HourGroupTimetable items={gridItems} now={now} nextRef={nextRef} />
       )}
     </div>
   )
@@ -545,7 +543,7 @@ const SHUTTLE_BOARDING_INFO = {
   3: '2캠퍼스 정문 승차장 승차 (정왕역·본교 방향 동일)',
 }
 
-function ShuttleContent({ direction, onDirectionChange, accentColor, scrollContainerRef }) {
+function ShuttleContent({ direction, onDirectionChange, scrollContainerRef }) {
   const isSecondCampus = direction >= 2
   // 방향 전환 세그먼트는 시트 상단(헤더 아래)에서 렌더한다 — 버스 방면 셀렉터와
   // 같은 자리라 위치를 새로 배우지 않아도 된다. onDirectionChange는 그 세그먼트가
@@ -623,6 +621,17 @@ function ShuttleContent({ direction, onDirectionChange, accentColor, scrollConta
   const error = previewing
     ? previewQuery.error
     : today.error && (!offDay || (weekdayFallback.error && (!isSecondCampus || saturdayFallback.error)))
+  // 어느 쿼리가 실패했는지에 따라 다시 시도할 쿼리도 갈린다 — 화면에 보이는
+  // 데이터의 출처(today/폴백/미리보기)와 항상 같은 쿼리를 재호출해야 한다.
+  const retryError = previewing
+    ? previewQuery.refetch
+    : () => {
+        today.refetch?.()
+        if (offDay) {
+          weekdayFallback.refetch?.()
+          if (isSecondCampus) saturdayFallback.refetch?.()
+        }
+      }
 
   const nextRef = useRef(null)
   const now = new Date()
@@ -646,99 +655,21 @@ function ShuttleContent({ direction, onDirectionChange, accentColor, scrollConta
     item.type === 'fixed' ? item.minutes > stripNowMinutes : item.endMin > stripNowMinutes
   )
 
-  // 하교의 수시운행 밴드를 [start, end) 구간 리스트로 산출.
-  // 등교 회차편의 하교 출발 시각이 이 구간에 속하면 "수시운행 중" 으로 분기한다.
-  const outboundFrequentBands = (() => {
-    const outboundTimes = data?.directions?.find((d) => d.direction === 1)?.times ?? []
-    const normalized = outboundTimes.map((t) => ({
-      ts: (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5),
-      note: typeof t === 'object' ? t?.note ?? null : null,
-    })).filter((e) => e.ts)
-    const bands = []
-    let i = 0
-    while (i < normalized.length) {
-      if (normalized[i].note !== '수시운행') { i++; continue }
-      const start = normalized[i].ts
-      let j = i + 1
-      while (j < normalized.length && normalized[j].note === '수시운행') j++
-      const end = normalized[j]?.ts ?? null
-      bands.push({ start, end })
-      i = j
-    }
-    return bands
-  })()
-
-  const originTimeInFrequentBand = (originTime) => {
-    if (!originTime) return false
-    return outboundFrequentBands.some((b) =>
-      originTime >= b.start && (b.end == null || originTime < b.end)
-    )
-  }
-
-  const future = []
-  const past = []
-  for (const t of times) {
+  // 오늘 하루 전체(과거+다음+이후) 시(hour) 그룹/수시운행 블록/회차편 블록 —
+  // 시안 "시간표 화면" 규격. 과거는 최근 2개만 자르던 예전 방식(future/past 분리)
+  // 대신 하루 전체를 그려서 지난 시(hour) 그룹도 흐리게 보여준다.
+  const shuttleGroups = buildShuttleGroups(annotateShuttleEntries(times, nowStr))
+  const future = times.filter((t) => {
     const timeStr = (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5)
-    const note = typeof t === 'object' ? t?.note : null
-    const variant = typeof t === 'object' ? t?.variant ?? null : null
-    if (timeStr >= nowStr) future.push({ time: timeStr, note, variant })
-    else past.push({ time: timeStr, note, variant })
-  }
-
-  // 마지막 과거 항목이 "회차편 · 학교 수시운행 출발"이면
-  // 수시운행 버스들이 아직 회차 중인 구간 → 다음 회차편도 "수시운행 중"으로 표기
-  const lastPast = past[past.length - 1] ?? null
-  const inFrequentReturnWindow = !!(
-    lastPast?.note?.startsWith('회차편') &&
-    lastPast.note.includes('수시운행')
-  )
-
-  // 연속된 수시운행 항목을 하나의 밴드로 묶음.
-  // 회차편 중 하교 원천이 '수시운행'인 경우(note: "회차편 · 학교 수시운행 출발")는
-  // 하교 출발 시각이 정해지지 않았으므로 등교의 구체 시각을 숨기고 상태 라벨만 표시한다.
-  const displayEntries = []
-  {
-    let i = 0
-    while (i < future.length) {
-      const e = future[i]
-      if (e.note === '수시운행') {
-        let j = i
-        while (j < future.length && future[j].note === '수시운행') j++
-        // 밴드 종료: 마지막 수시운행 편의 time (10:00이면 10:00까지 수시운행으로 표시)
-        const bandEnd = future[j - 1]?.time ?? null
-        displayEntries.push({
-          type: 'frequent',
-          key: `freq-${e.time}-${i}`,
-          endTime: bandEnd,
-        })
-        i = j
-      } else {
-        const isReturn = e.note?.startsWith?.('회차편') ?? false
-        const isFrequentReturn = isReturn && (e.note?.includes?.('수시운행') ?? false)
-        // "회차편 · 학교 HH:MM 출발" 에서 하교 출발 시각 추출 (회차편 부제로 사용)
-        const originMatch = isReturn && !isFrequentReturn ? e.note?.match?.(/(\d{2}:\d{2})/) : null
-        const originTime = originMatch ? originMatch[1] : null
-        displayEntries.push({
-          type: 'fixed',
-          key: `fx-${e.time}-${i}`,
-          time: e.time,
-          note: e.note,
-          variant: e.variant ?? null,
-          isReturn,
-          isFrequentReturn,
-          originTime,
-        })
-        i++
-      }
-    }
-  }
+    return timeStr >= nowStr
+  })
 
   useEffect(() => {
     scrollToCenter(scrollContainerRef?.current, nextRef.current)
   }, [data, scrollContainerRef])
 
   if (loading) return <LoadingList />
-  if (error) return <ErrorMsg />
+  if (error) return <ErrorMsg onRetry={retryError} />
   // 폴백조차 없는(또는 선택과 무관하게 둘 다 비어있는) 진짜 empty 케이스만 여기서 차단.
   // usingFallback/미리보기 상태에서는 배너·기간 칩을 유지해 사용자가 되돌아갈 수 있게 한다.
   if (!times.length && !usingFallback && !previewing) {
@@ -750,7 +681,7 @@ function ShuttleContent({ direction, onDirectionChange, accentColor, scrollConta
 
   const selectedEmpty = usingFallback && !previewing && times.length === 0
   const previewEmpty = previewing && times.length === 0
-  const allDone = !selectedEmpty && !previewEmpty && displayEntries.length === 0
+  const allDone = !selectedEmpty && !previewEmpty && future.length === 0
 
   const presentVariants = variantsInTimes(times)
 
@@ -806,9 +737,9 @@ function ShuttleContent({ direction, onDirectionChange, accentColor, scrollConta
             borderLeft: '4px solid #d4a14a',
           }}
         >
-          <span className="text-[20px] leading-none mt-0.5 flex-shrink-0">⚠</span>
+          <span className="text-eta-sm font-normal leading-none mt-0.5 flex-shrink-0">⚠</span>
           <div className="flex-1 min-w-0 dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
-            <div className="text-[15px] font-semibold tracking-tight leading-tight">
+            <div className="text-label font-semibold tracking-tight leading-tight">
               {isSecondCampus
                 ? '일요일·공휴일엔 2캠 셔틀버스가 운행하지 않습니다'
                 : '주말·공휴일엔 셔틀버스가 운행하지 않습니다'}
@@ -896,7 +827,7 @@ function ShuttleContent({ direction, onDirectionChange, accentColor, scrollConta
               금일 운행 종료
             </span>
           </div>
-          <TimeGrid times={past.map((p) => p.time)} />
+          <TimeGrid times={times.map((t) => (typeof t === 'string' ? t : t?.depart_at ?? '').slice(0, 5))} />
         </>
       ) : isNarrowPhone ? (
         // 좁은 폰(< 360px) — 세로 리스트 대신 ShuttleTimetable.jsx의
@@ -914,62 +845,24 @@ function ShuttleContent({ direction, onDirectionChange, accentColor, scrollConta
           showBell={SHUTTLE_ALARM_ENABLED && !previewing}
         />
       ) : (
-        <>
-          {past.slice(-2).map(({ time }, i) => <PastRow key={`p-${i}`} time={time} />)}
-          {displayEntries.map((entry, i) => {
-          const isNext = !previewing && i === 0
-          let displayTime
-          let displayNote = null
-          if (entry.type === 'frequent') {
-            displayTime = entry.endTime ? `${entry.endTime}까지 수시운행` : '수시운행 중'
-          } else if (entry.isFrequentReturn) {
-            // 하교 수시운행 회차편 — 하교가 수시라 등교 시각도 보장되지 않으므로 구체 시각 숨김
-            displayTime = '하교 수시운행 회차편'
-            displayNote = '역 앞에 도착한 버스 탑승'
-          } else if (entry.isReturn) {
-            // 회차편 도착 시각은 예정치라 숨기고, 하교 출발 시각만 부제로 노출한다.
-            // ① 첫 번째 회차편이고 수시 회차 구간 안이면 "수시운행 중"
-            // ② 그 외에도 originTime이 하교 수시운행 밴드 안이면 "수시운행 중"
-            displayTime = '회차편 탑승'
-            const isFreqNow = (isNext && inFrequentReturnWindow) || originTimeInFrequentBand(entry.originTime)
-            displayNote = isFreqNow
-              ? '하교 버스가 수시운행 중입니다'
-              : entry.originTime
-                ? `하교 버스가 ${entry.originTime}에 출발합니다`
-                : null
-          } else {
-            displayTime = entry.time
-            displayNote = entry.note
-          }
-          return (
-            <TimeRow
-              key={entry.key}
-              time={displayTime}
-              note={displayNote}
-              isNext={isNext}
-              accentColor={accentColor}
-              rowRef={isNext ? nextRef : undefined}
-              variant={entry.variant ?? null}
-              // 폴백(주말→평일)·미리보기에선 "N분 뒤/곧 출발" 카운트다운이 오늘 기준이라
-              // 전부 어긋난다 — 시각만 보여준다.
-              hideCountdown={previewing || usingFallback}
-              // 알림 종은 SHUTTLE_ALARM_ENABLED 가 false 인 동안 렌더하지 않는다.
-              // (수시운행 밴드에는 원래 종이 붙지 않고, 미리보기에서도 숨겼다 —
-              //  기능 복구 시 아래 조건을 그대로 되살리면 된다.)
-              bell={SHUTTLE_ALARM_ENABLED && entry.type === 'fixed' && !previewing ? (
-                <BellButton
-                  time={entry.time}
-                  isSet={isAlarmSet(entry.time, direction)}
-                  onOpen={openSheet}
-                  size="compact"
-                />
-              ) : undefined}
-            />
-          )
-        })}
-      </>
-    )}
-  </div>
+        // 시안 "시간표 화면" — 시(hour) 그룹 + 수시운행/회차편 블록 + "지금" 앵커.
+        // 폴백(주말→평일)·미리보기에선 오늘 기준 카운트다운이 어긋나므로 앵커를 숨긴다.
+        <ShuttleTimetableGroups
+          groups={shuttleGroups}
+          now={now}
+          showAnchor={!previewing && !usingFallback}
+          isOutbound={direction % 2 === 0}
+          nextRef={nextRef}
+        />
+      )}
+      {!isNarrowPhone && !previewEmpty && !selectedEmpty && (direction === 0 || direction === 1) && (
+        <div className="mt-3 px-3.5 py-2.5 rounded-tile bg-surface-2 dark:bg-bg">
+          <p className="text-meta font-semibold text-mute dark:text-mute leading-relaxed">
+            정왕역~본교 약 10분 · 퇴근시간대 20~30분
+          </p>
+        </div>
+      )}
+    </div>
   {SHUTTLE_ALARM_ENABLED && (
     <ShuttleNotifySheet
       open={sheetTime != null}
@@ -996,11 +889,11 @@ function LoadingList() {
   )
 }
 
-function ErrorMsg() {
+// 에러는 다시 시도 버튼이 있어야 로딩·빈 상태와 구분된다 — ui/ErrorState로
+// 통일한다(예전엔 그냥 빨간 텍스트 한 줄이라 재시도 수단이 없었다).
+function ErrorMsg({ onRetry }) {
   return (
-    <p className="text-sm text-red-400 dark:text-red-500 text-center py-4">
-      정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
-    </p>
+    <ErrorState message="정보를 불러오지 못했어요" onRetry={onRetry} className="py-4" />
   )
 }
 
@@ -1015,7 +908,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
   // backend에도 명시해 realtime_eta 응답이 카드와 같은 정류장 기준이 되게 한다.
   // 시흥33처럼 양방향 실시간 추적이 있는 노선은 카테고리에 따라 stop이 갈린다.
   const trackedStopId = scopedTrackedStopId ?? getGbisStationIdForRoute(routeNumber, category)
-  const { data, loading, error } = useBusHistoryPreview(routeNumber, trackedStopId)
+  const { data, loading, error, refetch } = useBusHistoryPreview(routeNumber, trackedStopId)
   const routeId = data?.route_id
   const stopId = data?.stop_id
   const { data: statsRes } = useBusArrivalStats(routeId, stopId)
@@ -1034,7 +927,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
   }, [data, scrollContainerRef])
 
   if (loading) return <LoadingList />
-  if (error) return <ErrorMsg />
+  if (error) return <ErrorMsg onRetry={refetch} />
 
   const columns = data?.columns ?? []
   if (columns.length === 0) {
@@ -1254,7 +1147,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   }, [open])
 
   // PC는 백드롭/포커스트랩이 없는 non-modal 패널이라 자체 Escape 핸들러가 필요
-  // (모바일은 vaul/Radix Dialog가 Escape를 자동 처리).
+  // (모바일은 Sheet가 Escape를 자동 처리).
   useEffect(() => {
     if (!isPC || !open) return
     function onKey(e) {
@@ -1266,8 +1159,9 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
 
   // PC는 이전에도 애니메이션 없이 즉시 마운트/언마운트했으므로 동일하게 유지.
   if (isPC && !open) return null
-  // 모바일은 vaul(Presence)이 닫힘 트랜지션 동안 계속 마운트를 유지해야 하므로
-  // open=false여도 바로 리턴하지 않고 아래에서 Drawer.Root에 open만 전달한다.
+  // 모바일도 이제 Sheet가 open=false일 때 스스로 null을 반환하므로 여기서 굳이
+  // 일찍 리턴하지 않아도 된다 — title이 남아있는 한(직전 값 스냅샷) 계속 렌더해도
+  // 무해하다. 아래로 내려가 header/body를 계산한 뒤 Sheet에 open만 넘긴다.
   if (!isPC && !open && !title) return null
 
   const fallbackColor = TYPE_COLOR[type] ?? '#64748B'
@@ -1327,13 +1221,9 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
           />
         </button>
       )}
-      <button
-        onClick={onClose}
-        aria-label="닫기"
-        className="pressable p-2 rounded-full hover:bg-surface-2 dark:hover:bg-surface transition-colors flex-shrink-0"
-      >
-        <X size={18} className="text-ink-2 dark:text-mute" />
-      </button>
+      <IconButton label="닫기" onClick={onClose} className="text-ink-2 dark:text-mute">
+        <X size={18} />
+      </IconButton>
     </div>
   )
 
@@ -1418,7 +1308,7 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   if (isPC) {
     return createPortal(
       <div
-        className="fixed inset-0 z-[100] left-0 right-auto w-[38%] bottom-[68px] flex items-stretch justify-stretch pointer-events-none"
+        className="fixed inset-0 z-sheet left-0 right-auto w-[38%] bottom-[68px] flex items-stretch justify-stretch pointer-events-none"
         aria-modal="true"
         role="dialog"
         aria-label={`${displayTitle} ${detailTypeLabel}`}
@@ -1435,31 +1325,14 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
     )
   }
 
-  // ── 모바일: vaul(Drawer) — 스와이프 다운으로 닫기(Phase C) ──
+  // ── 모바일: Sheet ── 백드롭·Escape·포커스 트랩을 Sheet에 맡긴다. 예전엔 이
+  // 모달도 Sheet.jsx 머리말이 말하는 "아홉 벌 독립 구현" 중 하나였다(vaul 기반
+  // 스와이프 다운 닫기). Sheet로 옮기며 스와이프 제스처는 없어지고, 다른 시트들과
+  // 동일하게 배경 탭/Escape로 닫는다.
   return (
-    <Drawer.Root
-      open={open}
-      onOpenChange={(o) => { if (!o) onClose() }}
-      dismissible
-    >
-      <Drawer.Portal>
-        <Drawer.Overlay
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
-          style={{ transition: `opacity var(--dur-motion-sheet) var(--e-out)` }}
-        />
-        <Drawer.Content
-          className="fixed bottom-0 left-0 right-0 z-[100] bg-surface dark:bg-surface rounded-t-sheet shadow-2xl flex flex-col overflow-hidden outline-none"
-          style={{ maxHeight: '88dvh' }}
-        >
-          <Drawer.Title className="sr-only">{displayTitle} {detailTypeLabel}</Drawer.Title>
-          {/* 드래그 핸들 — vaul이 전체 시트 드래그를 처리하므로 시각적 표시만 담당 */}
-          <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
-            <span className="w-12 h-1.5 rounded-full bg-line dark:bg-line" />
-          </div>
-          {header}
-          {body}
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+    <Sheet open={open} onClose={onClose} label={`${displayTitle} ${detailTypeLabel}`} placement="bottom">
+      {header}
+      {body}
+    </Sheet>
   )
 }

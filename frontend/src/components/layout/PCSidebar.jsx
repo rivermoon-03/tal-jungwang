@@ -9,6 +9,7 @@ import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import { PC_TABS, getActivePcTabId, navigateToPcTab } from '../common/pcNavTabs'
 import { parseFavCode } from '../../utils/favCode'
 import NoticesPopover from '../common/NoticesPopover'
+import IconButton from '../ui/IconButton'
 
 // "값 없음"으로 취급하는 미세먼지 등급 표기 — 백엔드가 측정 실패 시 null이
 // 아니라 이 문자열 그대로를 내려줄 때가 있다(결함 #10: "미세먼지 알수없음"
@@ -169,7 +170,13 @@ export default function PCSidebar() {
       <div className="mb-1 flex items-center gap-2.5 px-2 pb-2">
         <div
           aria-hidden="true"
-          className="grid h-[34px] w-[34px] flex-none place-items-center rounded-badge bg-gradient-to-br from-accent to-accent-hover text-white shadow-pill"
+          // 34px는 4px 그리드 밖(8.5칸)이다. w-9/h-9(36px)는 이 코드베이스 전역에서
+          // 아이콘 배지 박스로 반복되는 값이라(MapLegendOnboarding, SearchOverlay,
+          // PCMapDockPanel 등) 그 관행에 맞춰 36px로 스냅한다 — 32px보다 시각 차이가 적다.
+          // shadow-pill(레거시)은 DESIGN.md §4의 sh-card/sh-lift/sh-pop 2~3단계
+          // 밖이다. 로고 배지는 늘 제자리에 떠 있는 정적 요소라 팝오버용 sh-pop이나
+          // hover로 들리는 sh-lift보다 은은한 sh-card가 맞다.
+          className="grid h-9 w-9 flex-none place-items-center rounded-badge bg-gradient-to-br from-accent to-accent-hover text-white shadow-sh-card"
         >
           <Bus size={17} strokeWidth={2.2} />
         </div>
@@ -212,7 +219,7 @@ export default function PCSidebar() {
                 href={href}
                 onClick={(e) => navigateToPcTab(e, href)}
                 aria-current={active ? 'page' : undefined}
-                className={`pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold transition-colors duration-snap ease-out ${
+                className={`pressable flex items-center gap-3 rounded-button px-3 py-2 text-caption font-semibold transition-colors duration-snap ease-out ${
                   active ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
                 }`}
               >
@@ -233,7 +240,7 @@ export default function PCSidebar() {
                         href={`${href}?${id === 'map' ? 'view' : 'tab'}=${sub.id}`}
                         onClick={onSelectSub(sub.id)}
                         aria-current={subActive ? 'page' : undefined}
-                        className={`pressable flex items-center rounded-button py-[7px] pl-[41px] pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
+                        className={`pressable flex items-center rounded-button py-2 pl-10 pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${
                           subActive ? 'bg-accent-bg text-accent-ink' : 'text-ink-2 hover:bg-ink/[0.06]'
                         }`}
                       >
@@ -261,7 +268,10 @@ export default function PCSidebar() {
                   <button
                     type="button"
                     onClick={openFavorite(routeKey)}
-                    className="pressable flex min-h-[44px] w-full items-center gap-[11px] rounded-button py-[7px] pl-[22px] pr-3 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+                    // 22px는 4px 그리드 밖이라 20px(pl-5)로 스냅한다. 20과 24 둘 다
+                    // 등거리라 상단 네비 아이콘 들여쓰기(px-3=12px)에 더 가까운 쪽을
+                    // 골라 즐겨찾기 목록이 상위 네비의 연장처럼 보이게 한다.
+                    className="pressable flex min-h-[44px] w-full items-center gap-3 rounded-button py-2 pl-5 pr-3 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
                   >
                     {isSubway
                       ? <Train size={15} className="flex-none text-mute" aria-hidden="true" />
@@ -281,7 +291,7 @@ export default function PCSidebar() {
         <a
           href="/more/settings"
           onClick={goMoreSub('/more/settings', 'settings')}
-          className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+          className="pressable flex items-center gap-3 rounded-button px-3 py-2 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
         >
           <SettingsIcon size={18} className="text-mute" aria-hidden="true" />
           설정
@@ -289,7 +299,7 @@ export default function PCSidebar() {
         <a
           href="/more/app-info"
           onClick={goMoreSub('/more/app-info', 'app-info')}
-          className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+          className="pressable flex items-center gap-3 rounded-button px-3 py-2 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
         >
           <Info size={18} className="text-mute" aria-hidden="true" />
           앱 정보
@@ -297,7 +307,7 @@ export default function PCSidebar() {
         <a
           href="/more/help"
           onClick={goMoreSub('/more/help', 'help')}
-          className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+          className="pressable flex items-center gap-3 rounded-button px-3 py-2 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
         >
           <HelpCircle size={18} className="text-mute" aria-hidden="true" />
           도움말
@@ -305,7 +315,7 @@ export default function PCSidebar() {
         <a
           href="/privacy"
           onClick={goMoreSub('/privacy', null)}
-          className="pressable flex items-center gap-[11px] rounded-button px-3 py-[9px] text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
+          className="pressable flex items-center gap-3 rounded-button px-3 py-2 text-caption font-semibold text-ink-2 hover:bg-ink/[0.06]"
         >
           <Shield size={18} className="text-mute" aria-hidden="true" />
           개인정보처리방침
@@ -314,25 +324,27 @@ export default function PCSidebar() {
 
       <div className="flex-1" />
 
-      {/* footer — 다크모드 토글 + 공지 벨 (PCDock에서 이관) */}
+      {/* footer — 다크모드 토글 + 공지 벨 (구 PCDock에서 이관, PCDock 자체는
+          죽은 코드라 2026-09에 삭제). 36px(h-9 w-9)이던 히트 영역을
+          IconButton(44px)으로 맞춘다. */}
       <div className="mt-2 flex items-center gap-2 border-t border-line px-1 pt-3">
-        <button
-          type="button"
+        <IconButton
           title={darkMode ? '라이트 모드로' : '다크 모드로'}
+          label={darkMode ? '라이트 모드로' : '다크 모드로'}
           onClick={toggleDarkMode}
-          className="pressable flex h-9 w-9 flex-none items-center justify-center rounded-button bg-surface text-ink-2 shadow-pill"
+          variant="floating"
         >
           {darkMode ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
-        </button>
-        <button
+        </IconButton>
+        <IconButton
           ref={bellRef}
-          type="button"
           title="공지사항"
+          label="공지사항"
           aria-haspopup="dialog"
           aria-expanded={noticesOpen}
           onClick={() => setNoticesOpen((v) => !v)}
-          className={`pressable relative flex h-9 w-9 flex-none items-center justify-center rounded-button shadow-pill ${
-            noticesOpen ? 'bg-ink text-white' : 'bg-accent text-white hover:opacity-90'
+          className={`relative shadow-sh-card ${
+            noticesOpen ? '!bg-ink !text-white' : '!bg-accent !text-white hover:!opacity-90'
           }`}
         >
           <Bell size={17} aria-hidden="true" />
@@ -342,7 +354,7 @@ export default function PCSidebar() {
               className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-pill bg-imminent border border-surface-2"
             />
           )}
-        </button>
+        </IconButton>
         <div className="min-w-0 flex-1 text-right">
           <p className="truncate text-caption font-semibold text-ink-2">한국공학대</p>
           <p className="truncate text-dest font-semibold text-mute">TIP · 정왕</p>

@@ -5,12 +5,14 @@
  * 라이브 데이터: useBusArrivals로 정류장 도착 정보 가져옴 (shuttle/subway 다음 열차도)
  * TODO: 즐겨찾기 항목마다 개별 API 호출 대신 batch 엔드포인트 추가 시 교체
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Star } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import FavoritesList from './FavoritesList'
 import FavoritesTimeline from './FavoritesTimeline'
 import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
+import Skeleton from '../common/Skeleton'
 import SegmentTabs from '../common/SegmentTabs'
 import PageHeader from '../layout/PageHeader'
 import ScheduleDetailModal from '../schedule/ScheduleDetailModal'
@@ -201,9 +203,26 @@ function useFavoriteItems(favorites) {
 
   // 스케줄 페이지가 생성하는 새 형식 favKey("등교:X" / "하교:X" / "기타:X")를
   // 인식하기 위해 백엔드 카테고리별 노선 데이터를 동적으로 읽는다.
-  const { data: routesDeung } = useBusRoutesByCategory('등교')
-  const { data: routesHa   }  = useBusRoutesByCategory('하교')
-  const { data: routesEt   }  = useBusRoutesByCategory('기타')
+  // 이 fetch가 끝나기 전에는 "bus:"/"등교:"/"하교:"/"기타:" 형식 즐겨찾기가
+  // lookup 실패로 결과에서 통째로 빠지므로(핸들러 아래 `if (!lookup) continue`),
+  // 로딩/에러를 상위(FavoritesPage)로 넘겨 "즐겨찾기가 있는데도 빈 상태"가
+  // 잠깐 깜빡이는 걸 막는다.
+  const {
+    data: routesDeung, loading: loadingDeung, error: errorDeung, refetch: refetchDeung,
+  } = useBusRoutesByCategory('등교')
+  const {
+    data: routesHa, loading: loadingHa, error: errorHa, refetch: refetchHa,
+  } = useBusRoutesByCategory('하교')
+  const {
+    data: routesEt, loading: loadingEt, error: errorEt, refetch: refetchEt,
+  } = useBusRoutesByCategory('기타')
+  const categoriesLoading = loadingDeung || loadingHa || loadingEt
+  const categoriesError = errorDeung ?? errorHa ?? errorEt ?? null
+  const retryCategories = useCallback(() => {
+    refetchDeung?.()
+    refetchHa?.()
+    refetchEt?.()
+  }, [refetchDeung, refetchHa, refetchEt])
   const busRouteMeta = useMemo(() => {
     const m = {}
     const add = (cat, list) => {
@@ -443,7 +462,7 @@ function useFavoriteItems(favorites) {
     busRouteMetaByFavKey,
   ])
 
-  return items
+  return { items, categoriesLoading, categoriesError, retryCategories }
 }
 
 export default function FavoritesPage({ onGoSchedule }) {
@@ -454,8 +473,16 @@ export default function FavoritesPage({ onGoSchedule }) {
   // RouteDetailPage와 동일하게 favorites.keys는 toggleFavoriteKey로만 쓴다.
   const toggleFavoriteKey = useAppStore((s) => s.toggleFavoriteKey)
 
-  const items = useFavoriteItems(favorites)
+  const { items, categoriesLoading, categoriesError, retryCategories } = useFavoriteItems(favorites)
   const allEmpty = items.length === 0
+  // 스토어에 저장된 즐겨찾기 자체는(카테고리 fetch 성패와 무관하게) 바로 알 수
+  // 있다 — 이게 있는데 items가 아직 비어 있으면 "없음"이 아니라 "로딩/에러"다.
+  const hasStoredFavorites =
+    (favorites.routes?.length ?? 0) > 0 ||
+    (favorites.keys?.length ?? 0) > 0 ||
+    (favorites.stations?.length ?? 0) > 0
+  const showCategoriesError = Boolean(categoriesError) && hasStoredFavorites && items.length === 0
+  const showCategoriesLoading = !showCategoriesError && categoriesLoading && hasStoredFavorites && items.length === 0
 
   const [commute, setCommute] = useState('등교')
   const [view, setView] = useState('list')
@@ -513,8 +540,19 @@ export default function FavoritesPage({ onGoSchedule }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6 flex flex-col gap-3">
-        {allEmpty ? (
-          <div className="rounded-sheet overflow-hidden shadow-card bg-white dark:bg-surface border border-slate-100 dark:border-line">
+        {showCategoriesError ? (
+          <ErrorState message="즐겨찾기를 불러오지 못했어요" onRetry={retryCategories} className="py-8" />
+        ) : showCategoriesLoading ? (
+          // 카테고리 fetch가 끝나기 전엔 새 형식 버스 즐겨찾기가 lookup 실패로
+          // 통째로 빠져 "즐겨찾기 없음"이 잠깐 깜빡였다 — 로딩 중엔 빈 상태 대신
+          // 스켈레톤을 보여준다.
+          <div className="flex flex-col gap-1.5" aria-busy="true" aria-label="즐겨찾기 불러오는 중">
+            <Skeleton height={64} rounded="rounded-card" />
+            <Skeleton height={64} rounded="rounded-card" />
+            <Skeleton height={64} rounded="rounded-card" />
+          </div>
+        ) : allEmpty ? (
+          <div className="rounded-sheet overflow-hidden shadow-card bg-white dark:bg-surface border border-line">
             <EmptyState
               icon={<Star size={28} strokeWidth={1.6} />}
               title="즐겨찾는 노선이 없어요"
@@ -523,7 +561,7 @@ export default function FavoritesPage({ onGoSchedule }) {
             />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-sheet overflow-hidden shadow-card bg-white dark:bg-surface border border-slate-100 dark:border-line">
+          <div className="rounded-sheet overflow-hidden shadow-card bg-white dark:bg-surface border border-line">
             <EmptyState
               icon={<Star size={28} strokeWidth={1.6} />}
               title={`${commute}용 즐겨찾기가 없어요`}
@@ -531,7 +569,7 @@ export default function FavoritesPage({ onGoSchedule }) {
             />
           </div>
         ) : view === 'timeline' ? (
-          <FavoritesTimeline items={filtered} onOpenDetail={handleOpenDetail} />
+          <FavoritesTimeline items={filtered} onOpenDetail={handleOpenDetail} onRemove={handleRemove} />
         ) : (
           <FavoritesList
             items={filtered}

@@ -24,6 +24,12 @@
  * "초 → 표시 문자열" 변환과 임박(강조) 판정은 utils/eta.js에 위임한다 — 예전엔
  * 이 컴포넌트가 90초 임계를 로컬로 복제해 들고 있어 BusEtaCard(당시 60/180초
  * 이중 임계)와 서로 다른 기준으로 어긋났다.
+ *
+ * 승차 정류장 표기: 3401처럼 등록된 탑승 정류장이 2곳 이상인 노선은 이 ETA가
+ * "어느 정류장 기준"인지 말하지 않으면 승차 지점을 헷갈릴 수 있다. 백엔드
+ * /bus/history-preview 응답의 stop_name(카드와 동일 GBIS 추적 정류장 — 서버가
+ * 이미 실시간 ETA를 그 정류장으로 한정해 계산한다)을 그대로 "실시간" 라벨
+ * 옆에 붙인다. 정류장이 하나뿐인 노선도 표기 자체는 해가 없어 조건 없이 켠다.
  */
 import { formatEta, isImminent } from '../../utils/eta'
 
@@ -45,6 +51,9 @@ export default function ArrivalEtaCard({ histData, histLoading, nextScheduled })
   }
 
   const realtimeEta = histData?.realtime_eta ?? null
+  // 이 ETA가 기준으로 삼은 승차 정류장 — 백엔드가 realtime_eta와 같은 stop_id로
+  // 계산해 내려준다. 없으면(구형 캐시 등) 표기를 생략한다(모르는 것을 지어내지 않는다).
+  const stopName = histData?.stop_name || null
 
   // ── 상태 2: 실시간 ETA 있음 — 2열 고정 그리드 ──
   if (realtimeEta?.primary) {
@@ -68,9 +77,14 @@ export default function ArrivalEtaCard({ histData, histLoading, nextScheduled })
             <span className="flex items-center gap-1.5 text-caption font-semibold tracking-[.04em] text-accent-ink dark:text-accent uppercase mb-1">
               <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-accent animate-dot-blink" />
               실시간
+              {stopName && (
+                <span className="normal-case font-medium text-mute dark:text-mute">
+                  · {stopName} 기준
+                </span>
+              )}
             </span>
             <span className={[
-              'block text-[26px] font-bold leading-tight tabular-nums',
+              'block text-eta-mob font-bold leading-tight tabular-nums',
               isImminent(primary.arrive_in_seconds) ? 'text-imminent' : 'text-ink dark:text-ink',
             ].join(' ')}>
               {primaryLabel}
@@ -88,7 +102,7 @@ export default function ArrivalEtaCard({ histData, histLoading, nextScheduled })
             </span>
             {secondaryLabel ? (
               <>
-                <span className="block text-[20px] font-bold text-ink dark:text-ink leading-tight tabular-nums">
+                <span className="block text-eta-sm font-bold text-ink dark:text-ink leading-tight tabular-nums">
                   {secondaryLabel}
                 </span>
                 {secondary?.arrive_at_hhmm && (
@@ -99,7 +113,7 @@ export default function ArrivalEtaCard({ histData, histLoading, nextScheduled })
               </>
             ) : fallbackNext ? (
               <>
-                <span className="block text-[20px] font-bold text-ink dark:text-ink leading-tight tabular-nums">
+                <span className="block text-eta-sm font-bold text-ink dark:text-ink leading-tight tabular-nums">
                   {fallbackNext.depart_at}
                 </span>
                 <span className="block text-caption font-semibold text-mute dark:text-mute mt-0.5">
@@ -124,7 +138,7 @@ export default function ArrivalEtaCard({ histData, histLoading, nextScheduled })
         <span className="block text-caption font-semibold tracking-[.04em] text-accent-ink dark:text-accent uppercase mb-1">
           다음 출발 (시간표 기준)
         </span>
-        <span className="block text-[26px] font-bold leading-tight tabular-nums text-ink dark:text-ink">
+        <span className="block text-eta-mob font-bold leading-tight tabular-nums text-ink dark:text-ink">
           {nextScheduled.depart_at}
         </span>
         <span className="block text-caption font-semibold text-mute dark:text-mute mt-0.5">

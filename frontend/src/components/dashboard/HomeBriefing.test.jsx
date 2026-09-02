@@ -72,6 +72,24 @@ describe('HomeBriefing (F1)', () => {
     expect(summarizeTodayMenu(MENU)).toBe(null)
   })
 
+  // 결함 #9 — 학교 원본(xlsx)의 별표 메타 표기("*복수메뉴*")가 메뉴 이름인 척
+  // 브리핑 한 줄에 그대로 찍혔다. 실측: 중식 by_day가
+  // ["*복수메뉴*", "에비동/제육볶음면", "무채국", "비엔나구이", "치커리사과무침", "깍두기"].
+  it('별표 메타 표기(*복수메뉴* 등)는 학식 요약에서 걷어낸다', () => {
+    const withMeta = {
+      ...MENU,
+      cafeterias: [{
+        ...MENU.cafeterias[0],
+        meals: [{
+          type: '중식',
+          time: '11:00~14:00',
+          by_day: { 3: ['*복수메뉴*', '에비동/제육볶음면', '무채국', '비엔나구이', '치커리사과무침', '깍두기'] },
+        }],
+      }],
+    }
+    expect(summarizeTodayMenu(withMeta)).toBe('중식 · 에비동/제육볶음면 외 4')
+  })
+
   it('시험 D-7 이내면 시험기간 카드 + 도서관 개관시간이 뜬다(F7)', async () => {
     const { useLibraryHours } = await import('../../hooks/useMore')
     useLibraryHours.mockReturnValue({

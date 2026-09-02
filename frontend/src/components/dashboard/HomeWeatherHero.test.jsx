@@ -1,11 +1,19 @@
 /**
- * HomeWeatherHero — 결함 #31 리디자인: 기본은 한 줄 스트립만 보이고, 펼치기 토글을
- * 누르면 기존 greeting/classic 레이아웃(인사말 진입 시퀀스·강등·툴팁·비 이펙트)이
- * 아코디언으로 나타난다. 스트립 자체(온도·하늘·바람 요약, 검색 버튼)와, 펼친 뒤의
- * 기존 동작(phase 전환·툴팁·direction 자동전환 토스트)을 함께 검증한다.
+ * HomeWeatherHero — 시안 리디자인: 약 340px 고정 하늘 히어로.
+ *
+ * 예전엔 기본이 한 줄 스트립(44px)이고 펼치기 토글을 눌러야 온도·글귀 등 본문이
+ * 나타나는 아코디언이었다. 이제 히어로는 항상 같은 구조(스트립 56px + 본문)를
+ * 그린다 — 결함 #31 재발 방지는 MainShell의 "통짜 스크롤"이 맡는다(스크롤하면
+ * 히어로 자체가 카드 목록과 함께 위로 사라진다). 그래서 이 테스트에는 더 이상
+ * "펼치기/접기" 상호작용이 없다 — 스트립(인사말·위치 칩·뷰 토글)과 본문(온도·하늘·
+ * 메타·아이콘)이 항상 함께 보이는지, 그리고 무드별 이펙트·하늘 색 계산이 여전히
+ * 맞는지를 검증한다.
  */
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import HomeWeatherHero from './HomeWeatherHero'
 
 // ── useWeather 모킹 — 각 describe에서 반환값을 교체 ──
@@ -57,11 +65,6 @@ vi.mock('../../components/common/DirectionAutoToast', () => ({
   ),
 }))
 
-// 스트립의 펼치기 토글을 눌러 아코디언 패널을 연다.
-function expandPanel() {
-  fireEvent.click(screen.getByLabelText('날씨 요약 펼치기'))
-}
-
 beforeEach(() => {
   vi.useFakeTimers()
   storeState = { heroStyle: 'greeting', darkMode: false, setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
@@ -80,20 +83,34 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('HomeWeatherHero — 한 줄 스트립(기본 접힘)', () => {
-  it('기본 렌더에서 온도·하늘 요약이 스트립에 보이고, 펼친 패널(글귀)은 보이지 않는다', () => {
+describe('HomeWeatherHero — 항상 펼쳐진 스트립 + 본문(아코디언 없음)', () => {
+  it('스트립의 인사말과 본문의 온도·하늘이 별도 조작 없이 함께 보인다', () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
 
-    expect(screen.getByText(/21°/)).toBeInTheDocument()
-    expect(screen.queryByTestId('hero-greeting-text')).not.toBeInTheDocument()
+    expect(screen.getByTestId('hero-greeting-text')).toBeInTheDocument()
+    expect(screen.getByText('21°')).toBeInTheDocument()
+    expect(screen.getByText('맑음')).toBeInTheDocument()
   })
 
-  it('펼치기 토글에 aria-expanded=false가 있다', () => {
+  it('"펼치기/접기" 토글이 더 이상 없다', () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expect(screen.getByLabelText('날씨 요약 펼치기')).toHaveAttribute('aria-expanded', 'false')
+
+    expect(screen.queryByLabelText('날씨 요약 펼치기')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('날씨 요약 접기')).not.toBeInTheDocument()
   })
 
-  it('검색 버튼은 접힌 상태에서도 보이고, 클릭 시 setSearchOpen(true)을 호출한다', () => {
+  it('위치 칩(지도 진입 겸함)이 스트립에 항상 보이고, 클릭하면 onOpenMap을 호출한다', () => {
+    const onOpenMap = vi.fn()
+    render(<HomeWeatherHero onOpenMap={onOpenMap} />)
+
+    const mapChip = screen.getByLabelText('지도 보기')
+    expect(mapChip).toHaveTextContent('한국공학대 본캠')
+
+    fireEvent.click(mapChip)
+    expect(onOpenMap).toHaveBeenCalledTimes(1)
+  })
+
+  it('검색 버튼은 항상 보이고, 클릭 시 setSearchOpen(true)을 호출한다', () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
 
     const searchButton = screen.getByLabelText('검색')
@@ -103,57 +120,49 @@ describe('HomeWeatherHero — 한 줄 스트립(기본 접힘)', () => {
     expect(storeState.setSearchOpen).toHaveBeenCalledWith(true)
   })
 
-  it('펼치기 토글을 누르면 aria-expanded=true로 바뀌고 글귀가 나타난다', () => {
+  // 더보기 진입점 — 예전엔 App.jsx가 position:fixed 오버레이 버튼으로 그려
+  // 모든 모바일 화면 위에 떠 있었고, 이 스트립의 뷰 토글 아이콘과 같은 자리에
+  // 겹쳐 그 아이콘을 가리는 버그가 났다(사용자 실측). 문서 흐름 안(히어로
+  // 옵션 그룹의 4번째 아이콘)으로 옮겼다 — 겹침 없이 상시 노출되는지, 눌렀을 때
+  // 여전히 /more로 이동하는지 검증한다.
+  it('더보기 버튼은 항상 보이고, 클릭 시 /more로 이동한다(옛 고정 오버레이 대체)', () => {
+    window.history.replaceState({}, '', '/')
     render(<HomeWeatherHero onOpenMap={() => {}} />)
 
-    expandPanel()
+    const moreButton = screen.getByLabelText('더보기')
+    expect(moreButton).toBeInTheDocument()
 
-    expect(screen.getByLabelText('날씨 요약 접기')).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByTestId('hero-greeting-text')).toHaveTextContent('테스트 글귀')
+    fireEvent.click(moreButton)
+    expect(window.location.pathname).toBe('/more')
   })
 
-  it('다시 누르면 접히고 글귀가 사라진다', () => {
-    render(<HomeWeatherHero onOpenMap={() => {}} />)
+  it('큰 온도 토큰(text-hero-temp)이 항상 렌더된다', () => {
+    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
 
-    expandPanel()
-    expect(screen.getByTestId('hero-greeting-text')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('날씨 요약 접기'))
-    expect(screen.queryByTestId('hero-greeting-text')).not.toBeInTheDocument()
+    expect(container.querySelector('.text-hero-temp')).toBeTruthy()
   })
 })
 
-describe('HomeWeatherHero — 펼친 뒤 greeting 스타일(기본) 동작', () => {
-  it('펼치면 글귀 텍스트가 보이고, 출처는 항상 보이는 줄로 렌더되지 않는다', () => {
+describe('HomeWeatherHero — 스트립 인사말(heroStyle)', () => {
+  it("heroStyle='greeting'이면 글귀 첫 줄을 스트립 인사말로 쓴다(둘째 줄은 잘린다)", () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
 
     expect(screen.getByTestId('hero-greeting-text')).toHaveTextContent('테스트 글귀')
-    expect(screen.queryByText('· 테스트 출처')).not.toBeInTheDocument()
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(screen.getByTestId('hero-greeting-text')).not.toHaveTextContent('둘째 줄')
   })
 
-  it('큰 온도 토큰(text-hero-temp)은 렌더하지 않는다(온도는 축소된 whero-quote-temp)', () => {
-    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
-
-    expect(container.querySelector('.text-hero-temp')).toBeNull()
-    expect(container.querySelector('.whero-quote-temp')).toBeTruthy()
-  })
-
-  it('글귀를 클릭하면 출처 툴팁이 열리고, 다시 클릭하면 닫힌다', () => {
+  it("heroStyle='greeting'이면 인사말을 클릭해 출처 툴팁을 열고 닫을 수 있다", () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
-    const quoteButton = screen.getByTestId('hero-greeting-text')
-    expect(quoteButton.tagName).toBe('BUTTON')
-    expect(quoteButton).toHaveAttribute('aria-expanded', 'false')
+    const greetingButton = screen.getByTestId('hero-greeting-text')
+    expect(greetingButton.tagName).toBe('BUTTON')
+    expect(greetingButton).toHaveAttribute('aria-expanded', 'false')
 
-    fireEvent.click(quoteButton)
-    expect(quoteButton).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(greetingButton)
+    expect(greetingButton).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('tooltip')).toHaveTextContent('· 테스트 출처')
 
-    fireEvent.click(quoteButton)
-    expect(quoteButton).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(greetingButton)
+    expect(greetingButton).toHaveAttribute('aria-expanded', 'false')
 
     // 퇴장 모션(160ms) 동안은 DOM에 남아 있다가 이후 사라진다.
     act(() => {
@@ -162,74 +171,71 @@ describe('HomeWeatherHero — 펼친 뒤 greeting 스타일(기본) 동작', () 
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })
 
-  it('2초가 지나면 글귀는 사라지지 않고 강등되며(phase=weather) 온도·아이콘이 확대 클래스를 받는다', () => {
-    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
-
-    expect(container.querySelector('.whero-quote-text.is-demoted')).toBeNull()
-    expect(container.querySelector('.whero-quote-temp.is-grown')).toBeNull()
+  it('툴팁은 3.5초 후 자동으로 닫힌다', () => {
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+    fireEvent.click(screen.getByTestId('hero-greeting-text'))
+    expect(screen.getByRole('tooltip')).toBeInTheDocument()
 
     act(() => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(3500)
     })
-
-    // 강등 후에도 글귀는 DOM에 그대로 남아 있다(접히거나 제거되지 않는다).
-    expect(screen.getByTestId('hero-greeting-text')).toHaveTextContent('테스트 글귀')
-    expect(container.querySelector('.whero-quote-text.is-demoted')).toBeTruthy()
-    expect(container.querySelector('.whero-quote-temp.is-grown')).toBeTruthy()
-    expect(container.querySelector('.whero-quote-icon-wrap.is-grown')).toBeTruthy()
+    expect(screen.getByTestId('hero-greeting-text')).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('강등 후에도 글귀를 클릭하면 출처 툴팁이 열린다', () => {
+  it("heroStyle='classic'이면 고정 문구를 쓰고, 클릭해도 출처 툴팁이 없다(순수 텍스트)", () => {
+    storeState = { ...storeState, heroStyle: 'classic' }
     render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
 
-    act(() => {
-      vi.advanceTimersByTime(2000)
-    })
+    const greetingEl = screen.getByTestId('hero-greeting-text')
+    expect(greetingEl.tagName).toBe('P')
+    expect(greetingEl).toHaveTextContent('오늘의 하늘')
 
-    const quoteButton = screen.getByTestId('hero-greeting-text')
-    expect(quoteButton).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(greetingEl)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
 
-    fireEvent.click(quoteButton)
-    expect(quoteButton).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('tooltip')).toHaveTextContent('· 테스트 출처')
+  it("heroStyle='classic'이어도 본문의 온도·하늘 레이아웃은 greeting과 동일하다", () => {
+    storeState = { ...storeState, heroStyle: 'classic' }
+    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    expect(container.querySelector('.text-hero-temp')).toBeTruthy()
+    expect(screen.getByText('21°')).toBeInTheDocument()
   })
 })
 
-describe('HomeWeatherHero — heroStyle=classic', () => {
-  it('펼치면 큰 온도(text-hero-temp) 레이아웃을 렌더하고 글귀는 렌더하지 않는다', () => {
-    storeState = { heroStyle: 'classic', darkMode: false, setSearchOpen: vi.fn(), setDirectionOverride: vi.fn() }
+describe('HomeWeatherHero — 결함 11: 기온 없음(current_temp: null)', () => {
+  it('기온이 없으면 "--"를 text-hero-temp 크기로 채우지 않는다', () => {
+    mockUseWeather.mockReturnValue({
+      weather: { currentTemp: null, icon: 'sunny', rainProb: 0, windSpeed: null },
+    })
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
 
-    expect(container.querySelector('.text-hero-temp')).toBeTruthy()
-    expect(screen.queryByTestId('hero-greeting-text')).not.toBeInTheDocument()
+    expect(container.querySelector('.text-hero-temp')).not.toBeInTheDocument()
+    expect(screen.queryByText('--')).not.toBeInTheDocument()
+  })
+
+  it('기온이 없어도 하늘 상태 문구는 읽을 수 있게 남는다', () => {
+    mockUseWeather.mockReturnValue({
+      weather: { currentTemp: null, icon: 'sunny', rainProb: 0, windSpeed: null },
+    })
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    expect(screen.getByText('맑음')).toBeInTheDocument()
   })
 })
 
 describe('HomeWeatherHero — 비 mood', () => {
-  it('펼치면 3겹 원근 rain 레이어(far/mid/near)를 렌더한다', () => {
+  it('비 무드에는 3겹 원근 rain 레이어(far/mid/near)가 항상 렌더된다(아코디언 없음)', () => {
     mockUseWeather.mockReturnValue({
       weather: { currentTemp: 15, icon: 'rainy', rainProb: 80, windSpeed: 3 },
     })
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
 
     expect(container.querySelector('.whero-rain')).toBeTruthy()
     expect(container.querySelector('.whero-rain-far')).toBeTruthy()
     expect(container.querySelector('.whero-rain-mid')).toBeTruthy()
     expect(container.querySelector('.whero-rain-near')).toBeTruthy()
     expect(container.querySelector('.whero-splash')).toBeTruthy()
-  })
-
-  it('접힌 상태에서는 rain 레이어를 렌더하지 않는다(스트립만 노출)', () => {
-    mockUseWeather.mockReturnValue({
-      weather: { currentTemp: 15, icon: 'rainy', rainProb: 80, windSpeed: 3 },
-    })
-    const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
-
-    expect(container.querySelector('.whero-rain')).toBeNull()
   })
 })
 
@@ -269,7 +275,7 @@ describe('HomeWeatherHero — 하늘과 잉크', () => {
     expect(darkStyle.getPropertyValue('--whero-scrim')).toBe('#000000')
   })
 
-  it('스트립 칩에 죽은 클래스(dark:bg-surface-3/95)나 lightText 분기 잔재가 없다', () => {
+  it('위치 칩에 죽은 클래스(dark:bg-surface-3/95)나 lightText 분기 잔재가 없다', () => {
     // 이 클래스는 Tailwind가 CSS를 만들지 않아 bg-white/95가 살아남았고,
     // 그 위에 text-ink가 얹혀 흰 글자·흰 배경(1.01:1)이 됐다.
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
@@ -282,7 +288,6 @@ describe('HomeWeatherHero — 하늘과 잉크', () => {
 
   it('하늘 위 글자는 전부 잉크 변수를 쓰는 클래스로 칠한다', () => {
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
 
     expect(container.querySelectorAll('.whero-ink').length).toBeGreaterThan(0)
     expect(container.querySelectorAll('.whero-ink-2').length).toBeGreaterThan(0)
@@ -290,7 +295,6 @@ describe('HomeWeatherHero — 하늘과 잉크', () => {
 
   it('스크림을 한 겹 깔고, 걷어낸 오버레이(grain/breath/glow)는 렌더하지 않는다', () => {
     const { container } = render(<HomeWeatherHero onOpenMap={() => {}} />)
-    expandPanel()
 
     expect(container.querySelector('.whero-scrim')).toBeTruthy()
     expect(container.querySelector('.whero-grain')).toBeNull()
@@ -310,7 +314,6 @@ describe('HomeWeatherHero — 태양 위치', () => {
 
   it('해 원반을 그리지 않는다(좁은 히어로에서 스티커처럼 보였다)', () => {
     const { container } = renderAt('2026-08-02T13:00:00')
-    expandPanel()
 
     expect(container.querySelector('.whero-sun')).toBeNull()
     expect(container.querySelector('.whero-rays')).toBeNull()
@@ -318,11 +321,9 @@ describe('HomeWeatherHero — 태양 위치', () => {
 
   it('해가 떠 있으면 낮 글로우를 얹고, 지면 걷는다', () => {
     const { container: noon } = renderAt('2026-08-02T13:00:00')
-    expandPanel()
     expect(noon.querySelector('.whero-daylight')).toBeTruthy()
 
     const { container: night } = renderAt('2026-08-02T23:00:00')
-    fireEvent.click(screen.getAllByLabelText('날씨 요약 펼치기')[0])
     expect(night.querySelector('.whero-daylight')).toBeNull()
   })
 
@@ -352,7 +353,6 @@ describe('HomeWeatherHero — 태양 위치', () => {
 
   it('한밤중에는 별과 유성을 렌더한다', () => {
     const { container } = renderAt('2026-08-02T23:00:00')
-    fireEvent.click(screen.getAllByLabelText('날씨 요약 펼치기')[0])
 
     expect(container.querySelector('.whero-night-sky')).toBeTruthy()
     expect(container.querySelectorAll('.whero-star').length).toBeGreaterThan(0)
@@ -374,7 +374,6 @@ describe('HomeWeatherHero — 태양 위치', () => {
       weather: { currentTemp: 15, icon: 'rainy', rainProb: 80, windSpeed: 3 },
     })
     const { container } = renderAt('2026-08-02T13:00:00')
-    expandPanel()
     expect(container.querySelector('.whero-daylight')).toBeNull()
     expect(container.querySelector('.whero-rain')).toBeTruthy()
   })
@@ -387,7 +386,7 @@ describe('HomeWeatherHero — 자동 방향 전환 토스트', () => {
     expect(screen.queryByTestId('direction-auto-toast')).not.toBeInTheDocument()
   })
 
-  it('direction이 변하고 isOverride가 false면 토스트가 나타난다(접힌 상태에서도)', () => {
+  it('direction이 변하고 isOverride가 false면 토스트가 나타난다', () => {
     const { rerender } = render(<HomeWeatherHero onOpenMap={() => {}} />)
 
     // 초기: '등교', isOverride=false
@@ -408,5 +407,92 @@ describe('HomeWeatherHero — 자동 방향 전환 토스트', () => {
     rerender(<HomeWeatherHero onOpenMap={() => {}} />)
 
     expect(screen.queryByTestId('direction-auto-toast')).not.toBeInTheDocument()
+  })
+})
+
+describe('HomeWeatherHero — 스트립 뷰 토글의 44px 히트영역', () => {
+  // 예전엔 날씨/식당/검색 토글이 28px(w-7 h-7)라 손가락 터치 타깃 최소치(44px) 미달이었다.
+  // ui/IconButton을 -inset-2(8px)로 겹쳐 히트영역만 44px로 키우고, 보이는 배지(28px)는
+  // 그대로 둔다 — 두 가지를 함께 고정한다.
+  it('날씨/식당/검색/더보기 토글의 실제 클릭 가능 버튼이 44px 이상의 히트영역 클래스를 갖는다', () => {
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    for (const label of ['날씨 보기', '식당 보기', '검색', '더보기']) {
+      const hitTarget = screen.getByLabelText(label)
+      expect(hitTarget.tagName).toBe('BUTTON')
+      // IconButton 정본의 44px 박스(min-h-[44px] min-w-[44px])를 그대로 쓴다.
+      expect(hitTarget.className).toMatch(/min-h-\[44px\]/)
+      expect(hitTarget.className).toMatch(/min-w-\[44px\]/)
+    }
+  })
+
+  it('보이는 배지(아이콘 뱃지)는 여전히 28px(w-7 h-7) 시각 크기를 유지한다', () => {
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    const visibleBadge = screen.getByLabelText('날씨 보기').querySelector('.whero-toggle')
+    expect(visibleBadge).toHaveClass('w-7', 'h-7')
+  })
+
+  it('식당 보기를 누르면 여전히 식당 뷰로 전환된다(뷰 전환은 항상 즉시 보인다)', () => {
+    render(<HomeWeatherHero onOpenMap={() => {}} />)
+
+    fireEvent.click(screen.getByLabelText('식당 보기'))
+
+    expect(screen.getByLabelText('식당 보기')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('지금 문 연 곳')).toBeInTheDocument()
+  })
+})
+
+// ── WalkIndexChip 팝오버가 스트립 인사말에 가려 보이던 버그(사용자 실측) —
+// jsdom은 실제 페인트/stacking context를 계산하지 않으므로, .css 소스를 직접
+// 읽어 원인이 된 키프레임이 되돌아오지 않는지 정규식으로 강제한다
+// (WalkIndexChip.test.jsx의 토큰 규율 테스트와 같은 패턴).
+describe('HomeWeatherHero — .whero-panel 진입 애니메이션이 stacking context를 남기지 않는다', () => {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
+  const css = fs.readFileSync(path.join(__dirname, 'HomeWeatherHero.css'), 'utf8')
+
+  // whero-panel-in 키프레임 블록만 중괄호 균형을 맞춰 잘라낸다 — 정규식 하나로
+  // 바깥 @keyframes와 안쪽 from/to 블록을 동시에 다루면 취약해진다.
+  function extractBlock(source, startMarker) {
+    const start = source.indexOf(startMarker)
+    expect(start, `${startMarker} 블록을 찾지 못했다`).toBeGreaterThan(-1)
+    let depth = 0
+    let i = start
+    for (; i < source.length; i++) {
+      if (source[i] === '{') depth++
+      else if (source[i] === '}') {
+        depth--
+        if (depth === 0) break
+      }
+    }
+    return source.slice(start, i + 1)
+  }
+
+  // to 키프레임만 transform: none으로 적어서는 부족했다(실측). from에 실제
+  // transform이 있으면 CSS가 둘을 행렬로 보간하고, fill-mode가 both면 끝난 뒤에도
+  // matrix(1,0,0,1,0,0)이 남아 stacking context가 그대로 생긴다. fill-mode가
+  // both로 되돌아가면 팝오버가 다시 인사말 뒤로 숨는다.
+  it('fill-mode가 backwards다 — both면 보간된 transform 행렬이 남아 stacking context가 생긴다', () => {
+    const decl = css.match(/animation:\s*whero-panel-in[^;]*;/)
+    expect(decl, 'whero-panel의 animation 선언을 찾지 못했다').not.toBeNull()
+    expect(decl[0]).toContain('backwards')
+    expect(decl[0]).not.toMatch(/\bboth\b/)
+    expect(decl[0]).not.toMatch(/\bforwards\b/)
+  })
+
+  it('to 키프레임은 transform: none을 쓴다 — translateY(0)은 애니메이션이 끝난 뒤에도 남아 stacking context를 새로 만든다', () => {
+    const block = extractBlock(css, '@keyframes whero-panel-in')
+    expect(block).toMatch(/to\s*{\s*opacity:\s*1;\s*transform:\s*none;\s*}/)
+  })
+
+  it('to 키프레임에 translateY(0)이 다시 들어오지 않는다(원인 재발 방지)', () => {
+    const block = extractBlock(css, '@keyframes whero-panel-in')
+    const toBlock = block.match(/to\s*{[^}]*}/)[0]
+    expect(toBlock).not.toMatch(/translateY/)
+  })
+
+  it('from 키프레임의 진입 이동(translateY(-4px))은 그대로 유지한다(시각적 회귀 방지)', () => {
+    const block = extractBlock(css, '@keyframes whero-panel-in')
+    expect(block).toMatch(/from\s*{\s*opacity:\s*0;\s*transform:\s*translateY\(-4px\);\s*}/)
   })
 })

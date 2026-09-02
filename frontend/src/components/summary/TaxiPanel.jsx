@@ -3,6 +3,7 @@ import { Navigation, LocateFixed } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { apiFetch } from '../../hooks/useApi'
 import { splitFare, formatWon } from '../../utils/taxiSplit'
+import IconButton from '../ui/IconButton'
 
 const PICKUP_POINT = '정문 앞 로터리'
 
@@ -112,19 +113,23 @@ function DestRow({ dest, origin }) {
           ? <span className="text-caption text-mute font-medium">조회 중…</span>
           : fmtMin(result?.duration_seconds)}
       </span>
-      <button
-        aria-label={`${dest.name} 경로 보기`}
+      {/* 경로 보기 토글 — 정본 IconButton(44px). 활성/비활성은 색으로만 구분. */}
+      <IconButton
+        label={`${dest.name} 경로 보기`}
+        aria-pressed={isActive}
         onClick={() => setDriveRouteCoords(isActive ? null : result?.coordinates)}
         disabled={!hasRoute}
-        className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors pressable flex-shrink-0
-          ${isActive
+        variant="ghost"
+        className={`rounded-pill ${
+          isActive
             ? 'bg-ink text-white dark:bg-accent'
             : hasRoute
               ? 'bg-line dark:bg-line text-ink dark:text-ink'
-              : 'bg-surface-2 dark:bg-bg text-mute dark:text-mute cursor-not-allowed'}`}
+              : 'text-mute dark:text-mute cursor-not-allowed'
+        }`}
       >
         <Navigation size={14} />
-      </button>
+      </IconButton>
     </div>
   )
 }

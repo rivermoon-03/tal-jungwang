@@ -7,7 +7,7 @@
  * - 건물별 위치 칩 표시 확인
  * - 정렬 스위치(장소별 ↔ 카테고리별) 전환 동작
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // useNow 훅 모킹 — 목요일 낮 12시 (영업중인 장소가 있을 시간)
@@ -47,8 +47,8 @@ describe('CafeteriaVenues', () => {
 
   it('CafeteriaVenues가 렌더된다', () => {
     render(<CafeteriaVenues />)
-    // 학식 운영 정보 헤더 확인
-    expect(screen.getByText('학식 운영 정보')).toBeInTheDocument()
+    // 결함 #15: 이 컴포넌트는 매장 탭에서 렌더되므로 제목도 "매장"이어야 한다.
+    expect(screen.getByText('매장 운영 정보')).toBeInTheDocument()
   })
 
   it('탭(지금, 운영시간)이 렌더된다', () => {
@@ -103,16 +103,16 @@ describe('CafeteriaVenues', () => {
     expect(tipChips.length).toBeGreaterThan(0)
   })
 
-  it('운영시간 탭으로 전환하면 건물 그룹 헤더가 보인다 (기본: 장소별)', () => {
+  it('운영시간 탭으로 전환하면 카테고리 그룹 헤더가 보인다 (기본: 카테고리별)', () => {
     render(<CafeteriaVenues />)
     const scheduleTab = screen.getByText('운영시간')
     fireEvent.click(scheduleTab)
-    // 기본 장소별 정렬: TIP / E동 / 중앙도서관 건물 헤더 중 하나가 있어야 함
-    expect(
-      screen.queryAllByText(/^TIP$/).length > 0 ||
-      screen.queryAllByText(/^E동$/).length > 0 ||
-      screen.queryAllByText(/^중앙도서관$/).length > 0
-    ).toBe(true)
+    // 기본 카테고리별 정렬: 한식/분식/중식/양식/패스트푸드/카페/편의점 헤더 중 하나가 있어야 함
+    const categoryLabels = ['한식', '분식', '중식', '양식', '패스트푸드', '카페', '편의점']
+    const found = categoryLabels.some(
+      (label) => screen.queryAllByText(new RegExp(`^${label}$`)).length > 0
+    )
+    expect(found).toBe(true)
   })
 
   it('운영시간 탭의 각 venue 카드도 클릭 시 onVenueClick이 호출된다', () => {
@@ -154,20 +154,11 @@ describe('CafeteriaVenues — 정렬 스위치', () => {
     expect(screen.getByText('카테고리별')).toBeInTheDocument()
   })
 
-  it('기본값은 "장소별"이며 건물 그룹 헤더가 보인다', () => {
+  it('기본값은 "카테고리별"이며 카테고리 그룹 헤더가 보인다', () => {
     renderScheduleTab()
-    // 건물 헤더(TIP, E동, 중앙도서관) 중 하나가 보여야 함
-    // aria-label이나 data-testid가 없으면 텍스트로 확인
-    expect(
-      screen.queryAllByText(/^TIP$/).length > 0 ||
-      screen.queryAllByText(/^E동$/).length > 0 ||
-      screen.queryAllByText(/^중앙도서관$/).length > 0
-    ).toBe(true)
-  })
-
-  it('"카테고리별" 클릭 시 카테고리 그룹 헤더가 보인다', () => {
-    renderScheduleTab()
-    fireEvent.click(screen.getByText('카테고리별'))
+    // aria-pressed로 어느 옵션이 기본 활성인지도 함께 확인한다.
+    expect(screen.getByText('카테고리별').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('장소별').closest('button')).toHaveAttribute('aria-pressed', 'false')
     // 카테고리 헤더 (한식, 분식, 중식, 양식, 패스트푸드, 카페, 편의점) 중 하나가 보여야 함
     const categoryLabels = ['한식', '분식', '중식', '양식', '패스트푸드', '카페', '편의점']
     const found = categoryLabels.some(
@@ -176,17 +167,28 @@ describe('CafeteriaVenues — 정렬 스위치', () => {
     expect(found).toBe(true)
   })
 
-  it('"카테고리별" → "장소별" 전환 시 건물 헤더가 다시 보인다', () => {
+  it('"장소별" 클릭 시 건물 그룹 헤더가 보인다', () => {
     renderScheduleTab()
-    // 카테고리별로 전환
-    fireEvent.click(screen.getByText('카테고리별'))
-    // 다시 장소별로 전환
     fireEvent.click(screen.getByText('장소별'))
+    // 건물 헤더(TIP, E동, 중앙도서관) 중 하나가 보여야 함
     expect(
       screen.queryAllByText(/^TIP$/).length > 0 ||
       screen.queryAllByText(/^E동$/).length > 0 ||
       screen.queryAllByText(/^중앙도서관$/).length > 0
     ).toBe(true)
+  })
+
+  it('"장소별" → "카테고리별" 전환 시 카테고리 헤더가 다시 보인다', () => {
+    renderScheduleTab()
+    // 장소별로 전환
+    fireEvent.click(screen.getByText('장소별'))
+    // 다시 카테고리별로 전환
+    fireEvent.click(screen.getByText('카테고리별'))
+    const categoryLabels = ['한식', '분식', '중식', '양식', '패스트푸드', '카페', '편의점']
+    const found = categoryLabels.some(
+      (label) => screen.queryAllByText(new RegExp(`^${label}$`)).length > 0
+    )
+    expect(found).toBe(true)
   })
 
   it('"지금 영업중" 탭에도 정렬 스위치가 렌더된다', () => {
@@ -245,5 +247,56 @@ describe('CafeteriaVenues — F2 매점 즐겨찾기', () => {
     mockStoreState.favorites.venues = ['not-a-real-venue-id']
     render(<CafeteriaVenues />)
     expect(screen.queryByTestId('favorite-open-section')).not.toBeInTheDocument()
+  })
+})
+
+// ─── 시안2 "다정한 카드" — 카드 해부 통일 테스트 ─────────────────────────────
+describe('CafeteriaVenues — 카드 해부 통일', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockStoreState.favorites.venues = []
+  })
+
+  it('학식 카드(meals형)와 단순 매점 카드(hours형)가 같은 카드 해부(rounded-card + shadow-sh-card)를 공유한다', () => {
+    render(<CafeteriaVenues />)
+    fireEvent.click(screen.getByText('운영시간'))
+    // 학생식당: meals 구조(예전 RestaurantCard). 토마토김밥: hours 구조(예전 SimpleVenueCard).
+    const restaurantCard = screen.getByRole('button', { name: '학생식당' })
+    const simpleCard = screen.getByRole('button', { name: '토마토김밥' })
+    expect(restaurantCard.className).toContain('rounded-card')
+    expect(restaurantCard.className).toContain('shadow-sh-card')
+    expect(simpleCard.className).toContain('rounded-card')
+    expect(simpleCard.className).toContain('shadow-sh-card')
+  })
+
+  it('대표메뉴(venue.menu)가 태그 칩으로 렌더된다', () => {
+    render(<CafeteriaVenues />)
+    fireEvent.click(screen.getByText('운영시간'))
+    // 학생식당 menu: ['천원의아침밥', '셀프라면', '매일 바뀌는 식단'] (3개, 그대로 노출)
+    expect(screen.getByText('천원의아침밥')).toBeInTheDocument()
+    expect(screen.getByText('셀프라면')).toBeInTheDocument()
+  })
+
+  it('대표메뉴가 3개를 넘으면 "+N" 칩으로 나머지를 묶는다 (수호식당 5개 메뉴)', () => {
+    render(<CafeteriaVenues />)
+    fireEvent.click(screen.getByText('운영시간'))
+    // 수호식당 menu: ['한식뷔페', '국밥', '순대국', '칼국수', '맥주'] — 앞 3개만 칩, 나머지는 +2.
+    // 같은 카테고리(한식)의 신북경도 메뉴가 5개(+2)라 페이지 전체에서는 "+2"가 유일하지
+    // 않으므로 수호식당 카드 안으로 범위를 좁혀 확인한다.
+    const card = screen.getByRole('button', { name: '수호식당' })
+    expect(within(card).getByText('한식뷔페')).toBeInTheDocument()
+    expect(within(card).getByText('국밥')).toBeInTheDocument()
+    expect(within(card).getByText('순대국')).toBeInTheDocument()
+    expect(within(card).getByText('+2')).toBeInTheDocument()
+    expect(within(card).queryByText('칼국수')).not.toBeInTheDocument()
+    expect(within(card).queryByText('맥주')).not.toBeInTheDocument()
+  })
+
+  it('카드 그리드에 PC 다열(md/lg) 반응형 클래스가 적용된다', () => {
+    const { container } = render(<CafeteriaVenues />)
+    const grid = container.querySelector('.grid')
+    expect(grid).toBeTruthy()
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toContain('lg:grid-cols-3')
   })
 })

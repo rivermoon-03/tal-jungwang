@@ -293,3 +293,53 @@ describe('ScheduleDetailModal — 버스 운행 종료 안내', () => {
     expect(screen.queryByText('오늘 운행이 끝났어요')).not.toBeInTheDocument()
   })
 })
+
+// 모바일 경로가 vaul(Drawer)에서 ui/Sheet로 이관됐다 — 예전엔 이 경로를 테스트하려면
+// ResizeObserver 등 별도 jsdom 폴리필이 필요해 PC 경로만 테스트했다(파일 머리말
+// 참고). Sheet는 그런 요구가 없어 모바일 경로도 그대로 검증할 수 있다.
+describe('ScheduleDetailModal — 모바일 경로(ui/Sheet)', () => {
+  function stubMobileMatchMedia() {
+    window.matchMedia = vi.fn((query) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }))
+  }
+
+  beforeEach(() => {
+    stubMobileMatchMedia()
+  })
+
+  it('dialog role로 렌더링된다', () => {
+    render(<ScheduleDetailModal open onClose={() => {}} type="bus" routeCode="20-1" title="20-1" />)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('Escape를 누르면 onClose가 호출된다(Sheet가 처리)', () => {
+    const onClose = vi.fn()
+    render(<ScheduleDetailModal open onClose={onClose} type="bus" routeCode="20-1" title="20-1" />)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('배경을 클릭하면 onClose가 호출된다', () => {
+    const onClose = vi.fn()
+    const { container } = render(
+      <ScheduleDetailModal open onClose={onClose} type="bus" routeCode="20-1" title="20-1" />
+    )
+    const backdrop = container.querySelector('[aria-hidden="true"].fixed.inset-0')
+    expect(backdrop).toBeTruthy()
+    fireEvent.click(backdrop)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('닫기 버튼이 IconButton(44px 히트 영역)이다', () => {
+    render(<ScheduleDetailModal open onClose={() => {}} type="bus" routeCode="20-1" title="20-1" />)
+    const closeBtn = screen.getByRole('button', { name: '닫기' })
+    expect(closeBtn.className).toMatch(/min-h-\[44px\]/)
+  })
+})

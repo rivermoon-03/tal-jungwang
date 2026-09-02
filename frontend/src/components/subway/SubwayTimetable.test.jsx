@@ -21,99 +21,71 @@ beforeEach(() => {
   const now = new Date()
   now.setHours(6, 5, 0, 0)
   vi.setSystemTime(now)
+  // jsdom에는 scrollIntoView가 구현되어 있지 않다 — 호출 자체만 검증한다.
+  Element.prototype.scrollIntoView = vi.fn()
 })
 
 afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('SubwayTimetable', () => {
+describe('SubwayTimetable — 시(hour) 그룹 시간표(시안)', () => {
   const defaultProps = {
     entries: BASE_ENTRIES,
     nextIndex: 1,
     lastIdx: 4,
-    firstIdx: 0,
-    lineColor: '#1B5FAD',
-    lineDarkColor: '#60a5fa',
-    lineLightColor: '#E8F0FB',
   }
 
-  // ── 제거 대상 ──────────────────────────────────────────────────────────
-
-  it('좌측 컬러 바(border-l-N px 바)가 없다', () => {
-    const { container } = render(<SubwayTimetable {...defaultProps} />)
-    // border-line, border-line-dark 는 허용; border-l-[숫자] / border-l\b 만 금지
-    expect(container.innerHTML).not.toMatch(/\bborder-l-\d+|\bborder-l\b/)
-  })
-
-  it('이모지가 렌더되지 않는다', () => {
-    const { container } = render(<SubwayTimetable {...defaultProps} />)
-    expect(/\p{Extended_Pictographic}/u.test(container.textContent)).toBe(false)
-  })
-
-  it('막차는 StatusChip 텍스트 "막차"로 렌더된다', () => {
-    const { getAllByText } = render(<SubwayTimetable {...defaultProps} />)
-    // 막차 텍스트가 존재해야 한다
-    expect(getAllByText('막차').length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('첫차는 StatusChip 텍스트 "첫차"로 렌더된다', () => {
-    const { getAllByText } = render(<SubwayTimetable {...defaultProps} />)
-    expect(getAllByText('첫차').length).toBeGreaterThanOrEqual(1)
-  })
-
-  // ── 강조 유지 ──────────────────────────────────────────────────────────
-
-  it('다음 열차 행에 bg-accent-bg 틴트가 있다', () => {
-    const { container } = render(<SubwayTimetable {...defaultProps} />)
-    // nextIndex=1 → "06:10" 행에 bg-accent-bg 클래스가 있어야 한다
-    const items = container.querySelectorAll('li')
-    // startIdx = max(0, 1-2) = 0 이므로 렌더 순서는 0,1,2,3,4
-    // nextIndex=1 이면 di=1 (li[1])
-    const nextLi = items[1]
-    expect(nextLi.className).toMatch(/bg-accent-bg/)
-  })
-
-  it('다음 열차 시각은 font-bold(굵게) 렌더된다', () => {
-    const { container } = render(<SubwayTimetable {...defaultProps} />)
-    const items = container.querySelectorAll('li')
-    const nextLi = items[1]
-    const timeSpan = nextLi.querySelector('[class*="tabular-nums"]')
-    expect(timeSpan).toBeTruthy()
-    expect(timeSpan.className).toMatch(/font-bold/)
-  })
-
-  // ── 과거 열차 ──────────────────────────────────────────────────────────
-
-  it('과거 열차에 opacity 클래스 대신 text-mute 가 적용된다', () => {
-    const { container } = render(<SubwayTimetable {...defaultProps} />)
-    const items = container.querySelectorAll('li')
-    // index 0 (06:00) 은 현재(06:05) 보다 이전 → isPast
-    const pastLi = items[0]
-    expect(pastLi.className).not.toMatch(/opacity-/)
-    // 목적지 span 이 text-mute 클래스
-    const mutedSpan = pastLi.querySelector('[class*="text-mute"]')
-    expect(mutedSpan).toBeTruthy()
-  })
-
-  // ── 글자 크기 ──────────────────────────────────────────────────────────
-
-  it('9~11px 극소 글자(text-[9px]~text-[11px]) 클래스가 없다', () => {
-    const { container } = render(<SubwayTimetable {...defaultProps} />)
-    expect(container.innerHTML).not.toMatch(/text-\[(?:9|10|11)px\]/)
-  })
-
-  // ── 회귀: props 계약 ───────────────────────────────────────────────────
-
-  it('entries가 빈 배열이면 아무 행도 렌더하지 않는다', () => {
-    const { container } = render(
-      <SubwayTimetable {...defaultProps} entries={[]} nextIndex={-1} lastIdx={null} firstIdx={null} />
-    )
-    expect(container.querySelectorAll('li').length).toBe(0)
-  })
-
-  it('depart_at 시각 텍스트가 렌더된다', () => {
+  it('시(hour) 헤더가 "06시"/"23시"로 렌더되고 편수를 함께 보여준다', () => {
     render(<SubwayTimetable {...defaultProps} />)
-    expect(screen.getByText('06:10')).toBeTruthy()
+    expect(screen.getByText('06시')).toBeTruthy()
+    expect(screen.getByText('23시')).toBeTruthy()
+    // 06시 그룹은 4편(00/10/20/30), 막차 없음
+    expect(screen.getByText('4편')).toBeTruthy()
+  })
+
+  it('막차가 속한 시(hour) 그룹 헤더는 "1편 · 막차"로 렌더된다', () => {
+    render(<SubwayTimetable {...defaultProps} />)
+    expect(screen.getByText('1편 · 막차')).toBeTruthy()
+  })
+
+  it('각 시각 칩에 행선지가 부제로 붙는다', () => {
+    render(<SubwayTimetable {...defaultProps} />)
+    expect(screen.getAllByText('오이도행').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('인천행').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('다음 열차(06:10) 칩은 accent 배경으로 채워진다', () => {
+    render(<SubwayTimetable {...defaultProps} />)
+    const chip = screen.getByText('06:10').closest('.rounded-tile')
+    expect(chip.className).toMatch(/bg-accent\b/)
+  })
+
+  it('지난 열차(06:00) 칩은 흐리게(opacity-40) 렌더된다', () => {
+    render(<SubwayTimetable {...defaultProps} />)
+    const chip = screen.getByText('06:00').closest('.rounded-tile')
+    expect(chip.className).toMatch(/opacity-40/)
+  })
+
+  it('"지금" 앵커가 현재 시각과 다음 열차까지 남은 시간을 보여준다', () => {
+    render(<SubwayTimetable {...defaultProps} />)
+    expect(screen.getByText('지금 06:05 · 다음 5분')).toBeTruthy()
+  })
+
+  it('마운트 시 다음 열차 칩으로 스크롤한다', () => {
+    render(<SubwayTimetable {...defaultProps} />)
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ block: 'center', behavior: 'smooth' })
+    )
+  })
+
+  it('entries가 빈 배열이면 아무 시각도 렌더하지 않는다', () => {
+    render(<SubwayTimetable entries={[]} nextIndex={-1} lastIdx={null} />)
+    expect(screen.queryByText(/시$/)).toBeNull()
+  })
+
+  it('오늘 운행이 모두 끝났으면(nextIndex=-1) "지금" 앵커를 숨긴다', () => {
+    render(<SubwayTimetable entries={BASE_ENTRIES} nextIndex={-1} lastIdx={4} />)
+    expect(screen.queryByText(/^지금 /)).toBeNull()
   })
 })

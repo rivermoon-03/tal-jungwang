@@ -15,11 +15,16 @@ function isWeekend(d = new Date()) {
   return d.getDay() === 0 || d.getDay() === 6
 }
 
+// 3단계(원활/서행/정체)를 3색으로 분리한다. 예전엔 서행·정체가 둘 다 text-imminent라
+// 색만 훑어서는 구분이 안 되고 글자를 읽어야 했다 — imminent(곧·주의)는 서행에,
+// delayed(지연·경고)는 정체에 배정해 두 단계가 시각적으로도 갈리게 한다.
+const SPEED_LABEL_COLOR = { 원활: 'text-ease', 서행: 'text-imminent', 정체: 'text-delayed' }
+
 function speedStatus(kmh) {
   if (kmh == null) return { label: '--', sub: null, colorClass: 'text-mute' }
-  if (kmh >= 25) return { label: '원활', sub: `${kmh.toFixed(0)} km/h`, colorClass: 'text-ease' }
-  if (kmh >= 15) return { label: '서행', sub: `${kmh.toFixed(0)} km/h`, colorClass: 'text-imminent' }
-  return { label: '정체', sub: `${kmh.toFixed(0)} km/h`, colorClass: 'text-imminent' }
+  if (kmh >= 25) return { label: '원활', sub: `${kmh.toFixed(0)} km/h`, colorClass: SPEED_LABEL_COLOR.원활 }
+  if (kmh >= 15) return { label: '서행', sub: `${kmh.toFixed(0)} km/h`, colorClass: SPEED_LABEL_COLOR.서행 }
+  return { label: '정체', sub: `${kmh.toFixed(0)} km/h`, colorClass: SPEED_LABEL_COLOR.정체 }
 }
 
 export default function TrafficFlowCard() {
@@ -72,7 +77,7 @@ export default function TrafficFlowCard() {
   const chartStroke = 'var(--tj-mute)'
 
   return (
-    <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">
+    <article className="relative overflow-hidden rounded-card bg-surface shadow-sh-card">
       <div className="p-5">
         {/* 헤더 */}
         <header className="flex items-start justify-between gap-4">
@@ -128,7 +133,7 @@ export default function TrafficFlowCard() {
               <div className="text-caption font-bold text-mute tracking-wide mb-1.5">
                 {String(futurePeak.hour).padStart(2, '0')}시경 예상
               </div>
-              <div className={`text-head font-semibold tracking-tight text-imminent`}>
+              <div className={`text-head font-semibold tracking-tight ${SPEED_LABEL_COLOR[futurePeak.label] ?? 'text-imminent'}`}>
                 {futurePeak.label}
               </div>
             </div>

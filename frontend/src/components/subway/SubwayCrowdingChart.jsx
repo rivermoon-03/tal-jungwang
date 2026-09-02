@@ -91,7 +91,7 @@ export default function SubwayCrowdingChart({ station, lineName, direction, enab
         </div>
       </div>
 
-      <p className="mt-2 flex items-center gap-1.5 text-[12.5px] font-medium text-mute dark:text-mute">
+      <p className="mt-2 flex items-center gap-1.5 text-caption font-medium text-mute dark:text-mute">
         <span aria-hidden="true" className="w-2 h-2 rounded-full bg-imminent flex-shrink-0" />
         <span>{conclusion}</span>
       </p>

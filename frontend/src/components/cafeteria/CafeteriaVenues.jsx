@@ -1,11 +1,19 @@
 /**
- * CafeteriaVenues.jsx — 학식 운영 정보 컴포넌트
+ * CafeteriaVenues.jsx — 매장 운영 정보 컴포넌트(매장 탭)
  *
  * 탭 구조:
  *   [지금 영업중 | 운영시간] — 기본 "지금 영업중"
  *
  * 시안1: 식당별 조/중/석 + 운영중 배지 (운영시간 탭)
  * 시안2: 현재 시각 기준 영업중 필터 목록 (지금 영업중 탭, 기본)
+ *
+ * 시안2 "다정한 카드" 카드 해부(단일 규격, 모든 목록 공통):
+ *   [타일 56px] [이름 + 메타(위치·시간) + 대표메뉴 태그] [상태 pill]
+ * 예전에는 RestaurantCard(학식, 끼니별 시간표 포함) / SimpleVenueCard(단순
+ * 시간대) / OpenRow(지금 영업중 행) 세 가지가 패딩·반경·필드 순서까지
+ * 제각각이었다 — 같은 매점이 탭만 바꿔도 다른 모양으로 보였다. VenueCard
+ * 하나로 합치고, 세부 시간표(조/중/석 각각의 시작~끝) 대신 대표 시간 범위와
+ * 대표메뉴 태그로 요약한다 — 상세 시간표는 상세 페이지(/cafeteria/:id) 몫이다.
  *
  * 디자인 규칙:
  *   - 좌측 색상 테두리 없음, 이모지 없음
@@ -17,9 +25,10 @@ import { createElement, useMemo, useState } from 'react'
 import { Star } from 'lucide-react'
 import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
-import { ALL_VENUES, RESTAURANTS, VENUE_GROUPS, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
+import { ALL_VENUES, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
 import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryStyle, getCategoryIcon } from '../../utils/venueOpen'
 import SegmentTabs from '../ui/SegmentTabs'
+import IconButton from '../ui/IconButton'
 import { staggerStyle } from '../../utils/motion'
 import './CafeteriaVenues.css'
 
@@ -55,24 +64,42 @@ function kstWeekday(nowMs) {
   return KST_FMT_WEEKDAY.format(new Date(nowMs))
 }
 
-// ── 카테고리 아이콘 원형 칩 ──────────────────────────────────
-function CategoryIconChip({ category }) {
+// ── 카드 대표 시간 요약 헬퍼 ─────────────────────────────────
+/** venue의 meals/hours/schedule 중 첫 시작 ~ 마지막 종료를 한 범위로 요약한다.
+ * "HH:MM" 문자열은 앞자리가 0으로 채워져 있어 사전식 정렬이 시간 정렬과 같다. */
+function getVenueTimeLabel(venue) {
+  if (venue.alwaysOpen || venue.is24h) return '24시간 운영'
+  const slots = venue.meals ?? venue.hours ?? venue.schedule?.semester?.weekday ?? []
+  if (slots.length === 0) return ''
+  const starts = slots.map((s) => s.start).sort()
+  const ends = slots.map((s) => s.end).sort()
+  return `${starts[0]}~${ends[ends.length - 1]}`
+}
+
+// ── 카테고리 타일 (카드 좌측 56px 썸네일 자리) ────────────────
+function CategoryTile({ category }) {
   const { color, bg } = getCategoryStyle(category)
   const Icon = getCategoryIcon(category)
   return (
     <div
-      style={{
-        flex: 'none',
-        width: 40,
-        height: 40,
-        borderRadius: '50%',
-        background: bg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      className="flex-none w-14 h-14 rounded-tile flex items-center justify-center"
+      style={{ background: bg }}
     >
-      {createElement(Icon, { size: 18, strokeWidth: 2, color })}
+      {createElement(Icon, { size: 24, strokeWidth: 2, color })}
+    </div>
+  )
+}
+
+// ── 카테고리 아이콘 원형 칩 (그룹 헤더 전용, 작은 사이즈) ─────
+function CategoryHeaderIcon({ category }) {
+  const { color, bg } = getCategoryStyle(category)
+  const Icon = getCategoryIcon(category)
+  return (
+    <div
+      className="flex-none w-6 h-6 rounded-full flex items-center justify-center"
+      style={{ background: bg }}
+    >
+      {createElement(Icon, { size: 13, strokeWidth: 2.2, color })}
     </div>
   )
 }
@@ -82,24 +109,42 @@ function LocationChip({ location }) {
   const building = getVenueBuilding(location)
   const { color, bg } = getBuildingColor(building)
   return (
+    // "TIP 1F"가 "TIP / 1F"로 줄바꿈되던 문제 — 위치 라벨은 항상 한 줄.
     <span
-      style={{
-        display: 'inline-block',
-        flexShrink: 0,
-        // "TIP 1F"가 "TIP / 1F"로 줄바꿈되던 문제 — 위치 라벨은 항상 한 줄.
-        whiteSpace: 'nowrap',
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: '-0.01em',
-        color,
-        background: bg,
-        borderRadius: 6,
-        padding: '2px 7px',
-        lineHeight: 1.5,
-      }}
+      className="inline-block flex-shrink-0 whitespace-nowrap text-caption font-bold rounded-badge px-[7px] py-[2px] leading-[1.5] tracking-[-0.01em]"
+      style={{ color, background: bg }}
     >
       {location}
     </span>
+  )
+}
+
+// ── 대표메뉴 태그 칩 ─────────────────────────────────────────
+// venue.menu 최대 3개 + 나머지는 "+N"으로 뭉친다 — 태그가 많으면 카드 높이가
+// 목록마다 들쭉날쭉해진다.
+const MENU_TAG_LIMIT = 3
+
+function MenuTags({ menu }) {
+  if (!Array.isArray(menu) || menu.length === 0) return null
+  const shown = menu.slice(0, MENU_TAG_LIMIT)
+  const overflow = menu.length - shown.length
+
+  return (
+    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+      {shown.map((item) => (
+        <span
+          key={item}
+          className="text-caption font-semibold text-ink-2 bg-surface-2 rounded-pill px-2 py-0.5"
+        >
+          {item}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span className="text-caption font-semibold text-mute bg-surface-2 rounded-pill px-2 py-0.5">
+          +{overflow}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -121,7 +166,7 @@ function StatusPill({ primaryLabel, status }) {
   )
 }
 
-// ── F2: 매점/식당 즐겨찾기 별 버튼 (카드 변형 3종 공통) ────────────
+// ── F2: 매점/식당 즐겨찾기 별 버튼 (카드 공통) ────────────────
 function FavoriteStarButton({ venueId, size = 15 }) {
   const isFav = useAppStore(
     (s) => Array.isArray(s.favorites?.venues) && s.favorites.venues.includes(venueId)
@@ -129,45 +174,32 @@ function FavoriteStarButton({ venueId, size = 15 }) {
   const toggleFavoriteVenue = useAppStore((s) => s.toggleFavoriteVenue)
 
   return (
-    <button
-      type="button"
-      aria-label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+    <IconButton
+      label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
       aria-pressed={isFav}
-      className="pressable"
+      variant="surface"
+      size="md"
+      // 즐겨찾기 on일 때만 노란 칩 톤으로 덮어쓴다. Tailwind 클래스 소스 순서에
+      // 기대지 않도록 !important 변형자로 surface 톤 위에 확정적으로 얹는다.
+      className={isFav ? '!bg-chip-yellow-bg !text-chip-yellow-fg' : ''}
       onClick={(e) => {
         // 카드 자체도 클릭 가능(role=button)하므로 버블링으로 상세 이동이
         // 함께 트리거되지 않도록 막는다.
         e.stopPropagation()
         if (typeof toggleFavoriteVenue === 'function') toggleFavoriteVenue(venueId)
       }}
-      style={{
-        flex: 'none',
-        width: 36,
-        height: 36,
-        borderRadius: '50%',
-        border: '1px solid var(--tj-line)',
-        background: isFav ? 'var(--tj-chip-yellow-bg)' : 'var(--tj-surface)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        color: isFav ? 'var(--tj-chip-yellow-fg)' : 'var(--tj-mute)',
-        touchAction: 'manipulation',
-      }}
     >
       {/* 미즐겨찾기는 빈 별로 둔다. StarOff(사선 그어진 별)는 "즐겨찾기를 끌 수
           없음"처럼 읽히고, 시간표 화면이 쓰는 빈 별 관례와도 어긋났다. */}
       <Star size={size} strokeWidth={2} fill={isFav ? 'currentColor' : 'none'} />
-    </button>
+    </IconButton>
   )
 }
 
-// ── 시안1: 운영시간 탭 ────────────────────────────────────────
-
-/** 학식(meals 구조) 카드 */
-function RestaurantCard({ venue, nowDate, onVenueClick }) {
-  const statusInfo = isOpenNow(venue, nowDate)
-  const { status, primaryLabel, subLabel } = statusInfo
+// ── 통합 매장 카드 (시안2 "다정한 카드" 해부) ─────────────────
+function VenueCard({ venue, nowDate, onVenueClick, style }) {
+  const { status, primaryLabel, subLabel } = isOpenNow(venue, nowDate)
+  const timeLabel = getVenueTimeLabel(venue)
 
   return (
     <div
@@ -176,209 +208,52 @@ function RestaurantCard({ venue, nowDate, onVenueClick }) {
       tabIndex={0}
       onClick={() => onVenueClick(venue.id)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onVenueClick(venue.id) }}
-      style={{
-        background: 'var(--tj-surface)',
-        border: '1px solid var(--tj-line)',
-        borderRadius: 18,
-        padding: '15px 16px',
-        marginBottom: 10,
-        cursor: 'pointer',
-        minHeight: 44,
-      }}
+      className="tj-card-enter flex items-start gap-3 bg-surface rounded-card shadow-sh-card p-[18px] cursor-pointer min-h-[44px]"
+      style={style}
     >
-      {/* 헤더: 아이콘 + 이름 + 상태 */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-        {/* 아이콘은 이름 줄 기준으로 맞춘다 — 아래 SimpleVenueCard와 같은 규칙이라
-            큰 카드와 작은 카드가 섞여도 좌측 리듬이 흔들리지 않는다. */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minWidth: 0 }}>
-          <div style={{ flex: 'none', marginTop: 1 }}>
-            <CategoryIconChip category={venue.category} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--tj-ink)' }}>
-              {venue.name}
-            </div>
-            <div style={{ marginTop: 4 }}>
-              <LocationChip location={venue.location} />
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
-          <div style={{ textAlign: 'right' }}>
-            <StatusPill primaryLabel={primaryLabel} status={status} />
-            {subLabel && (
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
-                {subLabel}
-              </div>
-            )}
-          </div>
-          <FavoriteStarButton venueId={venue.id} />
-        </div>
-      </div>
+      <CategoryTile category={venue.category} />
 
-      {/* 끼니별 시간표 — meals 없으면 schedule.semester.weekday 폴백 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {(venue.meals ?? venue.schedule?.semester?.weekday ?? []).map((meal) => {
-          const mealOpen = isOpenNow({ meals: [meal], closedDays: venue.closedDays ?? [] }, nowDate)
-          const isLive = mealOpen.open
-          return (
-            <div
-              key={meal.type}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                fontSize: 15,
-                letterSpacing: '-0.01em',
-              }}
-            >
-              <span style={{ flex: 'none', width: 38, fontSize: 13, fontWeight: 700, color: 'var(--tj-ink-2)' }}>
-                {meal.type}
-              </span>
-              <span
-                style={{
-                  fontWeight: isLive ? 800 : 600,
-                  color: isLive ? 'var(--tj-ease)' : 'var(--tj-ink)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {meal.start} ~ {meal.end}
-              </span>
-              {isLive && (
-                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: 'var(--tj-ease)' }}>
-                  지금 운영 중
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* 대표 메뉴 (시안 TO-BE) — 있을 때만, 본문 글자 크기로 강조 */}
-      {Array.isArray(venue.menu) && venue.menu.length > 0 && (
-        <div
-          style={{
-            marginTop: 11,
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'var(--tj-ink)',
-            lineHeight: 1.6,
-            letterSpacing: '-0.01em',
-          }}
-        >
-          {venue.menu.join(' · ')}
-        </div>
-      )}
-
-      {/* 풋터: note + 휴무 */}
-      {(venue.note || venue.closedNote || venue.closedDays?.length > 0) && (
-        <div
-          style={{
-            marginTop: 12,
-            paddingTop: 11,
-            borderTop: '1px dashed var(--tj-line)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            fontSize: 13,
-            color: 'var(--tj-ink-2)',
-            fontWeight: 600,
-          }}
-        >
-          {venue.note && (
-            <>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: 'var(--tj-accent-ink)',
-                  background: 'var(--tj-accent-bg)',
-                  borderRadius: 8,
-                  padding: '3px 8px',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {venue.note}
-              </span>
-              <span>조식 운영해요</span>
-            </>
-          )}
-          {(venue.closedNote || venue.closedDays?.length > 0) && (
-            <span style={{ marginLeft: 'auto', color: 'var(--tj-mute)', fontWeight: 600 }}>
-              {venue.closedNote ?? (venue.closedDays.includes('sunday') ? '일요일 휴무' : '주말 휴무')}
+      <div className="flex-1 min-w-0">
+        <div className="text-head font-bold text-ink truncate">{venue.name}</div>
+        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+          <LocationChip location={venue.location} />
+          {timeLabel && (
+            <span className="text-caption font-semibold text-mute whitespace-nowrap">
+              {timeLabel}
             </span>
           )}
         </div>
-      )}
+        <MenuTags menu={venue.menu} />
+      </div>
+
+      <div className="flex-none flex flex-col items-end gap-2">
+        <div className="text-right">
+          <StatusPill primaryLabel={primaryLabel} status={status} />
+          {subLabel && (
+            <div className="mt-1 text-caption font-semibold text-mute whitespace-nowrap">
+              {subLabel}
+            </div>
+          )}
+        </div>
+        <FavoriteStarButton venueId={venue.id} />
+      </div>
     </div>
   )
 }
 
-/** 단순 시간대(hours) 카드 — 푸드코트/기타/카페 */
-function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
-  const { status, primaryLabel, subLabel } = isOpenNow(venue, nowDate)
-
-  // 대표 시간 표기 — hours 없으면 schedule.semester.weekday 폴백
-  const timeLabel = (venue.alwaysOpen || venue.is24h)
-    ? '24시간'
-    : (venue.hours ?? venue.schedule?.semester?.weekday ?? [])
-        .map((h) => `${h.start} ~ ${h.end}`).join(', ')
-
+// ── 카드 그리드 — PC 2~3열, 모바일 1열. 구분선 대신 여백(gap)으로 카드를 나눈다 ──
+function VenueCardGrid({ venues, nowDate, onVenueClick }) {
   return (
-    <div
-      role="button"
-      aria-label={venue.name}
-      tabIndex={0}
-      onClick={() => onVenueClick(venue.id)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onVenueClick(venue.id) }}
-      style={{
-        display: 'flex',
-        // 중앙 정렬이면 정보가 2줄인 카드에서 아이콘·상태 배지가 아래로 떠내려가
-        // 카드마다 다른 높이에 놓인다. 첫 줄(가게 이름) 기준으로 맞춘다.
-        alignItems: 'flex-start',
-        gap: 12,
-        padding: '11px 0',
-        cursor: 'pointer',
-        minHeight: 44,
-      }}
-    >
-      {/* 카테고리 아이콘 칩 — 15px 굵은 이름 줄과 광학적으로 맞도록 살짝 내림 */}
-      <div style={{ flex: 'none', marginTop: 1 }}>
-        <CategoryIconChip category={venue.category} />
-      </div>
-
-      {/* 이름 + 위치 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--tj-ink)' }}>
-          {venue.name}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
-          <LocationChip location={venue.location} />
-          {/* 시간과 휴무 안내를 한 문자열로 이으면 줄바꿈 위치에 따라 "10:00 ~ 20:00 ·"
-              처럼 구분자만 줄 끝에 남는다. 조각을 각각 nowrap으로 두고 gap으로 띄운다. */}
-          <span style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 600, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-            {timeLabel}
-          </span>
-          {venue.closedNote && (
-            <span style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 600, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-              {venue.closedNote}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* 상태 */}
-      <div style={{ flex: 'none', textAlign: 'right' }}>
-        <StatusPill primaryLabel={primaryLabel} status={status} />
-        {subLabel && (
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, letterSpacing: '-0.01em' }}>
-            {subLabel}
-          </div>
-        )}
-      </div>
-
-      {/* 즐겨찾기 */}
-      <FavoriteStarButton venueId={venue.id} />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+      {venues.map((venue, i) => (
+        <VenueCard
+          key={venue.id}
+          venue={venue}
+          nowDate={nowDate}
+          onVenueClick={onVenueClick}
+          style={staggerStyle(i)}
+        />
+      ))}
     </div>
   )
 }
@@ -387,236 +262,69 @@ function SimpleVenueCard({ venue, nowDate, onVenueClick }) {
 function BuildingGroupHeader({ building }) {
   const { color, bg } = getBuildingColor(building)
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 8,
-      }}
-    >
+    <div className="flex items-center gap-2 mb-2">
       <span
-        style={{
-          fontSize: 14,
-          fontWeight: 800,
-          letterSpacing: '-0.02em',
-          color,
-          background: bg,
-          borderRadius: 8,
-          padding: '3px 10px',
-        }}
+        className="text-caption font-extrabold rounded-badge px-2.5 py-[3px] tracking-[-0.02em]"
+        style={{ color, background: bg }}
       >
         {building}
       </span>
-      <span style={{ flex: 1, height: 1, background: 'var(--tj-line)' }} />
+      <span className="flex-1 h-px bg-line" />
     </div>
   )
 }
 
 // ── 그룹 헤더 — 카테고리별 ──────────────────────────────────
 function CategoryGroupHeader({ category }) {
-  const Icon = getCategoryIcon(category)
   const { color, bg } = getCategoryStyle(category)
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 8,
-      }}
-    >
+    <div className="flex items-center gap-2 mb-2">
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          background: bg,
-          borderRadius: 8,
-          padding: '3px 10px',
-        }}
+        className="flex items-center gap-1.5 rounded-badge px-2.5 py-[3px]"
+        style={{ background: bg }}
       >
-        {createElement(Icon, { size: 14, strokeWidth: 2.2, color })}
-        <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.02em', color }}>
+        <CategoryHeaderIcon category={category} />
+        <span className="text-caption font-extrabold tracking-[-0.02em]" style={{ color }}>
           {category}
         </span>
       </div>
-      <span style={{ flex: 1, height: 1, background: 'var(--tj-line)' }} />
+      <span className="flex-1 h-px bg-line" />
     </div>
   )
 }
 
-// ── 그룹 내 venue 리스트 렌더 (슬림 카드, 공통) ──────────────
-function VenueSlimList({ venues, nowDate, onVenueClick }) {
+/** 운영시간 탭 — 정렬 스위치 적용. 한 카드 규격을 그룹(건물/카테고리)별로 나눠 보여준다. */
+function ScheduleTab({ sortBy, nowDate, onVenueClick }) {
+  const groups = sortBy === 'building' ? BUILDING_GROUPS : CATEGORY_GROUPS
+
   return (
-    <div
-      style={{
-        background: 'var(--tj-surface)',
-        border: '1px solid var(--tj-line)',
-        borderRadius: 16,
-        padding: '0 14px',
-      }}
-    >
-      {venues.map((venue, i) => (
-        <div
-          key={venue.id}
-          className="tj-card-enter"
-          style={{
-            borderBottom: i < venues.length - 1 ? '1px solid var(--tj-line)' : 'none',
-            ...staggerStyle(i),
-          }}
-        >
-          <SimpleVenueCard venue={venue} nowDate={nowDate} onVenueClick={onVenueClick} />
+    <div className="flex flex-col gap-5">
+      {groups.map((group) => (
+        <div key={group.key}>
+          {sortBy === 'building' ? (
+            <BuildingGroupHeader building={group.label} />
+          ) : (
+            <CategoryGroupHeader category={group.label} />
+          )}
+          <VenueCardGrid venues={group.venues} nowDate={nowDate} onVenueClick={onVenueClick} />
         </div>
       ))}
     </div>
   )
 }
 
-/** 운영시간 탭 — 정렬 스위치 적용 */
-function ScheduleTab({ sortBy, nowDate, onVenueClick }) {
-  // 장소별 (건물 그룹)
-  if (sortBy === 'building') {
-    return (
-      <div>
-        {BUILDING_GROUPS.map((group) => {
-          const restaurants = group.venues.filter((v) => v.meals)
-          const simpleVenues = group.venues.filter((v) => !v.meals)
-          return (
-            <div key={group.key} style={{ marginBottom: 18 }}>
-              <BuildingGroupHeader building={group.label} />
-              {/* 학식(meals 구조) — 풀 카드 */}
-              {restaurants.map((venue) => (
-                <RestaurantCard key={venue.id} venue={venue} nowDate={nowDate} onVenueClick={onVenueClick} />
-              ))}
-              {/* 단순 시간대 — 슬림 리스트 */}
-              {simpleVenues.length > 0 && (
-                <VenueSlimList venues={simpleVenues} nowDate={nowDate} onVenueClick={onVenueClick} />
-              )}
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
-  // 카테고리별
-  return (
-    <div>
-      {CATEGORY_GROUPS.map((group) => {
-        const restaurants = group.venues.filter((v) => v.meals)
-        const simpleVenues = group.venues.filter((v) => !v.meals)
-        return (
-          <div key={group.key} style={{ marginBottom: 18 }}>
-            <CategoryGroupHeader category={group.label} />
-            {restaurants.map((venue) => (
-              <RestaurantCard key={venue.id} venue={venue} nowDate={nowDate} onVenueClick={onVenueClick} />
-            ))}
-            {simpleVenues.length > 0 && (
-              <VenueSlimList venues={simpleVenues} nowDate={nowDate} onVenueClick={onVenueClick} />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── 시안2: 지금 영업중 탭 ─────────────────────────────────────
-
-/** 영업중 장소 한 행 */
-function OpenRow({ venue, statusInfo, onVenueClick }) {
-  const { status, currentPart } = statusInfo
-
-  // 우측 종료 안내: 파트명 있으면 "중식 · 14:00 종료", 없으면 "14:00 영업 종료"
-  const endLabel = currentPart
-    ? currentPart.type
-      ? `${currentPart.type} · ${currentPart.end} 종료`
-      : `${currentPart.end} 영업 종료`
-    : null
-
-  return (
-    // hoverable: PC에서 이름과 영업 상태가 700px 떨어져 있어 어느 줄을 보고 있는지
-    // 놓치기 쉬웠다. 행 전체에 hover 배경을 줘서 시선을 한 줄로 묶는다.
-    <div
-      role="button"
-      aria-label={venue.name}
-      tabIndex={0}
-      className="hoverable rounded-mini"
-      onClick={() => onVenueClick(venue.id)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onVenueClick(venue.id) }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 8px',
-        cursor: 'pointer',
-        minHeight: 44,
-      }}
-    >
-      {/* 카테고리 아이콘 칩 */}
-      <CategoryIconChip category={venue.category} />
-
-      {/* 이름 + 위치 칩 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--tj-ink)' }}>
-          {venue.name}
-        </div>
-        {/* 결함 #8: "언제든 열려 있어요" 문구가 위치 칩과 한 줄을 다투다 88px
-            컨테이너에서 2px 잘렸다. 우측에 이미 "24시간 영업"이 같은 뜻을
-            보여주므로 중복 문구를 없애 잘림과 중복 둘 다 해결한다. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, minWidth: 0 }}>
-          <LocationChip location={venue.location} />
-        </div>
-      </div>
-
-      {/* 영업 종료 시각 안내 */}
-      <div style={{ flex: 'none', textAlign: 'right' }}>
-        {(venue.alwaysOpen || venue.is24h) ? (
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tj-accent-ink)' }}>
-            24시간 영업
-          </span>
-        ) : (
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              fontVariantNumeric: 'tabular-nums',
-              color: status === 'closing' ? 'var(--tj-imminent)' : 'var(--tj-mute)',
-              letterSpacing: '-0.01em',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {endLabel}
-          </span>
-        )}
-      </div>
-
-      {/* 즐겨찾기 */}
-      <FavoriteStarButton venueId={venue.id} />
-    </div>
-  )
-}
 
 /** 지금 영업중 탭 */
 function NowOpenTab({ sortBy, nowDate, onVenueClick }) {
-  const openVenues = useMemo(() => {
-    return ALL_VENUES
-      .map((venue) => ({ venue, statusInfo: isOpenNow(venue, nowDate) }))
-      .filter(({ statusInfo }) => statusInfo.open)
-  }, [nowDate])
+  const openVenues = useMemo(
+    () => ALL_VENUES.filter((v) => isOpenNow(v, nowDate).open),
+    [nowDate]
+  )
 
   if (openVenues.length === 0) {
     return (
-      <div
-        style={{
-          padding: '40px 16px',
-          textAlign: 'center',
-          color: 'var(--tj-mute)',
-          fontSize: 15,
-          fontWeight: 600,
-        }}
-      >
+      <div className="py-10 px-4 text-center text-body font-semibold text-mute">
         지금 영업 중인 곳이 없어요
       </div>
     )
@@ -624,40 +332,20 @@ function NowOpenTab({ sortBy, nowDate, onVenueClick }) {
 
   // 장소별 그룹핑
   if (sortBy === 'building') {
-    const buildingMap = {}
-    openVenues.forEach(({ venue, statusInfo }) => {
-      const b = venue.building ?? getVenueBuilding(venue.location)
-      if (!buildingMap[b]) buildingMap[b] = []
-      buildingMap[b].push({ venue, statusInfo })
-    })
     const buildingOrder = ['TIP', 'E동', '중앙도서관']
     const groups = buildingOrder
-      .filter((b) => buildingMap[b]?.length > 0)
-      .map((b) => ({ building: b, items: buildingMap[b] }))
+      .map((b) => ({
+        building: b,
+        venues: openVenues.filter((v) => (v.building ?? getVenueBuilding(v.location)) === b),
+      }))
+      .filter((g) => g.venues.length > 0)
 
     return (
-      <div>
+      <div className="flex flex-col gap-5">
         {groups.map((group) => (
-          <div key={group.building} style={{ marginBottom: 14 }}>
+          <div key={group.building}>
             <BuildingGroupHeader building={group.building} />
-            <div
-              style={{
-                background: 'var(--tj-surface)',
-                border: '1px solid var(--tj-line)',
-                borderRadius: 18,
-                padding: '0 14px',
-                overflow: 'hidden',
-              }}
-            >
-              {group.items.map(({ venue, statusInfo }, i) => (
-                <div
-                  key={venue.id}
-                  style={{ borderBottom: i < group.items.length - 1 ? '1px solid var(--tj-line)' : 'none' }}
-                >
-                  <OpenRow venue={venue} statusInfo={statusInfo} onVenueClick={onVenueClick} />
-                </div>
-              ))}
-            </div>
+            <VenueCardGrid venues={group.venues} nowDate={nowDate} onVenueClick={onVenueClick} />
           </div>
         ))}
       </div>
@@ -666,63 +354,21 @@ function NowOpenTab({ sortBy, nowDate, onVenueClick }) {
 
   // 카테고리별 그룹핑
   const categoryOrder = ['한식', '분식', '중식', '양식', '패스트푸드', '카페', '편의점']
-  const categoryMap = {}
-  openVenues.forEach(({ venue, statusInfo }) => {
-    const c = venue.category
-    if (!categoryMap[c]) categoryMap[c] = []
-    categoryMap[c].push({ venue, statusInfo })
-  })
   const catGroups = categoryOrder
-    .filter((c) => categoryMap[c]?.length > 0)
-    .map((c) => ({ category: c, items: categoryMap[c] }))
+    .map((c) => ({ category: c, venues: openVenues.filter((v) => v.category === c) }))
+    .filter((g) => g.venues.length > 0)
 
-  // 카테고리별 그룹핑이 없으면 단순 리스트
+  // 카테고리별 그룹핑이 없으면 단순 그리드
   if (catGroups.length === 0) {
-    return (
-      <div
-        style={{
-          background: 'var(--tj-surface)',
-          border: '1px solid var(--tj-line)',
-          borderRadius: 18,
-          padding: '0 14px',
-          overflow: 'hidden',
-        }}
-      >
-        {openVenues.map(({ venue, statusInfo }, i) => (
-          <div
-            key={venue.id}
-            style={{ borderBottom: i < openVenues.length - 1 ? '1px solid var(--tj-line)' : 'none' }}
-          >
-            <OpenRow venue={venue} statusInfo={statusInfo} onVenueClick={onVenueClick} />
-          </div>
-        ))}
-      </div>
-    )
+    return <VenueCardGrid venues={openVenues} nowDate={nowDate} onVenueClick={onVenueClick} />
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-5">
       {catGroups.map((group) => (
-        <div key={group.category} style={{ marginBottom: 14 }}>
+        <div key={group.category}>
           <CategoryGroupHeader category={group.category} />
-          <div
-            style={{
-              background: 'var(--tj-surface)',
-              border: '1px solid var(--tj-line)',
-              borderRadius: 18,
-              padding: '0 14px',
-              overflow: 'hidden',
-            }}
-          >
-            {group.items.map(({ venue, statusInfo }, i) => (
-              <div
-                key={venue.id}
-                style={{ borderBottom: i < group.items.length - 1 ? '1px solid var(--tj-line)' : 'none' }}
-              >
-                <OpenRow venue={venue} statusInfo={statusInfo} onVenueClick={onVenueClick} />
-              </div>
-            ))}
-          </div>
+          <VenueCardGrid venues={group.venues} nowDate={nowDate} onVenueClick={onVenueClick} />
         </div>
       ))}
     </div>
@@ -737,56 +383,25 @@ function FavoriteOpenSection({ nowDate, onVenueClick }) {
     Array.isArray(s.favorites?.venues) ? s.favorites.venues : []
   )
 
-  const favoriteOpenItems = useMemo(() => {
+  const favoriteOpenVenues = useMemo(() => {
     if (!favoriteVenueIds.length) return []
-    return ALL_VENUES
-      .filter((v) => favoriteVenueIds.includes(v.id))
-      .map((venue) => ({ venue, statusInfo: isOpenNow(venue, nowDate) }))
-      .filter(({ statusInfo }) => statusInfo.open)
+    return ALL_VENUES.filter(
+      (v) => favoriteVenueIds.includes(v.id) && isOpenNow(v, nowDate).open
+    )
   }, [favoriteVenueIds, nowDate])
 
-  if (favoriteOpenItems.length === 0) return null
+  if (favoriteOpenVenues.length === 0) return null
 
   return (
-    <div data-testid="favorite-open-section" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            fontSize: 14,
-            fontWeight: 800,
-            letterSpacing: '-0.02em',
-            color: 'var(--tj-chip-yellow-fg)',
-            background: 'var(--tj-chip-yellow-bg)',
-            borderRadius: 8,
-            padding: '3px 10px',
-          }}
-        >
+    <div data-testid="favorite-open-section" className="mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="inline-flex items-center gap-[5px] text-caption font-extrabold text-chip-yellow-fg bg-chip-yellow-bg rounded-badge px-2.5 py-[3px]">
           <Star size={13} strokeWidth={2} fill="currentColor" />
           즐겨찾기 · 지금 영업 중
         </span>
-        <span style={{ flex: 1, height: 1, background: 'var(--tj-line)' }} />
+        <span className="flex-1 h-px bg-line" />
       </div>
-      <div
-        style={{
-          background: 'var(--tj-surface)',
-          border: '1px solid var(--tj-line)',
-          borderRadius: 18,
-          padding: '0 14px',
-          overflow: 'hidden',
-        }}
-      >
-        {favoriteOpenItems.map(({ venue, statusInfo }, i) => (
-          <div
-            key={venue.id}
-            style={{ borderBottom: i < favoriteOpenItems.length - 1 ? '1px solid var(--tj-line)' : 'none' }}
-          >
-            <OpenRow venue={venue} statusInfo={statusInfo} onVenueClick={onVenueClick} />
-          </div>
-        ))}
-      </div>
+      <VenueCardGrid venues={favoriteOpenVenues} nowDate={nowDate} onVenueClick={onVenueClick} />
     </div>
   )
 }
@@ -798,8 +413,12 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
   const nowMs = useNow(60_000)   // 1분 단위 갱신
   const nowDate = useMemo(() => new Date(nowMs), [nowMs])
 
-  const [activeTab, setActiveTab] = useState('now')   // 기본: 지금 영업중
-  const [sortBy, setSortBy] = useState('building')    // 기본: 장소별
+  const [activeTab, setActiveTab] = useState('now')       // 기본: 지금 영업중
+  // 기본값을 '카테고리별'로 바꿨다 — 17곳 중 13곳이 TIP 건물이라 장소별
+  // 그룹핑은 사실상 "TIP 한 덩어리 + 나머지 소수"로 나뉘어 그룹핑의 의미가
+  // 없었다. 카테고리(한식/분식/중식/양식/패스트푸드/카페/편의점)는 7개 그룹이
+  // 고르게 나뉘어 "뭘 먹을지"를 고르는 실제 탐색 방식과 더 가깝다.
+  const [sortBy, setSortBy] = useState('category')
 
   const timeStr = kstTime(nowMs)
   const weekdayStr = kstWeekday(nowMs)
@@ -812,21 +431,14 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
 
   return (
     <div>
-      {/* 섹션 헤더 */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 12,
-          padding: '0 2px',
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--tj-ink)' }}>
-          학식 운영 정보
-        </h2>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tj-mute)' }}>
-          지금 <b style={{ color: 'var(--tj-accent-ink)', fontWeight: 800 }}>{timeStr}</b> · {weekdayStr}
+      {/* 섹션 헤더. 결함 #15: 이 컴포넌트는 [학식|매장|도서관] 중 "매장" 탭에서
+          렌더되는데 제목이 "학식 운영 정보"였다. 바로 위 탭이 "매장"으로 표시된
+          상태라 제목만 학식으로 남아 어긋났다. 목록도 라온식당, 수호식당 같은
+          식당과 카페, 편의점 같은 매장이 섞여 있어 "매장"이 실제 내용과 맞다. */}
+      <div className="flex items-center justify-between mb-3 px-0.5">
+        <h2 className="text-title text-ink tracking-[-0.03em]">매장 운영 정보</h2>
+        <span className="text-caption font-semibold text-mute">
+          지금 <b className="text-accent-ink font-extrabold">{timeStr}</b> · {weekdayStr}
         </span>
       </div>
 
@@ -834,14 +446,14 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
       <FavoriteOpenSection nowDate={nowDate} onVenueClick={onVenueClick} />
 
       {/* 탭 + 정렬 스위치 */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <div className="mb-3.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* 주 탭 (지금 영업중 / 운영시간)
               maxWidth 없이 flex:1만 두면 PC에서 버튼 하나가 460px까지 늘어난다.
               결함 #8: minWidth:0이면 좁은 폭에서 정렬 스위치와 한 줄을 다투다
               라벨이 찌그러졌다 — 두 라벨이 읽히는 최소폭을 줘서, 공간이 부족하면
               스위치 그룹이 아예 다음 줄로 깔끔하게 내려가게(의도된 2줄) 한다. */}
-          <div style={{ flex: 1, minWidth: 180, maxWidth: 420 }}>
+          <div className="flex-1 min-w-[180px] max-w-[420px]">
             <SegmentTabs
               items={TABS}
               active={activeTab}
@@ -853,15 +465,8 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
           <div
             role="group"
             aria-label="정렬 방식"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              background: 'var(--tj-surface-2, var(--tj-line))',
-              borderRadius: 10,
-              padding: '3px',
-              flexShrink: 0,
-            }}
+            className="flex items-center gap-0.5 rounded-button p-[3px] flex-shrink-0"
+            style={{ background: 'var(--tj-surface-2, var(--tj-line))' }}
           >
             {SORT_OPTIONS.map((opt) => {
               const isActive = sortBy === opt.id
@@ -870,23 +475,18 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
                   key={opt.id}
                   onClick={() => setSortBy(opt.id)}
                   aria-pressed={isActive}
+                  className={[
+                    'min-h-[44px] px-3 rounded-badge border-none cursor-pointer',
+                    'text-caption whitespace-nowrap transition-colors duration-press',
+                    isActive ? 'font-extrabold' : 'font-semibold',
+                  ].join(' ')}
                   style={{
-                    minHeight: 44,
-                    padding: '0 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    fontWeight: isActive ? 800 : 600,
-                    letterSpacing: '-0.01em',
                     background: isActive ? (isDark ? 'var(--tj-accent)' : 'var(--tj-ink)') : 'transparent',
                     // active 배경(라이트: ink=거의 검정, 다크: accent=밝은 틸) 위에서
                     // 대비를 맞추려면 반대쪽 극단의 텍스트가 필요하다 — 전용 토큰은 없지만
                     // --tj-bg가 라이트에서 거의 흰색, 다크에서 거의 검정이라 그대로 재사용하면
                     // hex를 하드코딩하지 않고도 두 모드 모두에서 대비가 맞는다.
                     color: isActive ? 'var(--tj-bg)' : 'var(--tj-ink-2)',
-                    transition: 'background 0.15s, color 0.15s',
-                    whiteSpace: 'nowrap',
                   }}
                 >
                   {opt.label}
@@ -897,9 +497,9 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
         </div>
 
         {activeTab === 'now' && (
-          <p style={{ fontSize: 13, color: 'var(--tj-mute)', fontWeight: 600, marginTop: 8, letterSpacing: '-0.01em' }}>
+          <p className="mt-2 text-caption font-semibold text-mute">
             {weekdayStr} 이 시각,{' '}
-            <b style={{ color: 'var(--tj-ink-2)' }}>영업 중인 {openCount}곳</b>이에요
+            <b className="text-ink-2 font-extrabold">영업 중인 {openCount}곳</b>이에요
           </p>
         )}
       </div>

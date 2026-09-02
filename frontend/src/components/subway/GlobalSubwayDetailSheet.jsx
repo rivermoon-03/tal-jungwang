@@ -1,14 +1,22 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { X, TrainFront, RefreshCw, Map } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
+import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
+import { formatRelativeTime } from '../../utils/relativeTime'
 import { TimeGridView } from '../schedule/ScheduleDetailModal'
+import HourGroupTimetable from '../schedule/HourGroupTimetable'
+import Sheet from '../ui/Sheet'
+import IconButton from '../ui/IconButton'
 import StatusChip from '../ui/StatusChip'
+import ErrorState from '../ui/ErrorState'
+import Skeleton from '../common/Skeleton'
 import SubwayCrowdingChart from './SubwayCrowdingChart'
 import { isRealtimeFresh } from './realtimeFreshness'
+import { useNow } from '../../hooks/useNow'
 
-// DESIGN.md §4 모션 이징 — 시트류(GlobalSubwayLineSheet 등)와 동일 토큰 사용.
+// DESIGN.md §4 모션 이징 — PC 크로스페이드 전용(모바일은 Sheet가 담당).
 const EASE = 'var(--e-out)'
 
 function timeToMinutes(t) {
@@ -16,14 +24,6 @@ function timeToMinutes(t) {
   return hh * 60 + mm
 }
 
-/**
- * 실시간 데이터 freshness 판정.
- * lastSuccessfulRealtimeAt이 현재 시각 기준 60초 이내이고, stale이 false일 때만 true.
- *
- * @param {string|null|undefined} lastSuccessfulRealtimeAt  ISO 8601 타임스탬프
- * @param {boolean} stale  envelope의 stale 플래그
- * @returns {boolean}
- */
 // ordkey 또는 status_msg에서 남은 정거장 수 추출
 function getStationCount(train) {
   if (!train) return null
@@ -72,6 +72,8 @@ function toGridItems(trains, nextIndex, lastIdx) {
   return trains.map((t, i) => ({
     key: `${t.depart_at}-${i}`,
     time: t.depart_at,
+    // sub 는 시(hour) 그룹 리스트 뷰에서만 쓰인다. TimeGridView 는 무시한다.
+    sub: t.destination ? `${t.destination}행` : undefined,
     isPast: nextIndex === -1 ? true : i < nextIndex,
     isNext: i === nextIndex,
     isLast: i === lastIdx,
@@ -93,19 +95,35 @@ function ScheduleSummaryLine({ nextTime, firstAt, lastAt }) {
   )
 }
 
+// 시간표 그리드 로딩 자리표시자 — 실제 TimeGridView(칸 그리드)와 대략적인 높이가
+// 비슷하도록 칩 모양 스켈레톤을 여러 줄 채운다(레이아웃 시프트 최소화).
+function TimetableSkeleton() {
+  return (
+    <div className="grid grid-cols-4 gap-2 mt-1" aria-hidden="true">
+      {Array.from({ length: 12 }).map((_, i) => (
+        <Skeleton key={i} height="2.5rem" rounded="rounded-button" />
+      ))}
+    </div>
+  )
+}
+
 export default function GlobalSubwayDetailSheet() {
   const item = useAppStore((s) => s.subwayDetailSheet)
   const close = useAppStore((s) => s.closeSubwayDetailSheet)
   const setSubwayLineSheet = useAppStore((s) => s.setSubwayLineSheet)
+  // 시간표 보기 방식은 ScheduleDetailModal 과 같은 persist 값을 읽는다 -
+  // 같은 지하철 시간표가 진입 경로에 따라 다른 모양으로 보이면 안 된다.
+  const scheduleViewMode = useAppStore((s) => s.scheduleViewMode)
+  const isDesktop = useIsDesktop()
 
   const [visible, setVisible] = useState(false)
 
   // 시트가 실제로 열려 있거나 닫힘 애니메이션 중일 때만 폴링 활성화
   // item !== null  : 시트가 열린 상태
-  // visible === true: 닫힘 애니메이션이 아직 재생 중 (데이터 유지 필요)
+  // visible === true: 닫힘 애니메이션이 아직 재생 중 (데이터 유지 필요, PC 크로스페이드용)
   const sheetOpen = item !== null || visible
 
-  const { data: timetable, loading: ttLoading } = useSubwayTimetable()
+  const { data: timetable, loading: ttLoading, error: ttError, refetch: refetchTimetable } = useSubwayTimetable()
   const { data: realtimeAll, loading: realtimeLoading, refetch } = useSubwayRealtime({ enabled: sheetOpen })
   const [refreshCooldown, setRefreshCooldown] = useState(0)
   // 평일/토/일 탭 (day_type key)
@@ -129,6 +147,24 @@ export default function GlobalSubwayDetailSheet() {
     const id = requestAnimationFrame(() => setVisible(true))
     return () => cancelAnimationFrame(id)
   }, [item])
+
+  // PC는 백드롭·포커스 트랩이 없는 도킹 패널(Sheet 미적용, 헤더 위 주석 참고)이라
+  // 자체 Escape 핸들러가 필요하다(모바일은 Sheet가 Escape를 자동 처리).
+  // 크로스페이드가 끝날 시간을 주기 위해 close를 바로 부르지 않고 handleClose로
+  // 감싼다 — 아래 header의 X 버튼과 동일한 닫기 경로를 쓴다.
+  const handleClose = useCallback(() => {
+    setVisible(false)
+    setTimeout(close, 320)
+  }, [close])
+
+  useEffect(() => {
+    if (!isDesktop || !sheetOpen) return undefined
+    function onKey(e) {
+      if (e.key === 'Escape') handleClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isDesktop, sheetOpen, handleClose])
 
   const handleManualRefresh = async () => {
     if (refreshCooldown > 0) return
@@ -155,7 +191,11 @@ export default function GlobalSubwayDetailSheet() {
     : displayed?.timetableKey
   const trains = (displayed && timetable?.[ttKey]) ?? []
 
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  // 렌더 중 new Date() 를 두 번 부르면 분 경계에서 시/분이 서로 다른 순간을
+  // 가리킬 수 있고, react-hooks/purity 규칙에도 걸린다. tick 훅 하나로 묶는다.
+  const nowMs = useNow(60_000)
+  const now = new Date(nowMs)
+  const nowMin = now.getHours() * 60 + now.getMinutes()
   const nextIndex = trains.findIndex((t) => timeToMinutes(t.depart_at) > nowMin)
 
   // 다음 차 칸으로 자동 스크롤 — trains 참조가 아니라 ttKey/nextIndex(원시값)에만 의존해
@@ -196,11 +236,6 @@ export default function GlobalSubwayDetailSheet() {
   // 그리드 표시용 items — 순수 매핑(반올림/판정 로직 없음)
   const gridItems = toGridItems(trains, nextIndex, lastIdx)
 
-  function handleClose() {
-    setVisible(false)
-    setTimeout(close, 320)
-  }
-
   const lineColor = displayed.color
 
   // ── 다음 열차 ETA 블록 (실시간 fresh일 때만) ──────────────
@@ -234,257 +269,265 @@ export default function GlobalSubwayDetailSheet() {
     { key: 'sunday', label: '일요일' },
   ]
 
-  return (
+  // ── 신선도 표시 — 실시간을 마지막으로 성공적으로 받아온 시각을 "N분 전"으로.
+  // 새로고침 버튼(쿨다운 카운트) 옆에 붙여, "지금 보는 실시간이 언제 기준인지 +
+  // 언제 다시 받아올 수 있는지"를 한 행에서 알 수 있게 한다.
+  const realtimeFreshnessLabel = lastSuccessfulRealtimeAt
+    ? formatRelativeTime(lastSuccessfulRealtimeAt)
+    : null
+
+  const content = (
     <>
-      {/* 모바일 딤 배경 */}
-      <div
-        className="fixed inset-0 z-[90] md:hidden"
-        style={{
-          background: 'rgba(0,0,0,0.4)',
-          opacity: visible ? 1 : 0,
-          transition: `opacity 0.3s ${EASE}`,
-          pointerEvents: visible ? 'auto' : 'none',
-        }}
-        onClick={handleClose}
-      />
+      {/* ── 컬러 헤더 ── 1행: 제목 + 실시간 압축 스탯 + 닫기 / 2행: 보조 액션 ── */}
+      <div className="flex flex-col gap-2 px-4 py-3 flex-shrink-0" style={{ background: lineColor }}>
+        <div className="flex items-center gap-2.5">
+          <TrainFront size={18} strokeWidth={2} className="text-white flex-shrink-0 opacity-95" />
+          <div className="flex-1 min-w-0">
+            <p className="text-head font-semibold text-white leading-none">
+              {displayed.station}역
+            </p>
+            <p className="text-caption font-semibold text-white/85 mt-0.5">
+              {displayed.lineName} · {displayed.direction}
+            </p>
+          </div>
 
-      {/* 시트 본체 */}
-      <div
-        className="fixed bottom-0 left-0 right-0 h-[84vh] md:right-auto md:w-[38%] md:h-auto md:bottom-[68px] md:top-0 z-[100] bg-surface dark:bg-surface rounded-t-sheet md:rounded-none flex flex-col overflow-hidden"
-        style={(() => {
-          const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
-          if (isDesktop) {
-            return {
-              opacity: visible ? 1 : 0,
-              transform: visible ? 'translateY(0)' : 'translateY(8px)',
-              transition: `opacity 0.24s ${EASE}, transform 0.24s ${EASE}`,
-              pointerEvents: visible ? 'auto' : 'none',
-            }
-          }
-          return {
-            transform: visible ? 'translateY(0)' : 'translateY(100%)',
-            transition: `transform 0.3s ${EASE}`,
-            boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
-            pointerEvents: visible ? 'auto' : 'none',
-          }
-        })()}
-      >
-        {/* 그래버 */}
-        <div className="flex justify-center pt-3.5 pb-1 flex-shrink-0 md:hidden">
-          <div className="w-11 h-1 rounded-full bg-line-strong dark:bg-line-strong" />
-        </div>
-
-        {/* ── 컬러 헤더 ── 1행: 제목 + 실시간 압축 스탯 + 닫기 / 2행: 보조 액션 ── */}
-        <div className="flex flex-col gap-2 px-4 py-3 flex-shrink-0" style={{ background: lineColor }}>
-          <div className="flex items-center gap-2.5">
-            <TrainFront size={18} strokeWidth={2} className="text-white flex-shrink-0 opacity-95" />
-            <div className="flex-1 min-w-0">
-              <p className="text-head font-semibold text-white leading-none">
-                {displayed.station}역
+          {/* 헤더 압축 스탯 — 시간표 시각(지금 차·다음 차)이 메인, 실시간은 보조 텍스트.
+              실시간이 늘 정확하진 않다는 피드백에 따라 시간표를 우선한다. */}
+          {upcomingScheduleTimes.length > 0 && (
+            <div className="text-right flex-shrink-0 leading-none text-white">
+              <p className="leading-none flex items-baseline justify-end gap-1.5">
+                {upcomingScheduleTimes.map((t, i) => {
+                  const m = timeToMinutes(t) - nowMin
+                  const label = m <= 0 ? '곧' : `${m}분 후`
+                  return (
+                    <span
+                      key={t}
+                      className={i === 0 ? 'text-title font-bold' : 'text-label font-semibold text-white/70'}
+                    >
+                      {label}
+                    </span>
+                  )
+                })}
               </p>
-              <p className="text-caption font-semibold text-white/85 mt-0.5">
-                {displayed.lineName} · {displayed.direction}
+              <p className="text-meta font-semibold text-white/70 mt-0.5 whitespace-nowrap">
+                {nextRealtimeTrain
+                  ? `실시간 ${etaMinutes != null ? `${etaMinutes}분` : getEtaLabel(nextRealtimeTrain)}`
+                  : '시간표 기준'}
               </p>
-            </div>
-
-            {/* 헤더 압축 스탯 — 시간표 시각(지금 차·다음 차)이 메인, 실시간은 보조 텍스트.
-                실시간이 늘 정확하진 않다는 피드백에 따라 시간표를 우선한다. */}
-            {upcomingScheduleTimes.length > 0 && (
-              <div className="text-right flex-shrink-0 leading-none text-white">
-                <p className="leading-none flex items-baseline justify-end gap-1.5">
-                  {upcomingScheduleTimes.map((t, i) => {
-                    const m = timeToMinutes(t) - nowMin
-                    const label = m <= 0 ? '곧' : `${m}분 후`
-                    return (
-                      <span
-                        key={t}
-                        className={i === 0 ? 'text-title font-bold' : 'text-label font-semibold text-white/70'}
-                      >
-                        {label}
-                      </span>
-                    )
-                  })}
-                </p>
-                <p className="text-meta font-semibold text-white/70 mt-0.5 whitespace-nowrap">
-                  {nextRealtimeTrain
-                    ? `실시간 ${etaMinutes != null ? `${etaMinutes}분` : getEtaLabel(nextRealtimeTrain)}`
-                    : '시간표 기준'}
-                </p>
-              </div>
-            )}
-
-            {/* 닫기 */}
-            <button
-              onClick={handleClose}
-              className="w-[30px] h-[30px] flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
-            >
-              <X size={17} />
-            </button>
-          </div>
-
-          {/* 보조 액션 행 — 노선도 / 업데이트 */}
-          <div className="flex items-center justify-end gap-2">
-            {fresh && realtimeTrains.length > 0 && (
-              <button
-                onClick={() =>
-                  setSubwayLineSheet({
-                    line: displayed.lineName,
-                    direction: displayed.direction,
-                    color: lineColor,
-                    viewStation: displayed.station,
-                    trains: realtimeTrains.map((t) => ({
-                      current_station: t.current_station,
-                      destination: t.destination,
-                      train_no: t.train_no,
-                    })),
-                  })
-                }
-                aria-label="노선도 보기"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-button text-caption font-bold bg-black/18 text-white hover:bg-black/30 transition-all min-h-[44px]"
-              >
-                <Map size={13} />
-                <span>노선도</span>
-              </button>
-            )}
-
-            <button
-              onClick={handleManualRefresh}
-              disabled={refreshCooldown > 0 || realtimeLoading}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-button text-caption font-bold transition-all min-h-[44px] ${
-                refreshCooldown > 0 ? 'bg-black/10 text-white/40' : 'bg-black/18 text-white hover:bg-black/30'
-              }`}
-            >
-              <RefreshCw size={13} className={realtimeLoading ? 'animate-spin' : ''} />
-              <span>{refreshCooldown > 0 ? `${refreshCooldown}s` : '업데이트'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ── 방향 토글(세그먼트) ─────────────────────────────── */}
-        {/* direction은 상위에서 이미 결정되므로, 여기선 표시만 */}
-        <div
-          className="flex mx-4 mt-3 mb-0 rounded-button p-[3px] gap-[3px] flex-shrink-0"
-          style={{ background: 'var(--tj-bg)' }}
-        >
-          {['상행', '하행'].map((dir) => {
-            const isOn = dir === displayed.direction
-            return (
-              <button
-                key={dir}
-                disabled
-                className={[
-                  'flex-1 rounded-badge py-2 px-1.5 text-caption font-bold leading-snug transition-all',
-                  isOn
-                    ? 'bg-surface dark:bg-surface text-ink dark:text-ink shadow-sm'
-                    : 'text-mute dark:text-mute',
-                ].join(' ')}
-              >
-                {dir}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* ── 스크롤 영역 ─────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
-
-          {/* ── 요일 탭 + 시간표 그리드 (스크롤 없이 바로 보이도록 최상단 승격) ─── */}
-          <div className="px-4 pt-3">
-            <div className="flex gap-[18px] border-b border-line dark:border-line mb-3">
-              {DAY_TABS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setDayType(key)}
-                  className={[
-                    'border-none bg-transparent text-label font-bold py-2.5 px-0.5 -mb-px border-b-2 transition-colors',
-                    dayType === key
-                      ? 'text-ink dark:text-ink border-b-2'
-                      : 'text-mute dark:text-mute border-b-transparent',
-                  ].join(' ')}
-                  style={
-                    dayType === key
-                      ? { borderBottomColor: 'var(--tj-ink)' }
-                      : { borderBottomColor: 'transparent' }
-                  }
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* 시간대 혼잡 (B4) — 교통카드 통계가 적재된 역·방향에서만 그려진다.
-                데이터가 비면 컴포넌트가 null 을 반환해 섹션 자체가 없다. */}
-            <SubwayCrowdingChart
-              station={displayed.station}
-              lineName={displayed.lineName}
-              direction={displayed.direction}
-              enabled={sheetOpen}
-            />
-
-            {!ttLoading && trains.length > 0 ? (
-              <div data-testid="timetable-grid-section">
-                <TimeGridView items={gridItems} gridRef={gridNextRef} />
-              </div>
-            ) : !ttLoading ? (
-              <div className="flex items-center justify-center py-12 text-label font-semibold text-mute dark:text-mute">
-                시간표 데이터가 없어요
-              </div>
-            ) : (
-              <div className="flex items-center justify-center py-12 text-label font-semibold text-mute dark:text-mute">
-                불러오는 중이에요
-              </div>
-            )}
-
-            <ScheduleSummaryLine nextTime={etaClockStr} firstAt={firstAt} lastAt={lastAt} />
-          </div>
-
-          {/* ── 실시간 상세 (fresh일 때만, 헤더 압축 스탯의 보조 정보) ─────── */}
-          {nextRealtimeTrain && (
-            <div data-testid="realtime-section" className="mx-4 mt-3 rounded-card overflow-hidden border border-line dark:border-line">
-              <div className="flex items-center gap-2 px-4 py-3">
-                <span
-                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ background: etaUrgent ? 'var(--tj-imminent)' : 'var(--tj-accent)' }}
-                />
-                <p className="flex-1 min-w-0 text-head font-semibold text-ink dark:text-ink truncate">
-                  {nextRealtimeTrain.destination}행
-                  {nextRealtimeTrain.is_last_train && (
-                    <StatusChip kind="last" className="ml-2">막차</StatusChip>
-                  )}
-                </p>
-                {etaClockStr && (
-                  <span className="text-caption font-bold text-mute dark:text-mute flex-shrink-0">
-                    {etaClockStr} 도착
-                  </span>
-                )}
-              </div>
-              {(nextRealtimeTrain.status_msg || nextRealtimeTrain.location_msg) && (
-                <p className="px-4 pb-3 -mt-1 text-caption font-medium text-mute dark:text-mute">
-                  {cleanMsg(nextRealtimeTrain.status_msg)}
-                  {nextRealtimeTrain.location_msg ? ` · ${cleanMsg(nextRealtimeTrain.location_msg)}` : ''}
-                </p>
-              )}
-
-              {/* 다음 다음 열차 (있을 때) */}
-              {secondRealtimeTrain && (
-                <div className="flex items-center gap-2 px-4 py-3 border-t border-line dark:border-line">
-                  <div className="w-[5px] h-[5px] rounded-full bg-mute dark:bg-mute flex-shrink-0" />
-                  <p className="text-label font-semibold text-ink-2 dark:text-ink-2-dark">
-                    다음 열차{' '}
-                    <span className="font-semibold text-ink dark:text-ink">
-                      {getEtaLabel(secondRealtimeTrain)}
-                    </span>{' '}
-                    · {secondRealtimeTrain.destination}행
-                    {secondRealtimeTrain.is_last_train && (
-                      <StatusChip kind="last" className="ml-1.5">막차</StatusChip>
-                    )}
-                  </p>
-                </div>
-              )}
             </div>
           )}
+
+          {/* 닫기 */}
+          <IconButton
+            label="닫기"
+            onClick={isDesktop ? handleClose : close}
+            className="text-white/80 hover:text-white hover:bg-white/10"
+          >
+            <X size={17} />
+          </IconButton>
+        </div>
+
+        {/* 보조 액션 행 — 노선도 / 업데이트(+신선도) */}
+        <div className="flex items-center justify-end gap-2">
+          {realtimeFreshnessLabel && (
+            <span className="text-caption font-semibold text-white/70">
+              {realtimeFreshnessLabel} 정보
+            </span>
+          )}
+
+          {fresh && realtimeTrains.length > 0 && (
+            <button
+              onClick={() =>
+                setSubwayLineSheet({
+                  line: displayed.lineName,
+                  direction: displayed.direction,
+                  color: lineColor,
+                  viewStation: displayed.station,
+                  trains: realtimeTrains.map((t) => ({
+                    current_station: t.current_station,
+                    destination: t.destination,
+                    train_no: t.train_no,
+                  })),
+                })
+              }
+              aria-label="노선도 보기"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-button text-caption font-bold bg-black/18 text-white hover:bg-black/30 transition-all min-h-[44px]"
+            >
+              <Map size={13} />
+              <span>노선도</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleManualRefresh}
+            disabled={refreshCooldown > 0 || realtimeLoading}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-button text-caption font-bold transition-all min-h-[44px] ${
+              refreshCooldown > 0 ? 'bg-black/10 text-white/40' : 'bg-black/18 text-white hover:bg-black/30'
+            }`}
+          >
+            <RefreshCw size={13} className={realtimeLoading ? 'animate-spin' : ''} />
+            <span>{refreshCooldown > 0 ? `${refreshCooldown}s` : '업데이트'}</span>
+          </button>
         </div>
       </div>
+
+      {/* ── 방향 토글(세그먼트) ─────────────────────────────── */}
+      {/* direction은 상위에서 이미 결정되므로, 여기선 표시만 */}
+      <div
+        className="flex mx-4 mt-3 mb-0 rounded-button p-[3px] gap-[3px] flex-shrink-0"
+        style={{ background: 'var(--tj-bg)' }}
+      >
+        {['상행', '하행'].map((dir) => {
+          const isOn = dir === displayed.direction
+          return (
+            <button
+              key={dir}
+              disabled
+              className={[
+                'flex-1 rounded-badge py-2 px-1.5 text-caption font-bold leading-snug transition-all',
+                isOn
+                  ? 'bg-surface dark:bg-surface text-ink dark:text-ink shadow-sm'
+                  : 'text-mute dark:text-mute',
+              ].join(' ')}
+            >
+              {dir}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── 스크롤 영역 ─────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+
+        {/* ── 요일 탭 + 시간표 그리드 (스크롤 없이 바로 보이도록 최상단 승격) ─── */}
+        <div className="px-4 pt-3">
+          <div className="flex gap-[18px] border-b border-line dark:border-line mb-3">
+            {DAY_TABS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setDayType(key)}
+                className={[
+                  'border-none bg-transparent text-label font-bold py-2.5 px-0.5 -mb-px border-b-2 transition-colors',
+                  dayType === key
+                    ? 'text-ink dark:text-ink border-b-2'
+                    : 'text-mute dark:text-mute border-b-transparent',
+                ].join(' ')}
+                style={
+                  dayType === key
+                    ? { borderBottomColor: 'var(--tj-ink)' }
+                    : { borderBottomColor: 'transparent' }
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* 시간대 혼잡 (B4) — 교통카드 통계가 적재된 역·방향에서만 그려진다.
+              데이터가 비면 컴포넌트가 null 을 반환해 섹션 자체가 없다. */}
+          <SubwayCrowdingChart
+            station={displayed.station}
+            lineName={displayed.lineName}
+            direction={displayed.direction}
+            enabled={sheetOpen}
+          />
+
+          {/* 로딩 / 에러 / 빈 상태 / 정상 — 넷을 서로 다른 모양으로 구분한다. */}
+          {ttLoading ? (
+            <TimetableSkeleton />
+          ) : ttError ? (
+            <ErrorState message="시간표를 불러오지 못했어요" onRetry={refetchTimetable} className="py-8" />
+          ) : trains.length > 0 ? (
+            <div data-testid="timetable-grid-section">
+              {scheduleViewMode === 'grid' ? (
+                <TimeGridView items={gridItems} gridRef={gridNextRef} />
+              ) : (
+                <HourGroupTimetable items={gridItems} now={now} nextRef={gridNextRef} />
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-12 text-label font-semibold text-mute dark:text-mute">
+              시간표 데이터가 없어요
+            </div>
+          )}
+
+          <ScheduleSummaryLine nextTime={etaClockStr} firstAt={firstAt} lastAt={lastAt} />
+        </div>
+
+        {/* ── 실시간 상세 (fresh일 때만, 헤더 압축 스탯의 보조 정보) ─────── */}
+        {nextRealtimeTrain && (
+          <div data-testid="realtime-section" className="mx-4 mt-3 rounded-card overflow-hidden border border-line dark:border-line">
+            <div className="flex items-center gap-2 px-4 py-3">
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ background: etaUrgent ? 'var(--tj-imminent)' : 'var(--tj-accent)' }}
+              />
+              <p className="flex-1 min-w-0 text-head font-semibold text-ink dark:text-ink truncate">
+                {nextRealtimeTrain.destination}행
+                {nextRealtimeTrain.is_last_train && (
+                  <StatusChip kind="last" className="ml-2">막차</StatusChip>
+                )}
+              </p>
+              {etaClockStr && (
+                <span className="text-caption font-bold text-mute dark:text-mute flex-shrink-0">
+                  {etaClockStr} 도착
+                </span>
+              )}
+            </div>
+            {(nextRealtimeTrain.status_msg || nextRealtimeTrain.location_msg) && (
+              <p className="px-4 pb-3 -mt-1 text-caption font-medium text-mute dark:text-mute">
+                {cleanMsg(nextRealtimeTrain.status_msg)}
+                {nextRealtimeTrain.location_msg ? ` · ${cleanMsg(nextRealtimeTrain.location_msg)}` : ''}
+              </p>
+            )}
+
+            {/* 다음 다음 열차 (있을 때) */}
+            {secondRealtimeTrain && (
+              <div className="flex items-center gap-2 px-4 py-3 border-t border-line dark:border-line">
+                <div className="w-[5px] h-[5px] rounded-full bg-mute dark:bg-mute flex-shrink-0" />
+                <p className="text-label font-semibold text-ink-2 dark:text-ink-2-dark">
+                  다음 열차{' '}
+                  <span className="font-semibold text-ink dark:text-ink">
+                    {getEtaLabel(secondRealtimeTrain)}
+                  </span>{' '}
+                  · {secondRealtimeTrain.destination}행
+                  {secondRealtimeTrain.is_last_train && (
+                    <StatusChip kind="last" className="ml-1.5">막차</StatusChip>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </>
+  )
+
+  // ── PC: 좌측 도킹 패널 크로스페이드(백드롭 없음) ──────────────────
+  // GlobalSubwayLineSheet.jsx 머리말과 동일한 이유로 ui/Sheet를 쓰지 않는다 —
+  // 이 화면은 오프스크린 슬라이드가 아니라 같은 영역 안에서 콘텐츠가 교체되는
+  // 도킹 패널이다.
+  if (isDesktop) {
+    return (
+      <div
+        className="fixed right-auto left-0 w-[38%] bottom-[68px] top-0 z-sheet bg-surface dark:bg-surface flex flex-col overflow-hidden"
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(8px)',
+          transition: `opacity 0.24s ${EASE}, transform 0.24s ${EASE}`,
+          pointerEvents: visible ? 'auto' : 'none',
+        }}
+      >
+        {content}
+      </div>
+    )
+  }
+
+  // ── 모바일: Sheet ── 백드롭·Escape·포커스 트랩을 Sheet에 맡긴다. 예전엔
+  // 이 화면만 자체 딤 배경(z-[90])을 그리면서 Escape 핸들러가 아예 없었다.
+  return (
+    <Sheet open={item !== null} onClose={close} label={`${displayed.station}역 · ${displayed.lineName}`} placement="bottom" className="h-[84vh]">
+      {content}
+    </Sheet>
   )
 }

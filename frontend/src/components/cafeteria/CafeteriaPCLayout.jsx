@@ -18,7 +18,6 @@ import CafeteriaVenues from './CafeteriaVenues'
 import LibrarySection from '../facilities/LibrarySection'
 import useAppStore from '../../stores/useAppStore'
 import { useNow } from '../../hooks/useNow'
-import NowBadge from './NowBadge'
 import DayChips from './DayChips'
 import { formatUpdated } from '../../utils/cafeteriaFormat'
 import { isMealTypeOpenNow, getCafeteriaStatus, isCafeteriaStatusOpen } from '../../utils/cafeteriaMenuVenue'
@@ -37,7 +36,6 @@ function navigateToVenueDetail(venueId) {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
-/** 끼니 카드가 "지금" 운영 중일 때 헤더에 붙는 작은 pill */
 /** 운영상태 pill — CafeteriaVenueRail의 StatusPill과 동일한 표시 규칙(unknown이면 숨김). */
 function StatusPill({ status, primaryLabel }) {
   if (status === 'unknown') return null
@@ -139,6 +137,17 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
     [dayKeys, dayLabelMap, cafeteriaForDays, todayKey]
   )
 
+  // 상단 바 좌측 타이틀 — 식당명이 아니라 지금 보고 있는 날짜다. 식당은
+  // 우측 세그먼트가 이미 알려준다.
+  //
+  // 결함: 예전엔 data?.source_file(학교가 올린 엑셀 원본 파일명, 예:
+  // "학생식당,E동레스토랑식단표(08.31).xlsx")을 갱신 시각 옆에 그대로 붙였다.
+  // 파일명은 내부 수집 과정의 흔적일 뿐 사용자가 읽을 정보가 아니고,
+  // 파일명에 박힌 날짜가 지금 보는 주(week_start)와 어긋나 보이면 오히려
+  // 혼란을 준다. 모바일(FacilitiesPage)은 애초에 갱신 시각만 보여준다 —
+  // PC도 같은 표기로 맞춘다.
+  const dateTitle = dayLabelMap[effectiveDay] ?? null
+
   function handleSelectVenue(idx) {
     setSelectedVenueIdx(idx)
     setSelectedDay(null)
@@ -164,10 +173,19 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto bg-bg px-8 py-6">
-          <div className="max-w-[1240px] flex flex-col gap-6">
-            {/* 상단: 갱신 시각 + 식당 선택 chips(전폭 가로 — 예전 좌측 rail 대체) */}
-            <div>
-              {updatedLabel && <p className="mb-2 text-caption text-mute">{updatedLabel}</p>}
+          <div className="max-w-[1240px] flex flex-col gap-4">
+            {/* 상단 바: 좌측 날짜 제목 + 갱신 시각, 우측 식당 세그먼트(전폭
+                가로 chips — 예전 좌측 rail 대체). 요일 칩은 이 아래 전체 폭. */}
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h2 className="text-head font-bold text-ink">
+                  {dateTitle ? `${dateTitle} 식단` : '식단'}
+                </h2>
+                {updatedLabel && (
+                  <p className="mt-1 text-caption text-mute">{updatedLabel}</p>
+                )}
+              </div>
+
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 {(data?.cafeterias ?? []).map((c, idx) => (
                   <VenueChip
@@ -180,6 +198,13 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
                 ))}
               </div>
             </div>
+
+            {/* 요일 칩 — 전체 폭 */}
+            {dayChipItems.length > 0 && (
+              <div className="overflow-x-auto">
+                <DayChips items={dayChipItems} value={effectiveDay} onChange={setSelectedDay} />
+              </div>
+            )}
 
             {/* 로딩 스켈레톤 */}
             {loading && !data && (
@@ -216,41 +241,29 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
               <EmptyState title="현재 등록된 식단이 없어요" />
             )}
 
-            {/* 상세: 요일 칩 + 끼니 그리드 */}
+            {/* 끼니 그리드 — 1280px 폭이면 xl:grid-cols-3이 실제로 3열을 쓴다.
+                items-start를 주지 않으면 메뉴가 2개뿐인 조식 카드가 석식 높이까지
+                늘어나 카드 안이 통째로 빈칸이 된다. "지금" 판정은 오늘 요일을 보고
+                있을 때만(showLiveStatus) 뜻이 있다 — 모바일 FacilitiesPage와 같은 규칙. */}
             {cafeteria && effectiveDay && (
-              <div key={`${selectedVenueIdx}:${effectiveDay}`} className="animate-fade-in">
-                {/* 헤더 행: 식당명 + 우측 정렬 요일 칩 */}
-                <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
-                  <h2 className="text-head font-bold text-ink">{cafeteria.name} 식단</h2>
-
-                  {dayChipItems.length > 0 && (
-                    <DayChips items={dayChipItems} value={effectiveDay} onChange={setSelectedDay} />
-                  )}
-                </div>
-
-                {/* 끼니 그리드 — "지금" 운영 중인 끼니는 강조.
-                    items-start를 주지 않으면 메뉴가 2개뿐인 조식 카드가 석식 높이까지
-                    늘어나 카드 안이 통째로 빈칸이 된다. */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
-                  {cafeteria.meals.map((meal, i) => {
-                    const isNow = isMealTypeOpenNow(cafeteria.name, meal.type, nowDate)
-                    return (
-                      <div
-                        key={`${meal.type}-${i}`}
-                        className={[
-                          'bg-surface border rounded-card p-4',
-                          isNow ? 'border-accent' : 'border-line',
-                        ].join(' ')}
-                      >
-                        <MealGridSection
-                          meal={meal}
-                          dayKey={effectiveDay}
-                          badge={isNow ? <NowBadge /> : null}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
+              <div
+                key={`${selectedVenueIdx}:${effectiveDay}`}
+                className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[14px] items-start animate-fade-in"
+              >
+                {cafeteria.meals.map((meal, i) => {
+                  const showLiveStatus = effectiveDay === todayKey
+                  const isNowOpen =
+                    showLiveStatus && isMealTypeOpenNow(cafeteria.name, meal.type, nowDate)
+                  return (
+                    <MealGridSection
+                      key={`${meal.type}-${i}`}
+                      meal={meal}
+                      dayKey={effectiveDay}
+                      isNowOpen={isNowOpen}
+                      showLiveStatus={showLiveStatus}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>

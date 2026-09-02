@@ -136,10 +136,29 @@ export default {
         // 모든 크기가 calc(Npx * var(--tj-font-scale,1))인 이유(F4 글자 크기 설정):
         // 이 스케일이 앱 텍스트의 절대다수(text-caption/body/label/head 등 200곳 이상)를
         // 차지해, 설정 화면의 글자 크기 슬라이더가 --tj-font-scale(html)만 바꾸면
-        // 전수 반영된다. 단, 컴포넌트 인라인 style={{fontSize:N}}이나 text-[Npx] 임의값은
-        // 이 스케일 밖이라 적용되지 않는다(알려진 범위 — SettingsPage.jsx TODO(F4) 참고).
+        // 전수 반영된다. 컴포넌트 인라인 style={{fontSize:N}}과 text-[Npx] 임의값은
+        // 이 스케일 밖이라 적용되지 않았는데(구 known gap), 2026-09에 src/components·
+        // src/pages 전역에서 전수 토큰화했다 — 남은 임의값은 없어야 한다
+        // (tokenRules.test.js가 회귀를 막는다).
         // lineHeight도 절대 px 값(예: '23px')인 항목은 같은 비율로 스케일해야 줄간격이
         // 글자 크기와 어긋나지 않는다 — 단위 없는 비율(예: '1.1')은 그대로 둔다.
+
+        // ── 타워드 기본 스케일 덮어쓰기 (text-xs ~ text-4xl) ──────────────
+        // 커스텀 토큰만 calc(--tj-font-scale) 로 정의해 두면, 컴포넌트가 쓰는
+        // 타워드 기본 클래스(text-sm/base/lg 등 40곳 남짓)는 스케일 밖에 남는다.
+        // 실제로 홈의 "셔틀버스" 제목(text-base)이 슬라이더를 올려도 16px 그대로였다.
+        // 화면 일부만 커지면 오히려 읽기 어려우므로 기본 키까지 같은 식으로 덮는다.
+        // 값은 타워드 기본값 그대로다(크기·행간만 스케일에 연결). fontWeight 는
+        // 일부러 넣지 않는다 — 기본 클래스는 굵기를 건드리지 않으므로, 여기서
+        // 굵기를 얹으면 기존 화면의 굵기가 통째로 바뀐다.
+        'xs':   ['calc(12px * var(--tj-font-scale,1))', { lineHeight: 'calc(16px * var(--tj-font-scale,1))' }],
+        'sm':   ['calc(14px * var(--tj-font-scale,1))', { lineHeight: 'calc(20px * var(--tj-font-scale,1))' }],
+        'base': ['calc(16px * var(--tj-font-scale,1))', { lineHeight: 'calc(24px * var(--tj-font-scale,1))' }],
+        'lg':   ['calc(18px * var(--tj-font-scale,1))', { lineHeight: 'calc(28px * var(--tj-font-scale,1))' }],
+        'xl':   ['calc(20px * var(--tj-font-scale,1))', { lineHeight: 'calc(28px * var(--tj-font-scale,1))' }],
+        '2xl':  ['calc(24px * var(--tj-font-scale,1))', { lineHeight: 'calc(32px * var(--tj-font-scale,1))' }],
+        '3xl':  ['calc(30px * var(--tj-font-scale,1))', { lineHeight: 'calc(36px * var(--tj-font-scale,1))' }],
+        '4xl':  ['calc(36px * var(--tj-font-scale,1))', { lineHeight: 'calc(40px * var(--tj-font-scale,1))' }],
 
         // 큰 숫자 (시간 ETA · 카운트다운)
         'countdown':  ['calc(32px * var(--tj-font-scale,1))', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.05em' }],
@@ -165,6 +184,10 @@ export default {
         'chip':       ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
         'chip-pc':    ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
 
+        // 소형 굵은 라벨(탭·버튼·미니 헤딩 — 13px) — F4 전수 적용(2026-09) 때 컴포넌트
+        // 임의값 text-[13px]를 걷어내며 추가. 기존 스케일에 13px 굵은 톤이 없었다.
+        'mini-ttl':   ['calc(13px * var(--tj-font-scale,1))', { lineHeight: '1.2',  fontWeight: '700' }],
+
         // ── Warm Daylight 타이포 스케일(2026-06) — text-caption/body/label/head 사용처가
         //    각각 98/43/67/11곳이라 값(특히 weight) 전수 교체는 화면별 회귀 위험 큼.
         //    Phase A에서는 굵기(weight)는 유지, 신규 DESIGN.md §3 크기/행간만 반영.
@@ -173,10 +196,22 @@ export default {
         'eta-xl': ['calc(38px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
         'eta':    ['calc(28px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
         'title':  ['calc(21px * var(--tj-font-scale,1))', { lineHeight: '1.15', fontWeight: '800' }],
+        // title(21)과 head(17) 사이 — F4 전수 적용 때 추가(기존 임의값 text-[19px]).
+        'title-sm': ['calc(19px * var(--tj-font-scale,1))', { lineHeight: '1.2', fontWeight: '800' }],
+        // 굵기 사다리(시안2 규격표). font-normal 사용이 코드베이스 전체에 0회라
+        // 계층이 크기에만 의존했다 — 본문과 메타를 400으로 내려 굵기 대비를 되살린다.
         'head':   ['calc(17px * var(--tj-font-scale,1))', { lineHeight: 'calc(23px * var(--tj-font-scale,1))', fontWeight: '700' }],
-        'body':   ['calc(16px * var(--tj-font-scale,1))', { lineHeight: 'calc(23px * var(--tj-font-scale,1))', fontWeight: '600' }],
-        'label':  ['calc(15px * var(--tj-font-scale,1))', { lineHeight: 'calc(21px * var(--tj-font-scale,1))', fontWeight: '600' }],
-        'caption':['calc(13px * var(--tj-font-scale,1))', { lineHeight: 'calc(17px * var(--tj-font-scale,1))', fontWeight: '600' }],
+        'body':   ['calc(16px * var(--tj-font-scale,1))', { lineHeight: 'calc(23px * var(--tj-font-scale,1))', fontWeight: '400' }],
+        'label':  ['calc(15px * var(--tj-font-scale,1))', { lineHeight: 'calc(21px * var(--tj-font-scale,1))', fontWeight: '500' }],
+        'caption':['calc(13px * var(--tj-font-scale,1))', { lineHeight: 'calc(17px * var(--tj-font-scale,1))', fontWeight: '400' }],
+        // 리스트 행 이름 — 15px 인데 이름이라 굵다(카드 이름은 head 17/700).
+        'list-nm':['calc(15px * var(--tj-font-scale,1))', { lineHeight: 'calc(21px * var(--tj-font-scale,1))', fontWeight: '700' }],
+        // 도착 숫자 — 상대시간이 행에서 가장 큰 요소다.
+        'eta-num':['calc(22px * var(--tj-font-scale,1))', { lineHeight: '1.1', fontWeight: '800', letterSpacing: '-0.03em' }],
+        // eta-num(22)보다 한 단 작은 도착 숫자(다음 차·대체 도착) — F4 전수 적용 때
+        // 추가(기존 임의값 text-[20px]). eta-num과 달리 letterSpacing은 넣지 않는다
+        // (기존 사용처 전부 tracking 없이 쓰던 값이라 baked 자간을 새로 얹지 않는다).
+        'eta-sm': ['calc(20px * var(--tj-font-scale,1))', { lineHeight: '1.1', fontWeight: '700' }],
 
         // ── DESIGN.md §3 신규 스케일(무충돌 키) — Phase B/D에서 화면 적용 ──
         'body-sm': ['calc(14px * var(--tj-font-scale,1))', { lineHeight: 'calc(19px * var(--tj-font-scale,1))', fontWeight: '400' }],
@@ -195,9 +230,21 @@ export default {
         sans: ['"SUIT Variable"', 'SUIT', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
         mono: ['"Courier New"', 'monospace'],
       },
+      // z-index 명명 스케일. 예전에는 20부터 200까지 임의값 8종 이상이 흩어져 있었고
+      // 하단 독과 토스트가 z-50 을 공유했으며 SearchOverlay 와 NoticesPopover 가
+      // 둘 다 z-[200] 이었다(동시에 열릴 일이 없어 충돌이 안 났을 뿐이다).
+      zIndex: {
+        nav:      '50',
+        toast:    '60',
+        overlay:  '90',
+        sheet:    '100',
+        popover:  '200',
+      },
       boxShadow: {
         // DESIGN.md §4 — 최대 2단계, 다크는 그림자 대신 --line 보더로 구분(shadow-sh-card는 :root에서만 유효)
-        'sh-card': '0 1px 3px rgba(0,0,0,.06)',
+        // 시안2 — 부드럽고 분명한 2단. 보더와 동시에 쓰지 않는다.
+        'sh-card': '0 1px 2px rgba(26,33,30,.04), 0 3px 12px rgba(26,33,30,.07)',
+        'sh-lift': '0 2px 6px rgba(26,33,30,.06), 0 12px 32px rgba(26,33,30,.12)',
         'sh-pop':  '0 8px 24px rgba(0,0,0,.12)',
 
         // ── 레거시(호환 유지) ──
@@ -212,8 +259,9 @@ export default {
         badge:  '8px',    // 노선번호 뱃지
         button: '10px',   // 버튼
         input:  '10px',   // 인풋
-        card:   '14px',
-        sheet:  '20px',   // 바텀시트/모달
+        card:   '20px',   // 시안2 "다정한 카드" — 14px에서 상향
+        tile:   '16px',   // 카드 안에 들어앉는 카테고리 타일(카드보다 한 단계 작게)
+        sheet:  '26px',   // 바텀시트/모달 — 20px에서 상향
         pill:   '999px',
 
         // ── 레거시(호환 유지) — 5토큰 중 가장 가까운 값으로 정리 ──

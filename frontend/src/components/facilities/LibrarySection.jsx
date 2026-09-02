@@ -5,6 +5,7 @@
  * 화면을 따로 만들지 않고 같은 카드가 상태만 바꾼다.
  */
 import EmptyState from '../ui/EmptyState'
+import Skeleton from '../common/Skeleton'
 import LibraryPanel from './LibraryPanel'
 import { useAcademicCalendar, useLibraryHours } from '../../hooks/useMore'
 import { findExamEvent, summarizeLibraryHours } from '../../utils/homeBriefing'
@@ -20,7 +21,9 @@ export default function LibrarySection() {
   )
 
   if (libraryQuery.loading && rooms.length === 0) {
-    return <div className="h-40 rounded-card bg-surface-2 animate-pulse" />
+    // 자체 animate-pulse 대신 공용 Skeleton으로 통일한다(common/Skeleton —
+    // 그라디언트 스윕 시머 + prefers-reduced-motion 자동 무력화).
+    return <Skeleton height="10rem" rounded="rounded-card" />
   }
   if (rooms.length === 0) {
     return (

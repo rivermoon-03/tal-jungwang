@@ -9,6 +9,9 @@
  */
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import SchedulePage from './SchedulePage'
 import { makeFavKey } from '../../utils/favKey'
 
@@ -278,6 +281,47 @@ describe('SchedulePage — PC master-detail(결함 #19/#33 회귀)', () => {
   })
 })
 
+// ─── PC 홈 도킹 패널(embedded)에서의 시간표 ──────────────────────────────────
+// 결함: embedded일 때도 isDesktop만 보고 위 좌(목록)/우(상세) 2단 분기를 그대로
+// 탔다. PCMainShell의 aside(폭 380~440px)는 그 2단을 담기엔 너무 좁아, 상세
+// 컬럼이 사실상 0폭으로 눌리는 중첩 레이아웃이 됐다. embedded에서는 목록↔상세를
+// 나란히 두지 않고 드릴다운(하나만 보여주고 전환)으로 처리해야 한다.
+describe('SchedulePage — PC 홈 embedded(좁은 도킹 패널) 레이아웃', () => {
+  it('embedded+데스크톱에서는 좌우 2단(w-[380px] 중첩 목록) 대신 목록 하나만 그린다', () => {
+    stubMatchMedia(true)
+    const { container } = render(<SchedulePage embedded />)
+
+    // 목록이 보인다.
+    expect(screen.getAllByText('20-1').length).toBeGreaterThan(0)
+    // /schedule 단독 페이지 전용 2단 레이아웃(중첩 w-[380px] 목록 컬럼)이 아니다.
+    expect(container.querySelector('.w-\\[380px\\]')).toBeNull()
+
+    stubMatchMedia(false)
+  })
+
+  it('embedded+데스크톱에서 노선을 클릭하면 목록 대신 상세로 전환되고(드릴다운), 닫으면 목록으로 되돌아간다', () => {
+    stubMatchMedia(true)
+    render(<SchedulePage embedded />)
+
+    // 클릭 전: 목록의 그룹 탭(하교/등교/기타)이 보인다.
+    expect(screen.getByRole('tab', { name: '하교' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getAllByText('20-1')[0])
+
+    // 상세로 드릴다운 — 목록(그룹 탭)은 좌우로 나란히 두지 않고 통째로 사라진다.
+    expect(screen.queryByRole('tab', { name: '하교' })).not.toBeInTheDocument()
+    const closeButton = screen.getByLabelText('닫기')
+    expect(closeButton).toBeInTheDocument()
+
+    fireEvent.click(closeButton)
+
+    // 닫으면 목록(그룹 탭)으로 되돌아간다.
+    expect(screen.getByRole('tab', { name: '하교' })).toBeInTheDocument()
+
+    stubMatchMedia(false)
+  })
+})
+
 describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
   it('하교 노선은 방면별로 분리하되 3401은 시흥시청과 서울 양쪽에 노출한다', () => {
     render(<SchedulePage />)
@@ -378,5 +422,28 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
     const card = screen.getByTestId('bus-context-20-1')
     expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent(/(?:29|30)분/)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+describe('SchedulePage — 세그먼트 컨트롤 단일화', () => {
+  // ui/SegmentTabs와 common/SegmentTabs 레거시 4종을 ui/SegmentedControl 하나로
+  // 대체하는 리팩터(2026-09). 이 파일이 예전엔 모드 탭엔 ui/SegmentTabs를,
+  // 그룹 탭엔 ui/SegmentedControl을 동시에 써서 한 화면 안에서 세그먼트 스타일이
+  // 갈렸다 — 소스 스캔으로 재발을 막는다.
+  it('ui/SegmentTabs 또는 common/SegmentTabs를 import하지 않는다', () => {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
+    const src = fs.readFileSync(path.join(__dirname, 'SchedulePage.jsx'), 'utf8')
+    const importLines = src
+      .split('\n')
+      .filter((line) => /^import /.test(line))
+      .join('\n')
+    expect(importLines).not.toMatch(/SegmentTabs/)
+  })
+
+  it('모드 탭·그룹 탭 모두 ui/SegmentedControl 하나만 쓴다', () => {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
+    const src = fs.readFileSync(path.join(__dirname, 'SchedulePage.jsx'), 'utf8')
+    expect(src).toMatch(/from ['"]\.\.\/ui\/SegmentedControl['"]/)
   })
 })

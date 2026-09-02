@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Sun, Map, Navigation, Utensils, Wind, Search, ChevronDown } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Sun, MapPin, Utensils, Wind, Search, MoreHorizontal } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useAppStore from '../../stores/useAppStore'
@@ -12,6 +12,7 @@ import { getDirectionAutoChangeMessage } from '../../utils/directionAutoChangeTo
 import { ALL_VENUES } from '../../data/cafeteriaVenues'
 import { isOpenNow } from '../../utils/venueOpen'
 import DirectionAutoToast from '../common/DirectionAutoToast'
+import IconButton from '../ui/IconButton'
 import WalkIndexChip from './WalkIndexChip'
 import './HomeWeatherHero.css'
 
@@ -23,6 +24,12 @@ const SKY_MOOD = {
   rainy: 'rainy',
   snowy: 'snowy',
 }
+
+// '날씨 위주'(classic) 스타일의 스트립 인사말 — 감성 글귀(pickGreeting) 대신 담백한
+// 고정 문구를 쓴다. 온도·하늘·바람은 이미 본문(하단)에 항상 크게 보이므로, 스트립까지
+// 감성 글귀를 태우면 두 스타일의 차이가 사라진다(설정 화면의 "감성 인사" vs "날씨
+// 위주" 선택이 무의미해진다).
+const CLASSIC_STRIP_GREETING = '오늘의 하늘'
 
 // 눈: 14개 중 1/3(인덱스 3의 배수)은 원경(far) — 더 작고 흐릿하게(HomeWeatherHero.css .far).
 const SNOWFLAKES = Array.from({ length: 14 }, (_, i) => {
@@ -89,40 +96,52 @@ function goToCafeteria() {
   }
 }
 
+/**
+ * '/more'로 이동 — 모바일 더보기 진입점. 예전엔 App.jsx가 position:fixed
+ * 오버레이 버튼으로 그렸는데, 모든 모바일 화면 위에 항상 떠서 이 히어로
+ * 스트립의 뷰 토글 아이콘과 같은 자리에 겹쳐 그 아이콘을 가리는 버그가
+ * 났다(사용자 실측). "히어로 옵션" 그룹은 이미 스트립 한 줄을 이루는
+ * 문서 흐름 안 자리라, 더보기도 같은 자리에 아이콘 하나로 넣으면 겹침 없이
+ * 상시 노출된다. 홈 화면(지금 뷰)에서만 보이지만, 하단 독의 "홈" 탭은 모든
+ * 모바일 화면에 항상 떠 있어 최대 두 번(홈 → 더보기)이면 어디서든 닿는다.
+ */
+function goToMore() {
+  if (window.location.pathname !== '/more') {
+    window.history.pushState({}, '', '/more')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
+}
+
 /** 하늘을 다시 계산하는 주기. 태양은 5분에 약 1.25도 움직인다. */
 const SKY_REFRESH_MS = 5 * 60 * 1000
 
 /**
- * HomeWeatherHero — 모바일 홈 상단 A. 결함 #31 리디자인: 기본은 "한 줄 스트립"만
- * 차지한다("32° 맑음 · 바람 2.6m/s" + 펼치기 토글) — 예전처럼 뷰포트의 45%를
- * 영구 점유해 하단 Dashboard가 내부 스크롤에 갇히던 문제를 없앤다. 스트립을
- * 탭하면 아코디언으로 펼쳐져 인사말/예보 상세가 나타난다.
+ * HomeWeatherHero — 모바일 홈 상단. 시안 리디자인: 약 340px 고정 하늘 히어로.
+ *
+ * 결함 #31(히어로가 뷰포트 45%를 영구 점유해 대시보드가 내부 스크롤에 갇힘) 재발
+ * 방지는 더 이상 이 컴포넌트의 몫이 아니다 — MainShell이 히어로+대시보드를 한
+ * overflow-y-auto 컨테이너에 같이 놓아("통짜 스크롤") 스크롤하면 히어로 자체가
+ * 카드 목록과 함께 위로 밀려 올라가 사라진다. 그래서 여기는 접고 펼치는 아코디언
+ * 없이 항상 같은 구조를 그린다:
+ *   - 스트립(최소 56px): 인사말 + 위치 칩(지도 진입 겸함) + 뷰 토글 3칸(날씨/식당/검색)
+ *   - 본문(하단 정렬): 온도(text-hero-temp, 60px/800) + 하늘 상태(19px) + 메타 줄
+ *     (정왕풍 pill·강수확률·이동지수·미세먼지) + 우측 날씨 아이콘(52px)
+ *   - 바닥 26px 이음매(seam) — 하늘을 대시보드 배경(--tj-bg)으로 얇게 블렌드
  *
  * 하늘은 하나다
  * ─────────────
  * 배경 색과 그 위의 잉크는 skyPalette.getSkyPalette()가 한 번에 정하고, 이
- * 컴포넌트는 그 결과를 CSS 변수로 흘려보내기만 한다. 예전에는 배경이 CSS의
- * 무드×시간대 하드코딩이고 글자 색은 여기 `lightText` 불리언이라 서로를 몰랐다
- * (다크 맑음·낮에서 남색 배경 위에 회색 글자가 얹혀 2.2:1까지 떨어졌고, 흰
- * 알약 위 흰 글자는 1.01:1이었다). 이제 두 판단이 한 함수에서 나오고,
- * skyPalette.test.js가 무드×고도×테마 전 조합의 대비를 실제로 계산해 막는다.
- *
- * 시간도 세 칸이 아니다
- * ───────────────────
- * 낮/저녁/밤 버킷 대신 정왕동 좌표의 **태양 고도**(sunPosition.js)로 하늘을
- * 연속 보간한다. 12월 6시와 6월 6시가 다른 하늘이 된다. 5분마다 다시 계산한다.
- * 해 원반을 실제 위치에 띄우는 것도 해 봤지만 좁은 히어로 안에서는 어디에 두든
- * 붙여 놓은 스티커처럼 보여서 걷어냈다 — 시간의 흐름은 배경 색이 말한다.
- *
+ * 컴포넌트는 그 결과를 CSS 변수로 흘려보내기만 한다(그라디언트 값·스크림
+ * 두께·잉크 결정은 이 파일이 손대지 않는다). 시간도 낮/저녁/밤 세 칸이 아니라
+ * 정왕동 좌표의 태양 고도(sunPosition.js)로 연속 보간한다 — 5분마다 다시 잰다.
  * 이펙트는 무드당 하나다(맑음=낮 글로우 또는 별·흐림=구름·비=빗줄기+스플래시·
- * 눈=눈송이). 예전의 glow/breath/grain 세 겹은 서로 싸워 하늘을 회색으로
- * 씻어내기만 해서 걷어냈다.
+ * 눈=눈송이).
  *
- * useAppStore.heroStyle에 따라 펼친 메인 블록이 두 가지로 갈린다:
- *  - 'classic': 큰 온도(60px) 중심 레이아웃.
- *  - 'greeting'(기본): 온도 위에 pickGreeting()이 고른 감성 글귀를 얹고,
- *    온도는 34px로 축소했다가 2초 뒤 확대한다.
- * 지도 전환 버튼·날씨/식당 토글·검색 진입은 모두 스트립 행 우측에 항상 노출한다.
+ * useAppStore.heroStyle(설정 화면의 "감성 인사" vs "날씨 위주")은 이제 스트립
+ * 인사말 한 곳에만 영향을 준다 — 감성 인사는 pickGreeting()의 첫 줄(탭하면 출처
+ * 툴팁), 날씨 위주는 고정 문구다. 본문(온도·하늘·메타)은 두 스타일이 항상 동일하다
+ * (예전엔 greeting 스타일에서 글귀가 온도를 밀어내고 2초 뒤 자리를 바꾸는 진입/강등
+ * 애니메이션이 있었지만, 이제 히어로가 고정 높이라 그 자리싸움 자체가 없어졌다).
  */
 export default function HomeWeatherHero({ onOpenMap }) {
   const { weather } = useWeather()
@@ -133,13 +152,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
   // 하늘 팔레트가 이 값을 받아야 다크모드에서 잉크가 어긋나지 않는다.
   const darkMode = useAppStore((s) => s.darkMode)
   const [view, setView] = useState('weather') // 'weather' | 'cafeteria' — persist 불필요, 새로고침 시 날씨로 리셋
-  // 아코디언 펼침 여부 — 기본 접힘(스트립만 노출). persist 불필요(세션 로컬, 새로고침 시 리셋).
-  const [expanded, setExpanded] = useState(false)
-  // 날씨/식당 토글 클릭 시: 뷰 전환 + 결과를 보여주기 위해 패널을 함께 펼친다.
-  function selectView(next) {
-    setView(next)
-    setExpanded(true)
-  }
 
   // 자동 방향 전환 감지 — 이전 direction을 추적하고, 자동 전환 시(isOverride=false) 토스트 표시
   const prevDirectionRef = useRef(direction)
@@ -210,65 +222,33 @@ export default function HomeWeatherHero({ onOpenMap }) {
   const rainSkewStyle = wind?.strong ? { '--skew': '14deg' } : undefined
   const rainSpeedFactor = wind?.strong ? 0.7 : 1
 
-  // greeting 스타일 글귀 — mood·풍속·기온이 바뀔 때만 다시 고른다(하루 단위로 안정적으로 고정됨).
+  // 감성 인사 글귀 — heroStyle==='classic'일 땐 쓰지 않지만, 계산 자체는 가볍고
+  // 하루 단위로 안정적으로 고정되므로 조건 없이 호출한다(훅 규칙과 무관한 순수
+  // 유틸이라 조건부 호출 자체는 허용되지만, 매 렌더 분기를 줄이는 쪽을 택했다).
   const greeting = useMemo(
     () => pickGreeting({ mood, rainProb: weather?.rainProb, windSpeed: weather?.windSpeed, temp: weather?.currentTemp }),
     [mood, weather?.rainProb, weather?.windSpeed, weather?.currentTemp],
   )
 
-  // ── greeting 진입 시퀀스(phase) + 출처 툴팁 ──────────────────────────────
-  // phase: 'quote'(글귀 표시) → 'weather'(글귀는 남되 작게 강등되고 온도가 주인공을 넘겨받음).
-  // heroStyle==='classic'이면 미사용.
-  const [phase, setPhase] = useState('quote')
-  const [quoteEntered, setQuoteEntered] = useState(false)
-  const [tooltipOpen, setTooltipOpen] = useState(false)
-  const [tooltipMounted, setTooltipMounted] = useState(false) // 퇴장 모션(160ms) 동안 DOM 유지용
-  const tooltipOpenRef = useRef(false) // phase 타이머 콜백이 최신 tooltipOpen을 읽기 위한 ref(클로저 stale 방지)
-  const quoteWrapRef = useRef(null) // 바깥 클릭 판정 대상
-  const tooltipId = useId()
-
-  // UI 렌더 텍스트에 em-dash 금지 정책 — 출처 접두는 "·"로.
-  const tooltipContent = greeting.source ? `· ${greeting.source}` : (greeting.sub || null)
+  // 스트립 인사말 — 감성 인사는 글귀 첫 줄만(56px 한 줄 스트립엔 둘째 줄이 들어갈
+  // 자리가 없다), 날씨 위주는 고정 문구.
+  const stripGreetingText = heroStyle === 'greeting' ? greeting.text.split('\n')[0] : CLASSIC_STRIP_GREETING
+  // 출처 툴팁은 감성 인사 + 출처가 있을 때만. UI 렌더 텍스트에 em-dash 금지 정책 —
+  // 출처 접두는 "·"로.
+  const tooltipContent = heroStyle === 'greeting' && greeting.source ? `· ${greeting.source}` : null
   const hasTooltip = Boolean(tooltipContent)
 
-  // 열기는 이벤트 핸들러에서 즉시 동기 처리(effect의 setState 남용을 피한다).
-  // 닫기(퇴장 모션 유지)는 아래 effect가 타이머 콜백에서 비동기로 처리한다.
+  const [tooltipOpen, setTooltipOpen] = useState(false)
+  const [tooltipMounted, setTooltipMounted] = useState(false) // 퇴장 모션(160ms) 동안 DOM 유지용
+  const greetingWrapRef = useRef(null) // 바깥 클릭 판정 대상
+  const tooltipId = useId()
+
   const toggleTooltip = () => {
     if (!hasTooltip) return
     const next = !tooltipOpen
     setTooltipOpen(next)
     if (next) setTooltipMounted(true)
   }
-
-  // 진입 모션 트리거 — 마운트 직후 한 틱 뒤 'is-visible'로 바꿔야 opacity/blur/translateY
-  // 트랜지션이 실제로 재생된다(초기 렌더 값 그대로 두면 트랜지션이 발화하지 않는다).
-  useEffect(() => {
-    if (heroStyle !== 'greeting') return
-    const id = setTimeout(() => setQuoteEntered(true), 0)
-    return () => clearTimeout(id)
-  }, [heroStyle])
-
-  // ref는 effect 밖(render)에서 직접 못 건드리므로(react-hooks/refs), effect에서 동기화한다.
-  useEffect(() => {
-    tooltipOpenRef.current = tooltipOpen
-  }, [tooltipOpen])
-
-  // 2초 후 글귀 강등 + 온도 확대. 툴팁을 읽는 중(열려 있음)이면 그 시점부터 2초씩 다시 연장한다.
-  useEffect(() => {
-    if (heroStyle !== 'greeting') return
-    let id
-    const schedule = () => {
-      id = setTimeout(() => {
-        if (tooltipOpenRef.current) {
-          schedule()
-        } else {
-          setPhase('weather')
-        }
-      }, 2000)
-    }
-    schedule()
-    return () => clearTimeout(id)
-  }, [heroStyle])
 
   // 툴팁 3.5초 자동 닫힘.
   useEffect(() => {
@@ -281,7 +261,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
   useEffect(() => {
     if (!tooltipOpen) return
     const handlePointerDown = (e) => {
-      if (quoteWrapRef.current && !quoteWrapRef.current.contains(e.target)) {
+      if (greetingWrapRef.current && !greetingWrapRef.current.contains(e.target)) {
         setTooltipOpen(false)
       }
     }
@@ -295,16 +275,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
     const id = setTimeout(() => setTooltipMounted(false), 160)
     return () => clearTimeout(id)
   }, [tooltipOpen, tooltipMounted])
-
-  // 강등(phase='weather') 후에도 줄바꿈은 그대로 유지한다. br을 공백으로 합치면 줄 수가
-  // 바뀌어 강등 트랜지션(font-size만 부드럽게 줄어드는 연출) 도중 텍스트가 다시 흐르며
-  // 레이아웃이 한 번 더 튀는 부작용이 생긴다 — 줄 구조를 고정해야 순수하게 크기만 작아진다.
-  const greetingLines = greeting.text.split('\n').map((line, i, arr) => (
-    <Fragment key={i}>
-      {line}
-      {i < arr.length - 1 && <br />}
-    </Fragment>
-  ))
 
   // 정왕풍 pill + 강수확률 — classic/greeting 두 레이아웃이 동일하게 재사용(인라인 중복 방지).
   const windMeta = (
@@ -346,44 +316,54 @@ export default function HomeWeatherHero({ onOpenMap }) {
         />
       )}
 
-      {/* 스크림 — 하늘 위 베일. 스트립과 패널이 하나의 하늘을 공유하므로
+      {/* 스크림 — 하늘 위 베일. 스트립과 본문이 하나의 하늘을 공유하므로
           이 한 겹이 두 곳의 가독성을 함께 책임진다(두께는 skyPalette가 계산). */}
       <div className="whero-scrim" aria-hidden="true" />
 
-      {/* 한 줄 스트립 — 결함 #31: 항상 이 높이만 차지. 왼쪽은 펼치기 토글,
-          오른쪽은 날씨/식당/검색 아이콘(항상 노출 — 검색은 명세상 필수 유지). */}
+      {/* 스트립(최소 56px) — 인사말 + 위치 칩(지도 진입 겸함) + 뷰 토글 3칸.
+          아코디언 토글은 없다 — 히어로는 항상 이 구조 그대로다(스크롤로만 사라진다). */}
       <div className="whero-strip">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          aria-label={expanded ? '날씨 요약 접기' : '날씨 요약 펼치기'}
-          className="flex-1 min-w-0 flex items-center gap-1.5 text-left active:scale-[0.99] transition-transform duration-press"
-        >
-          <span className="whero-ink text-caption font-bold whitespace-nowrap truncate">
-            {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'} {SKY_TEXT[icon] ?? ''}
-          </span>
-          {wind && (
-            <span className="whero-ink-2 text-caption font-medium whitespace-nowrap truncate">
-              · 바람 {wind.value}
-            </span>
+        <div ref={greetingWrapRef} className="relative min-w-0 flex-1">
+          {hasTooltip ? (
+            <button
+              type="button"
+              data-testid="hero-greeting-text"
+              onClick={toggleTooltip}
+              aria-expanded={tooltipOpen}
+              aria-describedby={tooltipOpen ? tooltipId : undefined}
+              className="whero-ink block w-full truncate border-0 bg-transparent p-0 text-left text-caption font-bold active:scale-[0.99] transition-transform duration-press"
+            >
+              {stripGreetingText}
+            </button>
+          ) : (
+            <p data-testid="hero-greeting-text" className="whero-ink truncate text-caption font-bold">
+              {stripGreetingText}
+            </p>
           )}
-          <ChevronDown
-            size={15}
-            aria-hidden="true"
-            className={`whero-ink-2 shrink-0 transition-transform duration-base ${expanded ? 'rotate-180' : ''}`}
-          />
-        </button>
+          {tooltipMounted && (
+            <div
+              id={tooltipId}
+              role="tooltip"
+              className={`whero-quote-tooltip whero-tooltip-surface rounded-button px-3 py-1.5 text-caption shadow-sh-card ${
+                tooltipOpen ? 'is-entering' : 'is-leaving'
+              }`}
+            >
+              {tooltipContent}
+            </div>
+          )}
+        </div>
 
-        {/* 지도 진입 — 접힘 상태에서도 항상 노출(핵심 액션을 아코디언 뒤에 숨기지 않는다). */}
+        {/* 위치 칩 — 지도 진입을 겸한다(예전엔 별도 "지도" 칩이 있었지만, 스트립이
+            "인사말 + 위치 칩 + 뷰 토글 3칸" 세 자리로 고정되며 위치 칩이 그 역할을
+            이어받았다 — 지금 보고 있는 곳을 탭하면 지도가 열리는 편이 자연스럽다). */}
         <button
           type="button"
           onClick={onOpenMap}
           aria-label="지도 보기"
-          className="whero-chip shrink-0 inline-flex items-center gap-1 rounded-card px-2.5 h-8 text-[12px] font-bold active:scale-[0.94] transition-transform duration-press ease-spring"
+          className="whero-chip shrink-0 inline-flex items-center gap-1 rounded-card px-2.5 h-8 text-chip font-bold active:scale-[0.94] transition-transform duration-press ease-spring"
         >
-          <Map size={14} aria-hidden="true" />
-          지도
+          <MapPin size={14} aria-hidden="true" />
+          한국공학대 본캠
         </button>
 
         <div
@@ -392,37 +372,71 @@ export default function HomeWeatherHero({ onOpenMap }) {
           aria-label="히어로 옵션"
           style={{ touchAction: 'manipulation' }}
         >
-          <button
-            type="button"
-            onClick={() => selectView('weather')}
-            aria-label="날씨 보기"
-            aria-pressed={view === 'weather'}
-            className={`whero-toggle ${view === 'weather' ? 'is-on' : ''} flex items-center justify-center w-7 h-7 rounded-badge active:scale-[0.92]`}
-          >
-            <Sun size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={() => selectView('cafeteria')}
-            aria-label="식당 보기"
-            aria-pressed={view === 'cafeteria'}
-            className={`whero-toggle ${view === 'cafeteria' ? 'is-on' : ''} flex items-center justify-center w-7 h-7 rounded-badge active:scale-[0.92]`}
-          >
-            <Utensils size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setSearchOpen?.(true)}
-            aria-label="검색"
-            className="whero-toggle flex items-center justify-center w-7 h-7 rounded-badge active:scale-[0.92]"
-          >
-            <Search size={14} aria-hidden="true" />
-          </button>
+          {/* 아이콘(14px)·배지(28px) 시각 크기는 그대로 두고, IconButton을 부모
+              대비 -inset-2(8px)로 겹쳐 44px 히트영역만 얹는다 — 레이아웃 폭에는
+              반영되지 않으므로 유리 알약(whero-chip) 자체의 크기는 변하지 않는다. */}
+          <span className="relative inline-flex w-7 h-7">
+            <IconButton
+              type="button"
+              onClick={() => setView('weather')}
+              label="날씨 보기"
+              aria-pressed={view === 'weather'}
+              className="absolute -inset-2 !bg-transparent hover:!bg-transparent active:!bg-transparent"
+            >
+              <span
+                className={`whero-toggle ${view === 'weather' ? 'is-on' : ''} flex items-center justify-center w-7 h-7 rounded-badge transition-transform duration-press active:scale-[0.92]`}
+              >
+                <Sun size={14} aria-hidden="true" />
+              </span>
+            </IconButton>
+          </span>
+          <span className="relative inline-flex w-7 h-7">
+            <IconButton
+              type="button"
+              onClick={() => setView('cafeteria')}
+              label="식당 보기"
+              aria-pressed={view === 'cafeteria'}
+              className="absolute -inset-2 !bg-transparent hover:!bg-transparent active:!bg-transparent"
+            >
+              <span
+                className={`whero-toggle ${view === 'cafeteria' ? 'is-on' : ''} flex items-center justify-center w-7 h-7 rounded-badge transition-transform duration-press active:scale-[0.92]`}
+              >
+                <Utensils size={14} aria-hidden="true" />
+              </span>
+            </IconButton>
+          </span>
+          <span className="relative inline-flex w-7 h-7">
+            <IconButton
+              type="button"
+              onClick={() => setSearchOpen?.(true)}
+              label="검색"
+              className="absolute -inset-2 !bg-transparent hover:!bg-transparent active:!bg-transparent"
+            >
+              <span className="whero-toggle flex items-center justify-center w-7 h-7 rounded-badge transition-transform duration-press active:scale-[0.92]">
+                <Search size={14} aria-hidden="true" />
+              </span>
+            </IconButton>
+          </span>
+          {/* 더보기 — App.jsx의 옛 고정 오버레이 버튼을 여기로 옮겼다(goToMore
+              주석 참고). 다른 세 아이콘과 같은 문서 흐름 안 자리라 무엇도
+              가리지 않는다. */}
+          <span className="relative inline-flex w-7 h-7">
+            <IconButton
+              type="button"
+              onClick={goToMore}
+              label="더보기"
+              className="absolute -inset-2 !bg-transparent hover:!bg-transparent active:!bg-transparent"
+            >
+              <span className="whero-toggle flex items-center justify-center w-7 h-7 rounded-badge transition-transform duration-press active:scale-[0.92]">
+                <MoreHorizontal size={14} aria-hidden="true" />
+              </span>
+            </IconButton>
+          </span>
         </div>
       </div>
 
-      {/* 아코디언 패널 — 펼쳤을 때만 마운트. 기존 인사말/예보 상세 + 날씨 이펙트가 여기 담긴다. */}
-      {expanded && (
+      {/* 본문 — 항상 펼쳐진다(아코디언 없음). 결함 #31 재발 방지는 MainShell의
+          통짜 스크롤이 맡는다. */}
       <div className="whero-panel">
       {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다.
           무드당 한 겹씩만 얹는다. */}
@@ -522,124 +536,49 @@ export default function HomeWeatherHero({ onOpenMap }) {
           ))}
         </div>
       )}
-      {/* 하단 seam — 하늘을 대시보드 배경으로 얇게 블렌드 */}
+      {/* 하단 seam — 하늘을 대시보드 배경으로 얇게 블렌드(26px) */}
       <div className="whero-seam" aria-hidden="true" />
 
       {view === 'weather' ? (
-        <>
-          {/* 지도 버튼은 스트립 행으로 이동(항상 노출) — 패널 상단 바는 제거. */}
-          {/* 메인 블록 — heroStyle에 따라 두 레이아웃으로 갈린다.
-              pb를 키워 콘텐츠가 하단 seam(34px, 배경 블렌드)에 얹히지 않게 한다. */}
-          {heroStyle === 'classic' ? (
-            <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-7 pt-2">
-              <div className="min-w-0">
-                <div className="flex items-end gap-2.5">
-                  <span className="whero-ink text-hero-temp tabular-nums">
-                    {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
-                  </span>
-                  <span className="whero-ink-2 mb-1.5 text-title font-bold">
-                    {SKY_TEXT[icon] ?? ''}
-                  </span>
-                </div>
-
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  {windMeta}
-                </div>
-              </div>
-
-              <Icon
-                size={64}
-                strokeWidth={1.6}
-                className="whero-ink shrink-0"
-                // 하늘 위에 아이콘이 묻히지 않게 스크림과 같은 극성의 그림자로 띄운다.
-                style={{ filter: 'drop-shadow(0 2px 7px rgb(from var(--whero-scrim) r g b / 0.35))' }}
-                aria-hidden="true"
-              />
-            </div>
-          ) : (
-            <div className="relative z-10 flex-1 flex flex-col justify-end gap-3 px-4 pb-7 pt-1">
-              {/* 인사 글귀 — 하루 단위로 안정적으로 고정된다(heroGreeting.pickGreeting).
-                  마운트 900ms 진입 모션 → 2초 뒤 사라지거나 접히지 않고 그 자리에서 작게
-                  강등(demote)된다(whero-quote-text.is-demoted, 21px/800 → 13px/500).
-                  동시에 아래 온도 행이 확대되며 시각적 주인공을 이어받는다(phase).
-                  prefers-reduced-motion은 index.css 전역 규칙(transition/animation ≈0ms)이
-                  이미 처리하므로 여기서 별도 분기를 두지 않는다. */}
-              <div
-                ref={quoteWrapRef}
-                className={`min-w-0 whero-quote-content ${quoteEntered ? 'is-visible' : ''}`}
-              >
-                {hasTooltip ? (
-                  <button
-                    type="button"
-                    data-testid="hero-greeting-text"
-                    onClick={toggleTooltip}
-                    aria-expanded={tooltipOpen}
-                    aria-describedby={tooltipOpen ? tooltipId : undefined}
-                    className={`whero-quote-text block w-full cursor-pointer border-0 bg-transparent p-0 text-left [text-wrap:balance] ${
-                      phase === 'weather' ? 'is-demoted' : ''
-                    }`}
-                  >
-                    {greetingLines}
-                  </button>
-                ) : (
-                  <p
-                    data-testid="hero-greeting-text"
-                    className={`whero-quote-text [text-wrap:balance] ${
-                      phase === 'weather' ? 'is-demoted' : ''
-                    }`}
-                  >
-                    {greetingLines}
-                  </p>
-                )}
-                {tooltipMounted && (
-                  <div
-                    id={tooltipId}
-                    role="tooltip"
-                    className={`whero-quote-tooltip whero-tooltip-surface rounded-button px-3 py-1.5 text-caption shadow-sh-card ${
-                      tooltipOpen ? 'is-entering' : 'is-leaving'
-                    }`}
-                  >
-                    {tooltipContent}
-                  </div>
-                )}
-              </div>
-
-              {/* 하단 행 — 온도 + 하늘 텍스트 + 정왕풍 pill + 아이콘. phase='weather'로 넘어가면
-                  위 글귀는 강등되고, 온도(34→56px)·하늘 텍스트(14→18px)·아이콘(scale)이 확대된다. */}
-              <div className="flex items-end justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-end gap-2">
-                    <span
-                      className={`whero-quote-temp whero-ink font-extrabold leading-none tabular-nums ${
-                        phase === 'weather' ? 'is-grown' : ''
-                      }`}
-                    >
-                      {weather?.currentTemp != null ? `${weather.currentTemp}°` : '--'}
-                    </span>
-                    <span
-                      className={`whero-quote-sky whero-ink-2 mb-0.5 font-bold ${phase === 'weather' ? 'is-grown' : ''}`}
-                    >
-                      {SKY_TEXT[icon] ?? ''}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    {windMeta}
-                  </div>
-                </div>
-
-                <span className={`whero-quote-icon-wrap ${phase === 'weather' ? 'is-grown' : ''}`}>
-                  <Icon
-                    size={32}
-                    strokeWidth={1.6}
-                    className="whero-ink shrink-0"
-                    style={{ filter: 'drop-shadow(0 2px 7px rgb(from var(--whero-scrim) r g b / 0.35))' }}
-                    aria-hidden="true"
-                  />
+        // 본문 — 온도(60px/800) + 하늘 상태(19px), 그 아래 메타 줄, 우측 날씨 아이콘(52px).
+        // heroStyle과 무관하게 항상 같은 레이아웃이다(스타일 차이는 스트립 인사말에만 있다).
+        <div className="relative z-10 flex-1 flex items-end justify-between gap-3 px-4 pb-7 pt-2">
+          <div className="min-w-0">
+            {weather?.currentTemp != null ? (
+              <div className="flex items-end gap-2.5">
+                <span className="whero-ink text-hero-temp tabular-nums">
+                  {weather.currentTemp}°
+                </span>
+                <span className="whero-ink-2 mb-1.5 text-title-sm font-bold">
+                  {SKY_TEXT[icon] ?? ''}
                 </span>
               </div>
+            ) : (
+              // 기온이 없을 때(백엔드가 current_temp: null을 줄 때) — 예전엔 이 자리를
+              // "--"로 text-hero-temp(60px) 크기 그대로 채웠다. 어두운 히어로 배경 위에서
+              // 그 "--"가 글자가 아니라 무언가 가려진 흰 블록처럼 보였다(실측 결함). 큰
+              // 자리를 접고, 하늘 상태 문구만 사람이 읽을 수 있는 크기로 남긴다.
+              <div className="flex items-end gap-2.5">
+                <span className="whero-ink text-eta font-extrabold">
+                  {SKY_TEXT[icon] ?? '날씨 정보 없음'}
+                </span>
+              </div>
+            )}
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {windMeta}
             </div>
-          )}
-        </>
+          </div>
+
+          <Icon
+            size={52}
+            strokeWidth={1.6}
+            className="whero-ink shrink-0"
+            // 하늘 위에 아이콘이 묻히지 않게 스크림과 같은 극성의 그림자로 띄운다.
+            style={{ filter: 'drop-shadow(0 2px 7px rgb(from var(--whero-scrim) r g b / 0.35))' }}
+            aria-hidden="true"
+          />
+        </div>
       ) : (
         <div className="relative z-10 flex-1 flex flex-col px-4 pb-6" style={{ paddingTop: 40 }}>
           <p className="whero-ink-2 text-caption font-bold tracking-wide">지금 문 연 곳</p>
@@ -679,7 +618,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
         </div>
       )}
       </div>
-      )}
     </div>
   )
 }

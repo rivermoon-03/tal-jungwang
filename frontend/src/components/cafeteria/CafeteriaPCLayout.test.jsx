@@ -84,6 +84,19 @@ describe('CafeteriaPCLayout', () => {
     vi.useRealTimers()
   })
 
+  // 결함: source_file(백엔드가 올린 원본 엑셀 파일명)을 갱신 시각 옆에 그대로
+  // 붙여 노출했었다. 파일명은 내부 수집 흔적이라 사용자가 읽을 정보가 아니고,
+  // 모바일(FacilitiesPage)은 갱신 시각만 보여준다 — PC도 같은 표기여야 한다.
+  it('원본 엑셀 파일명(source_file)을 화면에 노출하지 않는다', () => {
+    const dataWithSourceFile = {
+      ...MOCK_DATA,
+      source_file: '학생식당,E동레스토랑식단표(08.31).xlsx',
+    }
+    render(<CafeteriaPCLayout data={dataWithSourceFile} loading={false} error={null} refetch={vi.fn()} />)
+    expect(screen.queryByText(/\.xlsx/)).not.toBeInTheDocument()
+    expect(screen.getByText(/갱신/)).toBeInTheDocument()
+  })
+
   // --- (a) 식당 선택 chips 렌더 ---
   it('상단에 cafeterias 이름으로 식당 선택 chip 2개를 렌더한다', () => {
     render(<CafeteriaPCLayout data={MOCK_DATA} loading={false} error={null} refetch={vi.fn()} />)
@@ -91,48 +104,51 @@ describe('CafeteriaPCLayout', () => {
     expect(screen.getByText('E동 레스토랑')).toBeInTheDocument()
   })
 
-  it('기본 선택은 첫 번째 식당이며 우측 타이틀에 "TIP 학생식당 식단"을 렌더한다', () => {
+  // 상단 타이틀은 시안 요구대로 식당명이 아니라 날짜다("13일(수) 식단") —
+  // 어느 식당인지는 우측 세그먼트 chips가 이미 알려준다.
+  it('상단 타이틀은 식당명이 아니라 오늘 날짜로 "13일(수) 식단"을 렌더한다', () => {
     render(<CafeteriaPCLayout data={MOCK_DATA} loading={false} error={null} refetch={vi.fn()} />)
-    expect(screen.getByRole('heading', { name: 'TIP 학생식당 식단' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '13일(수) 식단' })).toBeInTheDocument()
   })
 
   // --- (b) 카드 클릭 시 타이틀 전환 + selectedDay 리셋 ---
   it('오늘(13일)이 기본 선택된다', () => {
     render(<CafeteriaPCLayout data={MOCK_DATA} loading={false} error={null} refetch={vi.fn()} />)
-    const todayChip = screen.getByText(/13일/).closest('button')
+    const todayChip = screen.getByRole('button', { name: /13일/ })
     expect(todayChip).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('다른 요일 칩 선택 후 다른 식당 카드를 클릭하면 타이틀이 전환되고 요일 선택이 오늘로 복원된다', () => {
+  it('다른 요일 칩 선택 후 다른 식당 카드를 클릭하면 식당이 전환되고 요일 선택이 오늘로 복원된다', () => {
     render(<CafeteriaPCLayout data={MOCK_DATA} loading={false} error={null} refetch={vi.fn()} />)
 
     // 11일 칩으로 수동 선택 변경
-    fireEvent.click(screen.getByText(/11일/).closest('button'))
-    expect(screen.getByText(/11일/).closest('button')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /11일/ }))
+    expect(screen.getByRole('button', { name: /11일/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('제육볶음면')).toBeInTheDocument()
 
-    // E동 레스토랑 chip 클릭 → 타이틀 전환
+    // E동 레스토랑 chip 클릭 → 선택 전환(상단 타이틀은 날짜 기준이라 그대로다 —
+    // 식당 전환은 세그먼트 chip의 aria-pressed와 보이는 메뉴로 확인한다)
     const eDongChip = screen.getByText('E동 레스토랑').closest('button')
     fireEvent.click(eDongChip)
-    expect(screen.getByRole('heading', { name: 'E동 레스토랑 식단' })).toBeInTheDocument()
+    expect(eDongChip).toHaveAttribute('aria-pressed', 'true')
 
     // selectedDay가 리셋되어 11일이 아니라 오늘(13일)이 다시 선택되어야 한다.
     // (E동도 동일한 dayKeys[11~15]를 가지므로, 리셋이 안 됐다면 11일이 그대로 활성 상태였을 것)
-    expect(screen.getByText(/13일/).closest('button')).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText(/11일/).closest('button')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: /13일/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /11일/ })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByText('리조또')).toBeInTheDocument()
   })
 
   it('같은 식당 카드를 다시 클릭해도 요일 선택이 오늘로 리셋된다', () => {
     render(<CafeteriaPCLayout data={MOCK_DATA} loading={false} error={null} refetch={vi.fn()} />)
 
-    fireEvent.click(screen.getByText(/11일/).closest('button'))
-    expect(screen.getByText(/11일/).closest('button')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /11일/ }))
+    expect(screen.getByRole('button', { name: /11일/ })).toHaveAttribute('aria-pressed', 'true')
 
     const tipChip = screen.getByText('TIP 학생식당').closest('button')
     fireEvent.click(tipChip)
 
-    expect(screen.getByText(/13일/).closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /13일/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   // --- (c) 운영상태 pill ---

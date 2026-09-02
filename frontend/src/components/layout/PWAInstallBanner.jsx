@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, X, Share } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useIsDesktop } from '../../hooks/useMediaQuery';
+import IconButton from '../ui/IconButton';
 
 /**
  * PWA 설치 배너
@@ -54,12 +55,17 @@ export default function PWAInstallBanner() {
 
   return (
     <>
-      {/* 상단 고정 배너 */}
+      {/* 상단 고정 배너 — top-0 + viewport-fit=cover라 상단 세이프에어리어를
+          padding으로 보정한다(노치/펀치홀 기기에서 배너 텍스트가 잘리지 않게). */}
       <div
         role="banner"
         aria-label="앱 설치 배너"
-        className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-2 text-white"
-        style={{ backgroundColor: 'var(--tj-accent)', minHeight: '44px' }}
+        className="fixed top-0 left-0 right-0 z-toast flex items-center justify-between px-4 py-2 text-white"
+        style={{
+          backgroundColor: 'var(--tj-accent)',
+          minHeight: '44px',
+          paddingTop: 'env(safe-area-inset-top)',
+        }}
       >
         <button
           onClick={handleInstall}
@@ -73,13 +79,13 @@ export default function PWAInstallBanner() {
               : '탈것:정왕 앱으로 설치하기'}
           </span>
         </button>
-        <button
+        <IconButton
           onClick={dismiss}
-          className="ml-3 p-1 rounded-full hover:bg-white/20 transition-colors"
-          aria-label="배너 닫기"
+          label="배너 닫기"
+          className="ml-3 !text-white hover:!bg-white/20 active:!bg-white/25"
         >
           <X size={16} aria-hidden="true" />
-        </button>
+        </IconButton>
       </div>
 
       {/* iOS 안내 모달 */}
@@ -88,25 +94,26 @@ export default function PWAInstallBanner() {
           role="dialog"
           aria-modal="true"
           aria-label="iOS 홈 화면 추가 안내"
-          className="fixed inset-0 z-[60] flex items-end justify-center"
+          className="fixed inset-0 z-sheet flex items-end justify-center"
           onClick={handleIOSModalClose}
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
 
-          {/* Modal sheet */}
+          {/* Modal sheet — surface 토큰으로: bg-white 고정이라 다크 모드에서
+              흰 카드가 그대로 떠 있었다. */}
           <div
-            className="relative w-full max-w-sm mx-4 mb-6 bg-white rounded-sheet shadow-2xl p-6"
+            className="relative w-full max-w-sm mx-4 mb-6 bg-surface rounded-sheet shadow-sh-pop p-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
-            <button
+            <IconButton
               onClick={handleIOSModalClose}
-              className="absolute top-4 right-4 text-mute hover:text-ink-2"
-              aria-label="닫기"
+              label="닫기"
+              className="absolute top-4 right-4"
             >
               <X size={20} />
-            </button>
+            </IconButton>
 
             {/* Icon */}
             <div

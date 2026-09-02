@@ -66,7 +66,7 @@ export default function CrowdingCard() {
   }, [nowMinutes])
 
   return (
-    <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">
+    <article className="relative overflow-hidden rounded-card bg-surface shadow-sh-card">
       {/* 노선별 상단 accent halo — 배경색 위에 살짝 얹히는 미세 tint */}
       <div
         className="absolute inset-x-0 top-0 h-24 pointer-events-none transition-colors duration-500"

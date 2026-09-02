@@ -9,12 +9,13 @@ import ScheduleSection from './ScheduleSection'
 import SubwayStationChips from './SubwayStationChips'
 import ScheduleDetailModal from './ScheduleDetailModal'
 import PageHeader from '../layout/PageHeader'
-import SegmentTabs from '../ui/SegmentTabs'
 import SegmentedControl from '../ui/SegmentedControl'
 import useAppStore from '../../stores/useAppStore'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { useBusTimetableByRoute, useBusArrivals, useBusRoutesByCategory, useBusCommuteContexts } from '../../hooks/useBus'
-import { useShuttleSchedule } from '../../hooks/useShuttle'
+import { useShuttleSchedule, useShuttlePeriods } from '../../hooks/useShuttle'
+import { pickCurrentPeriod } from '../shuttle/shuttlePeriods'
+import { parseReturnNote } from '../shuttle/shuttleSchedule'
 import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
@@ -22,18 +23,20 @@ import { describeArrival } from '../../utils/arrivalTime'
 import { selectRepresentativeBusSource } from '../../utils/busInformationSource'
 import { makeFavKey, matchesLegacy } from '../../utils/favKey'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
-import EmptyState from '../common/EmptyState'
+import EmptyState from '../ui/EmptyState'
+import IconButton from '../ui/IconButton'
 import StatsSheet from './StatsSheet'
 import HolidayBanner from '../common/HolidayBanner'
+import { scaledPx } from '../../utils/fontScale'
 
 // PC · 시간표 2열 레이아웃(좌: 노선 리스트 / 우: 상세)에서 아직 아무 노선도
 // 선택하지 않았을 때 우측 컬럼에 보이는 빈 상태.
 function ScheduleDetailEmptyState() {
   return (
     <EmptyState
-      icon={CalendarClock}
+      icon={<CalendarClock size={32} aria-hidden="true" />}
       title="노선을 선택해요"
-      description="왼쪽 목록에서 노선을 누르면 하루 전체 시간표와 혼잡도를 여기에서 볼 수 있어요."
+      desc="왼쪽 목록에서 노선을 누르면 하루 전체 시간표와 혼잡도를 여기에서 볼 수 있어요."
     />
   )
 }
@@ -83,10 +86,13 @@ const SHUTTLE_CAMPUS_DIRECTIONS = {
 }
 
 // ─── mode label config ───────────────────────────────────────────────────────
+// SegmentedControl(options: {value,label}[])이 정본 세그먼트 컨트롤이다 — 예전엔
+// 이 파일이 모드 탭엔 ui/SegmentTabs를, 그룹 탭엔 ui/SegmentedControl을 동시에 써서
+// 같은 화면 한 탭 간격으로 세그먼트 스타일이 두 벌 섞여 있었다.
 const MODES = [
-  { id: 'bus',     label: '버스'   },
-  { id: 'subway',  label: '지하철' },
-  { id: 'shuttle', label: '셔틀'   },
+  { value: 'bus',     label: '버스'   },
+  { value: 'subway',  label: '지하철' },
+  { value: 'shuttle', label: '셔틀'   },
 ]
 
 function isValidMode(v) {
@@ -197,7 +203,7 @@ function BusSourceRow({ source, routeCode, category }) {
 
   return (
     <div className="flex items-center gap-2 min-h-8 py-1">
-      <span className="text-[12.5px] font-bold text-ink-2 dark:text-ink-2 min-w-0">{source.display_label}</span>
+      <span className="text-caption font-bold text-ink-2 dark:text-ink-2 min-w-0">{source.display_label}</span>
       <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${isTimetable ? 'bg-surface-3 text-mute' : 'bg-accent/10 text-accent-ink dark:text-accent'}`}>
         {isTimetable ? '시간표' : '실시간'}
       </span>
@@ -455,6 +461,36 @@ function nextWeekdayDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// KST 기준 오늘 'YYYY-MM-DD'. /shuttle/periods 의 start_date·end_date 와 같은
+// 형식이라 문자열 비교로 기간을 판정할 수 있다.
+function todayISOStr() {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  return kst.toISOString().slice(0, 10)
+}
+
+// 'YYYY-MM-DD' → 'M/D'
+function formatPeriodMD(dateStr) {
+  const [, m, d] = (dateStr ?? '').split('-').map(Number)
+  return m && d ? `${m}/${d}` : ''
+}
+
+// 평일인데 오늘 데이터가 비어 있을 때(방학 등)의 안내 문구.
+// 예전에는 계절과 무관하게 "여름방학 중 미운행 · 2학기 개강 후 운행"을 하드코딩해
+// 2학기가 시작된 뒤에도 같은 문구가 떴다(결함). /shuttle/periods 데이터에서 오늘이
+// 속한 실제 기간명과, 있다면 다음 기간명을 읽어 문구를 만든다 — 어떤 기간인지
+// 데이터로 확인되지 않으면 계절을 단정하지 않는 중립 문구로 폴백한다.
+function buildShuttleWeekdayOffLabel(periods, todayStr) {
+  const list = Array.isArray(periods) ? periods : []
+  const current = pickCurrentPeriod(list, todayStr)
+  if (!current) return '평일 정규 시간표 정보가 아직 없어요'
+  const next = list
+    .filter((p) => p.start_date > todayStr)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))[0]
+  return next
+    ? `${current.name} 기간 · 평일 운행 정보 없음 (${next.name} ${formatPeriodMD(next.start_date)}부터 재개 예정)`
+    : `${current.name} 기간 · 평일 운행 정보 없음`
+}
+
 function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, onToggleFav, selectedFavCode, isDesktop }) {
   const label = direction % 2 === 0 ? '등교' : '하교'
   const campusTag = direction >= 2 ? '2캠 ' : ''
@@ -466,6 +502,9 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
   const offDay = isShuttleOffDay(direction)
   const fallbackDate = offDay ? nextWeekdayDateStr() : null
   const fallback = useShuttleSchedule(direction, fallbackDate, { enabled: offDay })
+  // 평일인데 오늘 데이터가 빌 때(noSchedule 분기)만 실제 소비하지만, 조건부 훅
+  // 호출은 금지이므로 항상 호출한다 — 응답은 1시간 TTL 공유 캐시라 추가 비용 없음.
+  const periodsQuery = useShuttlePeriods()
 
   // 요청한 direction에 시간 데이터가 있는지로 판정.
   // (백엔드는 direction param을 받아도 다른 방향이 응답 directions에 포함될 수 있어서
@@ -500,7 +539,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
     // 사실과 다름) — 주말/공휴일은 원래 정규 운행이 없고, 평일인데 비어 있으면
     // 방학 기간일 가능성이 크다.
     const offLabel = !offDay
-      ? '여름방학 중 미운행 · 2학기 개강 후 운행'
+      ? buildShuttleWeekdayOffLabel(periodsQuery.data?.periods ?? [], todayISOStr())
       : direction >= 2
         ? '일요일·공휴일은 2캠 셔틀 정규 운행이 없어요'
         : '주말·공휴일은 셔틀 정규 운행이 없어요'
@@ -509,7 +548,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
         {...rowBaseProps}
         loading={false}
         disabled
-        timeLines={!offDay ? ['방학', '미운행'] : (direction >= 2 ? ['일요일', '미운행'] : ['주말', '미운행'])}
+        timeLines={!offDay ? ['평일', '정보없음'] : (direction >= 2 ? ['일요일', '미운행'] : ['주말', '미운행'])}
         disabledLabel={offLabel}
       />
     )
@@ -537,7 +576,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
         footer={extras.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
             {extras.map((t, i) => (
-              <span key={`${t}-${i}`} style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              <span key={`${t}-${i}`} style={{ fontSize: scaledPx(12), color: 'var(--tj-mute)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                 {t}
               </span>
             ))}
@@ -596,11 +635,18 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
       }
     }
     if (isReturn) {
+      // 결함 6: 예전엔 depart_at(ts)이 있는데도 시각 칸을 비우고 "회차편 탑승"
+      // 문구만 넣어서, 등교 목록의 시각 칸에 시각이 아예 없었다. depart_at은
+      // 이 회차편이 이 정류장에서 실제로 출발하는 시각(백엔드 note 필드
+      // "회차편 · 학교 18:00 출발"과 함께 옴, curl로 실제 스키마 확인함)이라
+      // 시각 칸에 그대로 쓴다. "회차편"이라는 사실과, 알 수 있으면 회차
+      // 원본 버스가 학교를 출발한 시각(originTime)은 부제 쪽으로 옮긴다.
+      const { originTime } = parseReturnNote(e.note)
       return {
         key: `t-${ts}-return`,
-        departStr: null,
-        mins: null,
-        statusLabel: '회차편 탑승',
+        departStr: ts,
+        mins: minsPositive,
+        statusLabel: originTime ? `회차편 · 학교 ${originTime} 출발` : '회차편',
         isReturn: true,
       }
     }
@@ -649,14 +695,23 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
   const extras = rows.slice(2)
     .map((r) => r.departStr)
     .filter((s) => typeof s === 'string' && s.length > 0)
-  // first가 시각을 갖지 않는 상태성 편(수시운행/회차편)이면 시간열에 짧은 문구로,
-  // 아니면 통상 분 카운트다운으로 표시한다.
+  // first가 시각을 갖지 않는 상태성 편(수시운행/수시 회차편 대기)이면 시간열에
+  // 짧은 문구로, 그 외(회차편 포함, departStr이 있는 모든 편)는 통상 분
+  // 카운트다운으로 표시한다. 회차편도 depart_at이 있으므로(결함 6) 더 이상
+  // firstTimeLines 문구 분기를 타지 않는다.
   const firstTimeLines = first?.statusLabel && first.departStr == null
     ? first.statusLabel.split(' ').slice(0, 2)
     : null
-  const subtitleBottom = second
-    ? (second.statusLabel ?? (second.departStr ? `그 다음 ${second.departStr}` : null))
-    : null
+  // first가 (수시 회차편 대기가 아닌) 일반 회차편이면 "다음 회차 예고"보다
+  // "지금 시간열에 뜬 시각이 회차편이라는 사실"을 부제로 먼저 설명한다(결함 6
+  // — 회차편이라는 사실을 시각 칸이 아닌 배지/부제로 옮기라는 요구, 시각 칸과
+  // 같은 문구 중복 금지). 수시 회차편 대기(departStr == null)는 이미 시간열
+  // 문구 자체가 상태를 설명하므로 제외한다 — 안 그러면 같은 말이 겹친다.
+  const subtitleBottom = first?.isReturn && first.departStr != null
+    ? first.statusLabel
+    : second
+      ? (second.statusLabel ?? (second.departStr ? `그 다음 ${second.departStr}` : null))
+      : null
   return (
     <ScheduleSection
       {...rowBaseProps}
@@ -670,7 +725,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
       footer={extras.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
           {extras.map((t, i) => (
-            <span key={`${t}-${i}`} style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            <span key={`${t}-${i}`} style={{ fontSize: scaledPx(12), color: 'var(--tj-mute)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
               {t}
             </span>
           ))}
@@ -705,7 +760,7 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
     return (
       <>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-surface-2 dark:bg-surface rounded-xl animate-pulse" />
+          <div key={i} className="h-20 bg-surface-2 dark:bg-surface rounded-tile animate-pulse" />
         ))}
       </>
     )
@@ -772,7 +827,7 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
       {showWeekend3400Notice && (
         <div
           role="status"
-          className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 px-4 py-2.5 flex items-start gap-2"
+          className="rounded-card bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 px-4 py-2.5 flex items-start gap-2"
         >
           <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
             <span className="font-bold">3400번 주말·휴일 강남 출발 시간표는 실제와 다를 수 있어요.</span>
@@ -802,9 +857,9 @@ function FavoritesEmpty() {
   return (
     <EmptyState
       size="sm"
-      icon={Star}
+      icon={<Star size={24} aria-hidden="true" />}
       title="즐겨찾기한 노선이 없어요"
-      description="노선 카드의 별을 누르면 여기에 모여요."
+      desc="노선 카드의 별을 누르면 여기에 모여요."
     />
   )
 }
@@ -814,11 +869,11 @@ function FavoritesEmpty() {
  * @param embedded   홈의 "시간표" 보기로 얹혀 있을 때 true.
  *   이때 모드의 단일 출처는 홈의 ModeTabs(store.selectedMode)다 — 자체 헤더와
  *   모드 탭을 그리지 않고, 주소도 건드리지 않는다(홈이 주소를 소유한다).
- * @param viewSwitch 홈이 넘기는 "지금 ↔ 시간표" 전환 노드. 비워둔 모드 탭 자리에
- *   그려 통계·즐겨찾기 버튼과 한 줄을 쓴다 — 전환만 따로 한 줄을 차지하면
- *   목록이 그만큼 아래로 밀린다.
+ *   지금/시간표 전환은 하단 독의 홈/시간표 탭이 맡는다(예전엔 이 자리에
+ *   viewSwitch prop으로 셀렉터를 그렸으나, 독 탭과 상태를 이중으로 조작해
+ *   사용자가 헷갈렸다 — Dashboard.jsx 주석 참고) — 그 자리는 지금 비운다.
  */
-export default function SchedulePage({ embedded = false, viewSwitch = null }) {
+export default function SchedulePage({ embedded = false }) {
   const isDesktop = useIsDesktop()
   const [query, setQuery] = useState(readQuery)
 
@@ -1029,7 +1084,6 @@ export default function SchedulePage({ embedded = false, viewSwitch = null }) {
     hasFavoriteInMode,
     onOpenStats: () => setStatsOpen(true),
     embedded,
-    viewSwitch,
   }
 
   return (
@@ -1039,9 +1093,10 @@ export default function SchedulePage({ embedded = false, viewSwitch = null }) {
     >
       {!embedded && <PageHeader title="시간표" />}
 
-      {isDesktop ? (
-        // PC · 시간표 시안: 좌(노선 리스트+요일) / 우(선택한 노선의 그리드+통계).
-        // 데이터 훅은 그대로 재사용 — 모바일의 리스트/모달 컴포넌트를 레이아웃만 갈아끼운다.
+      {isDesktop && !embedded ? (
+        // PC · /schedule 단독 페이지 시안: 좌(노선 리스트+요일) / 우(선택한 노선의
+        // 그리드+통계). 데이터 훅은 그대로 재사용 — 모바일의 리스트/모달 컴포넌트를
+        // 레이아웃만 갈아끼운다. embedded일 때는 이 분기를 타지 않는다(아래 참고).
         <div className="flex-1 min-h-0 flex overflow-hidden">
           {/* 좌측 리스트 폭은 화면 크기에 따라 넓힌다. 380px 고정일 때는 노선명이
               잘려("20-1 아…") 어디 가는 차인지 알 수 없는데도 우측은 1300px가
@@ -1059,13 +1114,30 @@ export default function SchedulePage({ embedded = false, viewSwitch = null }) {
             </div>
           </div>
         </div>
+      ) : isDesktop && embedded ? (
+        // PC · 홈 도킹 패널에 얹힌 시간표(PCMainShell aside, 폭 380~440px).
+        //
+        // 예전엔 이 갈래가 없어서 embedded에서도 isDesktop만 보고 위 좌(목록)/
+        // 우(상세) 2단 분기를 그대로 탔다. isDesktop은 window.matchMedia
+        // (min-width:768px)만 보고 판정하는데, aside 자체가 그보다 훨씬 좁은
+        // 컨테이너라 그 안에 다시 "w-[380px] 목록 + 나머지 상세" 2단을 욱여넣은
+        // 꼴이 됐다 — 상세 컬럼 폭이 사실상 0에 가깝게 눌려 잘리거나 넘쳤다.
+        //
+        // 좁은 폭에서는 목록/상세를 나란히 두지 않고 목록 ↔ 상세 전환(드릴다운)으로
+        // 처리한다. ScheduleDetailModal의 pcMode="inline"은 "portal/fixed 없이
+        // 부모 컨테이너를 그대로 채운다"는 계약이라, 부모를 aside 전체로 주면
+        // 목록 자리를 통째로 상세로 바꿔치기하는 데도 그대로 재사용할 수 있다.
+        selectedDetail != null
+          ? <div className="flex-1 min-h-0 flex flex-col overflow-hidden"><ScheduleDetailModal {...detailModalProps} pcMode="inline" /></div>
+          : <ScheduleSectionView {...sectionViewProps} />
       ) : (
         <ScheduleSectionView {...sectionViewProps} />
       )}
 
       <StatsSheet open={statsOpen} onClose={() => setStatsOpen(false)} />
 
-      {/* 데스크톱은 위 우측 컬럼에 pcMode="inline"으로 이미 렌더 — 모바일 바텀시트만 추가로 마운트 */}
+      {/* /schedule 단독 페이지(PC)와 embedded PC 모두 위에서 pcMode="inline"으로
+          이미 렌더한다 — 모바일(embedded 여부 무관)의 바텀시트만 추가로 마운트. */}
       {!isDesktop && <ScheduleDetailModal {...detailModalProps} />}
     </div>
   )
@@ -1093,46 +1165,36 @@ function ScheduleSectionView({
   hasFavoriteInMode,
   onOpenStats,
   embedded = false,
-  viewSwitch = null,
 }) {
   return (
     <>
-      {/* 모드 탭(홈 ModeTabs와 동일 ui/SegmentTabs) + 통계·즐겨찾기 유틸.
-          탭은 flex-1로 행을 채우고 유틸 버튼은 우측에 고정.
-          홈에 얹힌 경우 모드 탭은 홈이 이미 그렸고, 그 자리에 보기 전환이 들어온다. */}
+      {/* 모드 탭 + 통계·즐겨찾기 유틸. 탭은 flex-1로 행을 채우고 유틸 버튼은 우측에
+          고정. 홈에 얹힌 경우 모드 탭은 홈이 이미 그렸으니 여기서는 다시 그리지
+          않는다 — 그 자리에 있던 지금/시간표 전환 셀렉터는 하단 독의 홈/시간표
+          탭으로 옮겨갔다(SchedulePage 파일 상단 JSDoc 참고). 아래 그룹 탭과 같은
+          SegmentedControl을 쓴다 — 예전엔 이 자리만 별도 ui/SegmentTabs를 써서
+          한 화면 안에서 세그먼트 스타일이 갈렸다. */}
       <div className="px-4 pt-2 pb-1.5 flex items-center gap-2 flex-shrink-0">
         <div className="flex-1 min-w-0">
-          {embedded ? viewSwitch : (
-            <SegmentTabs
-              items={MODES}
-              active={mode}
+          {!embedded && (
+            <SegmentedControl
+              options={MODES}
+              value={mode}
               onChange={handleModeChange}
+              ariaLabel="교통수단 모드 선택"
             />
           )}
         </div>
         <div className="shrink-0 flex items-center gap-1.5">
-          <button
-            type="button"
+          {/* 예전엔 30px 원형 버튼이라 44px 터치 타깃 규정에 못 미쳤다 —
+              ui/IconButton(md=44px)으로 옮긴다. */}
+          <IconButton
             onClick={onOpenStats}
-            aria-label="오늘의 교통 통계 보기"
-            className="pressable"
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 999,
-              border: '1.5px solid var(--tj-line)',
-              background: 'transparent',
-              color: 'var(--tj-mute)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition:
-                'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
-            }}
+            label="오늘의 교통 통계 보기"
+            variant="ghost"
           >
             <BarChart3 size={14} strokeWidth={2.2} aria-hidden="true" />
-          </button>
+          </IconButton>
           <button
             type="button"
             onClick={() => setFavoritesOnly((v) => !v)}
@@ -1147,7 +1209,7 @@ function ScheduleSectionView({
                 : '1.5px solid var(--tj-line)',
               background: favoritesOnly ? 'var(--tj-pill-active-bg)' : 'transparent',
               color: favoritesOnly ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-              fontSize: 12,
+              fontSize: scaledPx(12),
               fontWeight: 700,
               whiteSpace: 'nowrap',
               cursor: 'pointer',
@@ -1187,7 +1249,7 @@ function ScheduleSectionView({
 
       {/* content */}
       <div className="flex-1 overflow-y-auto px-4 py-2 pb-28 md:pb-6">
-        {(mode === 'subway' || mode === 'shuttle') && (
+        {(mode === 'bus' || mode === 'subway' || mode === 'shuttle') && (
           <HolidayMetaBanner mode={mode} shuttleCampus={shuttleCampus} />
         )}
         <div key={mode} className="flex flex-col gap-2 animate-fade-in">
@@ -1264,6 +1326,19 @@ function HolidayMetaBanner({ mode, shuttleCampus }) {
       <HolidayBanner
         isHoliday={Boolean(shuttleSchedule?.is_holiday)}
         holidayName={shuttleSchedule?.holiday_name ?? null}
+      />
+    )
+  }
+  if (mode === 'bus') {
+    // 버스 시간표도 공휴일엔 요일 타입이 바뀌지만(주말/휴일 다이어그램),
+    // /bus 쪽 응답에는 아직 is_holiday/holiday_name 메타가 없다(백엔드 필드
+    // 부재 — 다른 담당 영역). "오늘이 공휴일"이라는 사실 자체는 교통수단과
+    // 무관한 달력 사실이라, 이미 불러온 지하철 timetable의 메타를 그대로
+    // 재사용한다(useApi 공유 캐시라 추가 네트워크 비용 없음).
+    return (
+      <HolidayBanner
+        isHoliday={Boolean(subwayTimetable?.is_holiday)}
+        holidayName={subwayTimetable?.holiday_name ?? null}
       />
     )
   }

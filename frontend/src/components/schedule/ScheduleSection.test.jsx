@@ -17,7 +17,7 @@ vi.mock('../common/Skeleton', () => ({
   default: () => <div data-testid="skeleton" />,
 }))
 
-vi.mock('../common/RouteBadge', () => ({
+vi.mock('../ui/RouteBadge', () => ({
   default: ({ route }) => <span data-testid="route-badge">{route}</span>,
 }))
 
@@ -72,9 +72,20 @@ describe('ScheduleSection — 시간열 규격', () => {
     expect(soon.style.color).toBe('var(--tj-imminent)')
   })
 
-  it('60분 이상이면 시간 단위로 표시한다', () => {
+  // 예전엔 60분 이상이면 "N시간 M분"을 직접 조립했다("1시간 30분") — 56px 고정
+  // 폭의 시간열에서 "8시간 4분" 같은 긴 문자열이 두 줄로 꺾였다(PC 시간표 결함).
+  // eta.js 정본 규칙(60분 초과 → 절대 시각)에 위임해 hhmm을 큰 글자로 보여준다.
+  it('60분 초과면 "N시간 M분" 대신 절대 시각(hhmm)을 큰 글자로 보여준다', () => {
     render(<ScheduleSection {...BASE_PROPS} minutesUntil={90} hhmm="16:20" />)
-    expect(screen.getByText('1시간 30분')).toBeInTheDocument()
+    expect(screen.queryByText('1시간 30분')).not.toBeInTheDocument()
+    const timeEl = screen.getByText('16:20')
+    expect(timeEl.className).toContain('text-eta-num')
+  })
+
+  it('60분 이하면 기존대로 "N분" 큰 글자 + hhmm 작은 보조줄을 함께 보여준다', () => {
+    render(<ScheduleSection {...BASE_PROPS} minutesUntil={60} hhmm="15:52" />)
+    expect(screen.getByText('60분')).toBeInTheDocument()
+    expect(screen.getByText('15:52')).toBeInTheDocument()
   })
 })
 
@@ -155,5 +166,25 @@ describe('ScheduleSection — 아랫줄 경유 텍스트(출발 정류장 bold)'
     )
     expect(screen.getByText('시화터미널')).toBeInTheDocument()
     expect(screen.getByText(/사당 → 강남 · 다음 15:22/)).toBeInTheDocument()
+  })
+})
+
+describe('ScheduleSection — 시간 계층(목록 기준: 남은 분이 큼)', () => {
+  it('"N분" 숫자가 text-eta-num 토큰 클래스를 쓴다', () => {
+    render(<ScheduleSection {...BASE_PROPS} />)
+    const minutesEl = screen.getByText('5분')
+    expect(minutesEl.className).toContain('text-eta-num')
+  })
+
+  it('hhmm(절대시각)은 text-eta-num을 쓰지 않는다(작은 보조 시각)', () => {
+    render(<ScheduleSection {...BASE_PROPS} />)
+    const hhmmEl = screen.getByText('14:52')
+    expect(hhmmEl.className).not.toContain('text-eta-num')
+  })
+
+  it('imminent="곧" 도 같은 text-eta-num 크기 계층을 쓴다', () => {
+    render(<ScheduleSection {...BASE_PROPS} imminent minutesUntil={0} />)
+    const soon = screen.getByText('곧')
+    expect(soon.className).toContain('text-eta-num')
   })
 })

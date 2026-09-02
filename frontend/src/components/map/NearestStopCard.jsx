@@ -10,6 +10,11 @@
  * GPS 위치가 없으면 카드 대신 안내 1행을 보여주고, 탭하면 MapView의 기존
  * GPS 소프트 프롬프트 플로우(checkGps)로 연계한다.
  *
+ * 위치 지정은 이 컴포넌트가 하지 않는다(w-full 블록으로만 렌더) — MapView가
+ * 우하단 "내 위치" FAB과 함께 flex-column에 넣어 absolute로 띄운다(§M-3, 카드
+ * 높이가 GPS 유무·행 수마다 달라 FAB이 항상 카드 위에 붙게 하려면 고정 px보다
+ * 이 편이 안전하다).
+ *
  * Props:
  *   userLocation      — { lat, lng } | null
  *   direction         — '등교' | '하교' (useEffectiveDirection)
@@ -83,12 +88,11 @@ export default function NearestStopCard({
         type="button"
         onClick={onRequestGps}
         aria-label="내 위치 켜기"
-        className="absolute left-3 right-3 z-[55] flex items-center gap-2 min-h-[44px]
+        className="w-full flex items-center gap-2 min-h-[44px]
                    bg-surface dark:bg-surface border border-line dark:border-line
                    rounded-card shadow-sh-pop px-3.5 py-2.5
                    text-caption text-mute dark:text-mute active:scale-[0.99]
                    transition-transform duration-press ease-spring"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
       >
         <MapPin size={16} className="text-accent flex-shrink-0" aria-hidden="true" />
         <span className="flex-1 min-w-0 truncate text-left">내 위치를 켜면 가까운 정류장을 보여드려요</span>
@@ -119,9 +123,8 @@ export default function NearestStopCard({
 
   return (
     <div
-      className="absolute left-3 right-3 z-[55] bg-surface dark:bg-surface
+      className="w-full bg-surface dark:bg-surface
                  rounded-card shadow-sh-pop border border-line dark:border-line overflow-hidden"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
     >
       <header className="flex items-center justify-between gap-2 px-3.5 pt-3 pb-1.5">
         <button

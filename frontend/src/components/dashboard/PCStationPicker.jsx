@@ -20,7 +20,7 @@ import {
 // PC 전용 정류장 picker. 미니맵 없이 텍스트·칩만으로 깔끔하게.
 // - 헤더 카드: 현재 정류장 + GPS 자동/거리 + 등교/하교 토글
 // - 그 아래 horizontal chip row: 자동/한국공학대/시화터미널/…
-// - 모바일에는 노출 안 됨 (caller가 PCMapDashboard 안에서만 렌더)
+// - 모바일에는 노출 안 됨 (caller가 PCMapDockPanel 안에서만 렌더)
 
 export default function PCStationPicker() {
   const selectedBusStation   = useAppStore((s) => s.selectedBusStation)
@@ -92,7 +92,7 @@ export default function PCStationPicker() {
           <div className="text-caption font-semibold text-accent leading-none">
             {statusLabel}
           </div>
-          <div className="text-[22px] font-semibold text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1.5 truncate">
+          <div className="text-eta-num font-semibold text-ink dark:text-white tracking-[-0.03em] leading-tight mt-1.5 truncate">
             {stationLabel}
           </div>
           <div className="text-label font-semibold text-mute dark:text-mute mt-1">
@@ -166,7 +166,7 @@ function Chip({ label, active, onClick, accent = false }) {
           ? (accent
               ? 'bg-accent text-black'
               : 'bg-ink text-white dark:bg-accent dark:text-black')
-          : 'bg-surface text-ink-2 dark:bg-bg dark:text-ink-2 shadow-card-md'
+          : 'bg-surface text-ink-2 dark:bg-bg dark:text-ink-2 shadow-sh-card'
       }`}
     >
       {label}

@@ -1,4 +1,5 @@
 import { tjLineColor } from './lineColor'
+import { scaledPx } from '../../utils/fontScale'
 
 function normalizeLabel(route) {
   if (!route) return '';
@@ -58,7 +59,7 @@ export default function RouteBadge({
           background: color,
           color: 'white',
           // 12px 미만 폰트 금지 — sm/기본 모두 12px로 상향(기존 10/11px)
-          fontSize: 12,
+          fontSize: scaledPx(12),
           fontWeight: 800,
           letterSpacing: '-0.01em',
           lineHeight: 1.2,
@@ -85,7 +86,7 @@ export default function RouteBadge({
           borderRadius: 6,
           background: color,
           color: 'white',
-          fontSize: 12,
+          fontSize: scaledPx(12),
           fontWeight: 900,
           letterSpacing: '-0.01em',
           lineHeight: 1,
@@ -102,7 +103,7 @@ export default function RouteBadge({
   // badge (default)
   const sz = size === 'sm' ? 30 : 36;
   // 12px 미만 폰트 금지 — sm은 기존 11px에서 12px로 상향, md(13px)는 그대로
-  const fs = size === 'sm' ? 12 : 13;
+  const fs = scaledPx(size === 'sm' ? 12 : 13);
   const isWide = (display?.length ?? 0) >= 3;
   const px = isWide ? (size === 'sm' ? 6 : 8) : 0;
 

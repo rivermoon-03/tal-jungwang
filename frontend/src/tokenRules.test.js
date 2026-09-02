@@ -18,8 +18,18 @@
  *        구성하므로, 향후 누군가 12px 미만 키를 추가해도 자동으로 걸린다.
  *   c) UI 렌더 텍스트에 em-dash("—") 금지 — 주석을 제거한 나머지 코드에서 검출.
  *      주석 안에서 "—"를 문장부호로 쓰는 것은 정상이라 그대로 둔다.
+ *   d) border-/ring-/divide-(slate|gray)-\d+ AI티 생색 금지 — a)와 같은 팔레트를
+ *      같은 접두사 3종에도 적용한다(2026-09). text-와 bg-만 막던 시절 즐겨찾기
+ *      두 파일이 border-slate-100을 이 틈으로 썼던 사고 재발 방지.
+ *   e) 인라인 style={{ fontSize: N }}(N은 숫자 리터럴) 금지 — tailwind.config.js의
+ *      명명된 fontSize 스케일은 전부 calc(Npx * var(--tj-font-scale,1))이라 설정
+ *      화면의 글자 크기 슬라이더가 --tj-font-scale만 바꾸면 전수 반영되는데,
+ *      인라인 style의 숫자 리터럴 fontSize는 이 스케일 밖이라 슬라이더가 안 먹는다.
+ *      style={{ fontSize: 'var(--tj-...)' }}처럼 문자열/변수를 쓰는 것은 스케일
+ *      밖이 아니라 검사 대상이 아니다.
  *
- * 알려진 예외는 EMDASH_EXEMPT에 파일 단위로만 등록하고, 반드시 사유를 남긴다.
+ * 알려진 예외는 EMDASH_EXEMPT/INLINE_FONTSIZE_EXEMPT에 파일 단위로만 등록하고,
+ * 반드시 사유를 남긴다.
  */
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
@@ -173,6 +183,26 @@ const EMDASH_EXEMPT = {
   // 'components/example/Example.jsx': '사유 설명',
 }
 
+// ── e) 인라인 style fontSize 예외 목록 — 파일 단위, 사유 필수 ───────────
+// 2026-09 검사 확장(border-/ring-/divide- 팔레트 금지 추가) 시점에 이미 존재하던
+// 담당 밖 위반이다. 담당 범위는 src/components/layout · common/(FloatingDock·
+// DockQuickAccess·HolidayBanner·SlotNumber·Skeleton·pcNavTabs)로 한정돼 이 파일들은
+// 고칠 수 없다 — 다른 작업자가 각자 디렉터리에서 정리 중이라 이 목록은 줄어들
+// 예정이다. 새 위반이 이 파일들에 더 생기는 것까지 눈감아주진 않도록 파일 단위로만
+// 열어둔다(신규 파일 추가 시 반드시 사유를 남길 것).
+// 키는 relPath()가 내는 그대로("src/..." 포함)를 쓴다 — REPO_ROOT가 frontend/라
+// relPath는 항상 "src/components/..." 형태를 낸다.
+const INLINE_FONTSIZE_EXEMPT = {
+  // common/ 물리적 위치지만 이번 작업 담당 파일 목록(FloatingDock·DockQuickAccess·
+  // HolidayBanner·SlotNumber·Skeleton·pcNavTabs)에는 없어 손댈 수 없다.
+  'src/components/common/RouteBadge.jsx': '담당 밖(common/ 소유 목록 밖) — fontSize 숫자 리터럴 다수',
+  'src/components/favorites/FavoritesTimeline.jsx': '담당 밖(favorites/) — fontSize 숫자 리터럴 다수',
+  'src/components/map/MarkerSheet.jsx': '담당 밖(map/) — fontSize 숫자 리터럴 다수(마커 시트 전면 개편 중)',
+  'src/components/schedule/ScheduleSection.jsx': '담당 밖(schedule/) — fontSize 숫자 리터럴 다수',
+  'src/components/schedule/SchedulePage.jsx': '담당 밖(schedule/) — fontSize 숫자 리터럴 다수',
+  'src/components/schedule/SubwayStationChips.jsx': '담당 밖(schedule/) — fontSize 숫자 리터럴(chipBase 간접 스프레드 포함)',
+}
+
 describe('tokenRules — src/ 전역 디자인 토큰 준수', () => {
   it('검사 대상 파일이 존재한다 (수집 로직 자체가 깨지지 않았는지 확인)', () => {
     expect(SOURCE_FILES.length).toBeGreaterThan(50)
@@ -209,6 +239,20 @@ describe('tokenRules — src/ 전역 디자인 토큰 준수', () => {
       }
     }
     expect(violations, `12px 미만 임의값 잔존:\n${violations.join('\n')}`).toEqual([])
+  })
+
+  // F4 글자 크기 슬라이더는 --tj-font-scale 만 바꾸고, tailwind fontSize 토큰이
+  // 전부 calc(Npx * var(--tj-font-scale,1)) 이라 토큰을 쓰는 텍스트만 같이 커진다.
+  // text-[Npx] 임의값과 인라인 style={{fontSize:12}} 는 그 스케일 밖이라, 슬라이더를
+  // 올려도 화면 일부만 커지고 나머지는 그대로였다(2026-09 전수 토큰화로 해소).
+  // 화면 일부만 커지면 오히려 읽기 어려우므로 새로 들어오는 것을 막는다.
+  it('c) text-[Npx] 임의값을 아예 쓰지 않는다 — 글자 크기 설정이 안 먹는다', () => {
+    const violations = []
+    for (const file of SOURCE_FILES) {
+      const matches = fs.readFileSync(file, 'utf8').match(/text-\[\d+(?:\.\d+)?px\]/g)
+      if (matches) violations.push(`${relPath(file)}: ${matches.join(', ')}`)
+    }
+    expect(violations, `text-[Npx] 임의값 잔존:\n${violations.join('\n')}`).toEqual([])
   })
 
   it('b) tailwind.config.js fontSize에 12px 미만으로 정의된 커스텀 클래스를 쓰지 않는다', () => {
@@ -251,5 +295,64 @@ describe('tokenRules — src/ 전역 디자인 토큰 준수', () => {
 
   it('em-dash 예외 목록은 5개 이하로 관리한다', () => {
     expect(Object.keys(EMDASH_EXEMPT).length).toBeLessThanOrEqual(5)
+  })
+
+  it('d) border-slate-*/border-gray-* 생색 클래스를 쓰지 않는다', () => {
+    const violations = []
+    for (const file of SOURCE_FILES) {
+      const src = fs.readFileSync(file, 'utf8')
+      const matches = src.match(/border-(slate|gray)-\d+/g)
+      if (matches) violations.push(`${relPath(file)}: ${matches.join(', ')}`)
+    }
+    expect(violations, `border-slate-*/border-gray-* 잔존:\n${violations.join('\n')}`).toEqual([])
+  })
+
+  it('d) ring-slate-*/ring-gray-* 생색 클래스를 쓰지 않는다', () => {
+    const violations = []
+    for (const file of SOURCE_FILES) {
+      const src = fs.readFileSync(file, 'utf8')
+      const matches = src.match(/ring-(slate|gray)-\d+/g)
+      if (matches) violations.push(`${relPath(file)}: ${matches.join(', ')}`)
+    }
+    expect(violations, `ring-slate-*/ring-gray-* 잔존:\n${violations.join('\n')}`).toEqual([])
+  })
+
+  it('d) divide-slate-*/divide-gray-* 생색 클래스를 쓰지 않는다', () => {
+    const violations = []
+    for (const file of SOURCE_FILES) {
+      const src = fs.readFileSync(file, 'utf8')
+      const matches = src.match(/divide-(slate|gray)-\d+/g)
+      if (matches) violations.push(`${relPath(file)}: ${matches.join(', ')}`)
+    }
+    expect(violations, `divide-slate-*/divide-gray-* 잔존:\n${violations.join('\n')}`).toEqual([])
+  })
+
+  it('e) 인라인 style={{ fontSize: N }} 숫자 리터럴을 쓰지 않는다(접근성 글자 크기 스케일 우회 방지)', () => {
+    // 주석 안에 "style={{fontSize:N}}" 같은 예시 문구가 실제로 존재하지만(예:
+    // more/SettingsPage.jsx) N이 글자 그대로라 \d 정규식과 충돌하지 않는다 —
+    // 실사용 사례를 전수 조사해 확인했다(2026-09). 그래서 em-dash 검사와
+    // 달리 stripComments 없이 원본 소스에 바로 매칭해 줄 번호를 정확히 낸다.
+    const violations = []
+    const re = /style=\{\{([^}]*)\}\}/gs
+    for (const file of SOURCE_FILES) {
+      const rel = relPath(file).replace(/^frontend\//, '')
+      if (INLINE_FONTSIZE_EXEMPT[rel]) continue
+      const src = fs.readFileSync(file, 'utf8')
+      let m
+      re.lastIndex = 0
+      while ((m = re.exec(src))) {
+        if (/\bfontSize:\s*[0-9]/.test(m[1])) {
+          const line = src.slice(0, m.index).split('\n').length
+          violations.push(`${rel}:${line}`)
+        }
+      }
+    }
+    expect(violations, `인라인 style fontSize 숫자 리터럴 잔존:\n${violations.join('\n')}`).toEqual([])
+  })
+
+  it('인라인 fontSize 예외 목록에는 파일마다 사유가 적혀 있다', () => {
+    for (const [file, reason] of Object.entries(INLINE_FONTSIZE_EXEMPT)) {
+      expect(typeof reason === 'string' && reason.length > 0, file).toBe(true)
+    }
   })
 })

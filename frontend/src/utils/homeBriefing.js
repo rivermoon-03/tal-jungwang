@@ -5,6 +5,7 @@
  */
 import { extractDayKeys, getTodayDayKey, isMenuWeekStale } from './cafeteriaDays'
 import { ddayFrom } from './academicCalendar'
+import { normalizeMenuItems } from '../components/cafeteria/mealMenu'
 
 // ── 도서관 열람실 "지금 열려 있나" 요약 ────────────────────────────────
 // 원본 문자열은 "[방학] 평일 09:30 ~ 17:30" / "매일 06:30 ~ 23:00" / "미개방" 꼴.
@@ -109,7 +110,10 @@ export function summarizeTodayMenu(data) {
 
   const meal =
     cafeteria.meals.find((m) => (m.type ?? '').includes('중식')) ?? cafeteria.meals[0]
-  const items = (meal?.by_day?.[todayKey] ?? []).filter(Boolean)
+  // 별표 메타 표기("*복수메뉴*" 등)는 메뉴 이름이 아니라 학교 쪽 안내문이다.
+  // MealGridSection과 같은 normalizeMenuItems를 써야 브리핑 한 줄에 별표
+  // 마크업이 그대로 찍히는 결함이 재발하지 않는다.
+  const items = normalizeMenuItems(meal?.by_day?.[todayKey])
   if (!items.length) return null
   const head = items[0]
   return items.length > 1 ? `${meal.type} · ${head} 외 ${items.length - 1}` : `${meal.type} · ${head}`

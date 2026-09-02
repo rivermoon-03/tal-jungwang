@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import Card from './Card'
 
 describe('Card', () => {
@@ -53,5 +53,39 @@ describe('Card', () => {
   it('as=button 이면 button 엘리먼트다', () => {
     const { container } = render(<Card as="button">버튼태그</Card>)
     expect(container.firstChild.tagName).toBe('BUTTON')
+  })
+
+  it('기본 상태는 shadow-sh-card 를 쓰고(라이트), 다크에선 보더로 대체한다(그림자+보더 동시 사용 금지)', () => {
+    const { container } = render(<Card>기본</Card>)
+    const cls = container.firstChild.className
+    expect(cls).toMatch(/shadow-sh-card/)
+    expect(cls).toMatch(/dark:border/)
+    expect(cls).toMatch(/dark:shadow-none/)
+  })
+
+  it('기본 패딩은 18px(p-[18px])이다', () => {
+    const { container } = render(<Card>패딩</Card>)
+    expect(container.firstChild.className).toMatch(/p-\[18px\]/)
+  })
+
+  it('compact 이면 패딩이 16px(p-4)로 바뀐다', () => {
+    const { container } = render(<Card compact>컴팩트</Card>)
+    const cls = container.firstChild.className
+    expect(cls).toMatch(/\bp-4\b/)
+    expect(cls).not.toMatch(/p-\[18px\]/)
+  })
+
+  it('padding="none" 이면 패딩 유틸이 없다(다분할 카드가 자체 패딩을 관리)', () => {
+    const { container } = render(<Card padding="none">없음</Card>)
+    const cls = container.firstChild.className
+    expect(cls).not.toMatch(/p-\[18px\]/)
+    expect(cls).not.toMatch(/\bp-4\b/)
+  })
+
+  it('onClick은 interactive 여부와 무관하게 항상 연결된다(chevron만 interactive에 종속)', () => {
+    const onClick = vi.fn()
+    const { container } = render(<Card onClick={onClick}>클릭</Card>)
+    container.firstChild.click()
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 })

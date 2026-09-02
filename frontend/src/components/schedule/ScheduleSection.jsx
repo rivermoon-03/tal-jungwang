@@ -17,13 +17,14 @@
  */
 import { Star, Moon } from 'lucide-react'
 import Skeleton from '../common/Skeleton'
-import RouteBadge from '../common/RouteBadge'
+import RouteBadge from '../ui/RouteBadge'
 import { CrowdedBadge } from '../bus/BusArrivalCard'
 import StatusChip from '../ui/StatusChip'
+import { scaledPx } from '../../utils/fontScale'
 
 function TimeColumn({ loading, timeLines, minutesUntil, hhmm, imminent }) {
   if (loading) {
-    return <Skeleton width="2.5rem" height="1.4rem" rounded="rounded-md" />
+    return <Skeleton width="2.5rem" height="1.4rem" rounded="rounded-badge" />
   }
 
   // timeLines: 숫자 카운트다운 대신 짧은 문구 1~2줄을 시간열에 표시한다.
@@ -33,7 +34,7 @@ function TimeColumn({ loading, timeLines, minutesUntil, hhmm, imminent }) {
     return (
       <span
         style={{
-          fontSize: 13,
+          fontSize: scaledPx(13),
           fontWeight: 800,
           color: 'var(--tj-mute)',
           textAlign: 'center',
@@ -48,31 +49,33 @@ function TimeColumn({ loading, timeLines, minutesUntil, hhmm, imminent }) {
 
   if (minutesUntil == null && !imminent) {
     return (
-      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tj-mute)', textAlign: 'center' }}>
+      <span style={{ fontSize: scaledPx(12), fontWeight: 700, color: 'var(--tj-mute)', textAlign: 'center' }}>
         정보 없음
       </span>
     )
   }
 
+  // eta.js(정본)와 같은 규칙: 60분 초과는 상대 분 대신 절대 시각으로 보여준다.
+  // 예전엔 "N시간 M분"을 여기서 직접 조립했는데, 56px 고정 폭의 시간열에서
+  // "8시간 4분"처럼 긴 문자열이 "8시간"/"4분" 두 줄로 꺾였다. hhmm(호출부가 이미
+  // 계산해 내려주는 HH:MM)은 항상 5글자라 꺾이지 않는다 — 새로 포맷을 만들지
+  // 않고 eta.js 규칙이 요구하는 절대 시각을 그대로 큰 글자 자리에 옮겨 쓴다.
+  const useAbsoluteTime = !imminent && minutesUntil > 60 && !!hhmm
+
   return (
     <>
+      {/* 목록 기준 시간 계층: 남은 분이 가장 큰 요소다(text-eta-num 토큰, 22px/800).
+          상세 시트는 반대(시각이 큼)라 화면마다 다른 훑기 습관을 들이게 했던
+          문제를 목록 규격으로 통일한다 — 색만 동적이라 style로 남기고 크기·
+          굵기·자간·행간은 토큰 클래스로 옮긴다. */}
       <span
-        style={{
-          fontSize: 22,
-          fontWeight: 900,
-          letterSpacing: '-0.03em',
-          fontVariantNumeric: 'tabular-nums',
-          lineHeight: 1.05,
-          color: imminent ? 'var(--tj-imminent)' : 'var(--tj-ink)',
-        }}
-        className={!imminent ? 'dark:text-ink' : undefined}
+        style={{ color: imminent ? 'var(--tj-imminent)' : 'var(--tj-ink)' }}
+        className={`text-eta-num tabular-nums ${!imminent ? 'dark:text-ink' : ''}`}
       >
-        {imminent ? '곧' : minutesUntil >= 60
-          ? `${Math.floor(minutesUntil / 60)}시간${minutesUntil % 60 > 0 ? ` ${minutesUntil % 60}분` : ''}`
-          : `${minutesUntil}분`}
+        {imminent ? '곧' : useAbsoluteTime ? hhmm : `${minutesUntil}분`}
       </span>
-      {hhmm && (
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+      {hhmm && !useAbsoluteTime && (
+        <span style={{ fontSize: scaledPx(12), fontWeight: 600, color: 'var(--tj-mute)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
           {hhmm}
         </span>
       )}
@@ -157,10 +160,10 @@ export default function ScheduleSection({
         {/* 본문 */}
         <div style={{ minWidth: 0, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-            <RouteBadge route={badgeRoute} variant="badge" size="md" />
+            <RouteBadge route={badgeRoute} variant="solid" />
             <span
               style={{
-                fontSize: 15,
+                fontSize: scaledPx(15),
                 fontWeight: 800,
                 color: disabled ? 'var(--tj-mute)' : 'var(--tj-ink)',
                 letterSpacing: '-0.01em',
@@ -179,14 +182,14 @@ export default function ScheduleSection({
           </div>
 
           {disabled && disabledLabel && (
-            <p style={{ fontSize: 12.5, color: 'var(--tj-mute)', fontWeight: 600, lineHeight: 1.4, margin: 0 }}>
+            <p style={{ fontSize: scaledPx(12.5), color: 'var(--tj-mute)', fontWeight: 600, lineHeight: 1.4, margin: 0 }}>
               {disabledLabel}
             </p>
           )}
 
           {sleeping && (
             <p
-              style={{ fontSize: 12, color: 'var(--tj-mute)', fontWeight: 700, lineHeight: 1.3, margin: 0,
+              style={{ fontSize: scaledPx(12), color: 'var(--tj-mute)', fontWeight: 700, lineHeight: 1.3, margin: 0,
                        display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <Moon size={12} aria-hidden="true" style={{ flexShrink: 0 }} />
@@ -196,7 +199,7 @@ export default function ScheduleSection({
           )}
 
           {!disabled && subtitle && (
-            <p style={{ fontSize: 12.5, color: 'var(--tj-mute)', fontWeight: 500, lineHeight: 1.4, margin: 0 }}>
+            <p style={{ fontSize: scaledPx(12.5), color: 'var(--tj-mute)', fontWeight: 500, lineHeight: 1.4, margin: 0 }}>
               {boldPrefix && (
                 <b style={{ color: 'var(--tj-ink-2)', fontWeight: 800 }} className="dark:text-ink-2">
                   {boldPrefix}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, cloneElement } from 'react'
 import { ChevronDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import {
@@ -11,6 +11,8 @@ import { SkeletonArrivalCard } from '../common/Skeleton'
 import ErrorState from '../ui/ErrorState'
 import StatusChip from '../ui/StatusChip.jsx'
 import TransitCard from '../ui/TransitCard.jsx'
+import Card from '../ui/Card.jsx'
+import { parseFavKey } from '../../utils/favKey'
 import { formatEta } from '../../utils/eta'
 import { splitFare, formatWon } from '../../utils/taxiSplit'
 import { useTrafficIncidents } from '../../hooks/useTrafficIncidents'
@@ -53,6 +55,21 @@ function getCommuteGroup(station, category, routeNumber) {
   return 'to-seoul'
 }
 
+/**
+ * 하교 화면 단순화(시안) — favorites.keys(favKey.js 스키마, "mode:id:direction")에서
+ * "하교" 방향으로 저장된 버스 노선 번호만 골라낸다. 등교 방향 즐겨찾기나 다른
+ * 모드(지하철·셔틀) 즐겨찾기는 여기서 걸러진다 — "내 목적지" 큰 카드는 하교 화면
+ * 전용이라 등교 즐겨찾기가 섞이면 엉뚱한 노선이 커진다.
+ */
+function favoriteBusDestinations(favKeys) {
+  const set = new Set()
+  for (const key of favKeys ?? []) {
+    const parsed = parseFavKey(key)
+    if (parsed?.mode === 'bus' && parsed.direction === '하교') set.add(parsed.id)
+  }
+  return set
+}
+
 function openBusDetail(setDetailModal, { routeNumber, routeId = null, station, category, title }) {
   setDetailModal({
     type: 'bus',
@@ -82,6 +99,13 @@ export default function BusPanel() {
   const setDetailModal = useAppStore((s) => s.setDetailModal)
   const { direction: selectedBusDirection } = useEffectiveDirection()
   const gbisStationId = getGbisStationId(selectedBusStation)
+
+  // 하교 화면 단순화(시안) — "내 목적지" 판정에 쓸 즐겨찾기 노선 집합 +
+  // "다른 목적지 N곳" 접힘 상태. 등교 방향에서는 쓰지 않지만(아래 isCommuteHome
+  // 분기), 훅은 조건 없이 항상 호출한다(react-hooks/rules-of-hooks).
+  const favKeys = useAppStore((s) => s.favorites?.keys)
+  const favoriteDestSet = useMemo(() => favoriteBusDestinations(favKeys), [favKeys])
+  const [otherOpen, setOtherOpen] = useState(false)
 
   // gbis 정류장(한국공학대/이마트/시흥시청): arrivals API 통합 사용
   const arrivalsQuery = useBusArrivals(gbisStationId)
@@ -127,7 +151,7 @@ export default function BusPanel() {
           <div className="text-caption text-mute py-6 text-center">노선이 없습니다</div>
         )}
         {seoulRoutes.length > 0 && (
-          <h3 className="text-[12px] font-bold text-mute">운행 중</h3>
+          <h3 className="text-meta font-bold text-mute">운행 중</h3>
         )}
         {seoulRoutes.map((route) => (
           <SeoulRouteCard
@@ -184,6 +208,24 @@ export default function BusPanel() {
     }
   }
 
+  // 서울 정류장(SeoulRouteCard 경로)이 아닌 하교 방향 — 하교 화면 단순화(시안)가
+  // 적용되는 조건. 등교는 기존 목록 그대로, 서울 정류장은 별도 카드 컴포넌트라
+  // 이 재구성에 포함하지 않는다.
+  const isCommuteHome = !isSeoulStation && selectedBusDirection === '하교'
+
+  // 시안 "다음 차 카드" — 이 정류장에서 가장 먼저 오는 노선 한 대만 크게 보여준다
+  // (곧 도착/운행 중 구분과는 별개 축이라, 섹션 나누기 전에 liveRows 전체에서 고른다).
+  // node를 cloneElement로 다시 감싸는 이유: buildLiveRow가 이미 완성된 TransitCard
+  // 엘리먼트를 반환하므로, size prop 하나만 덧대는데 buildLiveRow 시그니처를
+  // 바꾸면(정렬 전이라 "가장 빠른 한 대"를 그 시점엔 알 수 없다) 호출부가 늘어난다.
+  // 하교 화면(isCommuteHome)에서는 이 역할을 "내 목적지" 카드가 대신하므로 건너뛴다
+  // — 아니면 소트되지 않은 채로 "다른 목적지" 접힘 목록 안에 lg 카드가 하나
+  // 남아 "내 목적지"와 크기가 겹쳐 보인다.
+  if (!isCommuteHome && liveRows.length > 0) {
+    const soonest = liveRows.reduce((min, r) => (r.sec < min.sec ? r : min), liveRows[0])
+    soonest.node = cloneElement(soonest.node, { size: 'lg' })
+  }
+
   const imminentRows = liveRows.filter((r) => r.sec <= SOON_THRESHOLD_SEC).sort((a, b) => a.sec - b.sec)
   const runningRows = liveRows.filter((r) => r.sec > SOON_THRESHOLD_SEC).sort((a, b) => a.sec - b.sec)
 
@@ -207,69 +249,230 @@ export default function BusPanel() {
   const firstBusMin = allEndedOnly ? firstBusMinutesAway(sleepingGroups) : null
   const showTaxiPromo = allEndedOnly && !(firstBusMin != null && firstBusMin <= TAXI_PROMO_FIRST_BUS_MIN)
 
+  // 하교 화면 단순화(시안) — "내 목적지"(즐겨찾기한 하교 노선)를 큰 카드 하나로
+  // 승격하고, 나머지는 전부 "다른 목적지 N곳" 접힘 목록으로 옮긴다. 실시간(곧
+  // 도착/운행 중) → 실시간 미연결(fallback) → 운행 종료(sleeping) → 오늘 미운행
+  // (missing) 순으로 즐겨찾기와 일치하는 첫 노선을 찾는다(실시간 정보가 있는
+  // 쪽을 우선한다 — "다음 차, 큰 숫자"가 이 카드의 핵심이다).
+  let primaryNode = null
+  let primaryRouteNo = null
+  let imminentRowsForList = imminentRows
+  let runningRowsForList = runningRows
+  let fallbackGroupsForList = fallbackGroups
+  let sleepingGroupsForList = sleepingGroups
+  let missingRoutesForList = missingRoutes
+
+  if (isCommuteHome && favoriteDestSet.size > 0) {
+    const liveMatch = [...imminentRows, ...runningRows].find((r) => favoriteDestSet.has(r.routeNo))
+    const fallbackMatch = !liveMatch ? fallbackGroups.find((g) => favoriteDestSet.has(g[0].route_no)) : null
+    const sleepingMatch = !liveMatch && !fallbackMatch ? sleepingGroups.find((g) => favoriteDestSet.has(g[0].route_no)) : null
+    const missingMatch = !liveMatch && !fallbackMatch && !sleepingMatch
+      ? missingRoutes.find((r) => favoriteDestSet.has(r.route_no))
+      : null
+
+    if (liveMatch) {
+      primaryRouteNo = liveMatch.routeNo
+      primaryNode = cloneElement(liveMatch.node, { size: 'lg' })
+      imminentRowsForList = imminentRows.filter((r) => r.routeNo !== primaryRouteNo)
+      runningRowsForList = runningRows.filter((r) => r.routeNo !== primaryRouteNo)
+    } else if (fallbackMatch) {
+      primaryRouteNo = fallbackMatch[0].route_no
+      primaryNode = (
+        <BusFallbackCard
+          arrival={fallbackMatch[0]}
+          station={selectedBusStation}
+          direction={selectedBusDirection}
+          onOpenDetail={setDetailModal}
+          size="lg"
+        />
+      )
+      fallbackGroupsForList = fallbackGroups.filter((g) => g[0].route_no !== primaryRouteNo)
+    } else if (sleepingMatch) {
+      primaryRouteNo = sleepingMatch[0].route_no
+      primaryNode = (
+        <SleepingCard
+          arrival={sleepingMatch[0]}
+          station={selectedBusStation}
+          direction={selectedBusDirection}
+          onOpenDetail={setDetailModal}
+          size="lg"
+        />
+      )
+      sleepingGroupsForList = sleepingGroups.filter((g) => g[0].route_no !== primaryRouteNo)
+    } else if (missingMatch) {
+      primaryRouteNo = missingMatch.route_no
+      primaryNode = (
+        <NotRunningCard
+          route={missingMatch}
+          station={selectedBusStation}
+          direction={selectedBusDirection}
+          onOpenDetail={setDetailModal}
+          size="lg"
+        />
+      )
+      missingRoutesForList = missingRoutes.filter((r) => r.route_no !== primaryRouteNo)
+    }
+  }
+
+  const otherCount =
+    imminentRowsForList.length + runningRowsForList.length + fallbackGroupsForList.length +
+    sleepingGroupsForList.length + missingRoutesForList.length
+  const hasRunningForList = runningRowsForList.length > 0 || fallbackGroupsForList.length > 0
+
   return (
     <div className="space-y-3">
       <IncidentBanner incident={incident} />
 
+      {isCommuteHome && (
+        <section>
+          <h3 className="text-meta font-bold text-mute mb-1.5">내 목적지</h3>
+          {primaryNode ?? (
+            // 답이 있는 빈 상태 — 아직 하교 노선을 즐겨찾기하지 않았을 때. 카드를
+            // 누르면 아래 "다른 목적지" 목록을 펼쳐 바로 고를 수 있게 한다.
+            <Card interactive onClick={() => setOtherOpen(true)}>
+              <div className="flex flex-col gap-0.5 py-1">
+                <p className="text-list-nm text-ink">아직 목적지를 정하지 않았어요</p>
+                <p className="text-caption text-mute">자주 타는 노선을 즐겨찾기하면 여기 크게 보여드려요</p>
+              </div>
+            </Card>
+          )}
+        </section>
+      )}
+
       {showTaxiPromo && <TaxiPromoCard />}
 
-      {imminentRows.length > 0 && (
-        <section>
-          <h3 className="text-[12px] font-bold text-mute mb-1.5">곧 도착</h3>
-          <div className="space-y-2">{imminentRows.map((r) => r.node)}</div>
-        </section>
-      )}
-
-      {hasRunning && (
-        <section>
-          <h3 className="text-[12px] font-bold text-mute mb-1.5">운행 중</h3>
-          <div className="space-y-2">
-            {runningRows.map((r) => r.node)}
-            {fallbackGroups.map((group) => (
-              <BusFallbackCard
-                key={group[0].route_no}
-                arrival={group[0]}
-                station={selectedBusStation}
-                direction={selectedBusDirection}
-                onOpenDetail={setDetailModal}
+      {isCommuteHome ? (
+        otherCount > 0 && (
+          <section>
+            <button
+              type="button"
+              onClick={() => setOtherOpen((v) => !v)}
+              aria-expanded={otherOpen}
+              className="flex items-center gap-1 min-h-[44px] text-meta font-bold text-mute pressable"
+            >
+              다른 목적지 · {otherCount}곳
+              <ChevronDown
+                size={13}
+                aria-hidden="true"
+                className={`transition-transform duration-base ${otherOpen ? 'rotate-180' : ''}`}
               />
-            ))}
-          </div>
-        </section>
-      )}
+            </button>
+            {otherOpen && (
+              <div className="mt-1.5 space-y-3">
+                {imminentRowsForList.length > 0 && (
+                  <div>
+                    <h4 className="text-meta font-bold text-mute mb-1.5">곧 도착</h4>
+                    <div className="space-y-2">{imminentRowsForList.map((r) => r.node)}</div>
+                  </div>
+                )}
+                {hasRunningForList && (
+                  <div>
+                    <h4 className="text-meta font-bold text-mute mb-1.5">운행 중</h4>
+                    <div className="space-y-2">
+                      {runningRowsForList.map((r) => r.node)}
+                      {fallbackGroupsForList.map((group) => (
+                        <BusFallbackCard
+                          key={group[0].route_no}
+                          arrival={group[0]}
+                          station={selectedBusStation}
+                          direction={selectedBusDirection}
+                          onOpenDetail={setDetailModal}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {sleepingGroupsForList.length > 0 && (
+                  <div>
+                    <h4 className="text-meta font-bold text-mute mb-1.5">
+                      {allEndedForToday ? '오늘 운행 종료' : '지금은 운행 안 함'}
+                    </h4>
+                    <div className="space-y-2">
+                      {sleepingGroupsForList.map((group) => (
+                        <SleepingCard
+                          key={group[0].route_no}
+                          arrival={group[0]}
+                          station={selectedBusStation}
+                          direction={selectedBusDirection}
+                          onOpenDetail={setDetailModal}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {missingRoutesForList.length > 0 && (
+                  <NotRunningSection
+                    routes={missingRoutesForList}
+                    station={selectedBusStation}
+                    direction={selectedBusDirection}
+                    onOpenDetail={setDetailModal}
+                  />
+                )}
+              </div>
+            )}
+          </section>
+        )
+      ) : (
+        <>
+          {imminentRows.length > 0 && (
+            <section>
+              <h3 className="text-meta font-bold text-mute mb-1.5">곧 도착</h3>
+              <div className="space-y-2">{imminentRows.map((r) => r.node)}</div>
+            </section>
+          )}
 
-      {sleepingGroups.length > 0 && (
-        <section>
-          <h3 className="text-[12px] font-bold text-mute mb-1.5">
-            {allEndedForToday ? '오늘 운행 종료' : '지금은 운행 안 함'}
-          </h3>
-          <div className="space-y-2">
-            {sleepingGroups.map((group) => (
-              <SleepingCard
-                key={group[0].route_no}
-                arrival={group[0]}
-                station={selectedBusStation}
-                direction={selectedBusDirection}
-                onOpenDetail={setDetailModal}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+          {hasRunning && (
+            <section>
+              <h3 className="text-meta font-bold text-mute mb-1.5">운행 중</h3>
+              <div className="space-y-2">
+                {runningRows.map((r) => r.node)}
+                {fallbackGroups.map((group) => (
+                  <BusFallbackCard
+                    key={group[0].route_no}
+                    arrival={group[0]}
+                    station={selectedBusStation}
+                    direction={selectedBusDirection}
+                    onOpenDetail={setDetailModal}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-      {missingRoutes.length > 0 && (
-        <NotRunningSection
-          routes={missingRoutes}
-          station={selectedBusStation}
-          direction={selectedBusDirection}
-          onOpenDetail={setDetailModal}
-        />
-      )}
+          {sleepingGroups.length > 0 && (
+            <section>
+              <h3 className="text-meta font-bold text-mute mb-1.5">
+                {allEndedForToday ? '오늘 운행 종료' : '지금은 운행 안 함'}
+              </h3>
+              <div className="space-y-2">
+                {sleepingGroups.map((group) => (
+                  <SleepingCard
+                    key={group[0].route_no}
+                    arrival={group[0]}
+                    station={selectedBusStation}
+                    direction={selectedBusDirection}
+                    onOpenDetail={setDetailModal}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-      {imminentRows.length === 0 && !hasRunning && sleepingGroups.length === 0 && missingRoutes.length === 0 && (
-        <div className="text-caption text-mute py-6 text-center">
-          실시간 정보를 가져오는 중이에요. 잠시 후 다시 확인해 주세요.
-        </div>
+          {missingRoutes.length > 0 && (
+            <NotRunningSection
+              routes={missingRoutes}
+              station={selectedBusStation}
+              direction={selectedBusDirection}
+              onOpenDetail={setDetailModal}
+            />
+          )}
+
+          {imminentRows.length === 0 && !hasRunning && sleepingGroups.length === 0 && missingRoutes.length === 0 && (
+            <div className="text-caption text-mute py-6 text-center">
+              실시간 정보를 가져오는 중이에요. 잠시 후 다시 확인해 주세요.
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -333,10 +536,12 @@ function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute =
 
   return {
     sec: a.is_tomorrow ? Infinity : sec,
+    // 하교 화면 단순화(시안) — "내 목적지" 즐겨찾기 매칭에 쓴다(favoriteBusDestinations).
+    routeNo: a.route_no,
     node: (
       <TransitCard
         key={a.route_no}
-        badge={{ label: a.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
+        badge={{ label: a.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR, mode: 'bus' }}
         title={title}
         subtitle={originText || undefined}
         chips={chips}
@@ -385,7 +590,7 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpe
 
   return (
     <TransitCard
-      badge={{ label: route_number, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
+      badge={{ label: route_number, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR, mode: 'bus' }}
       title={title}
       subtitle={originText || undefined}
       chips={viaChip ? [{ label: viaChip, tone: 'neutral' }] : []}
@@ -418,7 +623,9 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpe
  * 운행 시간대 밖인 노선 카드. 목록에서 지우지 않는 이유: 막차가 끝난 걸 확인하러
  * 오거나 내일 첫차를 보러 오는 사람이 있다. 대신 달 + Zzz 로 상태를 먼저 말한다.
  */
-function SleepingCard({ arrival, station, direction, onOpenDetail }) {
+// size — 하교 화면 단순화(시안)의 "내 목적지" 큰 카드가 fallback/sleeping 상태일
+// 때도 size='lg'로 승격할 수 있도록. 기본 'md'는 기존 동작과 동일하다.
+function SleepingCard({ arrival, station, direction, onOpenDetail, size }) {
   const category = arrival.category ?? direction
   const cfg = getRouteDisplayConfig(arrival.route_no)
   const { title, viaChip } = getRouteTitleAndVia(arrival.route_no, category, arrival.destination)
@@ -428,12 +635,13 @@ function SleepingCard({ arrival, station, direction, onOpenDetail }) {
 
   return (
     <TransitCard
-      badge={{ label: arrival.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
+      badge={{ label: arrival.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR, mode: 'bus' }}
       title={title}
       subtitle={boardingLabel(arrival, station, direction) || undefined}
       sleeping={{ label: firstLabel }}
       chips={viaChip ? [{ label: viaChip, tone: 'neutral' }] : []}
       muted
+      size={size}
       eta={{ primary: { text: arrival.next_first_day === 'today' ? '운행 전' : '운행 종료', tone: 'muted' } }}
       onClick={() => openBusDetail(onOpenDetail, {
         routeNumber: arrival.route_no,
@@ -446,7 +654,7 @@ function SleepingCard({ arrival, station, direction, onOpenDetail }) {
   )
 }
 
-function BusFallbackCard({ arrival, station, direction, onOpenDetail }) {
+function BusFallbackCard({ arrival, station, direction, onOpenDetail, size }) {
   const category = arrival.category ?? direction
   const cfg = getRouteDisplayConfig(arrival.route_no)
   const { title, viaChip } = getRouteTitleAndVia(arrival.route_no, category, arrival.destination)
@@ -457,10 +665,11 @@ function BusFallbackCard({ arrival, station, direction, onOpenDetail }) {
 
   return (
     <TransitCard
-      badge={{ label: arrival.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
+      badge={{ label: arrival.route_no, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR, mode: 'bus' }}
       title={title}
       subtitle={boardingLabel(arrival, station, direction) || undefined}
       chips={chips}
+      size={size}
       eta={
         next
           ? { primary: { text: `${next} 출발`, tone: 'default' }, secondary: { text: '시간표 기준' } }
@@ -489,7 +698,7 @@ function NotRunningSection({ routes, station, direction, onOpenDetail }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1 text-[12px] font-bold text-mute mb-1.5 pressable"
+        className="flex items-center gap-1 text-meta font-bold text-mute mb-1.5 pressable"
       >
         오늘 미운행 · {routes.length}
         <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-base ${open ? 'rotate-180' : ''}`} />
@@ -516,7 +725,7 @@ function NotRunningSection({ routes, station, direction, onOpenDetail }) {
  * 제품이 승차 시간표로 연결하지 않은 원본 행(시흥1·시흥33)까지 "평일 첫차"로 나온다.
  * 운행 여부 판단은 시간표 화면으로 넘기고 목록에서는 상태만 말한다.
  */
-function NotRunningCard({ route, station, direction, onOpenDetail }) {
+function NotRunningCard({ route, station, direction, onOpenDetail, size }) {
   const routeNo = route.route_no
   const category = route.category ?? direction
   const cfg = getRouteDisplayConfig(routeNo)
@@ -524,10 +733,11 @@ function NotRunningCard({ route, station, direction, onOpenDetail }) {
 
   return (
     <TransitCard
-      badge={{ label: routeNo, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR }}
+      badge={{ label: routeNo, bgVar: cfg?.color ?? DEFAULT_ROUTE_COLOR, mode: 'bus' }}
       title={title}
       subtitle={route.boarding_label || undefined}
       muted
+      size={size}
       chips={[{ label: '오늘 미운행', tone: 'neutral' }]}
       eta={{
         primary: { text: '오늘 미운행', tone: 'muted' },
@@ -564,7 +774,7 @@ function IncidentBanner({ incident }) {
   return (
     <div className="flex items-center gap-1.5 rounded-card bg-imminent-bg px-3 py-2">
       {/* 구분자는 em-dash 대신 "·" — tokenRules.test.js c)가 UI 렌더 텍스트의 em-dash를 금지한다 */}
-      <p className="min-w-0 flex-1 text-[12.5px] font-semibold leading-snug text-imminent">
+      <p className="min-w-0 flex-1 text-caption font-semibold leading-snug text-imminent">
         ⚠ {head} · 서울 방면 광역버스 지연 가능{hhmm ? ` · ${hhmm} 확인` : ''}
       </p>
       <StatusChip kind="beta" className="shrink-0">베타</StatusChip>
@@ -615,12 +825,12 @@ function TaxiPromoCard() {
 
   return (
     <section className="bg-surface border border-line rounded-card p-3">
-      <h3 className="text-[15px] font-bold text-ink">지금은 택시가 빨라요</h3>
+      <h3 className="text-list-nm font-bold text-ink">지금은 택시가 빨라요</h3>
       {parts.length > 1 && (
-        <p className="mt-0.5 text-[12.5px] font-semibold text-mute tabular-nums">{parts.join(' · ')}</p>
+        <p className="mt-0.5 text-caption font-semibold text-mute tabular-nums">{parts.join(' · ')}</p>
       )}
       {half != null && (
-        <p className="text-[12.5px] font-semibold text-mute tabular-nums">2명이 나누면 {formatWon(half)}</p>
+        <p className="text-caption font-semibold text-mute tabular-nums">2명이 나누면 {formatWon(half)}</p>
       )}
       <div className="mt-2.5 flex items-center gap-1.5">
         <a
@@ -640,7 +850,7 @@ function TaxiPromoCard() {
         </button>
       </div>
       {/* 택시 탭(TaxiPanel)과 같은 고지 문구 — 두 화면이 같은 추정치를 다르게 설명하지 않는다 */}
-      <p className="mt-2 text-[12px] font-medium text-mute">실제 요금·시간과 다를 수 있습니다</p>
+      <p className="mt-2 text-meta font-medium text-mute">실제 요금·시간과 다를 수 있습니다</p>
     </section>
   )
 }

@@ -45,7 +45,7 @@ export default function MapSearchOverlay({
               type="button"
               aria-pressed={!!filter.active}
               onClick={() => onToggleFilter?.(filter.id)}
-              className={`pressable inline-flex min-h-[32px] items-center gap-[5px] rounded-pill border px-3 py-[6px] text-[12.5px] font-semibold shadow-pill transition-colors ${
+              className={`pressable inline-flex min-h-[32px] items-center gap-[5px] rounded-pill border px-3 py-[6px] text-caption font-semibold shadow-pill transition-colors ${
                 filter.active
                   ? 'border-accent bg-accent text-white'
                   : 'border-line bg-surface text-ink-2'

@@ -5,7 +5,12 @@
  */
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import DirectionAutoToast from './DirectionAutoToast'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // ── 스토어 모킹 ──
 const mockSetDirectionOverride = vi.fn()
@@ -51,6 +56,32 @@ describe('DirectionAutoToast', () => {
 
     expect(screen.getByText('오후라서 하교로 전환했어요')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '되돌리기' })).toBeInTheDocument()
+  })
+
+  // FloatingDock(z-nav)과 같은 z-50을 공유해 내비와 토스트가 같은 층에
+  // 있었다 — z-toast 토큰으로 분리해 토스트가 항상 내비 위에 뜨게 한다.
+  it('z-toast 토큰을 사용한다(z-50 임의값 아님)', () => {
+    const { container } = render(
+      <DirectionAutoToast
+        message="오후라서 하교로 전환했어요"
+        previousDirection="등교"
+        visible={true}
+        onClose={() => {}}
+      />,
+    )
+    const toast = container.firstChild
+    expect(toast.className).toContain('z-toast')
+    expect(toast.className).not.toMatch(/\bz-50\b/)
+  })
+
+  // FloatingDock처럼 margin-bottom으로 하단 세이프에어리어를 더한다 — 없으면
+  // 홈 인디케이터가 있는 기기에서 토스트가 화면 밖으로 밀린다.
+  // jsdom의 CSSOM은 env()를 파싱하지 못해 React가 style을 적용할 때 그 선언
+  // 자체를 조용히 버린다(el.style.marginBottom도, style 속성 원문도 비어
+  // 남는다) — 그래서 렌더 결과가 아니라 소스 문자열로 검증한다.
+  it('하단 세이프에어리어(env(safe-area-inset-bottom))를 보정한다', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'DirectionAutoToast.jsx'), 'utf8')
+    expect(src).toMatch(/marginBottom:\s*['"]env\(safe-area-inset-bottom\)['"]/)
   })
 
   it('"되돌리기" 버튼 클릭 시 setDirectionOverride를 이전 방향으로 호출한다', () => {

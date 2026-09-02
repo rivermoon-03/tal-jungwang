@@ -20,14 +20,21 @@ import { Bell, BellRing } from 'lucide-react'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
 import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
 import { scrollToCenter, scrollToCenterX } from '../../utils/scrollToCenter'
+import { formatEta, isImminent } from '../../utils/eta'
 import ShuttleNotifySheet from './ShuttleNotifySheet'
 
 
 
-function nextLabel(diffMin, isReturn) {
-  if (isReturn) return '회차편'
-  if (diffMin < 1) return '곧 출발'
-  return `${diffMin}분 뒤`
+// 다음 편까지 남은 시간 라벨. 예전에는 회차편(isReturn)이면 남은 시간을
+// 버리고 "회차편"이라는 고정 문구만 보여줬다 — 회차편이 "다음" 항목일 때
+// 좁은 폰 스트립에서 남은 시간이 아예 안 보이는 결함이었다. "회차편"이라는
+// 사실은 이 배지 위의 별도 서브라벨이 이미 보여주므로, 여기서는 회차편
+// 여부와 무관하게 항상 남은 시간을 보여준다. 라운딩은 eta.js에 위임한다
+// (임박 임계값·"N분" 서식을 화면마다 새로 만들지 않는다).
+function nextLabel(diffMin) {
+  const seconds = diffMin * 60
+  if (isImminent(seconds)) return '곧 출발'
+  return `${formatEta(seconds).text} 뒤`
 }
 
 // 알림 종 아이콘 버튼 — 예약된 편은 accent 채움(BellRing), 아니면 outline(Bell).
@@ -95,7 +102,7 @@ export function NarrowPhoneStrip({ displayList, nextIndex, nowMinutes, isAlarmSe
                 <span className="mt-0.5 text-caption font-semibold text-mute dark:text-mute">수시운행</span>
                 {(isActive || isNext) && (
                   <span className="mt-1 text-micro font-bold text-accent-ink dark:text-accent-ink">
-                    {isActive ? '운행 중' : nextLabel(item.startMin - nowMinutes, false)}
+                    {isActive ? '운행 중' : nextLabel(item.startMin - nowMinutes)}
                   </span>
                 )}
               </div>
@@ -126,7 +133,7 @@ export function NarrowPhoneStrip({ displayList, nextIndex, nowMinutes, isAlarmSe
               ) : null}
               {isNext && (
                 <span className="text-micro font-bold text-accent-ink dark:text-accent-ink">
-                  {nextLabel(item.minutes - nowMinutes, isReturn)}
+                  {nextLabel(item.minutes - nowMinutes)}
                 </span>
               )}
               {showBell && (
@@ -226,7 +233,7 @@ export default function ShuttleTimetable({ times, direction = 0 }) {
                 </div>
                 {(isActive || isNext) && (
                   <span className="text-sm font-bold text-accent-ink dark:text-accent-ink border border-accent dark:border-accent px-2 py-1 rounded">
-                    {isActive ? '운행 중' : nextLabel(item.startMin - nowMinutes, false)}
+                    {isActive ? '운행 중' : nextLabel(item.startMin - nowMinutes)}
                   </span>
                 )}
               </li>
@@ -270,7 +277,7 @@ export default function ShuttleTimetable({ times, direction = 0 }) {
               <div className="flex items-center gap-2 shrink-0">
                 {isNext && (
                   <span className="text-sm font-bold text-accent-ink dark:text-accent-ink border border-accent dark:border-accent px-2 py-1 rounded">
-                    {nextLabel(item.minutes - nowMinutes, isReturn)}
+                    {nextLabel(item.minutes - nowMinutes)}
                   </span>
                 )}
                 <BellButton time={item.time} isSet={isAlarmSet(item.time, direction)} onOpen={openSheet} />

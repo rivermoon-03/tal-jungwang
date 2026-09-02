@@ -44,6 +44,11 @@ _TIME_RE = re.compile(r"(\d{1,2}:\d{2})\s*[\n~\-]+\s*(\d{1,2}:\d{2})")
 _TITLE_TIP_RE = re.compile(r"TIP\s*학생식당")
 _TITLE_E_RE = re.compile(r"E동\s*레스토랑")
 
+# "①코너" 처럼 원문자로 시작해 "코너"로 끝나는 셀 — 그 자체는 메뉴가 아니라
+# 바로 아래 메뉴 셀들의 구분자다. "셀프라면코너"처럼 원문자가 없는 표기는
+# 메뉴 이름 자체이므로 여기 매치하지 않는다.
+_CORNER_LABEL_RE = re.compile(r"^[①-⑨]\s*코너$")
+
 
 # ── 다운로드 ─────────────────────────────────────────────────────────────────
 
@@ -143,11 +148,32 @@ def _meal_row_ranges(ws, start: int, end: int) -> list[tuple[int, int, str, str 
 
 
 def _collect_menu(ws, start_row: int, end_row: int, col: int) -> list[str]:
+    """day 열의 메뉴 항목들을 모은다.
+
+    "①코너" 같은 코너 라벨 셀은 그 자체로 메뉴가 아니라, 다음 라벨이 나오기
+    전까지 뒤따르는 메뉴 셀들의 구분자다. 예전엔 라벨 셀과 메뉴 셀을 각각
+    독립된 배열 원소로 그대로 내보내서, 프런트가 "①코너"를 메뉴 이름처럼
+    태그로 그리는 결함이 났다(실측: by_day가
+    ["①코너", "떡만두국", "②코너", "김치볶음밥/고로케샐러드"] 형태로 왔다).
+    라벨을 뒤따르는 메뉴 앞에 붙여 "①코너 떡만두국" 하나의 문자열로 묶는다.
+    """
     items = []
+    corner_label = None
+    label_used = True
     for r in range(start_row, end_row + 1):
         v = _clean(ws.cell(row=r, column=col).value)
-        if v:
-            items.append(v)
+        if not v:
+            continue
+        if _CORNER_LABEL_RE.match(v):
+            corner_label = v
+            label_used = False
+            continue
+        items.append(f"{corner_label} {v}" if corner_label else v)
+        label_used = True
+    # 코너 라벨만 있고 뒤따르는 메뉴가 없는 예외 상황 — 라벨을 그대로 남겨
+    # 데이터를 잃지 않는다(실제로는 관측되지 않았지만 지어내지 않기 위한 안전망).
+    if not label_used:
+        items.append(corner_label)
     return items
 
 

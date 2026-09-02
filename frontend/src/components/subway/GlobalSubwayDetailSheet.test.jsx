@@ -14,8 +14,8 @@
  *   8. 실시간 영역은 fresh일 때만 렌더됨 (data-testid="realtime-section")
  *   9. stale / null이면 실시간 영역 숨김
  */
-import { render } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // jsdom에 window.matchMedia 없어서 stub 필요
 Object.defineProperty(window, 'matchMedia', {
@@ -92,12 +92,19 @@ const BASE_SHEET = {
   realtimeTrain: null,
 }
 
+const closeSubwayDetailSheet = vi.fn()
+
+// scheduleViewMode 는 테스트마다 바꿔야 해서 mutable 로 둔다(vi.mock 팩토리는
+// 호이스팅되므로 vi.hoisted 로 초기화 순서를 보장한다).
+const storeState = vi.hoisted(() => ({ scheduleViewMode: 'list' }))
+
 vi.mock('../../stores/useAppStore', () => ({
   default: (selector) =>
     selector({
       subwayDetailSheet: BASE_SHEET,
-      closeSubwayDetailSheet: vi.fn(),
+      closeSubwayDetailSheet,
       setSubwayLineSheet: vi.fn(),
+      scheduleViewMode: storeState.scheduleViewMode,
     }),
 }))
 
@@ -213,5 +220,90 @@ describe('GlobalSubwayDetailSheet — 막차 칩 (시간표 기반)', () => {
     chips.forEach((chip) => {
       expect(chip.className).not.toMatch(/bg-red-/)
     })
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 모바일 경로가 ui/Sheet로 이관됐는지 회귀 검증. 예전엔 이 시트만 자체 딤
+// 배경(z-[90])을 그리면서 Escape 핸들러가 아예 없었다.
+describe('GlobalSubwayDetailSheet — Sheet 이관(Escape·백드롭·포커스 트랩)', () => {
+  beforeEach(() => {
+    closeSubwayDetailSheet.mockClear()
+  })
+
+  it('dialog role로 렌더링된다', () => {
+    render(<GlobalSubwayDetailSheet />)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('Escape를 누르면 closeSubwayDetailSheet가 호출된다', () => {
+    render(<GlobalSubwayDetailSheet />)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(closeSubwayDetailSheet).toHaveBeenCalledTimes(1)
+  })
+
+  it('백드롭을 클릭하면 닫힌다', () => {
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    const backdrop = container.querySelector('[aria-hidden="true"].fixed.inset-0')
+    expect(backdrop).toBeTruthy()
+    fireEvent.click(backdrop)
+    expect(closeSubwayDetailSheet).toHaveBeenCalledTimes(1)
+  })
+
+  it('시트 안에서 Tab 포커스가 바깥으로 새지 않는다(포커스 트랩)', () => {
+    render(<GlobalSubwayDetailSheet />)
+    const dialog = screen.getByRole('dialog')
+    const focusable = dialog.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    expect(focusable.length).toBeGreaterThan(0)
+    const last = focusable[focusable.length - 1]
+    last.focus()
+    expect(document.activeElement).toBe(last)
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(focusable[0])
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+/**
+ * 같은 지하철 시간표가 진입 경로에 따라 다른 모양으로 보이면 안 된다.
+ * ScheduleDetailModal 은 scheduleViewMode 를 읽어 시(hour) 그룹 리스트와 4열
+ * 그리드를 전환하는데, 이 시트만 그리드로 고정돼 있었다. 두 화면이 같은
+ * persist 값을 따르는지 고정한다.
+ */
+describe('GlobalSubwayDetailSheet — scheduleViewMode 연동', () => {
+  beforeEach(() => {
+    storeState.scheduleViewMode = 'list'
+  })
+
+  it('list 모드에서는 시(hour) 그룹 헤더가 보인다', () => {
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    // mock 시간표가 05:32 / 06:10 / 23:45 이라 05·06·23시 그룹이 생긴다.
+    expect(container.textContent).toMatch(/05시/)
+    expect(container.textContent).toMatch(/23시/)
+  })
+
+  it('list 모드에서는 행선지 서브라벨이 붙는다', () => {
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    expect(container.textContent).toMatch(/당고개행/)
+  })
+
+  it('grid 모드에서는 4열 그리드로 돌아가고 시 그룹 헤더가 없다', () => {
+    storeState.scheduleViewMode = 'grid'
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    const section = container.querySelector('[data-testid="timetable-grid-section"]')
+    expect(section.querySelector('.grid-cols-4')).toBeTruthy()
+    expect(section.textContent).not.toMatch(/05시/)
+  })
+
+  it('두 모드 모두 시간표 자체는 렌더된다', () => {
+    for (const mode of ['list', 'grid']) {
+      storeState.scheduleViewMode = mode
+      const { container, unmount } = render(<GlobalSubwayDetailSheet />)
+      expect(container.textContent).toMatch(/05:32/)
+      expect(container.textContent).toMatch(/23:45/)
+      unmount()
+    }
   })
 })

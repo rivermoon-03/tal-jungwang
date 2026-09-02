@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 import { MapPin, X } from 'lucide-react'
+import IconButton from '../ui/IconButton'
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
@@ -48,7 +49,7 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
 
   return (
     <div
-      className="absolute bottom-24 left-1/2 z-[80] bg-surface dark:bg-surface rounded-card shadow-card w-[calc(100%-32px)] max-w-sm -translate-x-1/2"
+      className="absolute bottom-24 left-1/2 z-overlay bg-surface dark:bg-surface rounded-card shadow-sh-lift w-[calc(100%-32px)] max-w-sm -translate-x-1/2"
       style={{
         animation: `slideUpFade 0.3s ${EASE} both`,
         padding: '14px 16px',
@@ -61,13 +62,14 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
         }
       `}</style>
 
-      <button
-        className="absolute top-2 right-2 p-1 rounded-full hover:bg-surface-2 dark:hover:bg-surface-2-dark transition-colors"
+      <IconButton
+        label="닫기"
+        variant="ghost"
         onClick={onClose}
-        aria-label="닫기"
+        className="absolute top-2 right-2"
       >
         <X size={14} className="text-mute dark:text-mute" />
-      </button>
+      </IconButton>
 
       <div className="flex items-start gap-3">
         <MapPin size={20} className="text-accent flex-shrink-0 mt-0.5" />
@@ -95,14 +97,14 @@ export default function GpsSoftPrompt({ permissionState, onClose, onGranted }) {
           {!isDenied && (
             <div className="flex gap-2 mt-1">
               <button
-                className="flex-1 py-2 rounded-xl text-label font-semibold text-white bg-accent disabled:opacity-60"
+                className="flex-1 py-2 rounded-button text-label font-semibold text-white bg-accent disabled:opacity-60"
                 onClick={handleAllow}
                 disabled={loading}
               >
                 {loading ? '요청 중…' : '허용하기'}
               </button>
               <button
-                className="flex-1 py-2 rounded-xl text-label font-semibold text-mute dark:text-mute border border-line dark:border-line bg-surface dark:bg-surface"
+                className="flex-1 py-2 rounded-button text-label font-semibold text-mute dark:text-mute border border-line dark:border-line bg-surface dark:bg-surface"
                 onClick={onClose}
               >
                 나중에

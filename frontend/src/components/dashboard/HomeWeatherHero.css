@@ -8,17 +8,18 @@
   position: relative;
   overflow: hidden;
   /* 결함 #31 — 예전엔 뷰포트의 45%를 영구 점유해 대시보드가 내부 스크롤에 갇혔다.
-     이제 기본은 한 줄 스트립(auto 높이)만 차지하고, 펼쳤을 때만 아래 .whero-panel이
-     기존 콘텐츠(인사말/예보 상세) 높이만큼 자연스럽게 늘어난다. */
+     이제는 히어로가 항상 같은 구조(스트립+본문, 총 약 340px)로 고정되고, 대신
+     MainShell이 히어로+대시보드를 한 컨테이너에서 함께 스크롤한다("통짜 스크롤") —
+     스크롤하면 히어로 자체가 카드 목록과 함께 위로 밀려 올라가 사라지므로,
+     대시보드가 내부 스크롤에 갇히는 결함이 재발하지 않는다. */
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   border-radius: 0;
 
-  /* 하나의 하늘 — 접혀 있든 펼쳐져 있든 같은 하늘의 같은 부분을 본다.
-     그라데이션 높이를 292px로 고정했기 때문에 펼침 토글을 눌러도 스트립
-     색이 튀지 않는다(높이에 맞춰 늘어나면 접힘/펼침 사이에 색이 점프한다).
-     292px 아래쪽은 background-color(마지막 스톱)가 이어받는다. */
+  /* 하나의 하늘 — 스트립과 본문이 같은 하늘의 같은 부분을 본다. 그라데이션
+     높이를 히어로 전체 높이(약 340px)에 맞춰 고정한다. 그 아래쪽은
+     background-color(마지막 스톱)가 이어받는다. */
   background-color: var(--whero-sky-c, #142639);
   background-image: linear-gradient(
     168deg,
@@ -26,7 +27,7 @@
     var(--whero-sky-b, #123049) 52%,
     var(--whero-sky-c, #142639) 100%
   );
-  background-size: 100% 292px;
+  background-size: 100% 340px;
   background-repeat: no-repeat;
 
   /* 잉크는 하루에 걸쳐 아주 천천히 바뀐다. 5분 간격 갱신 사이를 부드럽게 잇는다. */
@@ -52,42 +53,59 @@
   transition: background 600ms ease;
 }
 
-/* 한 줄 스트립 — 항상 보이는 행. 펼침 토글 + 온도/하늘/바람 요약 + 검색 진입. */
+/* 스트립(최소 56px) — 항상 보이는 행. 인사말 + 위치 칩(지도 진입 겸함) + 뷰 토글 3칸. */
 .whero-strip {
   position: relative;
   z-index: 10;
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 56px;
   padding: 0 16px;
 }
 
-/* 펼침 패널 — 메인블록과 이펙트를 담는다. 진입 시 살짝 페이드+슬라이드. */
+/* 본문 — 이펙트 레이어 + 온도/하늘/메타 블록을 담는다. 아코디언으로 마운트/언마운트
+   되지 않고 항상 렌더되므로, 진입 애니메이션은 첫 마운트(페이지 진입) 때만 재생된다.
+   .whero-panel 안의 WalkIndexChip 팝오버가 .whero-strip(z-index:10, 스트립의
+   인사말)에 가려 보이던 버그(사용자 실측)의 원인이 여기 있었다 — to 키프레임이
+   transform: translateY(0)이었는데, animation-fill-mode: both라 애니메이션이
+   끝난 뒤에도 이 값이 그대로 남는다. translateY(0)은 시각적으로는 이동이 없어도
+   계산값이 "none"이 아니라 transform 함수 목록이라, CSS는 이 요소를 새 stacking
+   context로 만든다. .whero-panel은 z-index를 스스로 정하지 않으니 이 stacking
+   context는 z-index:0 취급(auto positioned와 같은 층)을 받는데, 형제인
+   .whero-strip은 z-index:10을 명시했다 — 그러니 .whero-panel 안에서 WalkIndexChip
+   팝오버(z-30)가 아무리 큰 z-index를 받아도 그 우선순위는 .whero-panel 지역
+   안에서만 통하고, .whero-strip에는 못 이긴다.
+
+   to 키프레임을 transform: none으로 적는 것만으로는 부족하다. from에 실제
+   transform(translateY(-4px))이 있으면 CSS는 둘을 행렬로 보간하고, fill-mode가
+   both라 끝난 뒤에도 그 보간 결과가 matrix(1,0,0,1,0,0)로 남는다. 계산값이
+   none이 아니라 행렬이므로 stacking context는 그대로 생긴다(실측으로 확인했다).
+   그래서 fill-mode를 backwards로 바꾼다. 시작 전 상태(from)는 그대로 적용되니
+   등장 모션은 같고, 끝난 뒤에는 기본 스타일로 돌아가 transform이 실제로
+   none이 된다 — 그래야 stacking context가 사라진다. */
 .whero-panel {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 192px;
-  max-height: 348px;
-  animation: whero-panel-in 220ms var(--e-out, ease-out) both;
+  animation: whero-panel-in 220ms var(--e-out, ease-out) backwards;
 }
 @keyframes whero-panel-in {
   from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .whero-panel { animation: none; }
 }
 
-/* 하단 seam — 히어로를 대시보드 배경(var(--tj-bg))으로 얇게 블렌드.
+/* 바닥 26px 이음매(seam) — 히어로를 대시보드 배경(var(--tj-bg))으로 얇게 블렌드.
    콘텐츠는 z-10, seam은 z-5라 콘텐츠가 seam 위에 그려진다(콘텐츠는 pb로 seam을 피함). */
 .whero-seam {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 34px;
+  height: 26px;
   z-index: 5;
   pointer-events: none;
   background: linear-gradient(to bottom, transparent, var(--tj-bg));
@@ -381,50 +399,10 @@
   100% { transform: translate(0, 158px);   opacity: 0.08; }
 }
 
-/* greeting 진입 시퀀스 — 글귀(quote) 진입 → 강등(demote, weather)으로 온도 행에
-   시각적 주인공을 넘긴다. 글귀 블록은 접히거나 사라지지 않고 그 자리에 남아
-   작아진다. reduced-motion은 index.css의 전역 규칙이 처리한다. */
-
-/* 글귀 블록 래퍼 — 마운트 시 blur(10px)+translateY(10px)+opacity 0에서 시작해
-   900ms 만에 제자리로 진입(is-visible). */
-.whero-quote-content {
-  position: relative;
-  opacity: 0;
-  filter: blur(10px);
-  transform: translateY(10px);
-  transition: opacity 900ms var(--e-out), filter 900ms var(--e-out), transform 900ms var(--e-out);
-}
-.whero-quote-content.is-visible {
-  opacity: 1;
-  filter: blur(0);
-  transform: translateY(0);
-}
-
-/* 글귀 텍스트 본체 — 전용 클래스로 font-size/font-weight/line-height/color를 직접
-   제어한다(Tailwind text-title은 fontWeight가 fontSize 토큰에 내장돼 있어 중간값으로
-   보간되지 않는다). SUIT Variable은 wght 축을 가진 진짜 가변 폰트라 font-weight
-   자체를 트랜지션해도 최신 브라우저가 100~900 사이를 연속 보간한다. */
-.whero-quote-text {
-  display: block;
-  color: var(--whero-on, #f5f8f9);
-  font-size: 21px;
-  font-weight: 800;
-  line-height: 1.35;
-  letter-spacing: -0.02em;
-  transition:
-    font-size 700ms var(--e-out),
-    font-weight 700ms var(--e-out),
-    line-height 700ms var(--e-out),
-    color 700ms var(--e-out);
-}
-.whero-quote-text.is-demoted {
-  color: var(--whero-on-2, rgba(245, 248, 249, 0.78));
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-/* 출처/부제 툴팁 — 글귀 클릭 시 바로 아래(좌측 정렬)에 뜬다. */
+/* 출처/부제 툴팁 — 스트립 인사말 클릭 시 바로 아래(좌측 정렬)에 뜬다. 예전엔 히어로
+   본문의 큰 글귀 블록에 딸려 있었지만, 이제 인사말이 스트립 한 줄로 옮겨오면서
+   히어로 높이가 고정돼 글귀가 자리를 넓혔다 강등되는 시퀀스 자체가 필요 없어졌다
+   (본문의 온도·하늘·아이콘은 항상 같은 크기다) — 툴팁만 그대로 재사용한다. */
 .whero-quote-tooltip {
   position: absolute;
   top: 100%;
@@ -445,33 +423,6 @@
   animation: none;
   opacity: 0;
   transition: opacity 160ms var(--e-out);
-}
-
-/* 온도/하늘 텍스트 확대 — phase='weather'에서 34px→56px, 14px→18px로 커진다. */
-.whero-quote-temp {
-  font-size: 34px;
-  transition: font-size 700ms var(--e-out);
-}
-.whero-quote-temp.is-grown {
-  font-size: 56px;
-}
-.whero-quote-sky {
-  font-size: 14px;
-  transition: font-size 700ms var(--e-out);
-}
-.whero-quote-sky.is-grown {
-  font-size: 18px;
-}
-
-/* 아이콘 확대 — lucide size prop(HTML width/height 속성)은 CSS 트랜지션 대상이
-   아니라서 32px 고정 아이콘을 감싼 wrapper에 transform:scale(52/32)를 태운다. */
-.whero-quote-icon-wrap {
-  display: inline-flex;
-  transform-origin: bottom right;
-  transition: transform 700ms var(--e-out);
-}
-.whero-quote-icon-wrap.is-grown {
-  transform: scale(1.625);
 }
 
 @media (prefers-reduced-motion: reduce) {

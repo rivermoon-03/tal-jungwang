@@ -33,8 +33,8 @@ export function SubwayStaleBadge({ reference, prefix = '', className = '' }) {
   if (!reference) return null
   const ms = new Date(reference).getTime()
   if (Number.isNaN(ms)) return null
+  if (!isRealtimeStale(reference, now)) return null
   const ageMin = Math.floor((now - ms) / 60000)
-  if (ageMin < 3) return null
   return <DataBadge state="stale" staleAgeText={`${prefix}데이터 ${ageMin}분 지연`} className={className} />
 }
 
@@ -235,7 +235,7 @@ const RealtimeRow = memo(function RealtimeRow({ item, lastFetchedAt, onClick, ti
             const ageMin = item.recptn_dt
               ? Math.floor((nowMs - new Date(item.recptn_dt).getTime()) / 60000)
               : 0
-            return ageMin >= 3
+            return isRealtimeStale(item.recptn_dt, nowMs)
               ? <span className="text-ease font-semibold">{recptnTime} 기준 · 데이터 {ageMin}분 지연</span>
               : <span>{recptnTime} 기준</span>
           })()}
@@ -318,7 +318,7 @@ const SubwayRealtimeBoard = memo(function SubwayRealtimeBoard({ arrivals, lastFe
         </div>
       )}
       {(stale || isRealtimeStale(lastSuccessfulRealtimeAt)) && (
-        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface-2-dark border border-line dark:border-line">
+        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-card bg-surface-2 dark:bg-surface-2-dark border border-line dark:border-line">
           <span className="w-2 h-2 rounded-full bg-ease flex-shrink-0" />
           <p className="text-caption font-bold text-ease leading-tight">
             실시간 데이터가 {stale ? '잠시 끊겼습니다' : '지연되고 있습니다'}. 시간표 정보를 우선 확인하세요.

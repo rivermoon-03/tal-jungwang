@@ -266,6 +266,64 @@ describe('ArrivalRow', () => {
     vi.useRealTimers()
   })
 
+  it('상대시간 아래에 절대시각을 작게 병기한다', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-19T10:00:00+09:00'))
+    render(
+      <ArrivalRow
+        routeNumber="시흥33"
+        minutes={5}
+      />
+    )
+    // formatEta(5*60)의 상대시간 "5분" + 10:05 절대시각이 그 아래 작게 붙는다.
+    expect(screen.getByText('5분')).toBeInTheDocument()
+    expect(screen.getByText('10:05')).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('imminentLabel("곧 도착")이면 절대시각을 병기하지 않는다', () => {
+    render(
+      <ArrivalRow
+        routeNumber="33"
+        minutes={0}
+        imminentLabel="곧 도착"
+        isUrgent
+      />
+    )
+    // "곧 도착"은 상대시간 자리에 이미 상태 문구가 들어가 있어 절대시각이 무의미하다.
+    expect(screen.queryByText(/^\d{2}:\d{2}$/)).not.toBeInTheDocument()
+  })
+
+  it('isRealtime=true이면 "실시간" 칩을 표시한다', () => {
+    render(
+      <ArrivalRow
+        routeNumber="5602"
+        direction="시흥시청역 탑승"
+        minutes={5}
+        isRealtime
+      />
+    )
+    expect(screen.getByText('실시간')).toBeInTheDocument()
+  })
+
+  it('칩이 3개를 넘으면 2개만 보이고 나머지는 "+N"으로 접힌다', () => {
+    render(
+      <ArrivalRow
+        routeNumber="시흥33"
+        direction="이마트 방면"
+        minutes={5}
+        isRealtime
+        crowded={3}
+        lastTrain
+      />
+    )
+    // 실시간 + 혼잡 두 개만 보이고, 막차는 "+1"로 접힌다.
+    expect(screen.getByText('실시간')).toBeInTheDocument()
+    expect(screen.getByText('혼잡')).toBeInTheDocument()
+    expect(screen.queryByText('막차')).not.toBeInTheDocument()
+    expect(screen.getByText('+1')).toBeInTheDocument()
+  })
+
   it('selectedStation이 없으면 stop 쿼리 없이 pushState한다 (T_stop_fallback)', () => {
     const pushSpy = vi.spyOn(window.history, 'pushState').mockImplementation(() => {})
     render(

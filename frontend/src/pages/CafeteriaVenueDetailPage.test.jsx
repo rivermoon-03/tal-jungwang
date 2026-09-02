@@ -109,4 +109,18 @@ describe('CafeteriaVenueDetailPage', () => {
     render(<CafeteriaVenueDetailPage venueId="student-cafeteria" />)
     expect(screen.getByRole('button', { name: /뒤로/ })).toBeInTheDocument()
   })
+
+  it('오늘(수요일 → 평일) 행에만 액센트 배경 클래스가 적용된다', () => {
+    render(<CafeteriaVenueDetailPage venueId="student-cafeteria" />)
+    // 학기/방학 두 섹션 모두 "평일" 행이 오늘이므로 각각 강조돼야 한다.
+    const todayRows = screen.getAllByText('평일').map((el) => el.closest('div'))
+    todayRows.forEach((row) => {
+      expect(row.className).toContain('bg-accent-bg')
+    })
+    // 토요일 행은 오늘이 아니므로 강조되지 않는다.
+    const saturdayRows = screen.getAllByText('토요일').map((el) => el.closest('div'))
+    saturdayRows.forEach((row) => {
+      expect(row.className).not.toContain('bg-accent-bg')
+    })
+  })
 })

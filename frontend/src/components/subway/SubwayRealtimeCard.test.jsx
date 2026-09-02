@@ -7,7 +7,7 @@
  *  2. 베타 표시가 이모지/점 아닌 텍스트 칩 (StatusChip)
  *  3. 도착 텍스트가 formatEta 기반
  *  4. StaleHintBadge 툴팁 트리거가 터치 44px 이상
- *  5. DataModeToggle이 ui/SegmentTabs (items prop) 사용
+ *  5. DataModeToggle이 ui/SegmentedControl (options prop) 사용
  */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
@@ -24,6 +24,7 @@ vi.mock('../../stores/useAppStore', () => ({
 // ── 컴포넌트 import (mock 이후) ─────────────────────────────────────────────
 import { RealtimeCompactCard, RealtimeSlot } from './SubwayRealtimeCard'
 import SubwayDataModeToggle from './SubwayDataModeToggle'
+import { STALE_THRESHOLD_MS } from './realtimeFreshness'
 
 // ── 공통 fixture ────────────────────────────────────────────────────────────
 const UP_TRAIN = {
@@ -202,7 +203,79 @@ describe('RealtimeCompactCard — A6 지연 배지', () => {
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-describe('SubwayDataModeToggle — ui/SegmentTabs (items prop) 연동', () => {
+// ══════════════════════════════════════════════════════════════════════════════
+describe('RealtimeCompactCard — 헤더 칩 상한(2개 + "+N")', () => {
+  const DELAYED_UP = {
+    ...UP_TRAIN,
+    delay_minutes: 6,
+    delay_since: '2026-05-18T08:02:00+09:00',
+    delay_samples: [5.5, 6.0, 7.0],
+  }
+  const DELAYED_DOWN = {
+    ...DOWN_TRAIN,
+    delay_minutes: 4,
+    delay_since: '2026-05-18T08:05:00+09:00',
+    delay_samples: [3.5, 4.0, 4.5],
+  }
+  // 지연×2 + stale → 칩 후보 4개(지연×2, stale, 베타) → 2개만 바로 보이고 나머지 2개는 접힌다.
+  const MANY_CHIPS_PROPS = {
+    ...CARD_PROPS,
+    upTrain: DELAYED_UP,
+    downTrain: DELAYED_DOWN,
+    stale: true,
+    staleSource: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+  }
+
+  it('칩 후보가 2개를 넘으면 "+N" 토글이 렌더된다', () => {
+    render(<RealtimeCompactCard {...MANY_CHIPS_PROPS} />)
+    expect(screen.getByText('+2')).toBeTruthy()
+  })
+
+  it('"+N" 을 누르기 전에는 베타 칩이 DOM에 없다(접힘)', () => {
+    render(<RealtimeCompactCard {...MANY_CHIPS_PROPS} />)
+    expect(screen.queryByText('베타')).toBeNull()
+  })
+
+  it('"+N" 을 누르면 나머지 칩(베타 포함)이 펼쳐진다', () => {
+    render(<RealtimeCompactCard {...MANY_CHIPS_PROPS} />)
+    fireEvent.click(screen.getByText('+2'))
+    expect(screen.getByText('베타')).toBeTruthy()
+    expect(screen.getByText('접기')).toBeTruthy()
+  })
+
+  it('칩 후보가 2개 이하이면 "+N" 토글이 없다', () => {
+    render(<RealtimeCompactCard {...CARD_PROPS} />)
+    expect(screen.queryByText(/^\+\d/)).toBeNull()
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+describe('RealtimeCompactCard — "베타" 배지 설명 팝오버', () => {
+  it('베타 배지를 탭하면 무엇이 덜 정확한지 설명하는 팝오버(role=dialog)가 열린다', () => {
+    render(<RealtimeCompactCard {...CARD_PROPS} />)
+    fireEvent.click(screen.getByLabelText(/실시간\(베타\) 안내/))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeTruthy()
+    expect(dialog.textContent).toMatch(/추정한|차이가 있을 수 있/)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+describe('RealtimeCompactCard — stale 임계는 realtimeFreshness.js 공용 헬퍼로만 판정한다', () => {
+  it('데이터 나이가 STALE_THRESHOLD_MS 이상이면 stale 배지가 뜬다', () => {
+    const staleSource = new Date(Date.now() - STALE_THRESHOLD_MS).toISOString()
+    render(<RealtimeCompactCard {...CARD_PROPS} staleSource={staleSource} />)
+    expect(screen.getByLabelText('실시간 데이터 지연 안내')).toBeTruthy()
+  })
+
+  it('데이터 나이가 STALE_THRESHOLD_MS 미만이면 stale 배지가 뜨지 않는다', () => {
+    const staleSource = new Date(Date.now() - (STALE_THRESHOLD_MS - 60_000)).toISOString()
+    render(<RealtimeCompactCard {...CARD_PROPS} staleSource={staleSource} />)
+    expect(screen.queryByLabelText('실시간 데이터 지연 안내')).toBeNull()
+  })
+})
+
+describe('SubwayDataModeToggle — ui/SegmentedControl (options prop) 연동', () => {
   it('onChange 가 "realtime" / "timetable" id 로 호출된다', () => {
     const onChange = vi.fn()
     render(<SubwayDataModeToggle value="timetable" onChange={onChange} />)

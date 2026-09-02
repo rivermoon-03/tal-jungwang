@@ -1,7 +1,8 @@
 import { getNextStation, getTerminalStation } from '../../utils/subwayStations'
+import { scaledPx } from '../../utils/fontScale'
 
 const chipBase = {
-  fontSize: 12,
+  fontSize: scaledPx(12),
   fontWeight: 700,
   padding: '3px 8px',
   borderRadius: 999,
@@ -21,7 +22,7 @@ export default function SubwayStationChips({ line, direction, viewStation }) {
   // 다음역이 곧 종점이면(예: 정왕 하행 4호선 = 정왕 → 오이도가 끝) 연한 "다음역"이
   // 아니라 종점(다크) 칩으로 한 번만 표시한다. 그렇지 않으면 종점 표기가 빠졌다.
   const nextIsTerminal = !!nextStation && !!terminal && nextStation === terminal
-  const arrow = <span style={{ color: 'var(--tj-mute)', fontSize: 12 }}>→</span>
+  const arrow = <span style={{ color: 'var(--tj-mute)', fontSize: scaledPx(12) }}>→</span>
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, marginTop: 8 }}>

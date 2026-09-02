@@ -74,7 +74,7 @@ export default function HomeBriefing() {
     <div className="pb-6" aria-label="오늘 브리핑 영역">
       {libraryCard}
       <div className="px-4 space-y-2" aria-label="오늘 브리핑">
-      <h3 className="text-[13px] font-bold text-ink dark:text-ink px-0.5">오늘 브리핑</h3>
+      <h3 className="text-mini-ttl font-bold text-ink dark:text-ink px-0.5">오늘 브리핑</h3>
       {event && (
         <BriefingRow
           icon={<CalendarDays size={15} aria-hidden />}

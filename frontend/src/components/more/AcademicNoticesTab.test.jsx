@@ -6,7 +6,7 @@
  * DS1(2026-08): 학과 드롭다운/학과 공지 제거 → 전교 게시판 카테고리 칩.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../../hooks/useMore', () => ({
   useSchoolBoardNotices: vi.fn(),
@@ -14,6 +14,7 @@ vi.mock('../../hooks/useMore', () => ({
 }))
 
 import { useSchoolBoardNotices, useAcademicCalendar } from '../../hooks/useMore'
+import { markNoticesSeen } from '../../utils/noticeReadState'
 import AcademicNoticesTab from './AcademicNoticesTab'
 
 const NOTICE = {
@@ -51,6 +52,12 @@ function setHooks({
   useSchoolBoardNotices.mockReturnValue(notices)
   useAcademicCalendar.mockReturnValue(calendar)
 }
+
+// 안읽음 도트는 기기 로컬(localStorage)에 마지막 확인 id를 남긴다 — 테스트마다
+// 초기화하지 않으면 앞 테스트가 "확인함" 처리한 id가 다음 테스트로 새어나간다.
+beforeEach(() => {
+  localStorage.clear()
+})
 
 describe('AcademicNoticesTab — 카테고리 칩 (DS1)', () => {
   beforeEach(() => {
@@ -95,10 +102,23 @@ describe('AcademicNoticesTab — 다가오는 학사일정 리스트', () => {
     expect(screen.getAllByText('6월 9일 ~ 6월 22일').length).toBeGreaterThan(0)
   })
 
+  // 캘린더 기본 선택이 오늘로 바뀐 뒤로는 이번 주에 걸친 일정이 캘린더 레인에도
+  // 같은 이름으로 그려진다. 그래서 텍스트로만 찾으면 리스트 항목과 캘린더 막대가
+  // 같이 걸린다. 이 테스트가 확인하려는 건 "리스트에 보이는가" 이므로 역할로 좁힌다.
   it('next(가장 임박)뿐 아니라 upcoming 항목도 리스트에 함께 보인다(상위 4개)', () => {
     render(<AcademicNoticesTab />)
-    expect(screen.getByText('하계방학 시작')).toBeInTheDocument()
-    expect(screen.getByText('2학기 개강')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /하계방학 시작/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /2학기 개강/ })).toBeInTheDocument()
+  })
+
+  // 사용자가 아무것도 고르지 않았는데 다가오는 학사일정 시작일이 선택으로 칠해져
+  // 열리던 결함. 캘린더는 오늘을 기본 선택으로 열어야 한다.
+  it('처음 열 때 캘린더 기본 선택을 다가오는 일정 시작일로 강제하지 않는다', () => {
+    render(<AcademicNoticesTab />)
+    const grid = screen.getByTestId('week-lane-grid')
+    expect(grid).toBeInTheDocument()
+    // next.start_date(2026-06-09)가 속한 주가 아니라 오늘이 속한 주가 열려야 한다.
+    expect(screen.queryByTestId('week-day-2026-06-09')).toBeNull()
   })
 
   it('next가 없으면 리스트도, D-day 칩도 렌더링하지 않는다', () => {
@@ -157,16 +177,23 @@ describe('AcademicNoticesTab — 학교 공지 리스트', () => {
     expect(screen.getAllByText('학사').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('로딩 중이면 로딩 문구를 보여준다', () => {
+  it('로딩 중이면 텍스트 대신 결과와 같은 모양의 스켈레톤을 보여준다', () => {
     setHooks({ notices: { data: null, loading: true, error: null } })
-    render(<AcademicNoticesTab />)
-    expect(screen.getByText(/불러오는 중이에요/)).toBeInTheDocument()
+    const { container } = render(<AcademicNoticesTab />)
+    // 텍스트 "불러오는 중이에요"는 더 이상 없다 — 로딩/빈/에러가 모두 같은
+    // 문구 상자였던 것을 넷으로 구분하면서, 로딩은 실제 카드와 행 수가 같은
+    // 스켈레톤(tj-skeleton)으로 바뀌었다(레이아웃 시프트 0).
+    expect(screen.queryByText(/불러오는 중이에요/)).not.toBeInTheDocument()
+    expect(container.querySelectorAll('.tj-skeleton').length).toBeGreaterThan(0)
   })
 
-  it('에러가 나면 에러 문구를 보여준다', () => {
-    setHooks({ notices: { data: null, loading: false, error: new Error('x') } })
+  it('에러가 나면 에러 문구와 다시 시도 버튼을 보여준다', () => {
+    const refetch = vi.fn()
+    setHooks({ notices: { data: null, loading: false, error: new Error('x'), refetch } })
     render(<AcademicNoticesTab />)
     expect(screen.getByText(/공지사항을 불러오지 못했어요/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /다시 시도/ }))
+    expect(refetch).toHaveBeenCalledTimes(1)
   })
 
   it('빈 배열이면 빈 상태 문구를 보여준다', () => {
@@ -184,5 +211,152 @@ describe('AcademicNoticesTab — 학교 공지 리스트', () => {
     fireEvent.click(screen.getByText(/더 보기 \(2개 더\)/))
     expect(screen.getByText('공지 제목 7')).toBeInTheDocument()
     expect(screen.queryByText(/더 보기 \(/)).not.toBeInTheDocument()
+  })
+})
+
+describe('AcademicNoticesTab — 모바일 카테고리 칩 위치', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setHooks()
+  })
+
+  it('카테고리 칩이 다가오는 학사일정보다 먼저(DOM 상 위쪽) 렌더링된다', () => {
+    const { container } = render(<AcademicNoticesTab />)
+    const chipGroup = container.querySelector('[role="group"][aria-label="공지 카테고리 선택"]')
+    const heading = screen.getByText('다가오는 학사일정')
+    expect(chipGroup).not.toBeNull()
+    expect(chipGroup.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+describe('AcademicNoticesTab — 안읽음 도트', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setHooks()
+  })
+
+  it('처음 보는 공지는 안읽음 도트가 켜진다', () => {
+    render(<AcademicNoticesTab />)
+    const link = screen.getByRole('link', { name: /안읽음 · 2026학년도 2학기 수강신청/ })
+    expect(link.querySelector('span.bg-accent')).not.toBeNull()
+  })
+
+  it('이미 확인한 공지는 안읽음 도트가 없다(자리는 비어 있다)', () => {
+    markNoticesSeen(NOTICE.category, [NOTICE.id])
+    render(<AcademicNoticesTab />)
+    const link = screen.getByRole('link', { name: /2026학년도 2학기 수강신청/ })
+    expect(link.getAttribute('aria-label')).not.toMatch(/안읽음/)
+    expect(link.querySelector('span.bg-accent')).toBeNull()
+    // 자리는 그대로 남아 있어야 한다(정렬 유지) — 안읽음이든 아니든 같은 span이 존재.
+    const dotSpan = link.querySelector('span.rounded-full.flex-shrink-0')
+    expect(dotSpan).not.toBeNull()
+    expect(dotSpan.className).toContain('h-[7px]')
+    expect(dotSpan.className).toContain('w-[7px]')
+  })
+
+  it('읽은 항목은 행 전체가 흐리게(opacity) 처리된다', () => {
+    markNoticesSeen(NOTICE.category, [NOTICE.id])
+    render(<AcademicNoticesTab />)
+    const link = screen.getByRole('link', { name: /2026학년도 2학기 수강신청/ })
+    expect(link.className).toContain('opacity-70')
+  })
+
+  it('안읽은 항목은 opacity가 붙지 않는다', () => {
+    render(<AcademicNoticesTab />)
+    const link = screen.getByRole('link', { name: /안읽음 · 2026학년도 2학기 수강신청/ })
+    expect(link.className).not.toContain('opacity-70')
+  })
+})
+
+describe('AcademicNoticesTab — 카테고리별 칩 색', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('카테고리마다 칩 팔레트 클래스가 다르다(학사 파랑·장학 노랑·취업 초록·생활관 회색)', () => {
+    const byCategory = [
+      { category: 'academic', category_label: '학사', bg: 'bg-chip-blue-bg', fg: 'text-chip-blue-fg' },
+      { category: 'scholarship', category_label: '장학', bg: 'bg-chip-yellow-bg', fg: 'text-chip-yellow-fg' },
+      { category: 'job', category_label: '취업', bg: 'bg-chip-green-bg', fg: 'text-chip-green-fg' },
+      { category: 'dorm', category_label: '생활관', bg: 'bg-chip-gray-bg', fg: 'text-chip-gray-fg' },
+    ]
+    const data = byCategory.map((c, i) => ({
+      id: 300 + i,
+      category: c.category,
+      category_label: c.category_label,
+      title: `${c.category_label} 공지 ${i}`,
+      url: `https://example.com/${i}`,
+      published_at: '2026-07-16T00:00:00+09:00',
+    }))
+    setHooks({ notices: { data, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+
+    for (const c of byCategory) {
+      const chip = screen.getByText(c.category_label, { selector: 'span' })
+      expect(chip.className).toContain(c.bg)
+      expect(chip.className).toContain(c.fg)
+    }
+  })
+})
+
+describe('AcademicNoticesTab — 마감 D-day', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('제목에 마감 표기가 있으면 D-day 배지가 붙는다', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-18T09:00:00+09:00'))
+    setHooks({
+      notices: {
+        data: [{ ...NOTICE, id: 999, title: '국가장학금 2차 신청 7/20까지' }],
+        loading: false,
+        error: null,
+      },
+    })
+    render(<AcademicNoticesTab />)
+    expect(screen.getByText('D-2')).toBeInTheDocument()
+  })
+
+  it('마감 표기가 없는 공지에는 D-day 배지가 없다', () => {
+    setHooks()
+    render(<AcademicNoticesTab />)
+    expect(screen.queryByText(/^D-\d+$/)).not.toBeInTheDocument()
+    expect(screen.queryByText('D-DAY')).not.toBeInTheDocument()
+  })
+
+  it('D-3 이내(임박)면 D-day 배지에 imminent 색이 붙는다', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-18T09:00:00+09:00'))
+    setHooks({
+      notices: {
+        data: [{ ...NOTICE, id: 999, title: '국가장학금 2차 신청 7/20까지' }],
+        loading: false,
+        error: null,
+      },
+    })
+    render(<AcademicNoticesTab />)
+    const badge = screen.getByText('D-2')
+    expect(badge.className).toContain('text-imminent')
+  })
+
+  it('D-3보다 여유 있으면 D-day 배지에 imminent 색이 붙지 않는다', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-01T09:00:00+09:00'))
+    setHooks({
+      notices: {
+        data: [{ ...NOTICE, id: 998, title: '국가장학금 2차 신청 7/20까지' }],
+        loading: false,
+        error: null,
+      },
+    })
+    render(<AcademicNoticesTab />)
+    const badge = screen.getByText('D-19')
+    expect(badge.className).not.toContain('text-imminent')
+    expect(badge.className).toContain('text-mute')
   })
 })

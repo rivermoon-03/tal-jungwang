@@ -88,6 +88,19 @@ const JEONGWANG_OK = {
   refetch: vi.fn(),
 }
 
+/**
+ * 하교 화면 단순화(시안) 이후: 즐겨찾기하지 않은 노선은 전부 "다른 목적지" 접힘
+ * 목록 안에 있다(기본 접힘). 이 파일의 시나리오는 즐겨찾기가 없으므로("내 목적지"
+ * 안내 카드만 뜬다) 렌더 직후 그 접힘을 펼쳐야 "오늘 운행 종료" 등 섹션 검증이
+ * 그대로 된다. TaxiPromoCard(택시 승격 카드)는 접힘 밖(항상 노출)이라 영향 없다.
+ */
+function renderExpanded() {
+  const result = render(<BusPanel />)
+  const toggle = screen.queryByRole('button', { name: /다른 목적지/ })
+  if (toggle) fireEvent.click(toggle)
+  return result
+}
+
 beforeEach(() => {
   mockSetSelectedMode.mockClear()
   mockUseTaxiDestinations.mockReturnValue(JEONGWANG_OK)
@@ -100,7 +113,7 @@ afterEach(() => {
 
 describe('BusPanel — 심야 택시 승격 카드 (B6)', () => {
   it('전 노선 운행 종료면 목록 최상단에 카드가 보인다', () => {
-    const { container } = render(<BusPanel />)
+    const { container } = renderExpanded()
 
     expect(screen.getByText('지금은 택시가 빨라요')).toBeInTheDocument()
     // 목록 최상단 — "오늘 운행 종료" 섹션보다 앞에 있어야 한다
@@ -109,7 +122,7 @@ describe('BusPanel — 심야 택시 승격 카드 (B6)', () => {
   })
 
   it('학교 정문→정왕역 소요·요금과 2인 분담액을 보여준다', () => {
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('학교 정문 → 정왕역 · 약 12분 · 약 8,800원')).toBeInTheDocument()
     expect(screen.getByText('2명이 나누면 4,400원')).toBeInTheDocument()
@@ -117,7 +130,7 @@ describe('BusPanel — 심야 택시 승격 카드 (B6)', () => {
   })
 
   it('카카오T 버튼은 새 탭 링크, 택시 탭 버튼은 모드 전환이다', () => {
-    render(<BusPanel />)
+    renderExpanded()
 
     const kakao = screen.getByRole('link', { name: '카카오T 열기' })
     expect(kakao).toHaveAttribute('href', 'https://t.kakao.com/launch')
@@ -129,7 +142,7 @@ describe('BusPanel — 심야 택시 승격 카드 (B6)', () => {
 
   it('요금 조회 실패 시 숫자 줄은 생략하고 버튼만 남긴다', () => {
     mockUseTaxiDestinations.mockReturnValue({ destinations: null, loading: false, error: new Error('x'), refetch: vi.fn() })
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('지금은 택시가 빨라요')).toBeInTheDocument()
     expect(screen.queryByText(/약 \d+분/)).not.toBeInTheDocument()
@@ -143,14 +156,14 @@ describe('BusPanel — 심야 택시 승격 카드 (B6)', () => {
       sleepingArrival('11-A'),
       { ...sleepingArrival('20-1', { route_id: 2 }), off_service: false, arrive_in_seconds: 600 },
     ])
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.queryByText('지금은 택시가 빨라요')).not.toBeInTheDocument()
   })
 
   it('첫차 전("지금은 운행 안 함")에는 카드를 만들지 않는다', () => {
     arrivalsOf([sleepingArrival('11-A', { next_first_day: 'today', next_first_at: '05:30' })])
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('지금은 운행 안 함')).toBeInTheDocument()
     expect(screen.queryByText('지금은 택시가 빨라요')).not.toBeInTheDocument()
@@ -160,7 +173,7 @@ describe('BusPanel — 심야 택시 승격 카드 (B6)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-03T23:50:00'))
     arrivalsOf([sleepingArrival('11-A', { next_first_at: '00:20' })])
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('오늘 운행 종료')).toBeInTheDocument()
     expect(screen.queryByText('지금은 택시가 빨라요')).not.toBeInTheDocument()
@@ -170,7 +183,7 @@ describe('BusPanel — 심야 택시 승격 카드 (B6)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-03T23:50:00'))
     arrivalsOf([sleepingArrival('11-A', { next_first_at: '05:30' })])
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('지금은 택시가 빨라요')).toBeInTheDocument()
   })

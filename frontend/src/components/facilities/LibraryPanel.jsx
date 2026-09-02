@@ -40,7 +40,7 @@ export default function LibraryPanel({ rooms = [], summary = null, exam = null }
             {exam.title} {formatDday(exam.start_date)}
           </span>
         )}
-        <span className="flex items-center gap-1.5 text-[13px] font-bold text-ink dark:text-ink">
+        <span className="flex items-center gap-1.5 text-mini-ttl font-bold text-ink dark:text-ink">
           <BookOpen size={14} aria-hidden className="text-mute dark:text-mute" />
           도서관 열람실
         </span>

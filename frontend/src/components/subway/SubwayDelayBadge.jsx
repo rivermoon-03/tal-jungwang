@@ -15,12 +15,20 @@
  *   placement {'up'|'down'}  팝오버 방향 — 카드 헤더는 위(up), 보드 상단은 아래(down)
  */
 import { useEffect, useId, useRef, useState } from 'react'
+import { formatHHMM } from '../../utils/eta'
 
-function formatHHMM(iso) {
+/**
+ * since 는 KST ISO8601 이므로 표시도 KST 로 고정해야 한다. 예전에는 이 파일이
+ * getHours() 로 브라우저 로컬 시각을 찍는 자체 formatHHMM 을 들고 있었다 -
+ * 한국에서 보면 맞아떨어져서 드러나지 않았을 뿐, 다른 시간대에서는 감지 시각이
+ * 통째로 어긋났다(UTC 에서 08:02 가 23:02 로 나온다). eta.js 의 KST 포매터에
+ * 위임해 없앤다.
+ */
+function formatSince(iso) {
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return formatHHMM(d.getTime())
 }
 
 export default function SubwayDelayBadge({ direction, minutes, since, samples, placement = 'up', className = '' }) {
@@ -53,7 +61,7 @@ export default function SubwayDelayBadge({ direction, minutes, since, samples, p
   const lo = nums.length ? Math.round(Math.min(...nums)) : null
   const hi = nums.length ? Math.round(Math.max(...nums)) : null
   const rangeText = lo == null ? `약 ${minutes}분` : lo === hi ? `약 ${lo}분` : `${lo}~${hi}분`
-  const sinceText = formatHHMM(since)
+  const sinceText = formatSince(since)
 
   return (
     <span ref={wrapRef} className={`relative inline-flex ${className}`}>

@@ -46,9 +46,13 @@ export default function DirectionAutoToast({ message, previousDirection, visible
 
   return (
     <div
-      className={`fixed bottom-20 left-4 right-4 z-50 flex items-center justify-between gap-3 rounded-card bg-dock-bg px-4 py-3 text-caption font-semibold text-dock-text transition-opacity duration-160 ${
+      // bottom-20은 하단 독(FloatingDock) 위 고정 오프셋이다. FloatingDock처럼
+      // margin-bottom으로 세이프에어리어를 더해야 홈 인디케이터가 있는 기기에서
+      // 토스트가 화면 밖으로 밀리지 않는다.
+      className={`fixed bottom-20 left-4 right-4 z-toast flex items-center justify-between gap-3 rounded-card bg-dock-bg px-4 py-3 text-caption font-semibold text-dock-text transition-opacity duration-160 ${
         isLeaving ? 'opacity-0' : 'opacity-100'
       }`}
+      style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
       <span className="flex-1">{message}</span>
       <button

@@ -11,26 +11,22 @@
  * linear-gradient/rgba에 하드코딩된 hex(#1a211e, #202221, rgba(18,165,148,…) 등)를
  * 직접 박아 뒀었다.
  *
+ * 킥커 라벨은 "고정 공지"였지만 이 모델(useNotices → /more/notices)에는 is_pinned가
+ * 없다 — 그냥 최신순 1번째 공지일 뿐이다. "고정"이라고 부르면 실제로 상단 고정
+ * 여부와 무관하게 매번 최신 글이 "고정"으로 보여 거짓말이 된다. "새 공지"로 정직하게
+ * 바꾸고, 계정이 없어 서버에 못 두는 읽음 상태는 기기 로컬(noticeReadState)로
+ * 안읽음 도트를 붙인다.
+ *
  * Props:
  *   onOpen?: (notice) => void — 카드/CTA 클릭 시 호출 (NoticesPage 라우팅 위임)
  */
 import { ChevronRight, Pin } from 'lucide-react'
 import { useNotices } from '../../hooks/useMore'
+import { formatRelativeTime } from '../../utils/relativeTime'
+import { isNoticeUnread } from '../../utils/noticeReadState'
+import Skeleton from '../common/Skeleton'
 
-function fmtDate(s) {
-  if (!s) return ''
-  const d = new Date(s)
-  if (Number.isNaN(d.getTime())) return ''
-  const now = new Date()
-  const diffMs = now - d
-  const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 60) return `${Math.max(1, diffMin)}분 전`
-  const diffH = Math.floor(diffMin / 60)
-  if (diffH < 24) return `${diffH}시간 전`
-  const diffD = Math.floor(diffH / 24)
-  if (diffD < 7) return `${diffD}일 전`
-  return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
-}
+const APP_NOTICE_CATEGORY = 'app'
 
 function previewLine(content) {
   if (!content) return ''
@@ -38,20 +34,42 @@ function previewLine(content) {
   return normalized.length > 80 ? `${normalized.slice(0, 80)}…` : normalized
 }
 
+// 히어로와 동일한 rounded-sheet 박스 골격 — 로딩 중엔 이 모양으로, 완료 후엔
+// 실제 카드로 자리가 그대로 이어져 레이아웃이 튀지 않는다.
+function HeroSkeleton() {
+  return (
+    <div
+      className="mb-3 flex flex-col gap-3 overflow-hidden rounded-sheet bg-dock-bg px-5 pt-5 pb-[18px]"
+      aria-hidden="true"
+    >
+      <div className="flex items-center gap-2">
+        <Skeleton width={30} height={30} rounded="rounded-button" />
+        <Skeleton width={80} height="0.9rem" />
+      </div>
+      <Skeleton height="1.4rem" width="80%" />
+      <Skeleton height="1rem" width="60%" />
+    </div>
+  )
+}
+
 export default function NoticeHighlights({ onOpen }) {
   const { data, loading, error } = useNotices()
-  if (loading || error) return null
+  if (loading) return <HeroSkeleton />
+  // 에러·빈 목록은 이 히어로가 아니라 그 아래 목록(AppNoticesTab)이 책임진다 —
+  // 히어로와 목록이 각자 같은 에러/빈 문구를 중복해 보여주지 않기 위함이다.
+  if (error) return null
   const notices = Array.isArray(data) ? data : []
   if (notices.length === 0) return null
 
   const top = notices[0]
   const preview = previewLine(top.content)
+  const unread = isNoticeUnread(APP_NOTICE_CATEGORY, top.id)
 
   return (
     <button
       type="button"
       onClick={onOpen ? () => onOpen(top) : undefined}
-      aria-label={`공지: ${top.title}`}
+      aria-label={`${unread ? '안읽음 · ' : ''}공지: ${top.title}`}
       className="pressable relative w-full text-left mb-3 overflow-hidden rounded-sheet bg-dock-bg px-5 pt-5 pb-[18px] shadow-sh-pop"
     >
       {/* 우상단 글로우 — 블러 처리된 accent 원 (rgba/radial-gradient 대신 blur 유틸) */}
@@ -69,17 +87,22 @@ export default function NoticeHighlights({ onOpen }) {
           <Pin size={14} aria-hidden="true" />
         </span>
         <div className="flex flex-col gap-px">
-          <span className="text-dest font-extrabold text-accent tracking-[0.08em]">
-            고정 공지
+          <span className="flex items-center gap-1.5 text-dest font-extrabold text-accent tracking-[0.08em]">
+            새 공지
+            {/* 안읽음 도트 — 읽으면(NoticesPage 방문) 자리를 비워 정렬은 그대로 둔다. */}
+            <span
+              aria-hidden="true"
+              className={`h-[7px] w-[7px] rounded-full ${unread ? 'bg-accent' : ''}`}
+            />
           </span>
           <span className="text-dest font-semibold text-white/60">
-            {fmtDate(top.created_at)}
+            {formatRelativeTime(top.created_at)}
           </span>
         </div>
       </div>
 
       {/* 제목 */}
-      <div className="relative mt-3.5 text-[19px] font-extrabold leading-[1.32] tracking-[-0.02em] text-white">
+      <div className="relative mt-3.5 text-title-sm font-extrabold leading-[1.32] tracking-[-0.02em] text-white">
         {top.title}
       </div>
 

@@ -127,7 +127,7 @@ export default function RouteCrowdingSection({ routeNumber }) {
                       role="img"
                       aria-label={label}
                       title={label}
-                      className={`h-5 rounded-[3px] ${tone.className}`}
+                      className={`h-5 rounded-sm ${tone.className}`}
                       style={tone.style}
                     />
                   )

@@ -133,6 +133,13 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
             const upFirst = isOvernight ? (up?.depart_at ?? null) : (tmrData?.[line.upKey]?.[0]?.depart_at ?? null)
             const downFirst = isOvernight ? (down?.depart_at ?? null) : (tmrData?.[line.downKey]?.[0]?.depart_at ?? null)
 
+            // 시안 "다음 차 카드" — 상행/하행 중 더 빨리 오는 쪽만 크게(size='lg').
+            // 둘 다 실제 초 단위 도착 정보가 있을 때만 비교한다.
+            const upSec = trainToSeconds(up)
+            const downSec = trainToSeconds(down)
+            const upIsSooner = upSec != null && (downSec == null || upSec <= downSec)
+            const downIsSooner = downSec != null && (upSec == null || downSec < upSec)
+
             return (
               <div key={line.name} className="space-y-2">
                 <SubwayDirectionCard
@@ -142,6 +149,7 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
                   firstTomorrow={upFirst}
                   emptyTitle={emptyTitle}
                   firstLabel={firstLabel}
+                  size={upIsSooner ? 'lg' : undefined}
                   onClick={() => openDetail(line.name, '상행', line.upKey)}
                 />
                 <SubwayDirectionCard
@@ -151,6 +159,7 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
                   firstTomorrow={downFirst}
                   emptyTitle={emptyTitle}
                   firstLabel={firstLabel}
+                  size={downIsSooner ? 'lg' : undefined}
                   onClick={() => openDetail(line.name, '하행', line.downKey)}
                 />
               </div>
@@ -167,7 +176,7 @@ export default function SubwayPanel({ dataMode = 'timetable' }) {
  * badge=노선 심볼(수인/4/서), title="OO 방면", subtitle=상행|하행,
  * eta.primary=N분(5분 이하만 imminent 색), secondary="다음 M분".
  */
-function SubwayDirectionCard({ meta, train, fallbackDir, firstTomorrow, emptyTitle, firstLabel, onClick }) {
+function SubwayDirectionCard({ meta, train, fallbackDir, firstTomorrow, emptyTitle, firstLabel, size, onClick }) {
   const sec = trainToSeconds(train)
   const minutes = trainToMinutes(sec)
   const nextMinutes = trainToMinutes(train?.next_arrive_in_seconds)
@@ -175,10 +184,11 @@ function SubwayDirectionCard({ meta, train, fallbackDir, firstTomorrow, emptyTit
   if (minutes == null && nextMinutes == null) {
     return (
       <TransitCard
-        badge={{ label: meta.symbol, bgVar: meta.color }}
+        badge={{ label: meta.symbol, bgVar: meta.color, mode: 'subway' }}
         title={emptyTitle}
         subtitle={fallbackDir}
         muted
+        size={size}
         eta={{
           primary: { text: '운행 없음', tone: 'muted' },
           secondary: firstTomorrow ? { text: `${firstLabel} ${firstTomorrow}` } : undefined,
@@ -204,10 +214,11 @@ function SubwayDirectionCard({ meta, train, fallbackDir, firstTomorrow, emptyTit
 
   return (
     <TransitCard
-      badge={{ label: meta.symbol, bgVar: meta.color }}
+      badge={{ label: meta.symbol, bgVar: meta.color, mode: 'subway' }}
       title={title}
       subtitle={fallbackDir}
       chips={isLast ? [{ label: '막차', tone: 'warn' }] : []}
+      size={size}
       eta={{
         primary: { text: minutes != null ? `${minutes}분` : '정보 없음', tone: minutes == null ? 'muted' : imminent ? 'imminent' : 'default' },
         secondary: secondaryText ? { text: secondaryText } : undefined,

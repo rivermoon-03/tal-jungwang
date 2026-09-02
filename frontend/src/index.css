@@ -142,6 +142,12 @@
 }
 
 /* ── 모션 패턴 (Phase C, DESIGN.md §4) ──────────────────────
+   fill-mode는 backwards다. both를 쓰면 애니메이션이 끝난 뒤에도 요소가
+   "채우는 중"으로 남아 stacking context를 계속 만든다 — .tj-tab-fade에서
+   시트가 하단 독보다 낮게 그려지는 결함으로 실제로 터졌다(index.css의
+   .tj-tab-fade 주석 참고). 이 둘은 transform까지 애니메이션하므로 같은 함정에
+   더 쉽게 빠진다. backwards는 지연(stagger) 구간 동안 from 상태를 그대로
+   유지하므로 등장 연출은 달라지지 않는다.
    카드 진입: fade + 상승 + 미세 스케일. 리스트 항목은 utils/motion.js의
    staggerDelay()로 60ms 간격 animation-delay를 부여해 순차 등장시킨다. */
 @keyframes tj-card-enter {
@@ -149,7 +155,7 @@
   to   { opacity: 1; transform: translateY(0)    scale(1);   }
 }
 .tj-card-enter {
-  animation: tj-card-enter var(--dur-motion-enter) var(--e-out) both;
+  animation: tj-card-enter var(--dur-motion-enter) var(--e-out) backwards;
 }
 
 /* 도착 "n분" 숫자 변경 시 미세한 스케일 펄스(과한 애니메이션 금지).
@@ -159,16 +165,28 @@
   to   { opacity: 1;   transform: scale(1);    }
 }
 .tj-number-pulse {
-  animation: tj-number-pulse var(--dur-motion-base) var(--e-out) both;
+  animation: tj-number-pulse var(--dur-motion-base) var(--e-out) backwards;
 }
 
-/* 상위 탭(홈/시간표/학식/더보기) 전환 크로스페이드 */
+/* 상위 탭(홈/시간표/학식/더보기) 전환 크로스페이드.
+   fill-mode는 backwards다(both를 쓰면 안 된다). HomeWeatherHero.css의
+   .whero-panel 주석이 밝힌 것과 같은 결함이 여기서도 실측됐다: fill-mode가
+   both면 애니메이션이 끝난 뒤에도(opacity 계산값이 1이라 겉보기엔 멀쩡해도)
+   이 요소가 여전히 "채우는 중" 상태로 취급돼 새 stacking context를 만든다.
+   그 결과 이 div 밑에 있는 시트(z-sheet:100)가 지역 stacking context 안에
+   갇혀, 전혀 다른 조상 트리에 있는 하단 독(z-nav:50, fixed)보다 낮게
+   그려졌다. 셔틀 상세 모달을 연 채 독의 "공지" 탭을 눌러도 그대로 눌리는
+   버그로 나타났다. 개발 서버에서 document.querySelector('.tj-tab-fade')
+   .getAnimations()로 애니메이션이 finished 상태에서도 계속 존재함을 확인했고,
+   그 애니메이션을 cancel()하면 즉시 순서가 정상으로 돌아오는 것도 확인했다.
+   backwards는 시작 전(from) 상태만 유지하고 끝난 뒤에는 기본 스타일로
+   돌아가므로, 등장 모션은 그대로 두고 이 stacking context만 없앤다. */
 @keyframes tj-tab-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 .tj-tab-fade {
-  animation: tj-tab-fade var(--dur-motion-base) var(--e-inout) both;
+  animation: tj-tab-fade var(--dur-motion-base) var(--e-inout) backwards;
 }
 
 /* 스켈레톤 시머 — 기존 animate-pulse(불투명도만 변화)를 그라디언트 스윕으로 대체 */

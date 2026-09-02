@@ -1,7 +1,10 @@
 // PC 좌측 패널의 표준 컨테이너.
 // pnl-head (subtitle + title + meta) + pnl-tabs (optional) + pnl-body.
 //
-// 다크 모드: 1px 헤어라인 + #0a0a0a surface.
+// 다크 모드: 1px 헤어라인 + #0a0a0a surface. shadow-sh-*는 :root에서만 유효해
+// 예전 shadow-card-md는 다크에서 아무 경계도 안 보였다 — dark:border로 대체한다.
+// rounded-card-pc(14px)는 카드(20px)보다 한 단계 작은 PC 전용 반경이라
+// ui/Card(rounded-card 고정)를 그대로 쓰지 않고 이 컴포넌트를 유지한다.
 
 export default function RoutePanel({
   subtitle,
@@ -15,7 +18,7 @@ export default function RoutePanel({
 }) {
   return (
     <section
-      className={`flex flex-col rounded-card-pc bg-surface shadow-card-md dark:bg-surface dark:border dark:border-line dark:shadow-none overflow-hidden ${className}`}
+      className={`flex flex-col rounded-card-pc bg-surface shadow-sh-lift dark:bg-surface dark:border dark:border-line dark:shadow-none overflow-hidden ${className}`}
     >
       <header className="flex items-start justify-between px-[14px] pt-3 pb-2">
         <div>

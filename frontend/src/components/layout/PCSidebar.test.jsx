@@ -39,25 +39,27 @@ describe('PCSidebar', () => {
     }
   })
 
-  it('4개 주요 메뉴(지도/학교시설/공지/더보기)를 렌더링한다', () => {
+  // PC 상위 탭 라벨을 모바일 FloatingDock과 맞췄다(둘 다 '홈') — 같은 화면인데
+  // PC만 '지도'라 이름이 갈리던 자리(요구사항: 모바일·PC 상위 탭 이름 일치).
+  it('4개 주요 메뉴(홈/학교시설/공지/더보기)를 렌더링한다', () => {
     render(<PCSidebar />)
-    expect(screen.getByRole('link', { name: /지도/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^홈$/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /학교시설/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /공지/ })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /더보기/ }).length).toBeGreaterThanOrEqual(1)
   })
 
-  it('현재 경로(/)에서는 지도 탭이 active 상태로 표시된다', () => {
+  it('현재 경로(/)에서는 홈 탭이 active 상태로 표시된다', () => {
     render(<PCSidebar />)
-    const mapLink = screen.getByRole('link', { name: /지도/ })
+    const mapLink = screen.getByRole('link', { name: /^홈$/ })
     expect(mapLink).toHaveAttribute('aria-current', 'page')
   })
 
-  it('/schedule 은 지도 탭의 하위 보기라 지도가 active로 남는다', () => {
+  it('/schedule 은 홈 탭의 하위 보기라 홈이 active로 남는다', () => {
     setPath('/schedule')
     render(<PCSidebar />)
     // 시간표는 별도 탭이 아니라 같은 교통 정보의 다른 관점이다.
-    expect(screen.getByRole('link', { name: /지도/ })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: /^홈$/ })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: '시간표' })).toBeInTheDocument()
   })
 

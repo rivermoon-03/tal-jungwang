@@ -318,3 +318,92 @@ describe('ShuttlePanel — AI티 제거 검증', () => {
     expect(screen.getByText(/하교/)).toBeInTheDocument()
   })
 })
+
+describe('ShuttlePanel — 등교/하교 카드 크기 통일(size=lg 승격 없음)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    mockKstDay(1) // 월요일
+    setMainCampus()
+    // direction별로 다른 도착 정보를 줘 등교가 하교보다 훨씬 빨리 오게 만든다.
+    // (구현 전에는 이 경우 등교 카드만 size='lg'로 승격됐다.)
+    useShuttleNext.mockImplementation((direction) => ({
+      data: { depart_at: '10:30', arrive_in_seconds: direction === 0 ? 120 : 900 },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    }))
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('등교가 하교보다 훨씬 빨리 와도 두 카드의 크기가 같다', () => {
+    const { container } = render(<ShuttlePanel />)
+    const sizedCards = container.querySelectorAll('[data-size]')
+    expect(sizedCards).toHaveLength(2)
+    expect(sizedCards[0].dataset.size).toBe(sizedCards[1].dataset.size)
+    expect(sizedCards[0].dataset.size).toBe('md')
+  })
+})
+
+describe('ShuttlePanel — 셔틀 타일 라벨', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    mockKstDay(1) // 월요일
+    setMainCampus()
+    useShuttleNext.mockReturnValue({
+      data: { depart_at: '10:30', arrive_in_seconds: 300 },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    })
+    useShuttleSchedule.mockReturnValue({ data: null, loading: false, error: null })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('셔틀 타일에 잘린 한 글자("셔") 대신 "셔틀"을 온전히 보여준다', () => {
+    render(<ShuttlePanel />)
+    expect(screen.getAllByText('셔틀')).toHaveLength(2)
+    expect(screen.queryByText('셔', { exact: true })).not.toBeInTheDocument()
+  })
+})
+
+// 새벽에 홈을 열면 다음 셔틀까지 8시간 넘게 남아 "511분" 이 그대로 찍혔다.
+// utils/eta.js 가 60분 초과는 절대 시각으로 바꾸라고 정해 뒀는데 이 패널만
+// 안 따르고 있었다. 시간표 데이터라 예정 출발 시각을 이미 아는 만큼 그 값을 쓴다.
+describe('ShuttlePanel — 60분을 넘는 대기는 시각으로 보여준다', () => {
+  const nextPayload = (arriveSec, nextSec) => ({
+    data: {
+      direction: 0,
+      depart_at: '08:40:00',
+      arrive_in_seconds: arriveSec,
+      is_last: false,
+      note: null,
+      next_depart_at: '08:50:00',
+      next_arrive_in_seconds: nextSec,
+    },
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  })
+
+  it('8시간 넘게 남으면 분이 아니라 출발 시각(08:40)을 보여준다', () => {
+    useShuttleNext.mockReturnValue(nextPayload(29806, 30406))
+    render(<ShuttlePanel />)
+    expect(screen.getAllByText('08:40').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/\b4\d\d분|\b5\d\d분/)).toBeNull()
+  })
+
+  it('60분 이하는 그대로 분으로 보여준다', () => {
+    useShuttleNext.mockReturnValue(nextPayload(600, 1200))
+    render(<ShuttlePanel />)
+    expect(screen.getAllByText('10분').length).toBeGreaterThan(0)
+  })
+})

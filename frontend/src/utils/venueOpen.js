@@ -27,8 +27,9 @@
 import {
   UtensilsCrossed,
   Soup,
+  Flame,
   Utensils,
-  Beef,
+  Sandwich,
   Coffee,
   Store,
 } from 'lucide-react'
@@ -341,9 +342,12 @@ export function getCategoryIcon(category) {
   switch (category) {
     case '한식':      return UtensilsCrossed
     case '분식':      return Soup
-    case '중식':      return Soup
+    // 결함 — 분식과 중식이 같은 Soup 아이콘을 써서 카테고리 칩·타일에서
+    // 구분이 안 됐다. 중식은 불맛(웍) 이미지의 Flame으로 분리한다.
+    case '중식':      return Flame
     case '양식':      return Utensils
-    case '패스트푸드': return Beef
+    // 패스트푸드는 Beef(스테이크류)가 양식과 톤이 겹쳐 Sandwich로 분리한다.
+    case '패스트푸드': return Sandwich
     case '카페':      return Coffee
     case '편의점':    return Store
     default:          return Utensils

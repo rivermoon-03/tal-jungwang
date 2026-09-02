@@ -2,6 +2,7 @@ import { useCountdown } from '../../hooks/useCountdown'
 import useAppStore from '../../stores/useAppStore'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
+import Card from '../ui/Card'
 
 function timeToMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -53,13 +54,17 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
   const isFirst = nextTrainIdx >= 0 && nextTrainIdx === firstIdx
 
   return (
-    <div
-      className="rounded-card overflow-hidden shadow-card cursor-pointer pressable"
+    // 색상 헤더가 카드 모서리까지 꽉 차야 해서 padding="none" — 각 섹션이
+    // 자체 px/py를 책임진다(ui/Card의 기본 18px 패딩을 쓰면 헤더가 안으로
+    // 밀려 들어가 색상 블록이 카드 테두리와 떨어져 보인다).
+    <Card
+      padding="none"
+      className="overflow-hidden cursor-pointer pressable"
       onClick={onClick}
     >
       {/* 컬러 헤더 */}
       <div className="px-4 py-3 flex items-center gap-2.5" style={{ backgroundColor: color }}>
-        <span className="text-white font-semibold text-[15px] tracking-tight">{lineName}</span>
+        <span className="text-white font-semibold text-list-nm tracking-tight">{lineName}</span>
         <span className="text-white/85 text-label font-semibold">{dirLabel}</span>
       </div>
 
@@ -100,6 +105,6 @@ export default function SubwayLineCard({ lineName, dirLabel, color, darkColor, l
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   )
 }

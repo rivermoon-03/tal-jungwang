@@ -14,6 +14,10 @@
  *
  * 다크 대응: border는 var(--tj-surface)로 배경색과 어울리게 처리.
  * 아이콘/도트 배경은 노선색(tjLineColor 우선, 없으면 TYPE_COLOR_MAP fallback) 사용.
+ *
+ * 히트 영역: 시각적으로 보이는 도트는 20px(+보더 2px)라 축소 지도에서 가장 흔히
+ * 보이는 마커임에도 44px 터치 타깃에 크게 못 미쳤다. 시각 크기는 그대로 두고,
+ * 바깥에 투명한 44x44 래퍼를 하나 더 둬서 탭 판정 영역만 넓힌다.
  */
 
 import { tjLineColor } from '../common/lineColor'
@@ -66,25 +70,39 @@ export function createMarkerDotElement({ type, customColor, routeCode, onClick }
   const color = resolveTypeColor(type, customColor, routeCode)
   const iconSvg = resolveTypeIcon(type)
 
-  const div = document.createElement('div')
-  div.style.cssText = [
+  const dot = document.createElement('div')
+  dot.style.cssText = [
     `width:${DOT_SIZE}px`,
     `height:${DOT_SIZE}px`,
     'border-radius:50%',
     `background:${color}`,
     'border:2px solid var(--tj-surface)',
     'box-shadow:0 2px 6px rgba(0,0,0,0.22)',
-    'cursor:pointer',
     'flex-shrink:0',
     'display:flex',
     'align-items:center',
     'justify-content:center',
   ].join(';')
-  div.innerHTML = iconSvg
+  dot.innerHTML = iconSvg
+
+  // 히트 영역 래퍼: 시각 크기(20px)는 그대로 두고 탭 판정 영역만 44x44로 넓힌다.
+  // CustomOverlay의 xAnchor:0.5/yAnchor:1.0(하단 중앙)이 이 래퍼 기준으로도 그대로
+  // 유지되도록 dot을 래퍼 하단 중앙에 붙인다(align-items:flex-end) — 그래야
+  // 래퍼를 씌워도 지도 좌표 위 도트의 실제 표시 위치가 픽셀 단위로 밀리지 않는다.
+  const hit = document.createElement('div')
+  hit.style.cssText = [
+    'width:44px',
+    'height:44px',
+    'display:flex',
+    'align-items:flex-end',
+    'justify-content:center',
+    'cursor:pointer',
+  ].join(';')
+  hit.appendChild(dot)
 
   if (onClick) {
-    div.addEventListener('click', onClick)
+    hit.addEventListener('click', onClick)
   }
 
-  return div
+  return hit
 }

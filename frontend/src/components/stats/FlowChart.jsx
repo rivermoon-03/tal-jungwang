@@ -35,6 +35,16 @@ function classifySpeed(kmh) {
   return '정체'
 }
 
+// 범례 — 예전엔 곡선이 지금 원활/서행/정체 중 어디쯤인지 탭해서 툴팁을 띄워야만
+// 알 수 있었다(모바일 터치에서는 사실상 못 봄). TrafficFlowCard.speedStatus /
+// StatusChips.trafficStatus와 같은 색 규칙(ease·imminent·delayed)을 그대로 써서
+// 화면 전체에서 같은 색이 같은 뜻이 되게 한다.
+const SPEED_LEGEND = [
+  { label: '원활', cls: 'text-ease' },
+  { label: '서행', cls: 'text-imminent' },
+  { label: '정체', cls: 'text-delayed' },
+]
+
 export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = null, rangeH = 24, futureMode = false }) {
   const wrapRef = useRef(null)
   const [hoverIdx, setHoverIdx] = useState(null)
@@ -129,6 +139,7 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
   const pctTop = (y) => `${(y / H) * 100}%`
 
   return (
+    <div>
     <div
       ref={wrapRef}
       className="relative w-full select-none"
@@ -266,7 +277,7 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
             }}
           />
           <div
-            className="absolute px-2.5 py-1.5 rounded-lg bg-surface shadow-card-md border border-line whitespace-nowrap pointer-events-none"
+            className="absolute px-2.5 py-1.5 rounded-tile bg-surface shadow-sh-lift border border-line whitespace-nowrap pointer-events-none"
             style={{
               left: pctLeft(active.x),
               top: pctTop(active.y),
@@ -286,6 +297,19 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
           </div>
         </>
       )}
+    </div>
+
+    {/* 범례 — 탭하지 않아도 항상 보인다. 시간축은 이 차트를 감싸는 카드
+        (TrafficFlowCard의 xAxisLabels)가 이미 그린다 — 여기서 또 그리면 중복이라
+        범례만 추가한다. */}
+    <div className="mt-2 flex items-center gap-3 flex-wrap" role="list" aria-label="교통 흐름 범례">
+      {SPEED_LEGEND.map((band) => (
+        <span key={band.label} role="listitem" className="inline-flex items-center gap-1.5 text-caption font-medium text-mute">
+          <span aria-hidden className={`w-2.5 h-2.5 rounded-full shrink-0 ${band.cls}`} style={{ backgroundColor: 'currentColor' }} />
+          {band.label}
+        </span>
+      ))}
+    </div>
     </div>
   )
 }

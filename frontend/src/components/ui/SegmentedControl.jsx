@@ -100,7 +100,7 @@ export default function SegmentedControl({ options = [], value, onChange, size =
             className={[
               'relative z-10 flex items-center justify-center',
               compact ? 'min-h-[30px] px-3' : 'min-h-[38px] px-3 flex-1',
-              'rounded-badge text-[13px] font-bold select-none pressable',
+              'rounded-badge text-mini-ttl font-bold select-none pressable',
               'transition-colors duration-base',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tj-focus-ring)]',
               isActive ? 'text-[var(--tj-pill-active-fg)]' : 'bg-transparent text-mute',

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { Navigation, School, Search, Map as MapIcon } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import UserLocationMarker from './UserLocationMarker'
@@ -7,7 +8,6 @@ import WalkRoutePolyline from './WalkRoutePolyline'
 import WalkRouteCard from './WalkRouteCard'
 import NearestStopCard from './NearestStopCard'
 import { apiFetch } from '../../hooks/useApi'
-import RestaurantOverlay from './RestaurantOverlay'
 import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
@@ -20,9 +20,33 @@ import { useTaxiToStation } from '../../hooks/useRoute'
 import { useMapMarkers } from '../../hooks/useMapMarkers'
 import useUserLocation from '../../hooks/useUserLocation'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
+import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { getFirstBusLabel } from '../../utils/arrivalTime'
 import { getRouteDisplayConfig } from '../dashboard/busStationConfig'
 import MapLegendOnboarding from './MapLegendOnboarding'
+import IconButton from '../ui/IconButton'
+
+// 결함 #1 — mapExpanded 상태의 "닫기" 버튼. 예전엔 이 버튼이 SDK 정상 렌더
+// 경로에만 있어서, 카카오 SDK가 아직 안 떴거나(!sdkReady) 로드에 실패하면
+// (sdkError) 전체화면 지도에서 빠져나갈 방법이 하나도 없었다. SDK 상태별
+// early return 세 갈래와 정상 렌더 경로 모두가 이 버튼 하나를 공유한다 —
+// 마크업을 갈래마다 복붙하면 나중에 하나만 고치고 나머지는 놓치기 쉽다.
+function CloseMapButton({ onClose }) {
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="지도 닫기"
+      className="flex items-center gap-1.5 bg-surface/95 dark:bg-surface/95
+                 border border-line dark:border-line rounded-card px-3 py-2
+                 text-mini-ttl font-bold text-accent dark:text-accent shadow-pill
+                 min-h-[40px] active:scale-[0.94] transition-transform duration-press ease-spring"
+    >
+      <MapIcon size={16} aria-hidden="true" />
+      닫기
+    </button>
+  )
+}
 
 function getPrimaryStopId(marker) {
   if (!marker) return null
@@ -80,8 +104,19 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   const managedStationsRef = useRef([])
   const gpsCoordsRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
+  // SDK 스크립트가 로드 자체에 실패하면(네트워크 차단·잘못된 키·허용 도메인 아님 등)
+  // 기존엔 console.error만 찍고 sdkReady가 영원히 false로 남아 "지도를 불러오는
+  // 중..."에서 화면이 영구 정지했다 — 실패를 state로 잡아 재시도 UI를 보여준다.
+  const [sdkError, setSdkError] = useState(false)
+  // "다시 시도" 클릭 시 SDK 로드 effect를 재구동하기 위한 트리거. 값 자체는
+  // 의미가 없고 변경될 때마다 effect가 재실행되도록 dep에만 걸어둔다.
+  const [sdkRetryToken, setSdkRetryToken] = useState(0)
   const [mapInstance, setMapInstance] = useState(null)
   const kakaoKey = import.meta.env.VITE_KAKAO_JS_APP_KEY
+  // PC(도킹 패널)는 검색·범례를 PCMainShell이 별도로 얹으므로, 축소 상태에
+  // MapView 자체가 그리는 검색 pill · 범례 버튼은 모바일에서만 켠다(그렇지
+  // 않으면 PC에서 같은 컨트롤이 두 번 겹친다).
+  const isDesktop = useIsDesktop()
   const userLocation        = useAppStore((s) => s.userLocation)
   const mapPanTarget        = useAppStore((s) => s.mapPanTarget)
   const setMapPanTarget     = useAppStore((s) => s.setMapPanTarget)
@@ -969,6 +1004,11 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       })
     }
 
+    function onSdkError() {
+      console.error('[MapView] Failed to load Kakao Maps SDK - check API key and allowed domains')
+      if (isMounted) setSdkError(true)
+    }
+
     const existing = document.getElementById(SDK_SCRIPT_ID)
     if (existing) {
       if (window.kakao?.maps?.load) {
@@ -976,9 +1016,11 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
         return () => { isMounted = false }
       }
       existing.addEventListener('load', onSdkLoaded, { once: true })
+      existing.addEventListener('error', onSdkError, { once: true })
       return () => {
         isMounted = false
         existing.removeEventListener('load', onSdkLoaded)
+        existing.removeEventListener('error', onSdkError)
       }
     }
 
@@ -986,11 +1028,20 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     script.id = SDK_SCRIPT_ID
     script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoKey}&autoload=false`
     script.onload = onSdkLoaded
-    script.onerror = () => console.error('[MapView] Failed to load Kakao Maps SDK - check API key and allowed domains')
+    script.onerror = onSdkError
     document.head.appendChild(script)
 
     return () => { isMounted = false }
-  }, [kakaoKey])
+  }, [kakaoKey, sdkRetryToken])
+
+  // "다시 시도" — 실패한 <script> 태그를 지우고 재시도 토큰을 올려 위 effect를
+  // 다시 태운다. 태그를 지우지 않으면 document.getElementById가 여전히 그
+  // (이미 에러난) 태그를 찾아 load/error 이벤트가 다시는 발화하지 않는다.
+  function retrySdkLoad() {
+    document.getElementById(SDK_SCRIPT_ID)?.remove()
+    setSdkError(false)
+    setSdkRetryToken((n) => n + 1)
+  }
 
   // 지도 초기화 effect (sdkReady 후 1회)
   useEffect(() => {
@@ -1035,22 +1086,53 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     }
   }, [sdkReady])
 
+  // 결함 #1 — 세 상태(키 없음/로드 실패/로딩 중) 모두 같은 플레이스홀더 껍데기를
+  // 쓴다. 예전엔 이 세 if 가 각자 return을 갖고 있어서, 그 아래(1000행대) 정상
+  // 렌더 경로에만 있던 mapExpanded 닫기 버튼이 이 세 갈래에는 하나도 없었다.
+  // 플레이스홀더 콘텐츠만 분기하고, 닫기 버튼은 return을 한 곳으로 모아 공통으로
+  // 그린다 — SDK 상태가 무엇이든 mapExpanded면 닫기 버튼은 항상 뜬다.
+  let sdkPlaceholder = null
   if (!kakaoKey) {
-    return (
-      <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface overflow-hidden select-none">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <p className="text-mute text-base font-medium">카카오맵 (API 키 설정 후 활성화)</p>
-        </div>
+    sdkPlaceholder = (
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <p className="text-mute text-base font-medium">카카오맵 (API 키 설정 후 활성화)</p>
+      </div>
+    )
+  } else if (sdkError) {
+    sdkPlaceholder = (
+      <div className="absolute inset-0 flex items-center justify-center">
+        <button
+          type="button"
+          onClick={retrySdkLoad}
+          className="flex items-center gap-1.5 min-h-[44px] px-4 rounded-pill
+                     text-base font-medium text-mute active:scale-[0.98]
+                     transition-transform duration-press ease-spring"
+        >
+          지도를 불러올 수 없어요
+          <span className="font-bold text-accent">· 다시 시도</span>
+        </button>
+      </div>
+    )
+  } else if (!sdkReady) {
+    sdkPlaceholder = (
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <p className="text-mute text-base font-medium">지도를 불러오는 중...</p>
       </div>
     )
   }
 
-  if (!sdkReady) {
+  if (sdkPlaceholder) {
     return (
       <div className="flex-1 relative w-full h-full min-h-0 bg-surface-2 dark:bg-surface overflow-hidden select-none">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <p className="text-mute text-base font-medium">지도를 불러오는 중...</p>
-        </div>
+        {sdkPlaceholder}
+        {mapExpanded && onClose && (
+          <div
+            className="absolute right-4 z-[55]"
+            style={{ top: 'calc(env(safe-area-inset-top) + 64px)' }}
+          >
+            <CloseMapButton onClose={onClose} />
+          </div>
+        )}
       </div>
     )
   }
@@ -1113,41 +1195,67 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
             style={{ bottom: '4.75rem' }}
           >
             {/* 내 위치 FAB */}
-            <button
-              className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
-              onClick={handleLocationFab}
-              aria-label="내 위치"
-              title="내 위치"
-            >
+            <IconButton label="내 위치" title="내 위치" variant="floating" onClick={handleLocationFab}>
               <Navigation size={17} className="text-accent dark:text-accent" />
-            </button>
+            </IconButton>
             {/* 학교로 FAB */}
-            <button
-              className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
-              onClick={panToSchool}
-              aria-label="학교로"
-              title="학교로"
-            >
+            <IconButton label="학교로" title="학교로" variant="floating" onClick={panToSchool}>
               <School size={17} className="text-navy" />
-            </button>
+            </IconButton>
           </div>
         )}
 
         {/* 하단 구간 요약 바(§4) — mapExpanded=false(PC 임베드 등) 우상단.
-            우측 ⓘ 버튼과 겹치지 않도록 좌측에 둔다. 값이 하나도 없으면(초기 로딩) 렌더하지 않는다. */}
+            우측 ⓘ 버튼과 겹치지 않도록 좌측에 둔다. 값이 하나도 없으면(초기 로딩) 렌더하지 않는다.
+            모바일은 아래 축소 검색 pill(§M-2)이 top-3에 새로 얹히므로 그 아래로 내린다 — PC는
+            도킹 패널이 검색을 이미 맡고 있어 이 pill이 뜨지 않으니 기존 top-3 그대로 둔다. */}
         {mapInstance && !mapExpanded && showControls && routeSummaryText && (
           <div
-            className="absolute top-3 left-3 z-[45] max-w-[calc(100%-96px)] truncate rounded-pill
+            className="absolute left-3 z-[45] max-w-[calc(100%-96px)] truncate rounded-pill
                        bg-surface dark:bg-surface border border-line dark:border-line
                        shadow-pill px-3 py-1.5 text-caption font-semibold text-ink-2 dark:text-ink-2"
+            style={{ top: isDesktop ? '0.75rem' : 'calc(env(safe-area-inset-top) + 64px)' }}
           >
             {routeSummaryText}
           </div>
         )}
 
+        {/* 축소 상태(모바일 첫 진입 화면)에도 지도 내 검색·범례를 노출한다(§M-2) — 예전엔
+            mapExpanded일 때만 검색 pill과 범례 ⓘ가 떴다. PC는 PCMainShell이 도킹 패널
+            (MapSearchOverlay)과 <MapLegendOnboarding/>을 이미 별도로 얹으므로, 여기서
+            또 켜면 같은 컨트롤이 두 번 겹쳐 보인다 — 모바일에서만 켠다. */}
+        {mapInstance && !mapExpanded && showControls && !isDesktop && (
+          <>
+            <button
+              type="button"
+              onClick={() => setSearchOpen?.(true)}
+              aria-label="노선 · 정류장 검색"
+              className="absolute left-3 right-3 z-[55] flex items-center gap-2 h-11 px-4
+                         bg-surface dark:bg-surface border border-line dark:border-line
+                         rounded-pill shadow-pill text-caption text-mute dark:text-mute
+                         active:scale-[0.98] transition-transform duration-press ease-spring"
+              style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
+            >
+              <Search size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
+              <span className="truncate">노선 · 정류장 검색</span>
+            </button>
+
+            <div
+              className="absolute right-4 z-[55]"
+              style={{ top: 'calc(env(safe-area-inset-top) + 64px)' }}
+            >
+              <MapLegendOnboarding embedded />
+            </div>
+          </>
+        )}
+
         {/* mapExpanded=true(M-1) — 검색 pill(상단 전폭) + 우측 상단 세로 컨트롤 스택
-            (닫기 · 내 위치 · 학교로 · 범례ⓘ, 검색바 아래) + 하단 최근접 정류장 카드.
-            top/bottom 모두 safe-area-inset을 더해 노치·홈 인디케이터를 피한다. */}
+            (닫기 · 학교로 · 범례ⓘ, 검색바 아래) + 우하단 내 위치 FAB(하단 카드 위) +
+            하단 최근접 정류장 카드. top/bottom 모두 safe-area-inset을 더해 노치·홈
+            인디케이터를 피한다.
+            내 위치는 원래 이 우상단 스택에 있었다 — 한 손으로 쓰는 상황(엄지가 화면
+            하단에 있는 상태)에 정확히 맞지 않아, 축소·PC와 같은 우하단(카드 위)으로
+            내렸다(§M-3). */}
         {mapInstance && mapExpanded && (
           <>
             <button
@@ -1180,48 +1288,39 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
               className="absolute right-4 flex flex-col gap-2 z-[55]"
               style={{ top: 'calc(env(safe-area-inset-top) + 64px)' }}
             >
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  aria-label="지도 닫기"
-                  className="flex items-center gap-1.5 bg-surface/95 dark:bg-surface/95
-                             border border-line dark:border-line rounded-card px-3 py-2
-                             text-[13px] font-bold text-accent dark:text-accent shadow-pill
-                             min-h-[40px] active:scale-[0.94] transition-transform duration-press ease-spring"
-                >
-                  <MapIcon size={16} aria-hidden="true" />
-                  닫기
-                </button>
-              )}
-              {/* 내 위치 FAB */}
-              <button
-                className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
-                onClick={handleLocationFab}
-                aria-label="내 위치"
-                title="내 위치"
-              >
-                <Navigation size={17} className="text-accent dark:text-accent" />
-              </button>
+              {onClose && <CloseMapButton onClose={onClose} />}
               {/* 학교로 FAB */}
-              <button
-                className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
-                onClick={panToSchool}
-                aria-label="학교로"
-                title="학교로"
-              >
+              <IconButton label="학교로" title="학교로" variant="floating" onClick={panToSchool}>
                 <School size={17} className="text-navy" />
-              </button>
+              </IconButton>
               {/* 범례 안내 ⓘ — 상시 노출 토스트 대신 탭해서 여는 접이식 패널(§3) */}
               <MapLegendOnboarding embedded />
             </div>
 
-            <NearestStopCard
-              userLocation={nearestUserLocation}
-              direction={effectiveDirection}
-              arrivalsByStation={arrivalsByStation}
-              onSelectStation={handleMarkerTap}
-              onRequestGps={handleLocationFab}
-            />
+            {/* 내 위치 FAB + 최근접 정류장 카드 — 우하단에 함께 쌓는다(§M-3). 정류장
+                카드 높이가 GPS 유무·도착 행 수에 따라 달라지므로, FAB을 고정 px로
+                띄우는 대신 같은 flex-column에 넣어 카드 자연 높이 위에 항상 붙게 한다. */}
+            <div
+              className="absolute inset-x-3 bottom-0 z-[55] flex flex-col items-end gap-2"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+            >
+              <IconButton
+                label="내 위치"
+                title="내 위치"
+                variant="floating"
+                className="self-end"
+                onClick={handleLocationFab}
+              >
+                <Navigation size={17} className="text-accent dark:text-accent" />
+              </IconButton>
+              <NearestStopCard
+                userLocation={nearestUserLocation}
+                direction={effectiveDirection}
+                arrivalsByStation={arrivalsByStation}
+                onSelectStation={handleMarkerTap}
+                onRequestGps={handleLocationFab}
+              />
+            </div>
           </>
         )}
 
@@ -1242,8 +1341,19 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
         {/* 도보 경로 카드 */}
         <WalkRouteCard />
 
-        {/* 마커 탭 → 바텀시트 */}
-        {sheetStation && (
+        {/* 마커 탭 → 바텀시트.
+            결함 #3 — MarkerSheet(ui/Sheet)가 App > MainShell(mapExpanded 높이를
+            calc()로 제한하는 overflow-hidden 컨테이너) > MapView(relative 컨테이너)
+            세 겹 아래 그대로 걸려 있었다. FloatingDock은 App.jsx 바로 아래
+            (거의 document.body 수준) fixed로 뜨는데, Sheet의 백드롭 fixed는 그
+            깊은 조상 체인 중 어느 하나가(지금 아니어도 나중에 transform/filter/
+            overflow 등으로) 뷰포트가 아닌 그 조상 기준으로 잡히면 독이 있는
+            화면 하단까지 백드롭이 안 뻗거나, 순서가 뒤집혀 독이 백드롭 위에
+            그려질 수 있다. z-overlay/z-nav 토큰 값을 만지는 대신, MarkerSheet만
+            document.body로 포탈해 그 조상 체인 자체를 끊는다 — Sheet.jsx는
+            StatsSheet · GlobalSubwayLineSheet 등 다른 여덟 개 소비자가 그대로
+            쓰므로 정본 자체는 건드리지 않는다. */}
+        {sheetStation && createPortal(
           <MarkerSheet
             station={sheetStation}
             arrivals={sheetArrivals}
@@ -1324,7 +1434,8 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
                 }
               }
             }}
-          />
+          />,
+          document.body
         )}
       </div>
 
@@ -1334,7 +1445,6 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
           <UserLocationMarker map={mapInstance} />
           <DriveRoutePolyline map={mapInstance} />
           <WalkRoutePolyline map={mapInstance} />
-          <RestaurantOverlay map={mapInstance} />
           <TrafficRoadOverlay map={mapInstance} />
 
           {/* 줌 레벨 기반 Chip ↔ Dot 하이브리드 마커 (주요 정류장) */}

@@ -60,8 +60,13 @@ describe('혼잡도 라벨 일관성 — StatusChips vs CrowdingCard', () => {
   it('CrowdingCard가 더 이상 평균(crowded) 기준 구버전 라벨을 쓰지 않는다', () => {
     // crowdedLabel(2.1)이면 "보통"이 나왔을 것 — 정본 함수(labelFromRatio)를
     // 쓰면 ratio=0.466 기준 "매우 붐빔"이 나와야 한다.
+    //
+    // "지금" 상태 표시 영역만 본다 — CrowdingChart가 항상 보이는 4단계 색 범례
+    // (여유/보통/혼잡/매우혼잡)를 차트 아래 함께 그리므로, 문서 전체에서 '보통'
+    // 문자열의 존재/부재만으로는 판정할 수 없다(범례는 정상적으로 '보통'을 포함한다).
     render(<CrowdingCard />)
-    expect(screen.queryByText('보통')).not.toBeInTheDocument()
-    expect(screen.getByText('매우 붐빔')).toBeInTheDocument()
+    const nowValue = screen.getByText('지금').nextElementSibling
+    expect(nowValue).not.toHaveTextContent('보통')
+    expect(nowValue).toHaveTextContent('매우 붐빔')
   })
 })

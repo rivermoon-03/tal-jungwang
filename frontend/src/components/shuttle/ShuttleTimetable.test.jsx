@@ -105,3 +105,26 @@ describe('ShuttleTimetable — 수시운행 밴드', () => {
     expect(screen.getByText('수시운행')).toBeInTheDocument()
   })
 })
+
+describe('ShuttleTimetable — 좁은 폰 스트립의 회차편 남은 시간', () => {
+  beforeEach(() => {
+    isNarrowPhone = true
+  })
+
+  // 예전에는 nextLabel이 isReturn이면 남은 시간 계산을 버리고 "회차편"
+  // 문구만 고정으로 보여줘, 다음 편이 회차편일 때 좁은 폰에서 남은 시간이
+  // 아예 안 보이는 결함이 있었다. "회차편"이라는 사실은 서브라벨이 이미
+  // 보여주므로, 다음 편 배지에는 항상 남은 시간이 떠야 한다.
+  it('다음 편이 회차편이어도 남은 시간을 보여준다', () => {
+    const returnTimes = [
+      { depart_at: '08:00', note: '회차편 · 학교 09:00 출발' },
+      { depart_at: '08:30', note: '회차편 · 학교 09:00 출발' },
+    ]
+    render(<ShuttleTimetable times={returnTimes} />)
+    // 회차편 서브라벨(원편 안내)은 그대로 남아 있어야 한다.
+    expect(screen.getAllByText('회차편').length).toBeGreaterThan(0)
+    // 08:15 기준 다음 편 08:30까지 15분 — 회차편이라고 해서 이 배지가
+    // "회차편"으로 덮이면 안 된다.
+    expect(screen.getByText('15분 뒤')).toBeInTheDocument()
+  })
+})

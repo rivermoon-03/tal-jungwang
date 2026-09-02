@@ -528,6 +528,18 @@ describe('getCategoryIcon — 카테고리 → lucide 아이콘', () => {
   it('한식과 카페는 서로 다른 아이콘 컴포넌트를 반환해요', () => {
     expect(getCategoryIcon('한식')).not.toBe(getCategoryIcon('카페'))
   })
+
+  // 결함 수정 확인: 분식과 중식이 같은 Soup 아이콘을 공유하던 문제.
+  it('분식과 중식은 서로 다른 아이콘 컴포넌트를 반환해요', () => {
+    expect(getCategoryIcon('분식')).not.toBe(getCategoryIcon('중식'))
+  })
+
+  it('7개 카테고리가 모두 서로 다른 아이콘 컴포넌트를 반환해요', () => {
+    const categories = ['한식', '분식', '중식', '양식', '패스트푸드', '카페', '편의점']
+    const icons = categories.map((c) => getCategoryIcon(c))
+    // 모든 쌍이 서로 달라야 한다 — Set으로 압축했을 때 원본 길이와 같으면 중복이 없다.
+    expect(new Set(icons).size).toBe(categories.length)
+  })
 })
 
 // ────────────────────────────────────────────────────────────────────

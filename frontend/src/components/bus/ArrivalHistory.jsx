@@ -16,7 +16,7 @@ function HistoryCell({ item }) {
   if (position === 'closest') {
     return (
       <div className="text-center rounded-button py-2.5 px-1 bg-accent-bg text-accent-ink">
-        <div className="text-[18px] font-semibold leading-none tracking-tight tabular-nums">
+        <div className="text-display font-semibold leading-none tracking-tight tabular-nums">
           {time}
         </div>
         <div className="mt-1 text-caption font-semibold">지금과 비슷</div>
@@ -28,7 +28,7 @@ function HistoryCell({ item }) {
     <div className="text-center rounded-button py-2.5 px-1">
       <div
         className={[
-          'text-[18px] font-semibold leading-none tracking-tight tabular-nums',
+          'text-display font-semibold leading-none tracking-tight tabular-nums',
           position === 'past' ? 'text-ink-2 dark:text-ink-2-dark' : 'text-ink dark:text-ink',
         ].join(' ')}
       >
@@ -112,7 +112,7 @@ export default function ArrivalHistory({ rows, routeNumber, columnLabels, column
               <div key={col.key} className="flex flex-col gap-2">
                 {col.items.length === 0 ? (
                   <div className="text-center rounded-button py-2.5 px-1">
-                    <div className="text-[18px] font-semibold leading-none tracking-tight text-mute">
+                    <div className="text-display font-semibold leading-none tracking-tight text-mute">
                       -
                     </div>
                   </div>

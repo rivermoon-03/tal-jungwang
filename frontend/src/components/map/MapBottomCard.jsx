@@ -7,7 +7,7 @@
  * 참고: pc-mockup.html의 .map-bottom / .bottom-card / .route-row 마크업을
  * 프로젝트 Tailwind + var(--tj-*) 토큰으로 옮긴 것.
  */
-import EmptyState from '../common/EmptyState'
+import EmptyState from '../ui/EmptyState'
 
 const STATUS_TONE_CLASS = {
   ease: 'bg-ease/15 text-ease',
@@ -45,16 +45,16 @@ export default function MapBottomCard({
       )}
 
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-[14px] font-extrabold text-ink">{stationName}</h3>
+        <h3 className="text-body-sm font-extrabold text-ink">{stationName}</h3>
         <div className="flex flex-none items-center gap-[6px]">
           {live && (
-            <span className="inline-flex items-center gap-[6px] rounded-pill bg-accent px-[10px] py-[3px] text-[12px] font-bold text-white">
+            <span className="inline-flex items-center gap-[6px] rounded-pill bg-accent px-[10px] py-[3px] text-chip font-bold text-white">
               <span aria-hidden="true" className="h-[6px] w-[6px] rounded-pill bg-white animate-dot-blink" />
               실시간
             </span>
           )}
           {statusLabel && (
-            <span className={`rounded-pill px-[11px] py-[4px] text-[12px] font-bold ${statusClass}`}>
+            <span className={`rounded-pill px-[11px] py-[4px] text-chip font-bold ${statusClass}`}>
               {statusLabel}
             </span>
           )}
@@ -62,7 +62,7 @@ export default function MapBottomCard({
       </div>
 
       {(routeName || direction) && (
-        <p className="text-[12.5px] font-semibold text-ink-2">
+        <p className="text-caption font-semibold text-ink-2">
           {routeName}
           {routeName && direction ? ' · ' : ''}
           {direction}
@@ -70,13 +70,13 @@ export default function MapBottomCard({
       )}
 
       {etaText && (
-        <p className="tabular-nums text-[30px] font-extrabold tracking-[-0.03em] text-ink">
+        <p className="tabular-nums text-bigMin font-extrabold tracking-[-0.03em] text-ink">
           {etaText}
         </p>
       )}
 
       {(nextText || lastText) && (
-        <p className="text-[12px] text-mute">
+        <p className="text-meta font-normal text-mute">
           {[nextText, lastText].filter(Boolean).join(' · ')}
         </p>
       )}
@@ -85,7 +85,7 @@ export default function MapBottomCard({
         <EmptyState
           size="sm"
           title={emptyState.title}
-          description={emptyState.description}
+          desc={emptyState.description}
           className="pt-1"
         />
       )}
@@ -102,23 +102,27 @@ export default function MapBottomCard({
               className="pressable hoverable flex-none w-[150px] rounded-card border border-line bg-surface-2 px-3 py-[11px] text-left md:w-auto"
             >
               <span className="mb-[7px] flex items-center gap-2">
+                {/* min-w-[26px] + whitespace-nowrap — 고정 w-[26px]에 "시흥33"·
+                    "20-1" 같은 노선번호가 안 들어가 두 줄로 꺾이면서 옆 노선명
+                    텍스트 위로 삐져나와 겹쳐 보였다. 폭을 내용에 맞춰 늘어나게
+                    하고 한 줄로 강제한다(TransitCard 타일의 whitespace-nowrap과 동일 이유). */}
                 <span
                   aria-hidden="true"
                   style={{ background: route.color }}
-                  className="grid h-5 w-[26px] flex-none place-items-center rounded-badge text-[12px] font-extrabold text-white"
+                  className="grid h-5 min-w-[26px] flex-none place-items-center whitespace-nowrap rounded-badge px-1 text-chip font-extrabold text-white"
                 >
                   {route.badge}
                 </span>
-                <span className="truncate text-[12.5px] font-bold text-ink">{route.name}</span>
+                <span className="truncate text-caption font-bold text-ink">{route.name}</span>
               </span>
               <span
-                className={`block tabular-nums text-[18px] font-extrabold tracking-[-0.02em] ${
+                className={`block tabular-nums text-display font-extrabold tracking-[-0.02em] ${
                   MINI_TONE_CLASS[route.tone] ?? 'text-ink'
                 }`}
               >
                 {route.etaText}
               </span>
-              {route.sub && <span className="block text-[12px] text-mute">{route.sub}</span>}
+              {route.sub && <span className="block text-meta font-normal text-mute">{route.sub}</span>}
             </button>
           ))}
         </div>

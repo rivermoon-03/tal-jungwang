@@ -64,6 +64,29 @@ function makeTail() {
   return tail
 }
 
+/**
+ * 히트 영역 래퍼 — 칩 본체(pill+tail) 높이가 padding 포함 32px 안팎이라
+ * 44px 터치 타깃에 못 미친다. 시각 크기는 그대로 두고, 세로로만 44px까지
+ * 여백을 얹어 탭 판정 영역을 넓힌다. 칩은 kakao CustomOverlay가 하단 중앙
+ * (yAnchor:1.0)에 앵커링하므로, 래퍼도 하단 정렬(justify-content:flex-end)해야
+ * 래퍼를 씌우기 전과 지도 좌표 위 표시 위치가 그대로 유지된다.
+ */
+function wrapWithHitArea(el, onClick) {
+  const hit = document.createElement('div')
+  hit.style.cssText = [
+    'display:inline-flex',
+    'flex-direction:column',
+    'align-items:center',
+    'justify-content:flex-end',
+    'min-width:44px',
+    'min-height:44px',
+    'cursor:pointer',
+  ].join(';')
+  hit.appendChild(el)
+  if (onClick) hit.addEventListener('click', onClick)
+  return hit
+}
+
 /** 22x22 원형 색 배지 (dot) */
 function makeDot({ color, text }) {
   const dot = document.createElement('span')
@@ -137,7 +160,6 @@ export function createMarkerChipElement({
     'display:inline-flex',
     'flex-direction:column',
     'align-items:center',
-    'cursor:pointer',
   ].join(';')
 
   // 선택적 보조 pill (extraPillText: 막차 임박 등)
@@ -245,8 +267,7 @@ export function createMarkerChipElement({
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
-  if (onClick) wrapper.addEventListener('click', onClick)
-  return wrapper
+  return wrapWithHitArea(wrapper, onClick)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -261,7 +282,6 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
     'display:inline-flex',
     'flex-direction:column',
     'align-items:center',
-    'cursor:pointer',
   ].join(';')
 
   // 칩 본체: pill
@@ -340,8 +360,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
-  if (onClick) wrapper.addEventListener('click', onClick)
-  return wrapper
+  return wrapWithHitArea(wrapper, onClick)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -422,7 +441,6 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
     'display:inline-flex',
     'flex-direction:column',
     'align-items:center',
-    'cursor:pointer',
   ].join(';')
 
   // 칩 본체: pill
@@ -486,6 +504,5 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
-  if (onClick) wrapper.addEventListener('click', onClick)
-  return wrapper
+  return wrapWithHitArea(wrapper, onClick)
 }

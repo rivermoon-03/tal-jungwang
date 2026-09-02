@@ -17,8 +17,10 @@ const MAP_VIEWS = [
   { value: 'timetable', label: '시간표' },
 ]
 
-// 모드 필터 칩. 현재 실데이터(useMapBottomCardData)는 버스만 제공한다 — 셔틀/
-// 지하철/택시를 하단 카드에 합류시키는 작업은 후속 범위(TODO 참고).
+// 모드 필터 칩. 버스는 useMapBottomCardData(실시간 지도 데이터)를 쓴다. 셔틀/
+// 지하철은 대표 도착 카드에 합류시키는 대신 PCMapDockPanel이 모바일 요약 패널
+// (ShuttlePanel/SubwayPanel)을 그대로 재사용해 보여준다 — 택시만 아직 미연결
+// (TaxiPanel도 있지만 이번 범위에는 없다, 후속 TODO).
 const MODE_FILTERS = [
   { id: 'bus',     label: '버스' },
   { id: 'shuttle', label: '셔틀' },
@@ -60,7 +62,9 @@ export default function PCMainShell({ children }) {
   // 검색어 + 모드 필터를 클라이언트에서 적용한다. 백엔드 통합 검색은 범위 밖 —
   // TODO(검색): 노선/정류장 서버 검색 API가 생기면 이 클라 필터를 대체한다.
   const filteredRoutes = useMemo(() => {
-    if (activeFilter !== 'bus') return [] // 셔틀/지하철/택시 데이터 소스는 아직 미연결
+    // 이 목록은 MapBottomCard의 버스 전용 미니 카드 그리드에만 쓰인다 — 셔틀/
+    // 지하철은 PCMapDockPanel이 ShuttlePanel/SubwayPanel로 따로 그리므로 필요 없다.
+    if (activeFilter !== 'bus') return []
     const q = search.trim().toLowerCase()
     if (!q) return bottomCardData.routes
     return bottomCardData.routes.filter((r) =>
@@ -77,14 +81,18 @@ export default function PCMainShell({ children }) {
 
   // 빈 상태 문구는 원인별로 다르게 준다 — 필터 미지원 / 검색 결과 없음 /
   // 해당 방향 운행 없음은 사용자가 취할 행동이 서로 다르다.
+  //
+  // 셔틀/지하철은 여기 안 걸린다 — PCMapDockPanel이 그 두 필터에서는 이
+  // emptyState를 아예 쓰지 않고 ShuttlePanel/SubwayPanel을 직접 그린다(각자
+  // 자기 빈 상태를 갖고 있다). 택시만 실데이터가 아직 없어 "준비 중"으로 남는다.
   const emptyState = useMemo(() => {
-    if (!isBusFilter) {
-      const label = MODE_FILTERS.find((f) => f.id === activeFilter)?.label ?? ''
+    if (activeFilter === 'taxi') {
       return {
-        title: `${label} 정보는 준비 중이에요`,
-        description: '지금은 버스만 지도에서 실시간으로 볼 수 있어요. 셔틀과 지하철은 시간표 탭에서 확인해요.',
+        title: '택시 정보는 준비 중이에요',
+        description: '지금은 버스만 지도에서 실시간으로 볼 수 있어요. 택시는 시간표 탭에서 확인해요.',
       }
     }
+    if (!isBusFilter) return null
     if (isSearching && filteredRoutes.length === 0) {
       return {
         title: `"${search.trim()}" 검색 결과가 없어요`,
@@ -116,7 +124,10 @@ export default function PCMainShell({ children }) {
     <div className="relative hidden h-full w-full overflow-hidden md:flex">
       {showTimetable && (
         <aside className="relative z-20 flex h-full w-[380px] flex-none flex-col overflow-hidden border-r border-line bg-surface dark:bg-surface xl:w-[440px]">
-          <div className="flex-none px-3 pb-2 pt-3">
+          {/* px-4 — 아래 SchedulePage embedded 본문(ScheduleSectionView)의 모드/통계
+              버튼 행도 px-4를 쓴다. 여기만 px-3이면 세그먼트와 그 아래 행이 4px
+              어긋나 보였다(서로 다른 정렬 기준). */}
+          <div className="flex-none px-4 pb-2 pt-3">
             <SegmentedControl
               options={MAP_VIEWS}
               value={homeView}

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { crowdedColor } from '../../utils/crowdingPalette'
-import { labelFromRatio } from '../../utils/crowdingLevel'
+import { labelFromRatio, labelFromLevel } from '../../utils/crowdingLevel'
 
 // 48개 버킷(30분) × 높이 = 혼잡도/4. 호버하면 tooltip + 현재 시각 dashed line.
 const W = 320
@@ -9,6 +9,11 @@ const PAD_X = 12
 const PAD_TOP = 16
 const PAD_BOTTOM = 20
 const CROWDED_MAX = 4
+
+// 범례 — 예전엔 막대 색이 뭘 뜻하는지 탭해서 툴팁을 띄워야만 알 수 있었다(모바일
+// 터치에서는 사실상 못 봄). 색 스케일의 기준점(crowdingPalette.STOPS 1~4)에 맞춰
+// 항상 보이는 텍스트 라벨을 병기한다 — 혼잡도를 색만으로 표현하지 않는다.
+const LEGEND_LEVELS = [1, 2, 3, 4]
 
 export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ffffff', rangeH = 24, futureMode = false }) {
   const wrapRef = useRef(null)
@@ -118,6 +123,7 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
   const pctTop = (y) => `${(y / H) * 100}%`
 
   return (
+    <div>
     <div
       ref={wrapRef}
       className="relative w-full select-none"
@@ -198,7 +204,7 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
 
       {active && (
         <div
-          className="absolute px-2.5 py-1.5 rounded-lg bg-surface shadow-card-md border border-line whitespace-nowrap pointer-events-none"
+          className="absolute px-2.5 py-1.5 rounded-tile bg-surface shadow-sh-lift border border-line whitespace-nowrap pointer-events-none"
           style={{
             left: pctLeft(active.x + active.w / 2),
             top: pctTop(active.y),
@@ -219,6 +225,23 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
           </div>
         </div>
       )}
+    </div>
+
+    {/* 범례 — 탭하지 않아도 항상 보인다. 시간축은 이 차트를 감싸는 카드
+        (CrowdingCard의 xAxisLabels)가 이미 그린다 — 여기서 또 그리면 중복이라
+        범례만 추가한다. */}
+    <div className="mt-2 flex items-center gap-3 flex-wrap" role="list" aria-label="혼잡도 범례">
+      {LEGEND_LEVELS.map((level) => (
+        <span key={level} role="listitem" className="inline-flex items-center gap-1.5 text-caption font-medium text-mute">
+          <span
+            aria-hidden="true"
+            className="w-2.5 h-2.5 rounded-full shrink-0"
+            style={{ background: crowdedColor(level) }}
+          />
+          {labelFromLevel(level)}
+        </span>
+      ))}
+    </div>
     </div>
   )
 }

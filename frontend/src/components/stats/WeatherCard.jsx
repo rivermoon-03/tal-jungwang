@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { SKY_ICON, SKY_TEXT } from './skyDisplay'
 import { useWeather } from '../../hooks/useWeather'
 import { useApi } from '../../hooks/useApi'
+import Skeleton from '../common/Skeleton'
+import ChartSkeleton from './ChartSkeleton'
 
 function toDateStr(d) {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
@@ -160,8 +162,26 @@ export default function WeatherCard() {
 
   const TomorrowIcon = tomorrowSummary ? (SKY_ICON[tomorrowSummary.icon] ?? SKY_ICON.sunny) : null
 
+  // fetch 중엔 weather가 비어 있어 값 없는 카드가 그대로 그려졌다(결함) — 카드
+  // 골격(헤더 두 줄 + 스파크라인 자리)과 같은 모양의 스켈레톤으로 대신한다.
+  if (!weather) {
+    return (
+      <article className="relative overflow-hidden rounded-card bg-surface shadow-sh-card">
+        <div className="p-4" role="status" aria-label="날씨 정보를 불러오는 중">
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton height="0.8rem" width="35%" />
+            <Skeleton height="0.8rem" width="30%" />
+          </div>
+          <div className="mt-4">
+            <ChartSkeleton stroke="var(--tj-mute)" />
+          </div>
+        </div>
+      </article>
+    )
+  }
+
   return (
-    <article className="relative overflow-hidden rounded-card-lg bg-surface shadow-card-md">
+    <article className="relative overflow-hidden rounded-card bg-surface shadow-sh-card">
       <div className="p-4">
         {/* 현재 온도/하늘 상태는 이미 위쪽 StatusChips 스트립(대시보드 스타일 요약 칩)이
             보여주므로 여기서 아이콘+큰 숫자로 다시 반복하지 않는다(결함 #6 — 32° 타일

@@ -63,7 +63,7 @@ export default function DockQuickAccess({ onClose }) {
   return (
     <div
       ref={containerRef}
-      className="absolute bottom-full right-0 mb-3 rounded-card border border-line-strong bg-surface dark:bg-surface shadow-lg"
+      className="absolute bottom-full right-0 mb-3 rounded-card border border-line-strong bg-surface dark:bg-surface shadow-sh-lift"
       style={{
         animation: prefersReducedMotion ? undefined : 'fadeIn 200ms ease-out',
       }}
@@ -79,7 +79,10 @@ export default function DockQuickAccess({ onClose }) {
             <button
               key={idx}
               onClick={() => handleItemClick(item)}
-              className="w-full px-4 py-3 text-sm text-left text-ink dark:text-ink hover:bg-surface-hover dark:hover:bg-surface-hover transition-colors active:bg-surface-active dark:active:bg-surface-active"
+              // bg-surface-hover/bg-surface-active는 tailwind.config.js에 정의되지
+              // 않은 토큰이라 클래스 자체가 CSS를 만들지 않았다(hover/press 피드백
+              // 없이 조용히 죽어 있던 자리) — 실재하는 surface-2/surface-3로 교체.
+              className="w-full px-4 py-3 text-sm text-left text-ink dark:text-ink hover:bg-surface-2 dark:hover:bg-surface-2 transition-colors active:bg-surface-3 dark:active:bg-surface-3"
               type="button"
             >
               <div className="font-medium truncate">{item.routeCode}</div>

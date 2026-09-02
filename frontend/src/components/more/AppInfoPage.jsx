@@ -6,6 +6,7 @@
  */
 /* global __APP_VERSION__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
 import { ChevronLeft, Heart, School } from 'lucide-react'
+import IconButton from '../ui/IconButton'
 
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
 
@@ -14,13 +15,9 @@ export default function AppInfoPage({ onBack, embedded = false }) {
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
       {!embedded && (
         <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
-          <button
-            onClick={onBack}
-            aria-label="뒤로"
-            className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
-          >
+          <IconButton label="뒤로" onClick={onBack}>
             <ChevronLeft size={22} className="text-ink dark:text-ink" />
-          </button>
+          </IconButton>
           <h1 className="text-panel-ttl text-ink dark:text-ink">앱 정보</h1>
         </div>
       )}
@@ -49,14 +46,14 @@ export default function AppInfoPage({ onBack, embedded = false }) {
             <Heart size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
             <div>
               <p className="text-meta font-bold text-mute dark:text-mute">Made by</p>
-              <p className="text-[15px] font-semibold text-ink dark:text-ink tracking-tight mt-0.5">moonlandingplan</p>
+              <p className="text-label font-semibold text-ink dark:text-ink tracking-tight mt-0.5">moonlandingplan</p>
             </div>
           </div>
           <div className="flex items-center gap-3 px-4 py-3.5">
             <School size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
             <div>
               <p className="text-meta font-bold text-mute dark:text-mute">기관</p>
-              <p className="text-[15px] font-semibold text-ink dark:text-ink tracking-tight mt-0.5">한국공학대학교</p>
+              <p className="text-label font-semibold text-ink dark:text-ink tracking-tight mt-0.5">한국공학대학교</p>
             </div>
           </div>
         </section>

@@ -12,6 +12,7 @@
 import {
   ChevronLeft, LayoutGrid, Search, RefreshCw, HelpCircle, Bus, UtensilsCrossed, CalendarDays,
 } from 'lucide-react'
+import IconButton from '../ui/IconButton'
 
 // 위젯 3종 — 크기와 "이 위젯이 답하는 질문"을 함께 적는다. 크기만 나열하면
 // 사용자가 어느 걸 놓을지 못 고른다.
@@ -109,13 +110,9 @@ export default function HelpPage({ onBack, embedded = false }) {
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
       {!embedded && (
         <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
-          <button
-            onClick={onBack}
-            aria-label="뒤로"
-            className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
-          >
+          <IconButton label="뒤로" onClick={onBack}>
             <ChevronLeft size={22} className="text-ink dark:text-ink" />
-          </button>
+          </IconButton>
           <h1 className="text-panel-ttl text-ink dark:text-ink">도움말</h1>
         </div>
       )}

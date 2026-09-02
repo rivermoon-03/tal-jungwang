@@ -51,6 +51,18 @@ const PENDING_5200 = {
   is_tomorrow: false,
 }
 
+/**
+ * 하교 화면 단순화(시안) 이후: 즐겨찾기하지 않은 노선은 전부 "다른 목적지" 접힘
+ * 목록 안에 있다(기본 접힘). 이 파일의 시나리오는 즐겨찾기가 없으므로("내 목적지"
+ * 안내 카드만 뜬다) 렌더 직후 그 접힘을 펼쳐야 기존 카드/섹션 검증이 그대로 된다.
+ */
+function renderExpanded() {
+  const result = render(<BusPanel />)
+  const toggle = screen.queryByRole('button', { name: /다른 목적지/ })
+  if (toggle) fireEvent.click(toggle)
+  return result
+}
+
 beforeEach(() => {
   mockSetDetailModal.mockClear()
   mockUseBusTimetableByRoute.mockReset()
@@ -73,14 +85,14 @@ describe('실시간 미연결 폴백 카드', () => {
     // 제품이 보장한 승차 시간표인지의 판단은 bus_information_sources 에 있고
     // 서버가 arrivals 의 depart_at 으로 이미 결정해 내려준다. 클라이언트가 노선번호로
     // 다시 조회하면 시흥1·시흥33처럼 source 로 연결하지 않은 원본 시간표가 새어나온다.
-    render(<BusPanel />)
+    renderExpanded()
 
     const calls = mockUseBusTimetableByRoute.mock.calls.filter((c) => c[0] === '5200')
     expect(calls).toHaveLength(0)
   })
 
   it('시간표가 없어도 카드를 눌러 상세를 열 수 있다', () => {
-    render(<BusPanel />)
+    renderExpanded()
 
     const card = screen.getByRole('button', { name: /5200/ })
     fireEvent.click(card)
@@ -95,7 +107,7 @@ describe('실시간 미연결 폴백 카드', () => {
   })
 
   it('시간표가 없으면 "출발"이 아니라 도착 정보 부재로 안내한다', () => {
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('현재 도착 정보 없음')).toBeInTheDocument()
     expect(screen.queryByText('출발 정보 없음')).not.toBeInTheDocument()
@@ -109,7 +121,7 @@ describe('실시간 미연결 폴백 카드', () => {
       refetch: vi.fn(),
     })
 
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('23:58 출발')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /5200/ }))
@@ -124,7 +136,7 @@ describe('실시간 미연결 폴백 카드', () => {
       refetch: vi.fn(),
     })
 
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.queryByText('23:58 출발')).not.toBeInTheDocument()
     expect(screen.getByText('현재 도착 정보 없음')).toBeInTheDocument()
@@ -157,20 +169,20 @@ describe('정류장이 취급하는 노선 목록', () => {
       refetch: vi.fn(),
     })
 
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.getByText('이마트 승차')).toBeInTheDocument()
   })
 
   it('오늘 미운행 목록은 expected_routes 에서 온다', () => {
-    render(<BusPanel />)
+    renderExpanded()
 
     // 5200 은 arrivals 에 있으므로 6502 하나만 미운행
     expect(screen.getByRole('button', { name: /오늘 미운행 · 1/ })).toBeInTheDocument()
   })
 
   it('오늘 미운행 카드는 시간표를 따로 조회하지 않고 상세로 진입한다', () => {
-    render(<BusPanel />)
+    renderExpanded()
 
     fireEvent.click(screen.getByRole('button', { name: /오늘 미운행/ }))
     fireEvent.click(screen.getByRole('button', { name: /6502/ }))
@@ -193,7 +205,7 @@ describe('정류장이 취급하는 노선 목록', () => {
       refetch: vi.fn(),
     })
 
-    render(<BusPanel />)
+    renderExpanded()
 
     expect(screen.queryByRole('button', { name: /오늘 미운행/ })).not.toBeInTheDocument()
   })

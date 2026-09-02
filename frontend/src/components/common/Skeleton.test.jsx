@@ -2,7 +2,7 @@
  * Skeleton — 레이아웃 시프트 0 검증 (F1-4)
  *
  * 픽셀 단위 정합은 확인하지 않는다. 대신 스켈레톤 변형이 대응하는 실제 카드와
- * 높이를 결정하는 컨테이너 클래스(rounded-card, p-4)를 공유하는지, 그리고
+ * 높이를 결정하는 컨테이너 클래스(rounded-card, p-[18px])를 공유하는지, 그리고
  * 실제 카드와 같은 수의 "행"(좌/중/우 또는 헤더+듀얼 컬럼)을 구성하는지만 본다.
  */
 import { render } from '@testing-library/react'
@@ -20,18 +20,22 @@ describe('Skeleton — 기본 shimmer 블록', () => {
 })
 
 describe('SkeletonArrivalCard — ArrivalRow와 컨테이너 클래스 공유', () => {
-  it('ArrivalRow(Card) 실제 카드와 동일한 rounded-card / p-4 박스를 갖는다', () => {
+  it('ArrivalRow(Card) 실제 카드와 동일한 rounded-card / p-[18px] 박스를 갖는다', () => {
     const { container: real } = render(
       <ArrivalRow routeNumber="5602" direction="이마트" minutes={5} />
     )
     const { container: skel } = render(<SkeletonArrivalCard />)
 
-    // 실제 카드: button > Card(div.rounded-card.p-4...)
-    const realCard = real.querySelector('.rounded-card.p-4')
-    const skelCard = skel.querySelector('.rounded-card.p-4')
+    // 임의값 클래스(p-[18px])는 CSS 선택자 이스케이프가 번거로워 className 으로 본다.
+    const realCard = real.querySelector('.rounded-card')
+    const skelCard = skel.querySelector('.rounded-card')
 
     expect(realCard).not.toBeNull()
     expect(skelCard).not.toBeNull()
+    // 스켈레톤이 실제 카드와 같은 패딩을 써야 로딩에서 결과로 넘어갈 때
+    // 레이아웃이 튀지 않는다. ui/Card 기본값이 바뀌면 여기서 잡힌다.
+    expect(realCard.className).toContain('p-[18px]')
+    expect(skelCard.className).toContain('p-[18px]')
   })
 
   it('좌(뱃지) · 중앙(제목 2줄) · 우(숫자) 3분할 구조를 갖는다', () => {
@@ -55,10 +59,11 @@ describe('SkeletonArrivalCard — ArrivalRow와 컨테이너 클래스 공유', 
 // #4, 2026-08). SubwayPanel/ShuttlePanel은 여전히 로딩 중 이 듀얼 컬럼 모양의
 // 스켈레톤을 쓰므로 SkeletonPanelRow 자체의 구조 검증만 남긴다.
 describe('SkeletonPanelRow — 듀얼 컬럼 로딩 스켈레톤', () => {
-  it('rounded-card / p-4 박스를 갖는다', () => {
+  it('rounded-card / p-[18px] 박스를 갖는다', () => {
     const { container: skel } = render(<SkeletonPanelRow />)
-    const skelCard = skel.querySelector('.rounded-card.p-4')
+    const skelCard = skel.querySelector('.rounded-card')
     expect(skelCard).not.toBeNull()
+    expect(skelCard.className).toContain('p-[18px]')
   })
 
   it('헤더(심볼+노선명) + 좌우 듀얼 컬럼(grid-cols-[1fr_1px_1fr]) 구조를 갖는다', () => {

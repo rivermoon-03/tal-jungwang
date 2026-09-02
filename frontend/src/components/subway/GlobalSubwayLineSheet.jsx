@@ -1,23 +1,35 @@
 import { useEffect, useState } from 'react'
-import { Drawer } from 'vaul'
 import { X, TrainFront } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
+import Sheet from '../ui/Sheet'
+import IconButton from '../ui/IconButton'
+import { useIsDesktop } from '../../hooks/useMediaQuery'
 import SubwayLineMap from './SubwayLineMap'
 
 // PC는 좌측 패널(MarkerSheet/GlobalSubwayDetailSheet)과 같은 영역 안에서
-// 콘텐츠가 교체되듯 보여야 하므로(오프스크린 슬라이드가 아님) vaul을 쓰지 않고
-// 기존 opacity+8px 크로스페이드를 그대로 유지한다.
-// 모바일은 바텀시트 → vaul(Drawer)로 스와이프 다운 닫기를 지원한다(Phase C).
+// 콘텐츠가 교체되듯 보여야 하므로(오프스크린 슬라이드가 아니고 백드롭도 없는
+// 도킹 패널) ui/Sheet의 bottom/center 두 배치로는 표현할 수 없다 — 그래서 PC
+// 분기는 기존 opacity+8px 크로스페이드를 그대로 유지한다. 모바일만 Sheet로
+// 옮긴다(백드롭·Escape·포커스 트랩·z 토큰을 Sheet에 맡긴다 — vaul이 하던 스와이프
+// 닫기는 없어지고, 다른 시트들과 동일하게 배경 탭/Escape로 닫는다. 아홉 벌
+// 독립 구현을 하나로 맞추는 게 이번 리팩터의 목적이라 트레이드오프로 받는다).
 const EASE = 'var(--e-out)'
+
+// GlobalSubwayDetailSheet(z-sheet, 시간표 상세) 안에서 노선도를 열면 그 위로
+// 떠야 한다. z 스케일에 "시트 위의 시트" 전용 토큰이 없어 다음으로 큰 토큰인
+// z-popover를 재사용한다(모바일 Sheet의 className과 PC 고정 패널 양쪽 모두).
+const STACKED_ABOVE_DETAIL_SHEET = 'z-popover'
 
 export default function GlobalSubwayLineSheet() {
   const item = useAppStore((s) => s.subwayLineSheet)
   const close = useAppStore((s) => s.closeSubwayLineSheet)
+  const isDesktop = useIsDesktop()
   // 닫힘 애니메이션 동안 콘텐츠를 유지하려는 스냅샷이다. ref로 두면 렌더 중
   // 읽게 되어 동시성 렌더에서 값이 어긋날 수 있으므로 state로 보관한다.
   const [prevItem, setPrevItem] = useState(null)
 
-  // PC 크로스페이드용 visible 상태(기존 로직 유지)
+  // PC 크로스페이드용 visible 상태(기존 로직 유지) — 모바일은 Sheet가
+  // 마운트/언마운트를 즉시 처리하므로 이 상태와 무관하다.
   const [pcVisible, setPcVisible] = useState(false)
 
   // 스냅샷 갱신은 렌더 중 조정으로, 크로스페이드 토글만 effect에 남긴다.
@@ -38,9 +50,6 @@ export default function GlobalSubwayLineSheet() {
   const open = !!item
 
   if (!displayed && !open) return null
-
-  const isPC =
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
 
   const lineColor = displayed?.color ?? '#1B5FAD'
 
@@ -67,16 +76,16 @@ export default function GlobalSubwayLineSheet() {
       style={{ background: lineColor }}
     >
       <TrainFront size={18} strokeWidth={2} className="text-white flex-shrink-0" />
-      <span className="flex-1 text-[15px] font-bold text-white truncate">
+      <span className="flex-1 text-list-nm font-bold text-white truncate">
         {headerLabel}
       </span>
-      <button
+      <IconButton
+        label="닫기"
         onClick={close}
-        aria-label="닫기"
-        className="pressable w-8 h-8 flex items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+        className="text-white/70 hover:text-white hover:bg-white/10"
       >
         <X size={18} />
-      </button>
+      </IconButton>
     </div>
   )
 
@@ -96,10 +105,10 @@ export default function GlobalSubwayLineSheet() {
     </div>
   )
 
-  if (isPC) {
+  if (isDesktop) {
     return (
       <div
-        className="fixed left-0 right-auto w-[38%] h-auto bottom-[68px] top-0 z-[120] bg-surface dark:bg-surface flex flex-col overflow-hidden"
+        className={`fixed left-0 right-auto w-[38%] h-auto bottom-[68px] top-0 ${STACKED_ABOVE_DETAIL_SHEET} bg-surface dark:bg-surface flex flex-col overflow-hidden`}
         style={{
           opacity: pcVisible ? 1 : 0,
           transform: pcVisible ? 'translateY(0)' : 'translateY(8px)',
@@ -107,9 +116,6 @@ export default function GlobalSubwayLineSheet() {
           pointerEvents: pcVisible ? 'auto' : 'none',
         }}
       >
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-11 h-1 rounded-full bg-line-strong dark:bg-line-strong" />
-        </div>
         {header}
         {lineMap}
       </div>
@@ -117,30 +123,15 @@ export default function GlobalSubwayLineSheet() {
   }
 
   return (
-    <Drawer.Root
+    <Sheet
       open={open}
-      onOpenChange={(o) => { if (!o) close() }}
-      dismissible
+      onClose={close}
+      label={headerLabel || '지하철 노선도'}
+      placement="bottom"
+      className={`h-[70vh] ${STACKED_ABOVE_DETAIL_SHEET}`}
     >
-      <Drawer.Portal>
-        {/* DetailSheet(시간표, z-[100]) 위에 올라와야 하므로 z-[110] */}
-        <Drawer.Overlay
-          className="fixed inset-0 z-[110] bg-black/40"
-          style={{ transition: `opacity var(--dur-motion-sheet) ${EASE}` }}
-        />
-        {/* GlobalSubwayDetailSheet(z-[100]) 위로 올라와야 하므로 z-[120] */}
-        <Drawer.Content
-          className="fixed bottom-0 left-0 right-0 h-[70vh] z-[120] bg-surface dark:bg-surface rounded-t-sheet flex flex-col overflow-hidden outline-none"
-          style={{ boxShadow: '0 -4px 24px rgba(0,0,0,0.15)' }}
-        >
-          <Drawer.Title className="sr-only">{headerLabel || '지하철 노선도'}</Drawer.Title>
-          <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-            <div className="w-11 h-1 rounded-full bg-line-strong dark:bg-line-strong" />
-          </div>
-          {header}
-          {lineMap}
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+      {header}
+      {lineMap}
+    </Sheet>
   )
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
+import { ArrowLeftRight } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useBusStationAutoSelect from '../../hooks/useBusStationAutoSelect'
-import SegmentedControl from '../ui/SegmentedControl.jsx'
 import ModeTabs from './ModeTabs'
 import StationPills from './StationPills'
 import BusPanel from '../summary/BusPanel'
@@ -20,90 +20,58 @@ import { BUS_STATION_LABELS, getAllowedDirections } from './busStationConfig'
  * selectedBusStation/selectedBusDirection / selectedSubwayStation 등을 구독한다.
  *
  * 높이는 부모(MainShell)가 제어하므로 자체적으로 overflow-auto 한다.
+ *
+ * 지금/시간표 전환: 예전엔 이 화면 안에 ViewSwitch(SegmentedControl) 셀렉터가
+ * 따로 있어, 독의 "시간표" 탭과 화면 안 셀렉터가 같은 homeView를 두 군데서
+ * 조작했다 — 독에서 시간표를 눌러도 셀렉터가 "지금"에 남아 있는 등 서로
+ * 어긋나 보였다(사용자 실측). 셀렉터는 없앴고, 독의 홈/시간표 탭이 그 자리를
+ * 대신한다(FloatingDock.handleNav가 홈 탭 클릭 시 homeView를 'now'로 되돌림).
  */
-const DIRECTION_OPTIONS = [
-  { value: '등교', label: '등교' },
-  { value: '하교', label: '하교' },
-]
-
-// 같은 모드를 보는 두 관점. 예전엔 별도 탭이라 모드·정류장을 두 화면에서 각각
-// 골랐다 — 같은 노선을 두 번 찾게 만드는 구조였다.
-const VIEW_OPTIONS = [
-  { value: 'now', label: '지금' },
-  { value: 'timetable', label: '시간표' },
-]
-
 /**
- * BusDirectionRow — 결함 #1/#14/#32/#9: 예전엔 정류장 칩과 등하교 토글이 한 행에
- * 눌려 있어("이마트"가 "이마!"로 잘리는 등) 서로 겹쳤다. 이제 방향 행을 정류장
- * 칩 행과 완전히 분리된 줄로 뺀다 — SegmentedControl(등교/하교) + 우측 자동/수동
- * 상태 칩(자동일 땐 시간대 근거, 수동일 땐 탭해서 자동으로 되돌리는 액션).
+ * AutoDirectionChip — 하교 화면 단순화(시안): 예전엔 SegmentedControl(등교/하교
+ * 두 버튼) + 별도 "자동으로 되돌리기" 칩, 두 조각이 한 행에 있었다. 시안은 이를
+ * 칩 하나로 합친다 — "하교 · 자동"처럼 지금 방향과 판정 근거(자동/수동)를 같이
+ * 말하고, 탭하면 반대 방향으로 뒤집는다. 판정 로직은 useEffectiveDirection이
+ * 이미 시간대·GPS로 계산해 두므로 이 컴포넌트는 그 값을 읽고 뒤집기만 한다.
+ *
+ * "자동으로 되돌리기" 전용 액션은 없앴다 — directionOverride는 세션 전용(새로고침
+ * 시 초기화)이라, 다시 탭해 반대로 뒤집으면 대부분의 경우 자동 판정과 같은
+ * 결과로 되돌아온다. 별도 액션 하나를 더 두는 것보다 칩 하나·동작 하나가
+ * 하교 화면의 "단순함"에 부합한다.
  */
-function BusDirectionRow() {
-  const { direction, isOverride, reason } = useEffectiveDirection()
+function AutoDirectionChip() {
+  const { direction, isOverride } = useEffectiveDirection()
   const selectedBusStation   = useAppStore((s) => s.selectedBusStation)
   const setDirectionOverride = useAppStore((s) => s.setDirectionOverride)
   const setBusStation        = useAppStore((s) => s.setBusStation)
 
-  function handleChange(value) {
-    setDirectionOverride(value)
+  function handleFlip() {
+    const next = direction === '하교' ? '등교' : '하교'
+    setDirectionOverride(next)
     // 현재 정류장이 새 방향을 허용하지 않으면 해당 방향의 첫 번째 정류장으로 이동
-    if (!getAllowedDirections(selectedBusStation).includes(value)) {
-      const next = BUS_STATION_LABELS.find((s) => getAllowedDirections(s).includes(value))
-      if (next) setBusStation(next)
+    if (!getAllowedDirections(selectedBusStation).includes(next)) {
+      const station = BUS_STATION_LABELS.find((s) => getAllowedDirections(s).includes(next))
+      if (station) setBusStation(station)
     }
   }
 
-  // 자동 판정 근거 문구 — 훅이 알려준 reason을 그대로 쓴다.
-  // 예전엔 direction 값만 보고 "등교면 오전"이라고 역추론했는데, 오후에 위치 보정으로
-  // 등교가 되면 "오전이라 등교"라는 거짓말이 떴다(제보된 버그).
-  const autoReasonText =
-    reason === 'location'
-      ? (direction === '하교' ? '자동 · 학교 근처라 하교' : '자동 · 학교 밖이라 등교')
-      : (direction === '등교' ? '자동 · 오전이라 등교' : '자동 · 오후라서 하교')
-
   return (
-    <div className="flex items-center justify-between gap-2 px-4 pb-1.5">
-      <SegmentedControl
-        options={DIRECTION_OPTIONS}
-        value={direction}
-        onChange={handleChange}
-        size="sm"
-        ariaLabel="등하교 방향"
-      />
-      {isOverride ? (
-        <button
-          type="button"
-          onClick={() => setDirectionOverride(null)}
-          className="shrink-0 text-[12px] font-bold px-2.5 py-1 rounded-full bg-accent-bg text-accent-ink pressable"
-        >
-          수동 · 자동으로 되돌리기
-        </button>
-      ) : (
-        <span className="shrink-0 text-[12px] font-bold px-2.5 py-1 rounded-full bg-accent-bg text-accent-ink">
-          {autoReasonText}
-        </span>
-      )}
+    <div className="px-4 pb-1.5">
+      <button
+        type="button"
+        onClick={handleFlip}
+        className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-pill bg-accent-bg text-accent-ink text-mini-ttl font-bold pressable"
+      >
+        <ArrowLeftRight size={14} aria-hidden="true" />
+        {direction} · {isOverride ? '수동' : '자동'}
+      </button>
     </div>
-  )
-}
-
-function ViewSwitch({ value, onChange }) {
-  return (
-    <SegmentedControl
-      options={VIEW_OPTIONS}
-      value={value}
-      onChange={onChange}
-      size="sm"
-      ariaLabel="보기 전환"
-    />
   )
 }
 
 export default function Dashboard() {
   const selectedMode = useAppStore((s) => s.selectedMode)
   const homeView = useAppStore((s) => s.homeView)
-  const setHomeView = useAppStore((s) => s.setHomeView)
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
   const selectedSubwayStation = useAppStore((s) => s.selectedSubwayStation)
   const selectedShuttleCampus = useAppStore((s) => s.selectedShuttleCampus)
@@ -142,12 +110,11 @@ export default function Dashboard() {
         <ModeTabs />
         {/* 시간표는 자체 스크롤 영역(그룹 칩 고정 + 목록 스크롤)을 갖는다.
             바깥에서 한 번 더 스크롤을 걸면 칩이 같이 밀려 올라간다.
-            보기 전환은 시간표가 비워둔 모드 탭 자리에 그리게 넘긴다. */}
+            지금/시간표 전환은 더 이상 화면 안 셀렉터가 아니라 하단 독의
+            홈/시간표 탭이 맡는다(FloatingDock.handleNav) — viewSwitch는
+            건네지 않는다. */}
         <div className="flex-1 min-h-0">
-          <SchedulePage
-            embedded
-            viewSwitch={<ViewSwitch value={view} onChange={setHomeView} />}
-          />
+          <SchedulePage embedded />
         </div>
       </section>
     )
@@ -162,14 +129,8 @@ export default function Dashboard() {
     >
       <ModeTabs />
 
-      {canShowTimetable && (
-        <div className="px-4 pb-1.5 pt-0.5">
-          <ViewSwitch value={view} onChange={setHomeView} />
-        </div>
-      )}
-
-      {/* 방향 행(등하교) — 정류장 칩 행과 완전히 분리된 줄. 버스 모드에서만 노출. */}
-      {selectedMode === 'bus' && <BusDirectionRow />}
+      {/* 방향 칩(등하교, 자동/수동) — 정류장 칩 행과 완전히 분리된 줄. 버스 모드에서만 노출. */}
+      {selectedMode === 'bus' && <AutoDirectionChip />}
 
       {/* 정류장 칩 행 — 다음 줄에서 단독으로 가로 스크롤(전체 이름, 잘림 없음). */}
       <StationPills mode={selectedMode} value={stationValue} />

@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect, useRef } from 'react';
+import React, { memo, useState, useEffect, useRef, useId } from 'react';
 import { Star } from 'lucide-react';
 import useFavorites from '../../hooks/useFavorites';
 import StatusChip from '../ui/StatusChip';
@@ -6,6 +6,7 @@ import DataBadge from '../ui/DataBadge';
 import SubwayDelayBadge from './SubwayDelayBadge';
 import { formatEta } from '../../utils/eta';
 import { useNow } from '../../hooks/useNow'
+import { isRealtimeStale } from './realtimeFreshness'
 
 // 실시간 데이터가 N분 전 수신된 값임을 알리는 배지 + 탭/호버 시 안내 툴팁.
 // "지하철이 지연됐다"가 아니라 "데이터가 지연됐다"는 점을 명시한다.
@@ -41,13 +42,70 @@ function StaleHintBadge({ ageMin, stale }) {
         <DataBadge state="stale" staleAgeText={label} />
       </button>
       {open && (
+        // 레거시 rounded-lg/shadow-lg 대신 SubwayDelayBadge 팝오버와 같은
+        // rounded-card + shadow-sh-pop 토큰을 쓴다(같은 화면 안 팝오버 스타일 통일).
         <div
           role="tooltip"
-          className="absolute left-0 top-full mt-1.5 z-30 w-[240px] px-3 py-2 rounded-lg bg-ink text-surface dark:bg-ink dark:text-surface text-caption font-medium leading-relaxed shadow-lg"
+          className="absolute left-0 top-full mt-1.5 z-30 w-[240px] px-3 py-2 rounded-card bg-ink text-surface dark:bg-ink dark:text-surface text-caption font-medium leading-relaxed shadow-sh-pop"
         >
           외부 API의 데이터 지연으로 실시간 정보의 정확성을 보장할 수 없는 상태예요.
           화면에 보이는 도착 정보는 약 {minLabel} 전 수신된 데이터로,
           실제 열차 위치와 차이가 있을 수 있어요. 시간표를 함께 확인해 주세요.
+        </div>
+      )}
+    </span>
+  )
+}
+
+// "베타" 배지가 무엇이 덜 정확한지 설명하는 팝오버. 예전엔 라벨만 있고 이유가
+// 없어 사용자가 실시간(베타)를 얼마나 믿어야 할지 알 수 없었다.
+// SubwayDelayBadge.jsx의 팝오버 패턴(바깥 탭·Esc 닫기)을 그대로 따른다.
+function BetaExplainBadge() {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+  const panelId = useId()
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e) => {
+      if (!wrapRef.current?.contains(e.target)) setOpen(false)
+    }
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <span ref={wrapRef} className="relative inline-flex">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        aria-label="실시간(베타) 안내 · 무엇이 덜 정확한지 보기"
+        className="pressable inline-flex items-center"
+      >
+        <StatusChip kind="beta">베타</StatusChip>
+      </button>
+      {open && (
+        <div
+          id={panelId}
+          role="dialog"
+          aria-label="실시간(베타) 안내"
+          className="absolute right-0 top-full mt-1.5 z-30 w-[220px] rounded-card border border-line bg-surface p-3 shadow-sh-pop text-left"
+        >
+          <p className="text-caption font-bold text-ink">실시간(베타)</p>
+          <p className="mt-1.5 text-caption text-ink-2 leading-relaxed">
+            도착 예정 시각과 현재 위치는 최근 수신된 실시간 신호를 바탕으로
+            추정한 값이에요. 종착역 부근이나 데이터 지연 상황에서는 실제
+            열차와 차이가 있을 수 있으니 시간표를 함께 확인하세요.
+          </p>
         </div>
       )}
     </span>
@@ -254,7 +312,11 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
   const ageMin = staleRef
     ? Math.floor((nowMs - new Date(staleRef).getTime()) / 60000)
     : 0
-  const isTimeStale = stale || ageMin >= 3
+  // "3분" 임계를 여기서 다시 숫자로 적지 않는다 — subway/realtimeFreshness.js의
+  // STALE_THRESHOLD_MS(180_000ms)를 isRealtimeStale()로만 참조한다. 카드/보드가
+  // 각자 리터럴을 다시 적어 임계가 어긋난 적이 있었다.
+  const isTimeStale = stale || isRealtimeStale(staleRef, nowMs)
+  const [chipsExpanded, setChipsExpanded] = useState(false)
 
   useEffect(() => {
     if (!lastFetchedAt) return
@@ -263,6 +325,48 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
     const id = setInterval(update, 1000)
     return () => clearInterval(id)
   }, [lastFetchedAt])
+
+  // 헤더 칩 상한 — 카드 하나에 최대 10개 넘는 요소(심볼·노선명·stale·지연×2·베타·
+  // 방향별 라벨/행선지/막차/ETA/위치)가 몰려 있었다. 방향별 콘텐츠는 핵심 정보라
+  // 그대로 두고, 장식성 칩(stale/지연/베타) 4개만 2개 + "+N"으로 접는다.
+  // 우선순위: 지연(실제 문제, 조치 필요) > stale(정보 지연 안내) > 베타(상시 고지).
+  const chipItems = []
+  if (upDelay) {
+    chipItems.push({
+      key: 'delay-up',
+      node: (
+        <SubwayDelayBadge
+          key="delay-up"
+          direction="상행"
+          minutes={upDelay.delay_minutes}
+          since={upDelay.delay_since}
+          samples={upDelay.delay_samples}
+        />
+      ),
+    })
+  }
+  if (downDelay) {
+    chipItems.push({
+      key: 'delay-down',
+      node: (
+        <SubwayDelayBadge
+          key="delay-down"
+          direction="하행"
+          minutes={downDelay.delay_minutes}
+          since={downDelay.delay_since}
+          samples={downDelay.delay_samples}
+        />
+      ),
+    })
+  }
+  if (isTimeStale) {
+    chipItems.push({ key: 'stale', node: <StaleHintBadge key="stale" ageMin={ageMin} stale={stale} /> })
+  }
+  chipItems.push({ key: 'beta', node: <BetaExplainBadge key="beta" /> })
+
+  const CHIP_CAP = 2
+  const visibleChips = chipItems.slice(0, CHIP_CAP)
+  const overflowChips = chipItems.slice(CHIP_CAP)
 
   const borderClass = demoted
     ? 'border border-dashed border-line dark:border-line'
@@ -312,27 +416,20 @@ export const RealtimeCompactCard = memo(function RealtimeCompactCard({ lineName,
         <span className={`${demoted ? 'text-body font-bold' : 'text-label font-semibold'} ${titleColorClass}`}>
           {lineName}
         </span>
-        {/* stale 배지 — StatusChip 기반, 점선/색점 없음 */}
-        {isTimeStale ? <StaleHintBadge ageMin={ageMin} stale={stale} /> : null}
-        {/* A6 지연 배지 — 탭하면 위로 근거 팝오버 (해소되면 백엔드 TTL로 자연 소멸) */}
-        {upDelay && (
-          <SubwayDelayBadge
-            direction="상행"
-            minutes={upDelay.delay_minutes}
-            since={upDelay.delay_since}
-            samples={upDelay.delay_samples}
-          />
+        {/* 상한 2개 — stale/지연/베타 칩. 나머지는 "+N"으로 접는다(탭하면 펼침). */}
+        {visibleChips.map((c) => c.node)}
+        {overflowChips.length > 0 && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setChipsExpanded((v) => !v) }}
+            aria-expanded={chipsExpanded}
+            aria-label={chipsExpanded ? '나머지 배지 접기' : `나머지 배지 ${overflowChips.length}개 더 보기`}
+            className="pressable inline-flex items-center rounded-full border border-line px-1.5 py-px text-chip font-medium leading-none text-mute dark:border-line dark:text-mute"
+          >
+            {chipsExpanded ? '접기' : `+${overflowChips.length}`}
+          </button>
         )}
-        {downDelay && (
-          <SubwayDelayBadge
-            direction="하행"
-            minutes={downDelay.delay_minutes}
-            since={downDelay.delay_since}
-            samples={downDelay.delay_samples}
-          />
-        )}
-        {/* 베타 칩 — StatusChip, 이모지/점선 없음 */}
-        <StatusChip kind="beta" className="ml-auto">베타</StatusChip>
+        {chipsExpanded && overflowChips.map((c) => c.node)}
       </div>
 
       <div className="grid items-stretch" style={{ gridTemplateColumns: '1fr 1px 1fr' }}>

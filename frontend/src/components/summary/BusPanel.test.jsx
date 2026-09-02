@@ -322,11 +322,16 @@ describe('BusPanel — 잔여좌석·정거장 칩 (A1/A3)', () => {
     })
   }
 
-  it('광역 노선 remain_seat 11석 이상 → "잔여 N석" 칩 + 베타 칩', () => {
+  // 칩 상한(TransitCard, 시안2) — 실시간 다음 자리의 잔여좌석 칩까지는 보이고,
+  // 그 뒤(베타 등)는 화면에 "+N" 하나로 접힌다. 값 자체(베타가 붙는 로직)는
+  // buildLiveRow가 여전히 계산하지만 표시는 상한 안에서만 보인다.
+  it('광역 노선 remain_seat 11석 이상 → "잔여 N석" 칩이 보이고, 베타는 칩 상한에 접힌다', () => {
     arrivalsWith({ remain_seat: 23 })
     render(<BusPanel />)
+    expect(screen.getByText('실시간')).toBeInTheDocument()
     expect(screen.getByText('잔여 23석')).toBeInTheDocument()
-    expect(screen.getAllByText('베타')).toHaveLength(1)
+    expect(screen.queryByText('베타')).not.toBeInTheDocument()
+    expect(screen.getByText(/^\+\d+$/)).toBeInTheDocument()
   })
 
   it('광역 노선 remain_seat 0 → "만차" 칩', () => {
@@ -352,19 +357,25 @@ describe('BusPanel — 잔여좌석·정거장 칩 (A1/A3)', () => {
     expect(screen.getByText('보통')).toBeInTheDocument()
   })
 
-  it('location_no ≥ 1이면 "N정거장 전" 칩이 보인다', () => {
+  it('location_no ≥ 1이면 "N정거장 전" 칩이 보인다(칩 상한 2개 안에 든다)', () => {
     arrivalsWith({ location_no: 4 }, '5602')
     render(<BusPanel />)
+    expect(screen.getByText('실시간')).toBeInTheDocument()
     expect(screen.getByText('4정거장 전')).toBeInTheDocument()
-    expect(screen.getAllByText('베타')).toHaveLength(1)
+    expect(screen.queryByText('베타')).not.toBeInTheDocument()
+    expect(screen.getByText(/^\+\d+$/)).toBeInTheDocument()
   })
 
-  it('좌석 칩과 정거장 칩이 함께 보여도 베타 칩은 하나만 단다', () => {
+  it('좌석 칩과 정거장 칩이 함께 있어도 칩 상한(2개)만 보이고 나머지는 접힌다', () => {
     arrivalsWith({ remain_seat: 15, location_no: 2 })
     render(<BusPanel />)
+    // buildLiveRow는 실시간 다음에 좌석 칩을 먼저 넣으므로(정거장 칩보다 앞)
+    // 상한 2개 안에는 [실시간, 잔여좌석]이 들고 정거장·베타는 접힌다.
+    expect(screen.getByText('실시간')).toBeInTheDocument()
     expect(screen.getByText('잔여 15석')).toBeInTheDocument()
-    expect(screen.getByText('2정거장 전')).toBeInTheDocument()
-    expect(screen.getAllByText('베타')).toHaveLength(1)
+    expect(screen.queryByText('2정거장 전')).not.toBeInTheDocument()
+    expect(screen.queryByText('베타')).not.toBeInTheDocument()
+    expect(screen.getByText(/^\+\d+$/)).toBeInTheDocument()
   })
 
   it('구형 캐시(remain_seat/location_no 키 없음)에서도 칩 없이 정상 렌더된다', () => {

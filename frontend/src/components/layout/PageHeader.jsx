@@ -4,12 +4,9 @@
  */
 export default function PageHeader({ title, subtitle, action }) {
   return (
-    <header className="px-4 pt-[14px] pb-[10px] bg-transparent">
+    <header className="px-4 pt-4 pb-3 bg-transparent">
       <div className="flex items-center justify-between gap-2">
-        <h1
-          className="text-ink dark:text-white"
-          style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em' }}
-        >
+        <h1 className="text-page-ttl text-ink dark:text-white">
           {title}
         </h1>
         {action}

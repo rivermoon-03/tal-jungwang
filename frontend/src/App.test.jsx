@@ -113,6 +113,21 @@ describe('App', () => {
     expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
   })
 
+  // 새 하단 독의 학식/매장 탭이 여는 정확한 딥링크 — 쿼리가 있어도 같은
+  // /facilities 경로이므로 FacilitiesPage로 열려야 한다(탭 선택 자체는
+  // FacilitiesPage 내부 소관이라 여기서는 라우팅만 검증한다).
+  it('/facilities?tab=diet: FacilitiesPage 렌더링(학식 딥링크)', async () => {
+    setPath('/facilities?tab=diet')
+    render(<App />)
+    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('/facilities?tab=venues: FacilitiesPage 렌더링(매장 딥링크)', async () => {
+    setPath('/facilities?tab=venues')
+    render(<App />)
+    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
+  })
+
   it('/notices: NoticesTabPage 렌더링', async () => {
     setPath('/notices')
     render(<App />)
@@ -211,5 +226,19 @@ describe('App', () => {
     const faded = container.querySelectorAll('.tj-tab-fade')
     expect(faded).toHaveLength(1)
     expect(faded[0]).toHaveTextContent('FacilitiesPage')
+  })
+
+  // 더보기 진입점은 예전엔 App.jsx가 position:fixed 오버레이로 직접 그렸다 —
+  // 모바일 모든 화면 위에 떠서 히어로 스트립의 뷰 토글 아이콘을 가리는 버그가
+  // 났다(사용자 실측). 오버레이 자체를 없애고 문서 흐름 안(HomeWeatherHero의
+  // "히어로 옵션" 아이콘 그룹)으로 옮겼다 — 그 진입점의 동작 테스트는
+  // HomeWeatherHero.test.jsx가 담당한다(이 파일은 MainShell을 통째로 mock해
+  // 실제 히어로를 그리지 않는다). 여기서는 App.jsx 자신이 더 이상 고정
+  // 오버레이를 그리지 않는지만 회귀 가드로 남긴다.
+  it('App 자신은 더 이상 고정(position:fixed) 더보기 오버레이를 그리지 않는다', () => {
+    isDesktopMock = false
+    setPath('/')
+    render(<App />)
+    expect(screen.queryByLabelText('더보기')).toBeNull()
   })
 })

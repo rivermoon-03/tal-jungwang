@@ -171,6 +171,42 @@ describe('AcademicCalendarGrid — 주/월 탭', () => {
     expect(screen.getByText('일정 없음')).toBeInTheDocument()
   })
 
+  // 결함 #14: 예전엔 "오늘"이 채움 배경, "선택"이 외곽선이라 서로 다른 두 날짜가
+  // 동시에 서로 다른 방식으로 강조될 수 있었다(예: initialDate로 오늘이 아닌
+  // 날짜가 먼저 선택된 경우). 학식 요일 칩(DayChips)과 같은 규칙으로 통일한다 —
+  // 선택은 채움 하나, 오늘은 점 하나. 두 신호가 겹치지 않는지 고정한다.
+  it('결함 #14: 오늘이 아닌 날을 선택하면 선택일은 채움만, 오늘은 점만 갖는다', () => {
+    render(<AcademicCalendarGrid events={[]} initialDate="2026-07-15" now={NOW} />)
+    const today = screen.getByTestId('week-day-2026-07-18')
+    const selected = screen.getByTestId('week-day-2026-07-15')
+
+    expect(selected).toHaveAttribute('aria-selected', 'true')
+    expect(selected.className).toContain('bg-accent-bg')
+    expect(selected).not.toHaveAttribute('data-today')
+
+    expect(today).toHaveAttribute('data-today', 'true')
+    expect(today).toHaveAttribute('aria-selected', 'false')
+    expect(today.className).not.toContain('bg-accent-bg')
+  })
+
+  it('결함 #14: 요일 스트립 아래에 학식 요일 칩과 같은 캡션이 있다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    expect(screen.getByText('점은 오늘 · 채움은 선택')).toBeInTheDocument()
+  })
+
+  // 결함: 오늘 점을 버튼 corner에 절대배치했더니, PC의 넓은 셀에서는 가운데
+  // 정렬된 날짜 숫자와 점 사이가 멀어져 어느 날짜의 점인지 읽히지 않았다
+  // (좁은 모바일 칩에서만 우연히 붙어 보였다). 점이 버튼 전체가 아니라 날짜
+  // 숫자를 감싼 좁은 래퍼를 기준으로 배치돼야 셀 폭과 무관하게 숫자 옆에 온다.
+  it('결함: 오늘 점은 버튼 모서리가 아니라 날짜 숫자를 감싼 래퍼 안에 있다', () => {
+    render(<AcademicCalendarGrid events={[]} now={NOW} />)
+    const today = screen.getByTestId('week-day-2026-07-18')
+    const dot = today.querySelector('.rounded-full')
+    expect(dot).not.toBeNull()
+    expect(dot.parentElement).not.toBe(today)
+    expect(dot.parentElement.textContent).toBe('18')
+  })
+
   it('일요일 탭 라벨은 delayed 톤을 쓴다', () => {
     render(<AcademicCalendarGrid events={[]} now={NOW} />)
     const sundayCell = within(screen.getByTestId('week-day-2026-07-12'))

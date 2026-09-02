@@ -12,8 +12,10 @@ export default function GlobalDetailModal() {
   const toggleFavoriteRoute = useAppStore((s) => s.toggleFavoriteRoute)
   const setMapPanTarget    = useAppStore((s) => s.setMapPanTarget)
 
-  // vaul(모바일 바텀시트)의 닫힘 애니메이션 동안에도 콘텐츠가 유지되도록
-  // detail이 null이 되기 직전 값을 스냅샷으로 들고 있는다(GlobalSubwayLineSheet와 동일 패턴).
+  // PC 크로스페이드(ScheduleDetailModal의 좌측 도킹 패널)가 페이드아웃되는 동안에도
+  // 콘텐츠가 유지되도록 detail이 null이 되기 직전 값을 스냅샷으로 들고 있는다
+  // (GlobalSubwayLineSheet와 동일 패턴). 모바일은 ui/Sheet로 옮기며 open=false가
+  // 되면 바로 사라지므로 이 스냅샷이 굳이 필요하지 않지만, 훅은 두 분기가 공유한다.
   // 닫힘 애니메이션 동안 콘텐츠를 유지하려는 스냅샷이다. ref로 두면 렌더 중
   // 읽게 되어 동시성 렌더에서 값이 어긋날 수 있으므로 state로 보관한다.
   // 렌더 중 조정 패턴(React 공식 "Adjusting state when a prop changes").

@@ -212,6 +212,11 @@ export default function ShuttlePanel() {
 
   const left = toSlot(goData, goDir, goFirstTomorrow, goInsideWindow)
   const right = toSlot(backData, backDir, backFirstTomorrow, backInsideWindow)
+  // size='lg' "다음 차 카드" 승격을 걷어냈다. BusPanel은 여러 노선이 서로 경쟁하는
+  // 대안이라 그중 더 빠른 하나를 크게 짚는 게 의미 있지만, 여기 등교/하교는 대안
+  // 관계가 아니다 — 사용자는 그날 필요한 방향 하나만 본다("어느 쪽이 더 빠른가"를
+  // 비교할 이유가 없다). 그런데도 한쪽만 커지면 나란히 놓인 동일 규격 카드 둘의
+  // 크기가 달라져 위계가 아니라 오류로 읽힌다. 두 카드 모두 기본 크기(md)로 통일.
 
   // 방학·계절학기 등 비학기 기간이면 기간 배지(계절학기=빨강 · 단축근무=초록 ·
   // 정상근무=파랑 칩 팔레트, 학교 PDF 색 구분과 동일)를 노출한다.
@@ -224,7 +229,7 @@ export default function ShuttlePanel() {
       {isOffSemester && (
         <div className="flex items-center gap-2 px-1">
           <span
-            className={`text-[12px] font-semibold px-2 py-0.5 rounded-full tracking-wide ${
+            className={`text-meta font-semibold px-2 py-0.5 rounded-full tracking-wide ${
               periodTagMeta ? periodTagMeta.chipClass : 'bg-accent/12 text-accent dark:text-accent'
             }`}
           >
@@ -237,19 +242,19 @@ export default function ShuttlePanel() {
       )}
       {/* 결함 #4 — DualDirectionCard(좌우 듀얼 컬럼) 대신 방향별 TransitCard 두 장으로 통일. */}
       <div className="flex items-center justify-between px-0.5">
-        <h3 className="text-[13px] font-bold text-ink dark:text-ink">
+        <h3 className="text-mini-ttl font-bold text-ink dark:text-ink">
           {campus === 'second' ? '2캠 셔틀버스' : '셔틀버스'}
         </h3>
-        <span className="text-[12px] font-semibold text-mute dark:text-mute">다음 출발</span>
+        <span className="text-meta font-semibold text-mute dark:text-mute">다음 출발</span>
       </div>
       <div className="space-y-2">
         <TransitCard
-          badge={{ label: '셔', bgVar: 'var(--tj-accent)' }}
+          badge={{ label: '셔틀', bgVar: 'var(--tj-accent)', mode: 'shuttle' }}
           onClick={() => openModal(goDir)}
           {...slotToCardProps(left)}
         />
         <TransitCard
-          badge={{ label: '셔', bgVar: 'var(--tj-accent)' }}
+          badge={{ label: '셔틀', bgVar: 'var(--tj-accent)', mode: 'shuttle' }}
           onClick={() => openModal(backDir)}
           {...slotToCardProps(right)}
         />
@@ -303,7 +308,7 @@ function slotToCardProps(slot) {
   }
 
   // normal
-  const etaText = slot.imminentLabel ?? (slot.minutes != null ? `${slot.minutes}분` : '정보 없음')
+  const etaText = slot.imminentLabel ?? formatWait(slot.minutes, slot.departAt)
   return {
     title,
     subtitle: slot.route,
@@ -312,9 +317,24 @@ function slotToCardProps(slot) {
     chips: slot.isLast ? [{ label: '막차', tone: 'warn' }] : [],
     eta: {
       primary: { text: etaText, tone: slot.isUrgent ? 'imminent' : slot.minutes == null ? 'muted' : 'default' },
-      secondary: slot.nextMinutes != null ? { text: `다음 ${slot.nextMinutes}분` } : undefined,
+      secondary: slot.nextMinutes != null
+        ? { text: `다음 ${formatWait(slot.nextMinutes, slot.nextDepartAt)}` }
+        : undefined,
     },
   }
+}
+
+// 60분을 넘는 대기를 분으로 말하면 읽히지 않는다. 새벽에 홈을 열면 "511분"이
+// 찍혔다. utils/eta.js 가 정한 규칙(60분 초과면 상대 분 대신 절대 시각)을 그대로
+// 따르되, 시간표 데이터라 예정 출발 시각(depart_at)을 이미 알고 있으므로
+// now + 남은초로 되짚지 않고 그 값을 쓴다. 렌더 중 Date.now() 를 부르지 않아도 되고
+// 반올림 오차도 안 생긴다.
+const LONG_WAIT_MIN = 60
+
+function formatWait(minutes, departAt) {
+  if (minutes == null) return '정보 없음'
+  if (minutes > LONG_WAIT_MIN && departAt) return departAt
+  return `${minutes}분`
 }
 
 function normalizeData(query) {
@@ -359,6 +379,8 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
       route: `${meta.origin} → ${meta.dest}`,
       minutes,
       nextMinutes,
+      departAt: data.depart_at ? data.depart_at.slice(0, 5) : null,
+      nextDepartAt: data.next_depart_at ? data.next_depart_at.slice(0, 5) : null,
       imminentLabel: imminent ? '곧 출발' : null,
       isUrgent: imminent || (minutes != null && minutes <= SOON_THRESHOLD_MIN),
     }
@@ -387,6 +409,8 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
     route: `${meta.origin} → ${meta.dest}`,
     minutes,
     nextMinutes,
+    departAt: data.depart_at ? data.depart_at.slice(0, 5) : null,
+    nextDepartAt: data.next_depart_at ? data.next_depart_at.slice(0, 5) : null,
     imminentLabel: imminent ? '곧 출발' : null,
     isUrgent: imminent || (minutes != null && minutes <= SOON_THRESHOLD_MIN),
     isLast: data.is_last === true,

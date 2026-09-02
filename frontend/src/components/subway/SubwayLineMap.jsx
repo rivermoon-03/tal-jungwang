@@ -1,6 +1,7 @@
 import useAppStore from '../../stores/useAppStore'
 import { TrainFront } from 'lucide-react'
 import { STATION_SEQUENCES } from '../../utils/subwayStations'
+import Card from '../ui/Card'
 
 export default function SubwayLineMap({ line, direction, currentStation, terminalStation, color, viewStation = '정왕', trains = null }) {
   const darkMode = useAppStore((s) => s.darkMode)
@@ -62,7 +63,9 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
   const FUTURE_COLOR = darkMode ? '#6b7280' /* mute */ : '#94a3b8' /* mute */
 
   return (
-    <div className="bg-surface dark:bg-surface rounded-card mx-4 mb-4 shadow-card overflow-hidden">
+    // 섹션 내부가 자체 px-4를 이미 관리하므로 padding="none" — ui/Card 기본
+    // 패딩(18px)을 얹으면 각 행의 px-4와 이중으로 겹쳐 들쭉날쭉해진다.
+    <Card padding="none" className="mx-4 mb-4 overflow-hidden">
       <div className="px-4 pt-3.5 pb-1.5">
         <span className="text-meta font-bold text-mute dark:text-mute uppercase tracking-wider">노선도</span>
       </div>
@@ -137,9 +140,9 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
                 <span
                   className={`leading-none ${
                     isView
-                      ? 'text-[15px] font-semibold tracking-tight'
+                      ? 'text-list-nm font-semibold tracking-tight'
                       : isTrain
-                        ? 'text-[14px] font-semibold tracking-tight'
+                        ? 'text-body-sm font-semibold tracking-tight'
                         : 'text-meta font-semibold'
                   } ${
                     isView
@@ -171,6 +174,6 @@ export default function SubwayLineMap({ line, direction, currentStation, termina
           )
         })}
       </div>
-    </div>
+    </Card>
   )
 }

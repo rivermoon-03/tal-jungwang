@@ -13,6 +13,7 @@
  *   onBack  () => void
  */
 import { ChevronLeft, ExternalLink } from 'lucide-react'
+import IconButton from '../ui/IconButton'
 
 const EFFECTIVE_DATE = '2026-07-27'
 const OPERATOR = 'moonlandingplan (탈것:정왕 운영자)'
@@ -57,13 +58,9 @@ export default function PrivacyPolicyPage({ onBack }) {
   return (
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
       <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
-        <button
-          onClick={onBack}
-          aria-label="뒤로"
-          className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
-        >
+        <IconButton label="뒤로" onClick={onBack}>
           <ChevronLeft size={22} className="text-ink dark:text-ink" />
-        </button>
+        </IconButton>
         <h1 className="text-panel-ttl text-ink dark:text-ink">개인정보처리방침</h1>
       </div>
 

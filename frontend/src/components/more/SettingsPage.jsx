@@ -23,6 +23,7 @@ import {
   ChevronRight, Sparkles, CloudSun,
 } from 'lucide-react'
 import DarkModeSegment from './DarkModeSegment'
+import IconButton from '../ui/IconButton'
 import useAppStore from '../../stores/useAppStore'
 import {
   isPushSupported,
@@ -88,9 +89,20 @@ function Row({ icon: Icon, title, desc, right, onClick }) {
   )
 }
 
+// "준비 중" 배지 — 로컬 state뿐인 데모 스위치를, 서버에 실제로 저장되는 노선
+// 알림/막차 알림 스위치와 시각적으로 구분한다. NotificationsPage의
+// StatusBadge(준비 중/사용 가능)와 같은 어휘를 쓴다.
+function PreparingBadge() {
+  return (
+    <span className="flex-shrink-0 px-2 py-0.5 rounded-pill text-caption font-semibold bg-surface-2 dark:bg-bg text-mute dark:text-mute">
+      준비 중
+    </span>
+  )
+}
+
 function ValueChevron({ value, accent = false }) {
   return (
-    <span className={`flex items-center gap-0.5 flex-shrink-0 text-[14px] font-semibold ${accent ? 'text-accent-ink dark:text-accent' : 'text-mute dark:text-mute'}`}>
+    <span className={`flex items-center gap-0.5 flex-shrink-0 text-body-sm font-semibold ${accent ? 'text-accent-ink dark:text-accent' : 'text-mute dark:text-mute'}`}>
       {value}
       <ChevronRight size={15} aria-hidden="true" />
     </span>
@@ -147,9 +159,10 @@ function DemoSeg({ options, value, onChange }) {
 
 export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }) {
   // F4: 글자 크기 — zustand persist(fontScale) + useFontScale이 --tj-font-scale로 반영.
-  // tailwind.config.js의 명명된 fontSize 스케일(text-body/caption/label/head 등)에는
-  // 실시간 반영되지만, 컴포넌트 인라인 style={{fontSize:N}}이나 text-[Npx] 임의값에는
-  // 적용되지 않는다(알려진 범위 — 전수 적용은 별도 후속 작업).
+  // tailwind.config.js의 명명된 fontSize 스케일(text-body/caption/label/head 등)에
+  // 실시간 반영된다. 컴포넌트 인라인 style={{fontSize:N}}이나 text-[Npx] 임의값은
+  // 이 스케일 밖이라 슬라이더가 안 먹었는데, 2026-09에 src/components·src/pages
+  // 전역에서 전수 토큰화해 닫았다(tokenRules.test.js가 회귀를 막는다).
   const fontScale = useAppStore((s) => s.fontScale)
   const setFontScale = useAppStore((s) => s.setFontScale)
   // F3: 시간표 기본 보기 — zustand persist(scheduleViewMode). ScheduleDetailModal의
@@ -166,14 +179,18 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
   const setCommuteAutoMode = useAppStore((s) => s.setCommuteAutoMode)
   const commuteManualDirection = useAppStore((s) => s.commuteManualDirection)
   const setCommuteManualDirection = useAppStore((s) => s.setCommuteManualDirection)
-  // ── 데모 전용 로컬 state (persist/백엔드 없음, 이 컴포넌트의 담당 범위 밖) ──────
+  // ── 데모 전용 항목(persist/백엔드 없음, 이 컴포넌트의 담당 범위 밖) ────────────
+  // 예전엔 이 항목들이 로컬 state로 켜고 끌 수 있었다 — 실제로 서버에 저장되는
+  // "노선 알림"/"막차 알림"과 완전히 같은 MiniSwitch로 그려져, 켜 놓고 알림이
+  // 안 와도 "고장났나" 대신 "설정을 못 찾았나"로 믿게 만드는 구조였다(새로고침하면
+  // 그마저도 사라짐). 로컬 state 자체를 없애고 늘 꺼진 채 비활성으로 렌더한 뒤
+  // PreparingBadge로 실제 동작 스위치와 시각적으로 구분한다. 데이터 절약 모드도
+  // 같은 패턴(로컬 state뿐인 MiniSwitch)이라 함께 정리한다.
   // TODO(백로그, F5과 별개): 도착 임박 알림 — 즐겨찾기 노선 N분 전. "노선 알림"(막차/첫차)과는
   // 다른 기능이라 이 PR 스코프 밖이다. 실제 구현은 SW Web Push + 백엔드 구독 저장 필요.
-  const [imminentAlert, setImminentAlert] = useState(false)
   // TODO(F2): 학식 오픈 알림 — 북마크 × isOpenNow() 교집합 기능(F2)이 선행돼야 의미가 생김.
-  const [cafeteriaAlert, setCafeteriaAlert] = useState(false)
-  // TODO(백로그, Phase E 미배정): 데이터 절약 모드 — 지도/이미지 최소화. 별도 기획 필요.
-  const [dataSaver, setDataSaver] = useState(false)
+  // TODO(백로그, Phase E 미배정): 데이터 절약 모드 · 방해 금지 · 실시간 새로고침 주기 ·
+  // 위치 권한 상태 표시 — 전부 별도 기획/구현 필요.
 
   // ── F5: 노선 알림(막차/첫차 시각 푸시) ────────────────────────────────
   const favoriteRoutes = useAppStore((s) => s.favorites.routes)
@@ -310,13 +327,9 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
       {!embedded && (
         <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
-          <button
-            onClick={onBack}
-            aria-label="뒤로"
-            className="p-2 -ml-2 rounded-full hover:bg-line dark:hover:bg-line transition-colors"
-          >
+          <IconButton label="뒤로" onClick={onBack}>
             <ArrowLeft size={22} className="text-ink dark:text-ink" />
-          </button>
+          </IconButton>
           <h1 className="text-panel-ttl text-ink dark:text-ink">설정</h1>
         </div>
       )}
@@ -362,8 +375,8 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
               className="w-full accent-accent"
             />
             <div className="flex justify-between text-caption text-mute dark:text-mute mt-1">
-              <span className="text-[12px]">작게</span>
-              <span className="text-[17px] leading-none">크게</span>
+              <span className="text-meta font-normal">작게</span>
+              <span className="text-head font-normal leading-none">크게</span>
             </div>
           </div>
 
@@ -530,33 +543,64 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
               </div>
             )}
           </div>
+          {/* 아래 두 항목은 로컬 state조차 없다 — 늘 꺼진 채 비활성 스위치 +
+              "준비 중" 배지로, 위의 노선 알림/막차 알림(실동작)과 시각적으로
+              구분한다. */}
           <Row
             icon={Zap}
             title="도착 임박 알림"
             desc="즐겨찾기 노선 N분 전"
-            right={<MiniSwitch on={imminentAlert} onToggle={() => setImminentAlert((v) => !v)} />}
+            right={
+              <div className="flex items-center gap-2">
+                <PreparingBadge />
+                <MiniSwitch on={false} label="도착 임박 알림" />
+              </div>
+            }
           />
           <Row
             icon={Utensils}
             title="학식 오픈 알림"
             desc="북마크한 식당 영업 시작 시"
-            right={<MiniSwitch on={cafeteriaAlert} onToggle={() => setCafeteriaAlert((v) => !v)} />}
+            right={
+              <div className="flex items-center gap-2">
+                <PreparingBadge />
+                <MiniSwitch on={false} label="학식 오픈 알림" />
+              </div>
+            }
           />
-          <Row icon={Moon} title="방해 금지" desc="이 시간대엔 알림을 보내지 않아요" right={<ValueChevron value="23–07시" />} />
+          <Row
+            icon={Moon}
+            title="방해 금지"
+            desc="이 시간대엔 알림을 보내지 않아요"
+            right={
+              <div className="flex items-center gap-2">
+                <PreparingBadge />
+                <MiniSwitch on={false} label="방해 금지" />
+              </div>
+            }
+          />
         </SettingsGroup>
         </Section>
 
         {/* ── 데이터 · 위치 ── */}
         <Section label="데이터 · 위치">
         <SettingsGroup>
-          <Row icon={RefreshCw} title="실시간 새로고침" desc="도착 정보 자동 갱신 주기" right={<ValueChevron value="30초" />} />
+          {/* 셋 다 실제 값을 알지 못한다 — "30초"/"사용 중"처럼 고정 문구를
+              보여주면 실제 상태(권한 거부 등)와 어긋날 수 있어 대신 준비 중임을
+              밝힌다. */}
+          <Row icon={RefreshCw} title="실시간 새로고침" desc="도착 정보 자동 갱신 주기" right={<PreparingBadge />} />
           <Row
             icon={Zap}
             title="데이터 절약 모드"
             desc="지도·이미지를 최소화해요"
-            right={<MiniSwitch on={dataSaver} onToggle={() => setDataSaver((v) => !v)} />}
+            right={
+              <div className="flex items-center gap-2">
+                <PreparingBadge />
+                <MiniSwitch on={false} label="데이터 절약 모드" />
+              </div>
+            }
           />
-          <Row icon={MapPin} title="위치 권한" desc="브라우저/기기 설정에서 변경할 수 있어요" right={<ValueChevron value="사용 중" />} />
+          <Row icon={MapPin} title="위치 권한" desc="브라우저/기기 설정에서 변경할 수 있어요" right={<PreparingBadge />} />
         </SettingsGroup>
         </Section>
 

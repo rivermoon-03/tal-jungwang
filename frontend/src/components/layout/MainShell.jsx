@@ -2,15 +2,22 @@ import useAppStore from '../../stores/useAppStore'
 import MapView from '../map/MapView'
 import Dashboard from '../dashboard/Dashboard'
 import HomeWeatherHero from '../dashboard/HomeWeatherHero'
+import { DOCK_RESERVED_PX } from '../common/FloatingDock'
 
 /**
- * MainShell — 모바일 전용 레이아웃 셸 (시안3: 상단 A / 하단 B).
+ * MainShell — 모바일 전용 레이아웃 셸.
  *
- * 구조 (세로):
- *   상단 A — HomeWeatherHero (날씨 반응형 히어로 + 등하교 pill + 지도 전환 버튼)
- *   하단 B — Dashboard (모드탭·정류장칩·도착카드)
+ * 구조(세로) — 홈 화면 재설계(시안): 히어로 고정 + 대시보드 내부 스크롤 대신
+ * "한 컬럼 통짜 스크롤"이다. HomeWeatherHero와 Dashboard를 같은 overflow-y-auto
+ * 컨테이너 안에 나란히 놓는다 — 히어로는 페이지 맨 위에서 시작해 스크롤하면
+ * 카드 목록과 함께 위로 밀려 올라가 사라진다. 히어로가 화면을 영구 점유하며
+ * 대시보드를 내부 스크롤에 가두던 결함(#31)은 히어로를 "접은 한 줄 스트립"으로
+ * 줄여서 해결했었지만, 새 시안은 히어로를 원래 크기(~340px)로 되돌리는 대신
+ * 그 히어로 자체가 스크롤에 실려 사라지게 해서 같은 문제를 다른 방식으로
+ * 막는다 — 스크롤하면 카드 목록이 화면 전체를 곧 차지하므로 결함 #31이
+ * 재발하지 않는다.
  *
- * 지도 전환: 상단 A의 [지도] 버튼 → mapExpanded=true → 지도가 전체 화면.
+ * 지도 전환: 히어로 스트립의 [지도] 버튼 → mapExpanded=true → 지도가 전체 화면.
  * MapView는 접힌 상태에서도 height:0 컨테이너에 마운트 유지(재초기화 비용
  * 회피) — 기존에도 같은 이유로 always-mount였고, MapView 내부
  * ResizeObserver가 컨테이너 리사이즈마다 relayout()을 호출하므로
@@ -22,19 +29,27 @@ import HomeWeatherHero from '../dashboard/HomeWeatherHero'
  * (닫기 버튼 자체는 height:0 컨테이너의 overflow-hidden에 의해 축소 상태에서
  * 자연히 가려지므로 여기서 mapExpanded로 다시 감쌀 필요가 없다).
  *
- * 하단 예약 여백(DOCK_RESERVED_PX, 결함 #7): FloatingDock은 bottom-14px에
- * 떠 있고, 자체 높이는 상하 padding 18px + (아이콘 22px + gap 4px + 라벨
- * 12px) ≈ 56px다. 즉 화면 하단에서 실제로 콘텐츠를 가리는 총 높이는
- * 14(dock의 bottom 오프셋) + 56(dock 자체 높이) ≈ 70px이고, 여유를 조금 두어
- * 76px로 잡는다 — 이 값보다 작으면 리스트 마지막 줄이 dock 밑에 깔린다
- * (safe-area는 별도로 env()로 더한다). 각 페이지가 저마다 pb-28 같은 값을
- * 임의로 붙이는 대신 이 셸 한 곳에서만 계산해 콘텐츠 하단 패딩을 보장한다.
+ * 시간표(homeView==='timetable') 예외: SchedulePage는 상단 그룹 칩을 고정하고
+ * 목록만 내부 스크롤하는 자체 레이아웃이라, 페이지 전체가 함께 스크롤되면
+ * 그 고정 효과가 사라진다. 이 경우엔 기존처럼 히어로를 숨기고 Dashboard에
+ * 남은 높이를 전부 내어줘(overflow-hidden) 시간표가 스스로 스크롤을 관리하게
+ * 한다 — "통짜 스크롤" 원칙은 기본 홈 화면("지금" 뷰)에만 적용한다.
+ *
+ * 하단 예약 여백(DOCK_RESERVED_PX, 결함 #7): FloatingDock이 화면 하단에서
+ * 실제로 가리는 높이를 FloatingDock.jsx가 상수로 소유한다(자기 자신의 치수라
+ * 그 컴포넌트가 단일 출처를 갖는 게 맞다) — 여기서는 그 값을 그대로 가져다
+ * 콘텐츠 하단 패딩에 쓴다. 각 페이지가 저마다 pb-28 같은 값을 임의로 붙이는
+ * 대신 이 셸 한 곳에서만 계산해 하단 패딩을 보장한다(safe-area는 별도로
+ * env()로 더한다).
  */
-const DOCK_RESERVED_PX = 76
 
 export default function MainShell() {
-  const mapExpanded     = useAppStore((s) => s.mapExpanded)
+  const mapExpanded       = useAppStore((s) => s.mapExpanded)
   const toggleMapExpanded = useAppStore((s) => s.toggleMapExpanded)
+  const homeView          = useAppStore((s) => s.homeView)
+  const selectedMode      = useAppStore((s) => s.selectedMode)
+  // Dashboard.jsx의 canShowTimetable과 같은 조건(택시는 시간표 개념이 없어 항상 '지금').
+  const isTimetable = homeView === 'timetable' && selectedMode !== 'taxi'
 
   return (
     <div
@@ -54,14 +69,20 @@ export default function MainShell() {
         <MapView mapExpanded={mapExpanded} onClose={toggleMapExpanded} />
       </div>
 
-      {/* 상단 A + 하단 B — 지도 확장 시 숨김(언마운트: 기존에도 동일 동작) */}
+      {/* 히어로 + 대시보드 — 지도 확장 시 숨김(언마운트: 기존에도 동일 동작).
+          '지금' 뷰: 한 컨테이너를 함께 스크롤(히어로가 스크롤에 실려 사라진다).
+          '시간표' 뷰: 히어로를 숨기고 Dashboard가 남은 높이를 전부 내부 스크롤로 쓴다. */}
       {!mapExpanded && (
-        <>
-          <HomeWeatherHero onOpenMap={toggleMapExpanded} />
+        isTimetable ? (
           <div className="relative flex-1 min-h-0 overflow-hidden">
             <Dashboard />
           </div>
-        </>
+        ) : (
+          <div className="relative flex-1 min-h-0 overflow-y-auto">
+            <HomeWeatherHero onOpenMap={toggleMapExpanded} />
+            <Dashboard />
+          </div>
+        )
       )}
     </div>
   )

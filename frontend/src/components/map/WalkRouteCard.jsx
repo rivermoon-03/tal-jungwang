@@ -1,5 +1,6 @@
 import { X, Footprints } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
+import IconButton from '../ui/IconButton'
 
 function fmtMin(sec) {
   if (sec == null) return '·'
@@ -22,8 +23,8 @@ export default function WalkRouteCard() {
   if (!walkRoute) return null
 
   return (
-    <div className="absolute bottom-28 md:bottom-4 left-3 z-[65] pointer-events-auto
-                    bg-surface dark:bg-surface rounded-2xl shadow-2xl
+    <div className="absolute bottom-28 md:bottom-4 left-3 z-toast pointer-events-auto
+                    bg-surface dark:bg-surface rounded-card shadow-sh-pop
                     border border-line dark:border-line
                     px-4 py-3 flex items-center gap-3 min-w-[200px]">
       <div className="w-9 h-9 rounded-full bg-ease/10 dark:bg-ease/20 flex items-center justify-center flex-shrink-0">
@@ -37,15 +38,14 @@ export default function WalkRouteCard() {
           {fmtMin(walkRoute.durationSec)} · {fmtDist(walkRoute.distanceM)}
         </p>
       </div>
-      <button
-        aria-label="경로 닫기"
+      <IconButton
+        label="경로 닫기"
+        variant="surface"
         onClick={clearWalkRoute}
-        className="w-7 h-7 rounded-full bg-surface-2 dark:bg-surface-2-dark flex items-center justify-center
-                   text-mute dark:text-mute hover:text-ink dark:hover:text-ink
-                   hover:bg-line dark:hover:bg-line transition-colors flex-shrink-0"
+        className="flex-shrink-0 hover:text-ink dark:hover:text-ink"
       >
         <X size={14} />
-      </button>
+      </IconButton>
     </div>
   )
 }

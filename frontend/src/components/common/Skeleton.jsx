@@ -31,14 +31,14 @@ export default function Skeleton({ width = '100%', height = '1rem', rounded = 'r
  * SkeletonArrivalCard — ArrivalRow(components/dashboard/ArrivalRow.jsx)와
  * 동일한 골격의 로딩 자리표시자.
  *
- * 레이아웃 시프트 0을 위해 실제 카드와 같은 컨테이너 클래스(rounded-card p-4,
+ * 레이아웃 시프트 0을 위해 실제 카드와 같은 컨테이너 클래스(rounded-card p-[18px],
  * bg-surface border border-line)를 그대로 공유한다. 내부는 실제 카드의 3분할
  * (좌: 노선 뱃지 / 중앙: 제목 2줄 / 우: 큰 숫자)을 그대로 흉내낸다.
  */
 export function SkeletonArrivalCard({ className = '' }) {
   return (
     <div
-      className={`rounded-card p-4 bg-surface border border-line ${className}`}
+      className={`rounded-card p-[18px] bg-surface border border-line ${className}`}
       aria-hidden="true"
     >
       <div className="flex items-center gap-3">
@@ -70,7 +70,7 @@ export function SkeletonArrivalCard({ className = '' }) {
 export function SkeletonPanelRow({ className = '' }) {
   return (
     <div
-      className={`rounded-card p-4 bg-surface border border-line ${className}`}
+      className={`rounded-card p-[18px] bg-surface border border-line ${className}`}
       aria-hidden="true"
     >
       {/* 헤더: 원형 심볼 + 노선명 */}

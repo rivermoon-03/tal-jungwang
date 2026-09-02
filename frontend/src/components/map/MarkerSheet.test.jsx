@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import MarkerSheet from './MarkerSheet'
 
 // useAppStore mock
@@ -276,5 +276,51 @@ describe('MarkerSheet — 시안2 구조 (카드 분리형)', () => {
     )
     expect(screen.getByText('소사·원시 방면')).toBeTruthy()
     expect(screen.getByText('일산 방면')).toBeTruthy()
+  })
+})
+
+describe('MarkerSheet — ui/Sheet 전환', () => {
+  it('Escape 키를 누르면 onClose가 호출된다', () => {
+    const onClose = vi.fn()
+    render(
+      <MarkerSheet
+        station={baseStation}
+        arrivals={baseArrivals}
+        onClose={onClose}
+        onNavigate={vi.fn()}
+        onDetail={vi.fn()}
+      />
+    )
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('role=dialog로 렌더되고 정류장명을 접근성 라벨에 포함한다', () => {
+    render(
+      <MarkerSheet
+        station={baseStation}
+        arrivals={baseArrivals}
+        onClose={vi.fn()}
+        onNavigate={vi.fn()}
+        onDetail={vi.fn()}
+      />
+    )
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.getAttribute('aria-label')).toContain('정왕역')
+  })
+
+  it('닫기 아이콘 버튼을 누르면 onClose가 호출된다', () => {
+    const onClose = vi.fn()
+    render(
+      <MarkerSheet
+        station={baseStation}
+        arrivals={baseArrivals}
+        onClose={onClose}
+        onNavigate={vi.fn()}
+        onDetail={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

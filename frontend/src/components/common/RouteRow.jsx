@@ -1,4 +1,4 @@
-import RouteChip from './RouteChip'
+import RouteBadge from '../ui/RouteBadge'
 import SlotNumber from './SlotNumber'
 
 // 한 노선의 도착 정보 한 줄.
@@ -23,7 +23,7 @@ export default function RouteRow({
       onClick={onClick}
       className={`flex items-center gap-2 px-3 py-[9px] text-left border-t border-line dark:border-line first:border-t-0 ${onClick ? 'pressable' : ''} ${className}`}
     >
-      <RouteChip route={route} label={routeLabel ?? route} />
+      <RouteBadge route={routeLabel ?? route} variant="soft" />
       <span className="flex-1 min-w-0 truncate text-dest-mob md:text-dest text-ink-2 dark:text-ink-2">
         {destination}
       </span>

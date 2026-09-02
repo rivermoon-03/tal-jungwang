@@ -22,6 +22,10 @@
  * 히트맵 셀은 기존 RouteCrowdingSection과 동일하게 3px 라운드를 유지한다
  * (radius 8/10/14/20/full 규칙의 예외 — 그리드 셀처럼 4px 미만이 자연스러운
  * 경우는 기존 값을 유지해도 된다고 통합 지침에 명시됨. 보고서에도 별도 기재).
+ *
+ * 시안2 갱신(2026-09): 문장 요약 박스·펼침 패널 둘 다 보더 대신 shadow-sh-card로
+ * 표면을 띄운다(DESIGN.md §4 — 보더+그림자 동시 사용 금지). 값 자체(범례·버킷
+ * 수·라운드)는 바뀌지 않았다.
  */
 import { useMemo, useState } from 'react'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
@@ -68,7 +72,7 @@ export default function RouteCrowdingSummary({ routeNumber }) {
       </div>
 
       <div
-        className="rounded-card bg-surface-2 dark:bg-bg border border-line dark:border-line px-3.5 py-3"
+        className="rounded-card bg-surface-2 dark:bg-bg shadow-sh-card px-3.5 py-3"
         title={flow?.total_samples ? `표본 ${flow.total_samples}건` : undefined}
       >
         <span className="block text-body font-bold text-ink dark:text-ink">{sentence}</span>
@@ -86,7 +90,7 @@ export default function RouteCrowdingSummary({ routeNumber }) {
           </button>
 
           {expanded && (
-            <div className="mt-2 rounded-card bg-surface dark:bg-surface border border-line dark:border-line p-3">
+            <div className="mt-2 rounded-card bg-surface dark:bg-surface shadow-sh-card p-3">
               <div className="grid grid-cols-12 gap-1">
                 {summary.buckets.map((b) => {
                   const tone = crowdedToneStyle(b.ratio)

@@ -220,9 +220,14 @@ const useAppStore = create(
       setCommuteManualDirection: (dir) => set({ commuteManualDirection: dir }),
 
       // ── F3: 시간표 기본 보기(그리드/리스트) persist ───────────────────
-      // ScheduleDetailModal의 viewMode 초기값 + SettingsPage "시간표 기본 보기"가
-      // 이 필드를 공유한다.
-      scheduleViewMode: 'grid', // 'grid' | 'list'
+      // ScheduleDetailModal의 viewMode 초기값 + SettingsPage "시간표 기본 보기" +
+      // GlobalSubwayDetailSheet가 이 필드를 공유한다.
+      //
+      // 기본값은 list다. 시안의 시간표 화면이 시(hour) 그룹 + "지금" 앵커 리스트라
+      // 기본으로 그게 보여야 한다. 4열 그리드는 하루치를 한 화면에 눌러 담는 대신
+      // 시간대 감각과 "지금 어디쯤"이 사라져서, 고르는 사람에게만 준다.
+      // 이미 값을 고른 사용자는 persist된 선택이 그대로 남는다.
+      scheduleViewMode: 'list', // 'grid' | 'list'
       setScheduleViewMode: (mode) => set({ scheduleViewMode: mode }),
 
       // ── 홈 히어로 스타일 persist ───────────────────────────────────

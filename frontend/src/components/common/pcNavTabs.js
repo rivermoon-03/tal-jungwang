@@ -1,13 +1,19 @@
-import { Map, Building2, Megaphone, MoreHorizontal } from 'lucide-react'
+import { Home, Building2, Megaphone, MoreHorizontal } from 'lucide-react'
 
 /**
- * PC 셸(사이드바/구 dock) 공용 4탭 정의 + pushState 라우팅.
+ * PC 셸(PCSidebar) 공용 4탭 정의 + pushState 라우팅.
  *
- * PCDock과 PCSidebar가 동일한 배열/함수를 import해 쓴다 — 탭 목록이나 라우팅
- * 규칙이 두 곳에 따로 복붙되지 않게 한다(mistakes.md 2).
+ * 구 PC dock(PCDock, 2026-09 삭제 — App.jsx가 더 이상 마운트하지 않던 죽은
+ * 코드)도 한때 이 배열/함수를 같이 썼다. PCSidebar만 남은 지금도 탭 목록·
+ * 라우팅 규칙을 이 파일 한 곳에서만 관리하는 구조는 그대로 유지한다.
+ *
+ * id는 'map'을 그대로 쓰지만(서브내비 분기 등 내부 참조가 많아 값 자체를
+ * 바꾸면 변경 범위가 커진다) 라벨과 아이콘은 '홈'/Home으로 맞춘다 — 모바일
+ * FloatingDock의 첫 탭도 '홈'인데 PC만 '지도'라 같은 화면을 가리키면서
+ * 이름이 갈리고 있었다(요구사항: 모바일·PC 상위 탭 이름을 맞출 것).
  */
 export const PC_TABS = [
-  { id: 'map',        Icon: Map,            href: '/',           label: '지도'     },
+  { id: 'map',        Icon: Home,           href: '/',           label: '홈'       },
   { id: 'facilities', Icon: Building2,      href: '/facilities', label: '학교시설' },
   { id: 'notices',    Icon: Megaphone,      href: '/notices',    label: '공지'     },
   { id: 'more',       Icon: MoreHorizontal, href: '/more',       label: '더보기'   },

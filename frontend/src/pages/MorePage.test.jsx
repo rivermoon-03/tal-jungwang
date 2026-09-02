@@ -10,7 +10,7 @@
  *  4. "→" 텍스트 화살표 미사용
  *  5. AppInfoPage 🏫 이모지 없음
  */
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ─── 훅 모킹 ──────────────────────────────────────────────────────────────
@@ -192,6 +192,37 @@ describe('NoticesPage — 품질 규칙', () => {
           `font-size ${fs}는 12px 미만입니다`
         ).toBeGreaterThanOrEqual(12)
       }
+    })
+  })
+})
+
+describe('MorePage — 항목 그룹핑', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAllMoreHooks()
+  })
+
+  it('설정/정보/정책 세 그룹 라벨이 보인다', () => {
+    // "설정" 텍스트는 그룹 라벨과 그 안의 항목 제목에 모두 등장해 getByText로는
+    // 모호하다 — 그룹 라벨(SectionLabel, uppercase 클래스)만 골라서 확인한다.
+    const { container } = render(<MorePageContent />)
+    const groupLabels = Array.from(container.querySelectorAll('.uppercase')).map((el) => el.textContent)
+    expect(groupLabels).toEqual(['설정', '정보', '정책'])
+  })
+
+  it('개인정보처리방침이 더 이상 목록 밖 텍스트 링크가 아니라 다른 항목과 같은 행(버튼)이다', () => {
+    render(<MorePageContent />)
+    const privacyRow = screen.getByRole('button', { name: '개인정보처리방침 열기' })
+    expect(privacyRow).toBeInTheDocument()
+    // 다른 항목(설정/도움말/앱 정보)과 같은 아이콘+제목+설명 행 구조를 쓴다.
+    expect(privacyRow.querySelector('svg')).toBeInTheDocument()
+  })
+
+  it('각 그룹 항목은 44px 이상 터치 타깃(min-h-11)을 보장한다', () => {
+    render(<MorePageContent />)
+    const rows = screen.getAllByRole('button', { name: /열기$/ })
+    rows.forEach((row) => {
+      expect(row.className).toMatch(/min-h-11/)
     })
   })
 })

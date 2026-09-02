@@ -21,7 +21,7 @@ const KIND_CLASS = {
 export default function StatusChip({ kind = 'last', className = '', children }) {
   const kindClass = KIND_CLASS[kind] ?? KIND_CLASS.last
   const base =
-    'inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[12px] font-medium leading-none select-none'
+    'inline-flex items-center gap-1 rounded-full px-1.5 py-px text-chip font-medium leading-none select-none'
 
   return (
     <span className={[base, kindClass, className].filter(Boolean).join(' ')}>

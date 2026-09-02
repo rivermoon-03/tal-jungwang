@@ -14,7 +14,9 @@
  *     자체 absolute 컨테이너(top-3 right-3)를 두른다.
  */
 import { useState } from 'react'
-import { Info, X } from 'lucide-react'
+import { Info, X, Bus, TrainFront } from 'lucide-react'
+import { tjLineColor } from '../common/lineColor'
+import IconButton from '../ui/IconButton'
 
 // 범례 항목 — 마커 칩/배지에서 실제로 쓰는 색을 그대로 토큰으로 참조한다
 // (인라인 hex 대신 --tj-* 변수 — 다크 모드에서도 칩과 색이 어긋나지 않는다).
@@ -22,6 +24,18 @@ const LEGEND_ITEMS = [
   { color: 'var(--tj-delayed)', label: '하교 · 제2등교', desc: '학교 출발 다음 버스까지 남은 시간' },
   { color: 'var(--tj-ease)', label: 'G', desc: '현재 정류장 근처 실시간 운행 중인 버스' },
   { color: 'var(--tj-imminent)', label: '한국공대 · 정왕역', desc: '도보 예상 시간' },
+]
+
+// 마커 색 범례 — "마커 색이 무엇을 뜻하는지" 앱 어디에도 답이 없던 것을 채운다.
+// 색은 절대 여기서 직접 정하지 않고 lineColor.js의 tjLineColor()만 거쳐 읽는다
+// (대표 노선코드를 넘겨 실제 지도 마커와 같은 CSS 변수를 그대로 받는다).
+const MARKER_LEGEND_ITEMS = [
+  { key: 'bus',       glyph: Bus,       label: '버스',       color: tjLineColor('20-1') },
+  { key: 'bus_seoul', glyph: Bus,       label: '서울행 버스', color: tjLineColor('3400') },
+  { key: 'shuttle',   glyph: Bus,       label: '셔틀',       color: tjLineColor('셔틀') },
+  { key: 'line4',     glyph: TrainFront, label: '4호선',      color: tjLineColor('4호선') },
+  { key: 'suin',      glyph: TrainFront, label: '수인분당',   color: tjLineColor('수인분당') },
+  { key: 'seohae',    glyph: TrainFront, label: '서해선',     color: tjLineColor('서해선') },
 ]
 
 function LegendButton({ open, onToggle }) {
@@ -44,18 +58,13 @@ function LegendPanel({ onClose }) {
     <div
       role="dialog"
       aria-label="지도 표시 안내"
-      className="absolute right-0 top-[calc(100%+8px)] z-[60] w-64 rounded-card border border-line dark:border-line bg-surface dark:bg-surface p-3 shadow-sh-pop"
+      className="absolute right-0 top-[calc(100%+8px)] z-popover w-64 rounded-card border border-line dark:border-line bg-surface dark:bg-surface p-3 shadow-sh-pop"
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-caption font-extrabold text-ink dark:text-ink">지도 표시 안내</p>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="닫기"
-          className="rounded-full p-1 text-mute dark:text-mute hover:bg-surface-2 dark:hover:bg-surface-2-dark transition-colors"
-        >
+        <IconButton label="닫기" variant="ghost" onClick={onClose}>
           <X size={14} aria-hidden="true" />
-        </button>
+        </IconButton>
       </div>
       <ul className="space-y-1.5">
         {LEGEND_ITEMS.map((item) => (
@@ -81,6 +90,27 @@ function LegendPanel({ onClose }) {
             <strong className="font-bold text-ink dark:text-ink">숫자 배지</strong> · 겹친 정류장 여러 개, 탭하면 확대돼요
           </span>
         </li>
+      </ul>
+
+      {/* 마커 색 범례 — 색 스와치 + 글리프 + 이름 표. 마커 칩 dot과 같은 색(위 LEGEND_ITEMS와
+          달리 이 항목은 "마커 자체가 무슨 노선군인지"를 설명한다 — 별도 표로 분리). */}
+      <p className="mt-3 mb-1.5 text-caption font-extrabold text-mute dark:text-mute">마커 색</p>
+      <ul className="space-y-1.5">
+        {MARKER_LEGEND_ITEMS.map((item) => {
+          const Glyph = item.glyph
+          return (
+            <li key={item.key} className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                style={{ background: item.color }}
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-pill text-white"
+              >
+                <Glyph size={12} strokeWidth={2.4} aria-hidden="true" />
+              </span>
+              <span className="text-caption font-bold text-ink dark:text-ink">{item.label}</span>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

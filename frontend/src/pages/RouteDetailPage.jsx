@@ -4,6 +4,7 @@ import { useBusTimetableByRoute, useBusHistoryPreview, useBusRoutes } from '../h
 import useAppStore from '../stores/useAppStore'
 import { makeFavKey } from '../utils/favKey'
 import RouteBadge from '../components/ui/RouteBadge'
+import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import EmptyState from '../components/ui/EmptyState'
 import ArrivalEtaCard from '../components/bus/ArrivalEtaCard'
@@ -256,20 +257,17 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
     <div className="flex flex-col h-full bg-bg dark:bg-bg">
       {/* ── 헤더 ── */}
       <header className="flex-none flex items-center gap-[11px] px-4 pt-[18px] pb-[13px] bg-surface dark:bg-surface border-b border-line dark:border-line">
-        <button
-          type="button"
-          aria-label="뒤로"
-          onClick={handleBack}
-          className="w-[42px] h-[42px] rounded-card flex-none flex items-center justify-center bg-surface-2 dark:bg-bg border border-line dark:border-line text-ink-2 dark:text-ink-2-dark"
-        >
+        {/* 42px 커스텀 버튼 대신 44px 정본(IconButton). variant="floating"은
+            표면을 보더가 아니라 shadow-sh-card로 띄운다(시안2 규율). */}
+        <IconButton label="뒤로" onClick={handleBack} variant="floating">
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
 
         <div className="flex-1 min-w-0 flex items-center gap-[9px]">
           <RouteBadge route={routeDisplayName} />
           <div className="min-w-0">
             {headLabel && (
-              <span className="block text-[16px] font-semibold text-ink dark:text-ink tracking-[-0.02em] truncate">
+              <span className="block text-body font-semibold text-ink dark:text-ink tracking-[-0.02em] truncate">
                 {headLabel}
               </span>
             )}
@@ -289,18 +287,17 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
           </div>
         </div>
 
-        <button
-          type="button"
-          aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+        <IconButton
+          label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           onClick={() => favKey && toggleFavoriteKey(favKey)}
-          className="w-[42px] h-[42px] rounded-card flex-none flex items-center justify-center bg-surface-2 dark:bg-bg border border-line dark:border-line"
+          variant="floating"
         >
           <Star
             size={19}
             fill={isFavorite ? 'currentColor' : 'none'}
             className={isFavorite ? 'text-imminent' : 'text-mute dark:text-mute'}
           />
-        </button>
+        </IconButton>
       </header>
 
       {/* ── 바디 ──
@@ -358,8 +355,14 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                   />
                 )}
 
-                {/* ③ 정류장(신설) — 등록된 탑승 정류장 + 방면만 정직하게 표시 */}
-                <StopsSection stops={stops} directionName={headLabel} />
+                {/* ③ 정류장(신설) — 등록된 탑승 정류장 + 방면만 정직하게 표시.
+                    activeStopName: 위 ① ETA 카드가 실시간 계산에 쓴 정류장(3401처럼
+                    승차 정류장이 2곳인 노선에서 "어느 정류장 기준인지" 표시). */}
+                <StopsSection
+                  stops={stops}
+                  directionName={headLabel}
+                  activeStopName={hasRealtimeGroup ? histData?.stop_name : null}
+                />
 
                 {/* ④ 혼잡도(요약화) — 실시간 추적 노선에서만 의미 있는 데이터 */}
                 {hasRealtimeGroup && <RouteCrowdingSummary routeNumber={routeNumber} />}

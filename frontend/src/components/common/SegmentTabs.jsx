@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { scaledPx } from '../../utils/fontScale'
 
 /**
  * SegmentTabs — 분할형 탭(primary pill).
@@ -18,7 +19,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 export default function SegmentTabs({ tabs, active, onChange, onDisabledClick, size = 'md', className = '' }) {
   const padY = size === 'sm' ? 7 : 10;
   const padX = size === 'sm' ? 12 : 16;
-  const fontSize = size === 'sm' ? 12 : 13;
+  const fontSize = scaledPx(size === 'sm' ? 12 : 13);
 
   const containerRef = useRef(null);
   const btnRefs = useRef(new Map());

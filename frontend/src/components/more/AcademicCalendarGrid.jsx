@@ -19,6 +19,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import SegmentTabs from '../ui/SegmentTabs'
+import IconButton from '../ui/IconButton'
 import {
   todayKstDateString,
   buildMonthGrid,
@@ -124,25 +125,21 @@ export default function AcademicCalendarGrid({ events = [], initialDate = null, 
       </div>
 
       <div className="flex items-center justify-between mb-2">
-        <button
-          type="button"
+        <IconButton
+          label={viewMode === 'month' ? '이전 달' : '이전 주'}
           onClick={() => (viewMode === 'month' ? goToMonth(-1) : goToWeek(-1))}
-          aria-label={viewMode === 'month' ? '이전 달' : '이전 주'}
-          className="pressable flex items-center justify-center w-8 h-8 rounded-mini text-mute dark:text-mute hover:text-ink dark:hover:text-ink"
         >
           <ChevronLeft size={18} aria-hidden="true" />
-        </button>
+        </IconButton>
         <span className="text-body font-bold text-ink dark:text-ink tabular-nums">
           {viewMode === 'month' ? monthLabel(cursor.year, cursor.month) : weekRangeLabel(weekAnchor)}
         </span>
-        <button
-          type="button"
+        <IconButton
+          label={viewMode === 'month' ? '다음 달' : '다음 주'}
           onClick={() => (viewMode === 'month' ? goToMonth(1) : goToWeek(1))}
-          aria-label={viewMode === 'month' ? '다음 달' : '다음 주'}
-          className="pressable flex items-center justify-center w-8 h-8 rounded-mini text-mute dark:text-mute hover:text-ink dark:hover:text-ink"
         >
           <ChevronRight size={18} aria-hidden="true" />
-        </button>
+        </IconButton>
       </div>
 
       {viewMode === 'month' ? (
@@ -237,7 +234,7 @@ function WeekLaneView({ weekGrid, today, selectedDate, onSelectDate, lanes, dayE
 
   return (
     <div>
-      <div role="tablist" aria-label="요일 선택" className="grid grid-cols-7 gap-1 mb-2">
+      <div role="tablist" aria-label="요일 선택" className="grid grid-cols-7 gap-1 mb-1">
         {weekGrid.map((cell, i) => {
           const isToday = cell.date === today
           const isSelected = cell.date === selectedDate
@@ -250,10 +247,17 @@ function WeekLaneView({ weekGrid, today, selectedDate, onSelectDate, lanes, dayE
               aria-selected={isSelected}
               aria-current={isToday ? 'date' : undefined}
               data-testid={`week-day-${cell.date}`}
+              data-today={isToday ? 'true' : undefined}
               onClick={() => onSelectDate(cell.date)}
+              // 결함 #14: 예전엔 "오늘"이 채움 배경, "선택"이 외곽선이라 초기값처럼
+              // 오늘과 선택이 다른 날(예: initialDate로 다른 날짜가 먼저 선택된 경우)
+              // 두 날짜가 동시에 서로 다른 방식으로 강조돼 어느 쪽이 오늘인지 읽을 수
+              // 없었다. 학식 요일 칩(DayChips)이 이미 쓰는 규칙, 선택은 채움이고
+              // 오늘은 점으로 통일한다. 채움은 방금 사용자가 고른 능동적 상태라
+              // 가장 센 신호를 받고, 오늘은 배경 정보라 점 하나로 충분하다.
               className={`pressable flex flex-col items-center justify-center gap-0.5 rounded-mini py-1.5 min-h-[44px] ${
-                isToday ? 'bg-accent-bg dark:bg-accent-bg' : ''
-              } ${isSelected ? 'border border-accent dark:border-accent' : ''}`}
+                isSelected ? 'bg-accent-bg dark:bg-accent-bg' : ''
+              }`}
             >
               <span
                 className={`text-dest font-semibold ${
@@ -262,17 +266,34 @@ function WeekLaneView({ weekGrid, today, selectedDate, onSelectDate, lanes, dayE
               >
                 {WEEKDAY_LABELS[i]}
               </span>
-              <span
-                className={`text-body font-bold tabular-nums ${
-                  isToday || isSelected ? 'text-accent-ink dark:text-accent' : 'text-ink dark:text-ink'
-                }`}
-              >
-                {cell.day}
+              {/* PC의 넓은 셀에서 결함: 점을 버튼 corner(top-1.5 right-1.5)에
+                  절대배치했더니, 셀 폭이 넓어질수록 가운데 정렬된 날짜 숫자와
+                  점 사이 거리가 벌어져 어느 날짜의 점인지 읽히지 않았다(좁은
+                  모바일 칩에서만 우연히 붙어 보였다). 날짜 숫자를 감싼 좁은
+                  래퍼를 기준으로 점을 배치해, 셀 폭과 무관하게 숫자 바로
+                  옆에 점이 붙게 한다. */}
+              <span className="relative inline-flex">
+                <span
+                  className={`text-body font-bold tabular-nums ${
+                    isSelected ? 'text-accent-ink dark:text-accent' : 'text-ink dark:text-ink'
+                  }`}
+                >
+                  {cell.day}
+                </span>
+                {isToday && (
+                  <span
+                    aria-hidden="true"
+                    className={`absolute -top-0.5 -right-2 h-1.5 w-1.5 rounded-full ${
+                      isSelected ? 'bg-accent-ink dark:bg-accent' : 'bg-imminent dark:bg-imminent'
+                    }`}
+                  />
+                )}
               </span>
             </button>
           )
         })}
       </div>
+      <p className="text-dest font-semibold text-mute dark:text-mute mb-2">점은 오늘 · 채움은 선택</p>
 
       <div data-testid="week-lane-grid" className="grid grid-cols-7 gap-1 auto-rows-[22px]">
         {visibleLanes.map((lane, i) => (

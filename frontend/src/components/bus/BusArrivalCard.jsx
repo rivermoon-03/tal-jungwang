@@ -11,6 +11,7 @@ import { IMMINENT_THRESHOLD_SEC } from '../../utils/arrivalTime'
 import RouteBadge from '../ui/RouteBadge'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
+import IconButton from '../ui/IconButton'
 import MiniTrack from './MiniTrack'
 import { staggerStyle } from '../../utils/motion'
 
@@ -52,7 +53,7 @@ export function RouteProgressStrip({ routeNo, stationId, hasArrival }) {
             </div>
             <div className="flex flex-col items-center shrink-0">
               <div className={`w-3 h-3 rounded-full border-2 ${wp.id === stationId ? 'border-accent bg-surface dark:bg-surface' : 'border-line-strong dark:border-line-strong bg-surface dark:bg-bg'}`} />
-              <span className={`text-[12px] mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute'}`}>
+              <span className={`text-meta mt-0.5 whitespace-nowrap leading-tight ${wp.id === stationId ? 'font-bold text-accent' : 'text-mute dark:text-mute'}`}>
                 {wp.label}
               </span>
             </div>
@@ -180,12 +181,12 @@ function BusArrivalCard({ arrivals, onTimetableClick, selectedStation = null, in
         <span className="inline-flex items-baseline leading-none">
           <span
             key={etaText}
-            className={`tj-number-pulse font-bold tracking-[-.05em] ${
+            className={`tj-number-pulse font-bold tracking-[-.05em] leading-none ${
               imminent
-                ? 'text-imminent dark:text-imminent text-[26px]'
+                ? 'text-imminent dark:text-imminent text-eta-mob'
                 : muted
-                ? 'text-mute font-semibold text-[22px]'
-                : 'text-ink dark:text-ink text-[26px]'
+                ? 'text-mute font-semibold text-eta-num'
+                : 'text-ink dark:text-ink text-eta-mob'
             }`}
           >
             {imminent ? (
@@ -222,23 +223,19 @@ function BusArrivalCard({ arrivals, onTimetableClick, selectedStation = null, in
           )}
           {!isTimetable && crowdedLevel > 0 && <CrowdedBadge level={crowdedLevel} />}
           {!isTimetable && !muted && <DataBadge state="live" />}
-          {/* 즐겨찾기 — 원형 테두리 버튼, 제목 행 우측. 44px 탭영역(내부 패딩). */}
-          <button
-            type="button"
+          {/* 즐겨찾기 — 정본 IconButton(44px), 제목 행 우측. */}
+          <IconButton
             onClick={(e) => { e.stopPropagation(); toggleFav({ type: 'bus', label: first.route_no }) }}
-            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-            className={`ml-auto shrink-0 flex items-center justify-center w-9 h-9 rounded-full border pressable ${
-              isFavorite
-                ? 'border-imminent/40 bg-imminent/10'
-                : 'border-line dark:border-line bg-surface dark:bg-surface'
-            }`}
+            label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            variant={isFavorite ? 'surface' : 'ghost'}
+            className={`ml-auto rounded-pill ${isFavorite ? 'text-imminent bg-imminent/10' : ''}`}
           >
             <Star
               size={18}
               fill={isFavorite ? 'currentColor' : 'none'}
               className={isFavorite ? 'text-imminent' : 'text-mute'}
             />
-          </button>
+          </IconButton>
         </div>
 
         <MiniTrack

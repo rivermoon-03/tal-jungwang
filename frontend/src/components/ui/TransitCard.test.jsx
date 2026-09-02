@@ -118,9 +118,9 @@ describe('TransitCard — 겹침(D2)·배지 줄바꿈(D3) 회귀', () => {
     expect(primary.className).not.toMatch(/text-\[22px\]/)
   })
 
-  it('숫자 ETA는 22px 스타일을 유지한다', () => {
+  it('숫자 ETA는 text-eta-num 토큰(22px/800/tabular)을 쓴다', () => {
     render(<TransitCard {...BASE_PROPS} />)
-    expect(screen.getByText('3분').className).toMatch(/text-\[22px\]/)
+    expect(screen.getByText('3분').className).toMatch(/text-eta-num/)
   })
 
   it('ETA 열 컨테이너에 min-w-0이 없다 — 넘친 텍스트가 본문 위로 그려지던 원인(D2)', () => {
@@ -128,5 +128,65 @@ describe('TransitCard — 겹침(D2)·배지 줄바꿈(D3) 회귀', () => {
     const etaCol = container.querySelector('.min-h-\\[44px\\]')
     expect(etaCol).not.toBeNull()
     expect(etaCol.className).not.toMatch(/min-w-0/)
+  })
+})
+
+// ── 시안2 "다정한 카드" 회귀 — 노선 타일(56px)·칩 상한 ──
+describe('TransitCard — 노선 타일 규격', () => {
+  it('타일이 56px(w-14/h-14) 정사각형이다', () => {
+    render(<TransitCard {...BASE_PROPS} />)
+    const tile = screen.getByText('20-1')
+    expect(tile.className).toMatch(/w-14/)
+    expect(tile.className).toMatch(/h-14/)
+  })
+
+  it('badge.mode가 있으면 노선 종류 글리프를 그린다', () => {
+    const props = { ...BASE_PROPS, badge: { label: '20-1', mode: 'bus' } }
+    const { container } = render(<TransitCard {...props} />)
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('badge.mode가 없으면 글리프 없이 번호만 그린다', () => {
+    const { container } = render(<TransitCard {...BASE_PROPS} />)
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  // ShuttlePanel처럼 노선 번호가 없는 호출부를 위한 회귀 — label을 생략하면
+  // 글리프만 그리고 라벨 텍스트 노드는 전혀 렌더하지 않는다.
+  it('badge.label이 없으면 글리프만 그리고 라벨 텍스트는 렌더하지 않는다', () => {
+    const props = { ...BASE_PROPS, badge: { bgVar: '#7c3aed', mode: 'shuttle' } }
+    const { container } = render(<TransitCard {...props} />)
+    const glyph = container.querySelector('svg')
+    expect(glyph).not.toBeNull()
+    expect(glyph.parentElement.textContent).toBe('')
+  })
+})
+
+describe('TransitCard — 칩 상한(2개 + "+N")', () => {
+  const manyChips = [
+    { label: '실시간', tone: 'realtime' },
+    { label: '잔여좌석', tone: 'good' },
+    { label: '3정거장 전', tone: 'neutral' },
+    { label: '베타', tone: 'beta' },
+    { label: '제보', tone: 'warn' },
+    { label: '경로 사고', tone: 'warn' },
+    { label: '경유', tone: 'neutral' },
+  ]
+
+  it('칩이 2개 이하면 전부 보여준다(접지 않는다)', () => {
+    render(<TransitCard {...BASE_PROPS} />)
+    expect(screen.getByText('실시간')).toBeInTheDocument()
+    expect(screen.getByText('혼잡')).toBeInTheDocument()
+    expect(screen.queryByText(/^\+\d/)).not.toBeInTheDocument()
+  })
+
+  it('칩이 2개를 넘으면 앞 2개만 보여주고 나머지는 "+N" 하나로 접는다', () => {
+    render(<TransitCard {...BASE_PROPS} chips={manyChips} />)
+    expect(screen.getByText('실시간')).toBeInTheDocument()
+    expect(screen.getByText('잔여좌석')).toBeInTheDocument()
+    expect(screen.queryByText('3정거장 전')).not.toBeInTheDocument()
+    expect(screen.queryByText('베타')).not.toBeInTheDocument()
+    // 7개 중 앞 2개를 뺀 나머지 5개가 접힌다
+    expect(screen.getByText('+5')).toBeInTheDocument()
   })
 })

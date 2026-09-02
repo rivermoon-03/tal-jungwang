@@ -8,7 +8,10 @@
 import { useMemo, useState } from 'react'
 import { MoreVertical, Trash2 } from 'lucide-react'
 import ArrivalRow from '../dashboard/ArrivalRow'
+import IconButton from '../ui/IconButton'
 import { useBusArrivals, useBusTimetable } from '../../hooks/useBus'
+import useUndoRemove from './useUndoRemove'
+import RemoveUndoToast from './RemoveUndoToast'
 
 function resolveDirection(item) {
   const parts = []
@@ -62,7 +65,7 @@ function useLiveBusArrival(detail, routeNumber) {
 function RowMenu({ id, onRemove, onClose }) {
   return (
     <div
-      className="absolute right-0 top-8 z-30 bg-white dark:bg-surface rounded-xl shadow-lg border border-slate-100 dark:border-line overflow-hidden min-w-[140px]"
+      className="absolute right-0 top-8 z-30 bg-white dark:bg-surface rounded-tile shadow-sh-lift overflow-hidden min-w-[140px]"
       onClick={(e) => e.stopPropagation()}
     >
       <button
@@ -114,17 +117,16 @@ function FavoriteRow({ item, menuOpen, onToggleMenu, onCloseMenu, onRemove, onOp
         status={status}
         onClick={onOpenDetail ? () => onOpenDetail(item.detail) : undefined}
         rightAddon={
-          <button
-            type="button"
-            className="p-1.5 ml-1 rounded-full hover:bg-surface-2 dark:hover:bg-surface-2 transition-colors text-mute"
+          <IconButton
+            label="편집 메뉴"
+            className="ml-1"
             onClick={(e) => {
               e.stopPropagation()
               onToggleMenu()
             }}
-            aria-label="편집 메뉴"
           >
             <MoreVertical size={16} />
-          </button>
+          </IconButton>
         }
       />
       {menuOpen && (
@@ -139,6 +141,8 @@ function FavoriteRow({ item, menuOpen, onToggleMenu, onCloseMenu, onRemove, onOp
 
 export default function FavoritesList({ items = [], onRemove, onOpenDetail }) {
   const [openMenu, setOpenMenu] = useState(null)
+  // 삭제는 확인도 되돌리기도 없이 2탭이면 끝났다 — 해제 직후 되돌리기 토스트를 띄운다.
+  const { pending, remove, undo } = useUndoRemove(onRemove)
 
   const sorted = [...items].sort((a, b) => {
     const am = a.minutes == null ? Number.POSITIVE_INFINITY : a.minutes
@@ -146,7 +150,14 @@ export default function FavoritesList({ items = [], onRemove, onOpenDetail }) {
     return am - bm
   })
 
-  if (sorted.length === 0) return null
+  function handleRemove(id) {
+    const item = items.find((it) => it.id === id)
+    remove(id, item?.routeCode)
+  }
+
+  // 목록이 비었어도 방금 지운 항목의 되돌리기 토스트는 남아 있어야 하므로,
+  // pending이 없을 때만 null로 완전히 접는다.
+  if (sorted.length === 0 && !pending) return null
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -157,10 +168,11 @@ export default function FavoritesList({ items = [], onRemove, onOpenDetail }) {
           menuOpen={openMenu === item.id}
           onToggleMenu={() => setOpenMenu(openMenu === item.id ? null : item.id)}
           onCloseMenu={() => setOpenMenu(null)}
-          onRemove={onRemove}
+          onRemove={handleRemove}
           onOpenDetail={onOpenDetail}
         />
       ))}
+      <RemoveUndoToast pending={pending} onUndo={undo} />
     </div>
   )
 }
