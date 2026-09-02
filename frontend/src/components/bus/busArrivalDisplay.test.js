@@ -2,24 +2,24 @@ import { describe, it, expect } from 'vitest'
 import { realtimeSecToMinutes } from './busArrivalDisplay'
 
 describe('realtimeSecToMinutes', () => {
-  it('ceils 60s to 1m', () => {
+  it('floors 60s to 1m', () => {
     expect(realtimeSecToMinutes(60)).toBe(1)
   })
 
-  it('ceils 61s to 2m', () => {
-    expect(realtimeSecToMinutes(61)).toBe(2)
+  it('floors 61s to 1m', () => {
+    expect(realtimeSecToMinutes(61)).toBe(1)
   })
 
-  it('ceils 120s to 2m', () => {
+  it('floors 120s to 2m', () => {
     expect(realtimeSecToMinutes(120)).toBe(2)
   })
 
-  it('ceils 240s to 4m', () => {
+  it('floors 240s to 4m', () => {
     expect(realtimeSecToMinutes(240)).toBe(4)
   })
 
-  it('ceils 270s to 5m (matches BusEtaCard formatEta ceil)', () => {
-    expect(realtimeSecToMinutes(270)).toBe(5)
+  it('floors 270s to 4m (matches eta.js formatEta floor)', () => {
+    expect(realtimeSecToMinutes(270)).toBe(4)
   })
 
   it('returns 0 for values <= 0 (caller handles IMMINENT)', () => {

@@ -35,6 +35,7 @@ describe('PCSidebar', () => {
       setPcNoticesTab: vi.fn(),
       homeView: 'now',
       setHomeView: vi.fn(),
+      setDetailModal: vi.fn(),
     }
   })
 
@@ -139,6 +140,44 @@ describe('PCSidebar', () => {
       expect(screen.getByRole('link', { name: '지금' })).toHaveAttribute('aria-current', 'page')
       screen.getByRole('link', { name: '시간표' }).click()
       expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
+    })
+
+    // 예전에는 "시간표"만 /schedule 로 pushState 해서, PCMainShell 의
+    // showFloating(=!children) 이 꺼지며 도킹 패널이 unmount 되고 지도가 통째로
+    // 불투명 페이지에 덮였다. 지도 탭의 하위 보기이므로 주소는 지도 홈에 머문다.
+    it('시간표를 눌러도 /schedule 로 페이지 이동하지 않는다', () => {
+      render(<PCSidebar />)
+      screen.getByRole('link', { name: '시간표' }).click()
+      expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
+      expect(window.location.pathname).toBe('/')
+    })
+  })
+
+  describe('즐겨찾기', () => {
+    // 모든 행이 goSettings 에 묶여 있어 무엇을 눌러도 /more 로 가던 자리다.
+    it('버스 즐겨찾기를 누르면 해당 노선 상세를 연다', () => {
+      storeState.favorites = { routes: ['하교:3400'], stations: [], venues: [] }
+      render(<PCSidebar />)
+      screen.getByRole('button', { name: /3400/ }).click()
+      expect(storeState.setDetailModal).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'bus', routeCode: '3400', favCode: '하교:3400' })
+      )
+      expect(window.location.pathname).toBe('/')
+    })
+
+    it('지하철 즐겨찾기도 상세로 연결된다', () => {
+      storeState.favorites = { routes: ['subway:정왕:up'], stations: [], venues: [] }
+      render(<PCSidebar />)
+      screen.getByRole('button', { name: /정왕/ }).click()
+      expect(storeState.setDetailModal).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'subway', station: '정왕', dir: 'up' })
+      )
+    })
+
+    it('즐겨찾기 행은 44px 이상 터치 영역을 갖는다', () => {
+      storeState.favorites = { routes: ['하교:3400'], stations: [], venues: [] }
+      render(<PCSidebar />)
+      expect(screen.getByRole('button', { name: /3400/ }).className).toContain('min-h-[44px]')
     })
   })
 })

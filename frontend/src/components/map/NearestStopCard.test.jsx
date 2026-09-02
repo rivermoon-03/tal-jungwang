@@ -77,8 +77,8 @@ describe('NearestStopCard — 최근접 정류장 선정', () => {
         arrivalsByStation={{ 한국공학대: HAKGONG_ARRIVALS }}
       />
     )
-    // 190초 → 4분(ceil) — formatArrival 헬퍼 결과
-    expect(screen.getByText('4분')).toBeInTheDocument()
+    // 190초 → 3분(floor) — formatArrival이 utils/eta.js formatEta에 위임한 결과
+    expect(screen.getByText('3분')).toBeInTheDocument()
   })
 
   it('행 탭 시 onSelectStation이 정류장 shape으로 호출된다', () => {
