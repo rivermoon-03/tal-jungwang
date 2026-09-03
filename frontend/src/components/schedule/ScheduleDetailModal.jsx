@@ -882,6 +882,13 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
   const anchorColIdx = colViews.length - 1
   const anchorNextIdx = colViews[anchorColIdx].nextIdx
 
+  // 세 컬럼(지난주/2주 전/3주 전) 모두 기록이 없는 경우 — 수집이 최근에 시작됐거나
+  // 이 노선·정류장 조합이 원래 드문 경우다. 컬럼마다 "데이터 없음" 헤더 +
+  // "데이터가 없습니다" 본문을 반복하면 같은 말을 세 번 읽게 되고, 고장으로
+  // 오해하기 쉽다. RouteDetailPage의 ArrivalHistory(historyAdapter.toHistoryRows)도
+  // 이 경우 컬럼 대신 안내 문구 하나로 대체한다 — 같은 원칙을 여기서도 따른다.
+  const allColumnsEmpty = colViews.every((col) => col.totalCount === 0)
+
   return (
     <div>
       <BusEtaCard realtimeEta={data?.realtime_eta} predictedEta={data?.predicted_eta} />
@@ -892,52 +899,58 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
       </p>
 
       {/* 독립 컬럼: 각 날짜가 자체 시간 순으로 쌓임. 행 정렬 없음. */}
-      <div className="flex gap-1 -mx-1 px-1">
-        {colViews.map((col, ci) => (
-          <div key={ci} className="flex-1 min-w-0">
-            {/* 헤더 */}
-            <div className="text-center py-2 border-b border-line dark:border-line mb-0.5">
-              <span className="block text-caption font-bold text-ink-2 dark:text-ink-2-dark whitespace-nowrap">
-                {col.label}
-              </span>
-              <span className="block text-caption text-mute dark:text-mute whitespace-nowrap">
-                {col.day_label}
-              </span>
+      {allColumnsEmpty ? (
+        <p className="py-6 text-center text-caption text-mute dark:text-mute">
+          오늘과 같은 요일, 최근 3주 안에 쌓인 도착 기록이 없어요. 데이터가 모이면 날짜별로 보여드릴게요.
+        </p>
+      ) : (
+        <div className="flex gap-1 -mx-1 px-1">
+          {colViews.map((col, ci) => (
+            <div key={ci} className="flex-1 min-w-0">
+              {/* 헤더 */}
+              <div className="text-center py-2 border-b border-line dark:border-line mb-0.5">
+                <span className="block text-caption font-bold text-ink-2 dark:text-ink-2-dark whitespace-nowrap">
+                  {col.label}
+                </span>
+                <span className="block text-caption text-mute dark:text-mute whitespace-nowrap">
+                  {col.day_label}
+                </span>
+                {col.totalCount === 0 ? (
+                  <span className="block text-caption text-mute dark:text-mute mt-0.5">데이터 없음</span>
+                ) : (
+                  <span className="block text-caption text-mute dark:text-mute mt-0.5">총 {col.totalCount}회</span>
+                )}
+              </div>
+
+              {/* 시간 리스트 */}
               {col.totalCount === 0 ? (
-                <span className="block text-caption text-mute dark:text-mute mt-0.5">데이터 없음</span>
+                <p className="py-6 text-center text-caption text-mute dark:text-mute">데이터가 없습니다</p>
               ) : (
-                <span className="block text-caption text-mute dark:text-mute mt-0.5">총 {col.totalCount}회</span>
+                col.times.map((t, i) => {
+                  const isNext = i === col.nextIdx
+                  const isPast = col.nextIdx !== -1 ? i < col.nextIdx : false
+                  const isAnchor = ci === anchorColIdx && i === Math.max(0, anchorNextIdx - 1)
+                  return (
+                    <div
+                      key={`${t}-${i}`}
+                      ref={isAnchor ? anchorRef : undefined}
+                      className={`py-0.5 text-center tabular-nums text-sm rounded-mini
+                        ${isNext
+                          ? 'font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                          : isPast
+                            ? 'text-mute dark:text-mute'
+                            : 'font-semibold text-ink dark:text-ink'
+                        }`}
+                    >
+                      {t}
+                    </div>
+                  )
+                })
               )}
             </div>
-
-            {/* 시간 리스트 */}
-            {col.totalCount === 0 ? (
-              <p className="py-6 text-center text-caption text-mute dark:text-mute">데이터가 없습니다</p>
-            ) : (
-              col.times.map((t, i) => {
-                const isNext = i === col.nextIdx
-                const isPast = col.nextIdx !== -1 ? i < col.nextIdx : false
-                const isAnchor = ci === anchorColIdx && i === Math.max(0, anchorNextIdx - 1)
-                return (
-                  <div
-                    key={`${t}-${i}`}
-                    ref={isAnchor ? anchorRef : undefined}
-                    className={`py-0.5 text-center tabular-nums text-sm rounded-mini
-                      ${isNext
-                        ? 'font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                        : isPast
-                          ? 'text-mute dark:text-mute'
-                          : 'font-semibold text-ink dark:text-ink'
-                      }`}
-                  >
-                    {t}
-                  </div>
-                )
-              })
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

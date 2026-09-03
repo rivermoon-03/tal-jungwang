@@ -105,7 +105,11 @@ export default function BusPanel() {
   // 분기), 훅은 조건 없이 항상 호출한다(react-hooks/rules-of-hooks).
   const favKeys = useAppStore((s) => s.favorites?.keys)
   const favoriteDestSet = useMemo(() => favoriteBusDestinations(favKeys), [favKeys])
-  const [otherOpen, setOtherOpen] = useState(false)
+  const hasFavoriteDest = favoriteDestSet.size > 0
+  // 즐겨찾기가 하나도 없으면 접을 이유가 없다 — 매번 펴야 탈 수 있는 노선이 보이던
+  // 문제(사용자 지적)라 기본값을 열림으로 시작한다. 즐겨찾기가 있으면 "내 목적지"
+  // 큰 카드가 이미 답을 보여주므로 기존대로 접힘에서 시작한다.
+  const [otherOpen, setOtherOpen] = useState(!hasFavoriteDest)
 
   // gbis 정류장(한국공학대/이마트/시흥시청): arrivals API 통합 사용
   const arrivalsQuery = useBusArrivals(gbisStationId)
@@ -218,10 +222,12 @@ export default function BusPanel() {
   // node를 cloneElement로 다시 감싸는 이유: buildLiveRow가 이미 완성된 TransitCard
   // 엘리먼트를 반환하므로, size prop 하나만 덧대는데 buildLiveRow 시그니처를
   // 바꾸면(정렬 전이라 "가장 빠른 한 대"를 그 시점엔 알 수 없다) 호출부가 늘어난다.
-  // 하교 화면(isCommuteHome)에서는 이 역할을 "내 목적지" 카드가 대신하므로 건너뛴다
-  // — 아니면 소트되지 않은 채로 "다른 목적지" 접힘 목록 안에 lg 카드가 하나
-  // 남아 "내 목적지"와 크기가 겹쳐 보인다.
-  if (!isCommuteHome && liveRows.length > 0) {
+  // 하교 화면(isCommuteHome)에서 즐겨찾기가 있으면 이 역할을 "내 목적지" 카드가
+  // 대신하므로 건너뛴다 — 아니면 소트되지 않은 채로 "다른 목적지" 접힘 목록 안에
+  // lg 카드가 하나 남아 "내 목적지"와 크기가 겹쳐 보인다. 즐겨찾기가 없으면
+  // "내 목적지" 카드 자체가 뜨지 않고 노선 목록이 그 자리를 대신하므로(사용자
+  // 지적 — 빈 안내 카드가 자리를 차지하지 않게), 목록의 첫 카드가 이 역할을 진다.
+  if ((!isCommuteHome || !hasFavoriteDest) && liveRows.length > 0) {
     const soonest = liveRows.reduce((min, r) => (r.sec < min.sec ? r : min), liveRows[0])
     soonest.node = cloneElement(soonest.node, { size: 'lg' })
   }
@@ -262,7 +268,7 @@ export default function BusPanel() {
   let sleepingGroupsForList = sleepingGroups
   let missingRoutesForList = missingRoutes
 
-  if (isCommuteHome && favoriteDestSet.size > 0) {
+  if (isCommuteHome && hasFavoriteDest) {
     const liveMatch = [...imminentRows, ...runningRows].find((r) => favoriteDestSet.has(r.routeNo))
     const fallbackMatch = !liveMatch ? fallbackGroups.find((g) => favoriteDestSet.has(g[0].route_no)) : null
     const sleepingMatch = !liveMatch && !fallbackMatch ? sleepingGroups.find((g) => favoriteDestSet.has(g[0].route_no)) : null
@@ -323,12 +329,16 @@ export default function BusPanel() {
     <div className="space-y-3">
       <IncidentBanner incident={incident} />
 
-      {isCommuteHome && (
+      {/* 즐겨찾기가 있을 때만 "내 목적지" 큰 카드를 맨 위에 둔다. 즐겨찾기가
+          없으면 이 자리를 빈 안내 카드가 차지해 정작 탈 수 있는 노선이 접힌
+          "다른 목적지" 안에 숨어야 했다(사용자 지적) — 아래 "다른 목적지" 목록이
+          그 역할을 대신하고, 안내 문구는 목록 아래 한 줄로 낮춘다. */}
+      {isCommuteHome && hasFavoriteDest && (
         <section>
           <h3 className="text-meta font-bold text-mute mb-1.5">내 목적지</h3>
           {primaryNode ?? (
-            // 답이 있는 빈 상태 — 아직 하교 노선을 즐겨찾기하지 않았을 때. 카드를
-            // 누르면 아래 "다른 목적지" 목록을 펼쳐 바로 고를 수 있게 한다.
+            // 즐겨찾기한 노선이 있지만 지금 목록과 일치하지 않을 때(불일치)의 안내.
+            // 카드를 누르면 아래 "다른 목적지" 목록을 펼쳐 바로 고를 수 있게 한다.
             <Card interactive onClick={() => setOtherOpen(true)}>
               <div className="flex flex-col gap-0.5 py-1">
                 <p className="text-list-nm text-ink">아직 목적지를 정하지 않았어요</p>
@@ -342,76 +352,86 @@ export default function BusPanel() {
       {showTaxiPromo && <TaxiPromoCard />}
 
       {isCommuteHome ? (
-        otherCount > 0 && (
-          <section>
-            <button
-              type="button"
-              onClick={() => setOtherOpen((v) => !v)}
-              aria-expanded={otherOpen}
-              className="flex items-center gap-1 min-h-[44px] text-meta font-bold text-mute pressable"
-            >
-              다른 목적지 · {otherCount}곳
-              <ChevronDown
-                size={13}
-                aria-hidden="true"
-                className={`transition-transform duration-base ${otherOpen ? 'rotate-180' : ''}`}
-              />
-            </button>
-            {otherOpen && (
-              <div className="mt-1.5 space-y-3">
-                {imminentRowsForList.length > 0 && (
-                  <div>
-                    <h4 className="text-meta font-bold text-mute mb-1.5">곧 도착</h4>
-                    <div className="space-y-2">{imminentRowsForList.map((r) => r.node)}</div>
-                  </div>
-                )}
-                {hasRunningForList && (
-                  <div>
-                    <h4 className="text-meta font-bold text-mute mb-1.5">운행 중</h4>
-                    <div className="space-y-2">
-                      {runningRowsForList.map((r) => r.node)}
-                      {fallbackGroupsForList.map((group) => (
-                        <BusFallbackCard
-                          key={group[0].route_no}
-                          arrival={group[0]}
-                          station={selectedBusStation}
-                          direction={selectedBusDirection}
-                          onOpenDetail={setDetailModal}
-                        />
-                      ))}
+        <>
+          {otherCount > 0 && (
+            <section>
+              <button
+                type="button"
+                onClick={() => setOtherOpen((v) => !v)}
+                aria-expanded={otherOpen}
+                className="flex items-center gap-1 min-h-[44px] text-meta font-bold text-mute pressable"
+              >
+                {hasFavoriteDest ? `다른 목적지 · ${otherCount}곳` : `탈 수 있는 노선 · ${otherCount}곳`}
+                <ChevronDown
+                  size={13}
+                  aria-hidden="true"
+                  className={`transition-transform duration-base ${otherOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {otherOpen && (
+                <div className="mt-1.5 space-y-3">
+                  {imminentRowsForList.length > 0 && (
+                    <div>
+                      <h4 className="text-meta font-bold text-mute mb-1.5">곧 도착</h4>
+                      <div className="space-y-2">{imminentRowsForList.map((r) => r.node)}</div>
                     </div>
-                  </div>
-                )}
-                {sleepingGroupsForList.length > 0 && (
-                  <div>
-                    <h4 className="text-meta font-bold text-mute mb-1.5">
-                      {allEndedForToday ? '오늘 운행 종료' : '지금은 운행 안 함'}
-                    </h4>
-                    <div className="space-y-2">
-                      {sleepingGroupsForList.map((group) => (
-                        <SleepingCard
-                          key={group[0].route_no}
-                          arrival={group[0]}
-                          station={selectedBusStation}
-                          direction={selectedBusDirection}
-                          onOpenDetail={setDetailModal}
-                        />
-                      ))}
+                  )}
+                  {hasRunningForList && (
+                    <div>
+                      <h4 className="text-meta font-bold text-mute mb-1.5">운행 중</h4>
+                      <div className="space-y-2">
+                        {runningRowsForList.map((r) => r.node)}
+                        {fallbackGroupsForList.map((group) => (
+                          <BusFallbackCard
+                            key={group[0].route_no}
+                            arrival={group[0]}
+                            station={selectedBusStation}
+                            direction={selectedBusDirection}
+                            onOpenDetail={setDetailModal}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-                {missingRoutesForList.length > 0 && (
-                  <NotRunningSection
-                    routes={missingRoutesForList}
-                    station={selectedBusStation}
-                    direction={selectedBusDirection}
-                    onOpenDetail={setDetailModal}
-                  />
-                )}
-              </div>
-            )}
-          </section>
-        )
+                  )}
+                  {sleepingGroupsForList.length > 0 && (
+                    <div>
+                      <h4 className="text-meta font-bold text-mute mb-1.5">
+                        {allEndedForToday ? '오늘 운행 종료' : '지금은 운행 안 함'}
+                      </h4>
+                      <div className="space-y-2">
+                        {sleepingGroupsForList.map((group) => (
+                          <SleepingCard
+                            key={group[0].route_no}
+                            arrival={group[0]}
+                            station={selectedBusStation}
+                            direction={selectedBusDirection}
+                            onOpenDetail={setDetailModal}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {missingRoutesForList.length > 0 && (
+                    <NotRunningSection
+                      routes={missingRoutesForList}
+                      station={selectedBusStation}
+                      direction={selectedBusDirection}
+                      onOpenDetail={setDetailModal}
+                    />
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+          {/* 즐겨찾기 유도 문구 — 즐겨찾기가 없을 때만, 목록 아래 덜 튀는 한 줄로
+              둔다. 없애지는 않는다(사용자 요구): 매번 목적지를 다시 찾지 않아도
+              되는 방법이 있다는 것 자체는 계속 알려준다. */}
+          {!hasFavoriteDest && (
+            <p className="text-caption text-mute text-center">
+              자주 타는 노선을 즐겨찾기하면 다음엔 여기 크게 보여드려요
+            </p>
+          )}
+        </>
       ) : (
         <>
           {imminentRows.length > 0 && (

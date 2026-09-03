@@ -525,3 +525,45 @@ describe('HomeWeatherHero — 하늘 그라데이션이 히어로 실제 높이�
     expect(block).toMatch(/background-size:\s*100%\s*100%/)
   })
 })
+
+// 사용자 실측(2차) — 위 수정(background-size: 100% 100%) 이후에도 "모드 탭 바로
+// 위에서 색이 딱 끊긴다"는 지적이 계속됐다. claude-in-chrome으로 실제 렌더 픽셀을
+// 재서 원인을 다시 특정했다: .whero 자체는 색이 어긋나지 않는다 — 하늘 그라데이션은
+// 요소 바닥에서 정확히 sky-c에 닿고, .whero-seam도 정확히 --tj-bg로 끝난다(라이트/
+// 다크, 기온 유무 4가지 조합 모두 경계 색이 픽셀 단위로 연속이었다). 문제는 변화
+// "속도"였다 — seam이 26px로 고정돼 있으면, 그 위 나머지 높이에 걸쳐 느리게 번지던
+// 하늘→스크림 변화가 마지막 26px 안에 전부 몰려 끝나야 한다. 다크 테마 스크린샷을
+// 픽셀 단위로 스캔한 결과 seam 구간의 픽셀당 색 변화율이 그 위 구간보다 약 5~6배
+// 빨랐다(RGB 델타가 px당 약 0.35에서 약 1.8로 뜀) — 완만하던 그라데이션이 바닥에서
+// 급하게 빨리 감기처럼 끝나 보였다. seam을 40px로 늘려 같은 방식으로 재보니 변화율
+// 배율이 약 3.5배로 줄었고, 라이트/다크 스크린샷에서도 경계가 뚜렷하게 부드러워졌다.
+describe('HomeWeatherHero — 바닥 이음매(seam)가 26px로 되돌아가지 않는다(결함: 경계 변화율 급증)', () => {
+  const css = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'HomeWeatherHero.css'), 'utf8')
+
+  function extractBlock(source, startMarker) {
+    const start = source.indexOf(startMarker)
+    expect(start, `${startMarker} 블록을 찾지 못했다`).toBeGreaterThan(-1)
+    let depth = 0
+    let i = start
+    for (; i < source.length; i++) {
+      if (source[i] === '{') depth++
+      else if (source[i] === '}') {
+        depth--
+        if (depth === 0) break
+      }
+    }
+    return source.slice(start, i + 1)
+  }
+
+  it('.whero-seam의 높이가 26px보다 크다(실측: 26px는 경계 변화율이 위 구간보다 5~6배 급해 끊겨 보인다)', () => {
+    const block = extractBlock(css, '.whero-seam {')
+    const match = block.match(/height:\s*(\d+)px/)
+    expect(match, '.whero-seam에 px 높이가 없다').not.toBeNull()
+    expect(Number(match[1])).toBeGreaterThan(26)
+  })
+
+  it('.whero-seam은 여전히 투명에서 --tj-bg로 끝난다(색 자체는 바꾸지 않았다)', () => {
+    const block = extractBlock(css, '.whero-seam {')
+    expect(block).toMatch(/linear-gradient\(to bottom,\s*transparent,\s*var\(--tj-bg\)\)/)
+  })
+})

@@ -6,7 +6,10 @@
  *  - favorites.keys(favKey.js 스키마, "bus:노선번호:하교")에 일치하는 노선이 있으면
  *    그 노선이 size='lg' 큰 카드로 "내 목적지" 자리에 오고, 나머지는 전부
  *    "다른 목적지 N곳" 접힘 목록(기본 접힘) 안으로 들어간다.
- *  - 아직 하교 노선을 즐겨찾기하지 않았으면 "내 목적지" 자리에 안내 카드가 뜬다.
+ *  - 하교 방향 즐겨찾기가 하나도 없으면 "내 목적지" 빈 안내 카드가 화면 맨 위
+ *    자리를 차지하지 않는다(사용자 지적 — 매번 "다른 목적지"를 펴야 했다).
+ *    대신 실제로 탈 수 있는 노선 목록이 기본 펼침으로 먼저, 가장 빠른 노선이
+ *    크게(size=lg) 보인다. 즐겨찾기 유도 문구는 그 목록 아래 한 줄로 낮춘다.
  */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -74,35 +77,46 @@ beforeEach(() => {
   })
 })
 
-describe('BusPanel — 하교 "내 목적지" 안내 카드(즐겨찾기 없음)', () => {
-  it('아직 목적지를 정하지 않았다는 안내 카드를 보여준다', () => {
+describe('BusPanel — 하교, 즐겨찾기 없음(다른 목적지가 먼저 크게)', () => {
+  it('"내 목적지" 빈 안내 카드가 뜨지 않는다', () => {
     render(<BusPanel />)
 
-    expect(screen.getByText('아직 목적지를 정하지 않았어요')).toBeInTheDocument()
+    expect(screen.queryByText('아직 목적지를 정하지 않았어요')).not.toBeInTheDocument()
   })
 
-  it('노선 카드는 "다른 목적지" 접힘 안에 있어 기본적으로 보이지 않는다', () => {
+  it('노선 목록이 기본적으로 펼쳐져 있어 접지 않아도 바로 보인다', () => {
     render(<BusPanel />)
-
-    expect(screen.queryByRole('button', { name: /20-1/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /다른 목적지 · 2곳/ })).toBeInTheDocument()
-  })
-
-  it('"다른 목적지"를 탭하면 노선 카드가 펼쳐진다', () => {
-    render(<BusPanel />)
-
-    fireEvent.click(screen.getByRole('button', { name: /다른 목적지/ }))
 
     expect(screen.getByRole('button', { name: /20-1/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /11-A/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /탈 수 있는 노선 · 2곳/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
   })
 
-  it('안내 카드를 누르면 "다른 목적지"가 곧바로 펼쳐진다', () => {
+  it('가장 빨리 오는 노선이 목록 맨 위에서 크게(size=lg) 보인다', () => {
     render(<BusPanel />)
 
-    fireEvent.click(screen.getByText('아직 목적지를 정하지 않았어요'))
+    // TWO_LIVE_ROUTES 중 20-1이 300초로 더 빠르다.
+    const soonest = screen.getByRole('button', { name: /20-1/ })
+    expect(soonest).toHaveAttribute('data-size', 'lg')
+  })
 
-    expect(screen.getByRole('button', { name: /20-1/ })).toBeInTheDocument()
+  it('즐겨찾기 유도 문구는 목록 아래 한 줄로 낮아져 있다(없애지 않는다)', () => {
+    render(<BusPanel />)
+
+    expect(
+      screen.getByText('자주 타는 노선을 즐겨찾기하면 다음엔 여기 크게 보여드려요')
+    ).toBeInTheDocument()
+  })
+
+  it('탭하면 접을 수 있다(즐겨찾기가 없을 때만 기본값이 펼침일 뿐, 계속 펼쳐 두는 게 아니다)', () => {
+    render(<BusPanel />)
+
+    fireEvent.click(screen.getByRole('button', { name: /탈 수 있는 노선/ }))
+
+    expect(screen.queryByRole('button', { name: /20-1/ })).not.toBeInTheDocument()
   })
 })
 
@@ -134,11 +148,16 @@ describe('BusPanel — 하교 "내 목적지" 큰 카드(즐겨찾기 있음)', 
     expect(screen.getByText('아직 목적지를 정하지 않았어요')).toBeInTheDocument()
   })
 
-  it('등교 방향으로 즐겨찾기해도(하교 아님) 하교 화면의 "내 목적지"에 영향 없다', () => {
+  it('등교 방향으로 즐겨찾기해도(하교 아님) 하교 화면은 즐겨찾기 없음 취급이다', () => {
     mocks.favKeys = ['bus:11-A:등교']
     render(<BusPanel />)
 
-    expect(screen.getByText('아직 목적지를 정하지 않았어요')).toBeInTheDocument()
+    // 하교 즐겨찾기가 없는 것과 같은 화면 — "내 목적지" 빈 카드 대신 목록이 먼저 크게.
+    expect(screen.queryByText('아직 목적지를 정하지 않았어요')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /탈 수 있는 노선 · 2곳/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
   })
 })
 

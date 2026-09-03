@@ -507,7 +507,7 @@ describe('RouteDetailPage', () => {
         error: null,
       })
       render(<RouteDetailPage routeNumber="33" />)
-      expect(screen.getByText(/아직 도착 기록이 충분하지 않아요/)).toBeInTheDocument()
+      expect(screen.getByText(/아직 비교할 기록이 없어요/)).toBeInTheDocument()
     })
   })
 

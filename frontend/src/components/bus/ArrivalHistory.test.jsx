@@ -186,17 +186,30 @@ describe('ArrivalHistory', () => {
   describe('빈 데이터 EmptyState', () => {
     it('rows가 빈 배열이면 EmptyState를 렌더한다', () => {
       render(<ArrivalHistory rows={[]} routeNumber="33" />)
-      expect(screen.getByText(/아직 도착 기록이 충분하지 않아요/)).toBeInTheDocument()
+      expect(screen.getByText(/아직 비교할 기록이 없어요/)).toBeInTheDocument()
     })
 
     it('rows가 null이면 EmptyState를 렌더한다', () => {
       render(<ArrivalHistory rows={null} routeNumber="33" />)
-      expect(screen.getByText(/아직 도착 기록이 충분하지 않아요/)).toBeInTheDocument()
+      expect(screen.getByText(/아직 비교할 기록이 없어요/)).toBeInTheDocument()
     })
 
     it('rows가 undefined이면 EmptyState를 렌더한다', () => {
       render(<ArrivalHistory routeNumber="33" />)
-      expect(screen.getByText(/아직 도착 기록이 충분하지 않아요/)).toBeInTheDocument()
+      expect(screen.getByText(/아직 비교할 기록이 없어요/)).toBeInTheDocument()
+    })
+
+    // 결함(신규) — 왜 비어 있는지 설명 없이 "없음"만 반복하면 사용자는 고장으로
+    // 읽는다(사용자 지적: 지난주/2주 전/3주 전 세 칸이 전부 빈 채로 나온 화면).
+    // history-preview API가 수집 시작 시점을 안 내려주므로(백엔드 확인 완료)
+    // 없는 날짜를 지어내지 않고, 비교 방식(같은 요일 3주치)만으로 이유를 말한다.
+    it('없는 날짜를 지어내지 않고, 같은 요일 비교 구조로 이유를 설명한다', () => {
+      render(<ArrivalHistory rows={[]} routeNumber="33" />)
+      expect(
+        screen.getByText(/오늘과 같은 요일 기록이 쌓이면 지난 도착 시각과 비교해 드려요/)
+      ).toBeInTheDocument()
+      // 근거 없는 약속("곧 채워진다" 류)이나 지어낸 날짜를 쓰지 않는다.
+      expect(screen.queryByText(/곧 채워/)).not.toBeInTheDocument()
     })
   })
 

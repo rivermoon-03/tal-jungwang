@@ -80,9 +80,13 @@ export default function ArrivalHistory({ rows, routeNumber, columnLabels, column
   return (
     <Card>
       {!hasData ? (
+        // 결함(신규) — 왜 비어 있는지 말하지 않으면 사용자는 고장으로 읽는다.
+        // history-preview API는 수집 시작 시점을 내려주지 않아 없는 날짜를
+        // 지어낼 수 없다(백엔드 app/api/bus.py bus_history_preview 응답 확인).
+        // 화면이 아는 사실 — "오늘과 같은 요일 3주 비교" 구조 — 만으로 설명한다.
         <EmptyState
-          title="아직 도착 기록이 충분하지 않아요"
-          desc="데이터가 쌓이면 이전 시간과 비교해 드릴게요."
+          title="아직 비교할 기록이 없어요"
+          desc="오늘과 같은 요일 기록이 쌓이면 지난 도착 시각과 비교해 드려요. 지금은 데이터를 모으는 중이에요."
         />
       ) : (
         <>

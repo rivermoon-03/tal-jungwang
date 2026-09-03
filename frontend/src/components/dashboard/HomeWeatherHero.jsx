@@ -110,7 +110,7 @@ const SKY_REFRESH_MS = 5 * 60 * 1000
  *   - 스트립(최소 56px): 인사말 + 위치 칩(지도 진입 겸함) + 뷰 토글 3칸(날씨/식당/검색)
  *   - 본문(하단 정렬): 온도(text-hero-temp, 60px/800) + 하늘 상태(19px) + 메타 줄
  *     (정왕풍 pill·강수확률·이동지수·미세먼지) + 우측 날씨 아이콘(52px)
- *   - 바닥 26px 이음매(seam) — 하늘을 대시보드 배경(--tj-bg)으로 얇게 블렌드
+ *   - 바닥 40px 이음매(seam) — 하늘을 대시보드 배경(--tj-bg)으로 얇게 블렌드
  *
  * 하늘은 하나다
  * ─────────────
@@ -510,7 +510,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
           ))}
         </div>
       )}
-      {/* 하단 seam — 하늘을 대시보드 배경으로 얇게 블렌드(26px) */}
+      {/* 하단 seam — 하늘을 대시보드 배경으로 얇게 블렌드(40px, 근거는 HomeWeatherHero.css 주석) */}
       <div className="whero-seam" aria-hidden="true" />
 
       {view === 'weather' ? (
