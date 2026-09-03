@@ -28,7 +28,11 @@ class _FakeRoute:
 
 
 def _make_db():
-    """get_timetable 내부 3회 db.execute 호출에 대한 가짜 결과를 순서대로 제공."""
+    """get_timetable 내부 4회 db.execute 호출에 대한 가짜 결과를 순서대로 제공.
+
+    4번째는 _route_has_realtime_source의 realtime source 존재 확인 쿼리 —
+    이 테스트는 day_type 오버라이드만 검증하므로 실시간 source가 없다고 응답한다.
+    """
     route = _FakeRoute()
 
     route_result = MagicMock()
@@ -40,8 +44,13 @@ def _make_db():
     origin_result = MagicMock()
     origin_result.scalar_one_or_none = MagicMock(return_value="한국공학대학교 시흥터미널")
 
+    realtime_source_result = MagicMock()
+    realtime_source_result.scalar_one_or_none = MagicMock(return_value=None)
+
     db = MagicMock()
-    db.execute = AsyncMock(side_effect=[route_result, entries_result, origin_result])
+    db.execute = AsyncMock(
+        side_effect=[route_result, entries_result, origin_result, realtime_source_result]
+    )
     return db
 
 

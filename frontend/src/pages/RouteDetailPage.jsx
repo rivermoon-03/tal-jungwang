@@ -150,7 +150,10 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   })
   const ttData = useMemo(() => adaptTimetableResponse(ttRaw), [ttRaw])
 
-  // is_realtime 플래그 (시간표 응답에서 직접 읽기)
+  // is_realtime 플래그 (시간표 응답에서 직접 읽기).
+  // 노선의 gbis_route_id 존재 여부가 아니라 이 방면(routeNumber+category)에
+  // 실제 실시간 정보 source가 있는지를 백엔드가 판정해 내려준다 — 3400·6502처럼
+  // 같은 gbis_route_id를 등교/하교가 공유해도 방면별로 다를 수 있다(2026-09).
   const isRealtime = ttData?.is_realtime ?? false
 
 
@@ -342,15 +345,21 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                   </section>
                 )}
 
-                {/* ② 시간표(신설) — 시간표가 있는 방향에서만 렌더(내부에서도 재검증) */}
+                {/* ② 시간표(신설) — 시간표가 있는 방향에서만 렌더(내부에서도 재검증).
+                    key={resolvedCategory}: 등교/하교 전환은 리마운트 없는 같은
+                    컴포넌트 인스턴스라 defaultExpanded는 최초 마운트에만 반영된다.
+                    방향을 바꾸면 펼침 기본값도 그 방향 기준으로 다시 계산돼야
+                    하므로 key로 강제 리마운트한다. */}
                 {hasTimetableCapability && (
                   <TimetableSection
+                    key={resolvedCategory}
                     timetable={ttData.timetable}
                     dayTab={dayTab}
                     onDayTabChange={setDayTab}
                     nowMin={nowMin}
                     originStopName={originStopName}
                     onJumpToHistory={hasRealtimeGroup ? scrollToHistory : null}
+                    defaultExpanded={!hasRealtimeGroup}
                   />
                 )}
 

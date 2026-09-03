@@ -945,6 +945,28 @@ async def get_timetable_by_route_number(
     )
 
 
+async def _route_has_realtime_source(db: AsyncSession, route_id: int) -> bool:
+    """이 route_id(방면 하나)의 통학 정보 source 중 실시간이 하나라도 있는지.
+
+    같은 route_id가 여러 bus_commute_contexts(journey 그룹)에 걸칠 수 있어
+    (예: 3401 등교는 from-seoul·from-siheung-city-hall 두 그룹을 갖고, 후자만
+    실시간 승차 source를 단다) 그룹 하나만 보면 실시간 유무를 놓친다. route_id
+    전체 그룹을 통틀어 하나라도 realtime source가 있으면 이 방면은 실시간을
+    보여줄 수 있다고 판단한다.
+    """
+    stmt = (
+        select(BusInformationSource.id)
+        .join(BusCommuteContext, BusCommuteContext.id == BusInformationSource.context_id)
+        .where(
+            BusCommuteContext.bus_route_id == route_id,
+            BusInformationSource.source_type == "realtime",
+        )
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none() is not None
+
+
 async def get_timetable(
     db: AsyncSession,
     route_id: int,
@@ -997,6 +1019,13 @@ async def get_timetable(
     origin_result = await db.execute(origin_stmt)
     origin_stop_name = origin_result.scalar_one_or_none()
 
+    # route.is_realtime(gbis_route_id 존재 여부)은 노선 단위 플래그라 방면별
+    # 차이를 담지 못한다. 3400·6502처럼 같은 gbis_route_id를 공유해도 등교는
+    # 시간표만, 하교는 실시간까지 있는 조합이 있다(2026-09 감사). 이 방면
+    # (route_id 하나 = 카테고리 하나)에 실제로 실시간 정보 source가 있는지를
+    # bus_commute_contexts/bus_information_sources에서 직접 확인해 응답한다.
+    has_realtime_source = await _route_has_realtime_source(db, route_id)
+
     data = {
         "route_id": route.id,
         "route_name": route.route_name or route.route_number,
@@ -1008,7 +1037,7 @@ async def get_timetable(
         "direction_name": route.direction_name,
         "category": route.category,
         "origin_stop_name": origin_stop_name,
-        "is_realtime": route.is_realtime,
+        "is_realtime": has_realtime_source,
         "gbis_route_id": route.gbis_route_id,
     }
     await set_cached_json(cache_key, data, ttl=86400)

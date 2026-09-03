@@ -372,7 +372,10 @@ describe('RouteDetailPage', () => {
       })
       render(<RouteDetailPage routeNumber="3400" />)
       const section = screen.getByRole('region', { name: '시간표' })
-      expect(within(section).getByText('05:40')).toBeInTheDocument()
+      // 실시간 출처가 없는 방면은 전체 시간표가 처음부터 펼쳐진다. 그래서 첫차
+      // 타일과 펼친 목록에 같은 시각이 함께 나온다. 이 테스트가 확인하려는 건
+      // times 배열 응답을 시간표로 그려내는가이므로 개수는 따지지 않는다.
+      expect(within(section).getAllByText('05:40').length).toBeGreaterThan(0)
       expect(within(section).getAllByText('23:20').length).toBeGreaterThan(0)
     })
   })

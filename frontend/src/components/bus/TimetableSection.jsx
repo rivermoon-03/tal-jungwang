@@ -33,6 +33,11 @@ function toMinutes(hhmm) {
  *   onJumpToHistory () => void | null  하단 "도착 기록 보기" 링크(⑤로 스크롤).
  *                    null이면 링크 자체를 렌더하지 않는다(실시간 도착 이력이
  *                    없는 노선 — 결함 #30, 링크는 한 곳에만 존재해야 한다).
+ *   defaultExpanded boolean  초기 펼침 상태. 실시간 출처가 없는 방면(시간표만
+ *                    있는 방면)은 혼잡도·과거 기록으로 대신 볼 정보가 없으니
+ *                    이 시간표가 그 방면의 유일한 운행 정보다 — true로 넘겨
+ *                    처음부터 펼쳐서 보여준다. 실시간 출처가 있는 방면은 기존
+ *                    그대로 접힌 채 시작(false, 기본값).
  */
 export default function TimetableSection({
   timetable,
@@ -41,8 +46,9 @@ export default function TimetableSection({
   nowMin,
   originStopName,
   onJumpToHistory,
+  defaultExpanded = false,
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
   // "지금"에 가장 가까운 다음 차 칩 — 펼침 뷰가 열릴 때 그 위치로 스크롤한다.
   const nextRef = useRef(null)
 
