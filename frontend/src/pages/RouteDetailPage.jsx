@@ -106,9 +106,6 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   const showArrivalGroup = stop === null || stop === undefined
     ? true                        // stop 없음: 기존 동작 (도착 카드 항상 표시)
     : stopGbisId != null          // GBIS 정류장이면 도착 정보 표시
-  const showTimetableGroup = stop === null || stop === undefined
-    ? true                        // stop 없음: 기존 동작 (항상 표시)
-    : stopGbisId == null          // 시간표 전용 정류장이면 출발 시간표 표시
   const [dayTab, setDayTab] = useState(defaultDayTab)
 
   // 전체 routes 목록에서 해당 routeNumber의 방향 목록 파악
@@ -156,11 +153,6 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   // is_realtime 플래그 (시간표 응답에서 직접 읽기)
   const isRealtime = ttData?.is_realtime ?? false
 
-  // 시간표 그룹 표시 여부.
-  // GBIS 정류장(stopGbisId != null)에서는 기본적으로 도착 정보 그룹만 보여주지만,
-  // 시간표 전용 노선(is_realtime=false)은 그 정류장에 실시간 도착 데이터가 없어
-  // 도착 그룹이 비고 시간표 그룹마저 숨기면 화면이 통째로 빈다(예: 시화터미널의 3400).
-  const showTimetableSection = showTimetableGroup || !isRealtime
 
   // 이전 도착 기록 (history-preview) — 실시간 노선에서만 의미 있음.
   // 카드와 동일하게 방향별 GBIS 추적 정류장을 넘겨, 선택한 방향(등교/하교)의 실시간 도착을 본다.
@@ -204,7 +196,14 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
   }, [ttData])
 
   const hasRealtimeGroup = isRealtime && showArrivalGroup
-  const hasTimetableCapability = showTimetableSection && timetableHasAnyDay
+  // 시간표가 있으면 항상 보여준다.
+  //
+  // 예전에는 GBIS 정류장에서 실시간이 되면 시간표를 숨겼다. 도착 정보가 있으니
+  // 중복이라는 판단이었는데 실제로는 정보가 사라졌다. 시화터미널의 3400 은
+  // is_realtime 이 true 라 평일 43편을 다 갖고도 첫차도 막차도 배차도 안 나왔다.
+  // 실시간은 "다음 차가 언제 오나" 를, 시간표는 "오늘 운행이 어떻게 짜여 있나" 를
+  // 답해서 서로 대체하지 않는다. 빈 섹션은 timetableHasAnyDay 가 막는다.
+  const hasTimetableCapability = timetableHasAnyDay
 
   // ① 도착 카드 표시 여부. stop prop 없이 열린 메인 페이지(standalone)에서는
   // is_realtime=false 노선이어도 ArrivalEtaCard의 "시간표 기준 다음 출발" 상태를

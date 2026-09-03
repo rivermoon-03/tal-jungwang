@@ -560,7 +560,10 @@ describe('RouteDetailPage', () => {
 
   // ── stop prop 분기 테스트 ──
   describe('stop prop 분기', () => {
-    it('[stop=시흥시청] gbisStationId 있는 stop: 도착 정보만 표시, 시간표/정류장 숨김', () => {
+    // 예전에는 GBIS 정류장이면 실시간만 남기고 시간표를 숨겼다. 도착 정보가 있으니
+    // 중복이라는 판단이었는데 정보가 사라졌다(시화터미널의 3400 이 평일 43편을 갖고도
+    // 첫차/막차/배차가 안 나왔다). 실시간과 시간표는 답하는 질문이 달라 둘 다 보여준다.
+    it('[stop=시흥시청] gbisStationId 있는 stop: 도착 정보와 시간표를 함께 보여준다', () => {
       vi.mocked(useBusModule.useBusHistoryPreview).mockReturnValue({
         data: { stop_name: '시흥시청역', realtime_eta: null, columns: [] },
         loading: false,
@@ -568,7 +571,7 @@ describe('RouteDetailPage', () => {
       })
       render(<RouteDetailPage routeNumber="33" stop="시흥시청" />)
       expect(screen.getByRole('region', { name: '도착 정보' })).toBeInTheDocument()
-      expect(screen.queryByText('첫차')).not.toBeInTheDocument()
+      expect(screen.getByText('첫차')).toBeInTheDocument()
     })
 
     it('[stop=서울] gbisStationId null인 stop: 시간표만 표시, 도착 정보 숨김', () => {
