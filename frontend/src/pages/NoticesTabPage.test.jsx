@@ -6,7 +6,7 @@
  * 학사공지이고 카테고리 칩이 바로 보이는지를 여기서 고정한다.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../hooks/useMore', () => ({
   useNotices: vi.fn(),
@@ -143,9 +143,18 @@ describe('NoticeHighlights 시안1 — 히어로 강조 변형', () => {
 
 // ─── 세그먼트 탭 전환 · 학사공지 탭 통합 확인 ────────────────────────────────
 describe('NoticesTabPage — 세그먼트 탭 [학사공지] [앱 공지]', () => {
+  // MOCK_CALENDAR.next(7/20~7/24)가 "다가오는" 쪽에 들어가도록 오늘을 그보다
+  // 앞선 날짜로 고정한다 — AcademicNoticesTab이 진행 중/다가오는을 나눈 뒤로는
+  // 오늘 날짜에 따라 어느 목록에 들어가는지가 달라진다.
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-01T09:00:00+09:00'))
     mockAllMoreHooks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('기본 탭은 "학사공지"이며 카테고리 칩·D-day·공지 리스트를 보여준다(학과 드롭다운 제거)', () => {

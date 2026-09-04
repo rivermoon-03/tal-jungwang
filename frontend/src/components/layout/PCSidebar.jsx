@@ -60,25 +60,27 @@ const NOTICES_SUBNAV = [
   { id: 'academic', label: '학사공지' },
   { id: 'app', label: '앱 공지' },
 ]
-// 시간표는 별도 탭이 아니라 지도(홈)의 다른 관점이다 — 같은 교통 정보를
-// "지금"과 "하루 전체"로 나눠 본다.
-const MAP_SUBNAV = [
-  { id: 'now', label: '지금' },
-  { id: 'timetable', label: '시간표' },
-]
+// 홈(지도) 탭은 서브내비를 두지 않는다. 예전엔 "지금"/"시간표" 두 항목을
+// MAP_SUBNAV로 여기 두었는데, 그러면 홈이 활성일 때 홈 자신과 그 아래
+// "지금" 항목이 동시에 강조돼 두 줄이 같이 칠해졌다(계층이 홈의 하위인지
+// 별개 탭인지 읽히지 않았다) — 지금/시간표 전환은 PCMainShell이 지도 패널
+// 상단에 그리는 세그먼트 컨트롤로 옮겼다(PCMainShell.jsx MAP_VIEWS 참고).
 
 /**
  * PCSidebar — 데스크톱 전용 좌측 반투명 사이드바(폭 약 236px).
  *
  * pc-mockup.html의 .sidebar(반투명 A) 구성을 그대로 옮긴다: 브랜드 → 날씨 한 줄
  * 스트립(PCWeatherStrip, 결함 #10 — 중복되던 큰 날씨 카드를 압축) → 4탭 네비(PCDock과 동일한 pcNavTabs 공유) →
- * 컨텍스트 서브내비(활성 탭이 학식/더보기일 때만, macOS Finder식) →
+ * 컨텍스트 서브내비(활성 탭이 학식/공지일 때만, macOS Finder식) →
  * 즐겨찾기 요약(useAppStore.favorites) → 설정 진입 3항목 → footer(다크모드
  * 토글 + 공지 벨 — 이전에 PCDock이 갖던 기능을 이관).
  *
- * 학식/더보기 콘텐츠와는 App.jsx상 형제 컴포넌트라 URL 없이 뷰를 동기화할
- * 곳이 store뿐이다 — pcCafeteriaTab/pcNoticesTab/homeView(useAppStore, persist 제외)를
- * 공유 출처로 쓰고, CafeteriaPCLayout/MorePCLayout이 동일 필드를 구독한다.
+ * 홈(map) 탭은 서브내비를 두지 않는다 — 지금/시간표 전환은 이 사이드바가
+ * 아니라 PCMainShell의 지도 패널 상단 세그먼트로 옮겼다(PCMainShell.jsx
+ * MAP_VIEWS 참고). 학식/공지 콘텐츠와는 App.jsx상 형제 컴포넌트라 URL 없이
+ * 뷰를 동기화할 곳이 store뿐이다 — pcCafeteriaTab/pcNoticesTab(useAppStore,
+ * persist 제외)를 공유 출처로 쓰고, CafeteriaPCLayout/MorePCLayout이 동일
+ * 필드를 구독한다.
  */
 export default function PCSidebar() {
   const pathname = usePathname()
@@ -95,16 +97,6 @@ export default function PCSidebar() {
   const setPcMoreNav = useAppStore((s) => s.setPcMoreNav)
   const pcNoticesTab = useAppStore((s) => s.pcNoticesTab)
   const setPcNoticesTab = useAppStore((s) => s.setPcNoticesTab)
-  const homeView = useAppStore((s) => s.homeView)
-  const setHomeView = useAppStore((s) => s.setHomeView)
-  // 지도 필터(useAppStore.selectedMode)가 택시면 PCMainShell이 homeView와
-  // 무관하게 도킹 패널("지금" 보기)만 그린다(택시는 시간표 개념이 없다,
-  // Dashboard.jsx canShowTimetable과 동일한 규칙). 이 서브내비도 실제로
-  // 그려지는 화면을 따라가야 해서, raw homeView 대신 이 값으로 활성 표시를
-  // 계산한다 — 안 그러면 택시 필터에서 "시간표"를 눌렀을 때 하이라이트만
-  // 옮겨가고 화면은 그대로인 어긋남이 생긴다.
-  const selectedMode = useAppStore((s) => s.selectedMode)
-  const effectiveHomeView = selectedMode === 'taxi' ? 'now' : homeView
 
   const { data: notices } = useNotices()
   const hasNotices = Array.isArray(notices) && notices.length > 0
@@ -146,20 +138,6 @@ export default function PCSidebar() {
       window.dispatchEvent(new PopStateEvent('popstate'))
     } else {
       window.history.replaceState({}, '', url)
-    }
-  }
-  // 지도 서브내비 — "지금"과 "시간표"는 지도 탭의 두 관점이지 다른 페이지가 아니다.
-  // 예전에는 "시간표"만 /schedule 로 pushState 했는데, 그러면 PCMainShell 의
-  // showFloating(=!children) 이 false 가 되면서 도킹 패널이 통째로 unmount 되고
-  // 지도 위에 불투명 페이지가 덮였다 — 사이드바가 하위 뷰처럼 보여 주는 것과
-  // 실제 동작이 어긋나던 자리다. 이제 store 만 바꾸고 주소는 지도 홈(/)에 둔다.
-  // (딥링크 /schedule 은 여전히 독립 페이지로 살아 있다.)
-  const selectMapView = (id) => (e) => {
-    e.preventDefault()
-    setHomeView(id)
-    if (window.location.pathname !== '/') {
-      window.history.pushState({}, '', '/')
-      window.dispatchEvent(new PopStateEvent('popstate'))
     }
   }
   // 설정 섹션 항목 — 안정 URL(/more/settings, /more/app-info, /privacy)로
@@ -207,19 +185,19 @@ export default function PCSidebar() {
       <nav className="flex flex-col gap-0.5" aria-label="주요 메뉴">
         {PC_TABS.map(({ id, Icon, href, label }) => {
           const active = activeId === id
+          // 홈(map)은 서브내비가 없다 — 지금/시간표 전환은 PCMainShell의
+          // 지도 패널 상단 세그먼트로 옮겼다(위 주석 참고).
           const subnav =
             id === 'facilities' ? FACILITIES_SUBNAV
             : id === 'notices' ? NOTICES_SUBNAV
-            : id === 'map' ? MAP_SUBNAV
             : null
           const activeSubId =
             id === 'facilities' ? pcCafeteriaTab
             : id === 'notices' ? pcNoticesTab
-            : effectiveHomeView
+            : null
           const onSelectSub =
             id === 'facilities' ? selectCafeteriaTab
-            : id === 'notices' ? selectNoticesTab
-            : selectMapView
+            : selectNoticesTab
 
           return (
             <div key={id} className="flex flex-col gap-0.5">
@@ -245,7 +223,7 @@ export default function PCSidebar() {
                         // 하위 메뉴도 각자 고유 URL을 갖는다. 예전에는 둘 다 상위와
                         // 같은 경로여서 새 탭으로 열거나 북마크하면 어느 쪽인지
                         // 구분되지 않았다.
-                        href={`${href}?${id === 'map' ? 'view' : 'tab'}=${sub.id}`}
+                        href={`${href}?tab=${sub.id}`}
                         onClick={onSelectSub(sub.id)}
                         aria-current={subActive ? 'page' : undefined}
                         className={`pressable flex items-center rounded-button py-2 pl-10 pr-3 text-caption font-semibold transition-colors duration-snap ease-out ${

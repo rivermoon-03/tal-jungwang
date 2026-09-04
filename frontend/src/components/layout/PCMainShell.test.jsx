@@ -19,7 +19,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import PCMainShell from './PCMainShell'
 
@@ -40,11 +40,15 @@ vi.mock('../map/MapLegendOnboarding', () => ({
 }))
 // filters/onToggleFilter를 그대로 노출해, 이 셸이 실제로 selectedMode 기반
 // active 필터를 넘기고 클릭을 setSelectedMode로 되돌리는지 검증한다.
+// collapsed/onToggleCollapsed도 노출해, 패널이 접힌 상태에서 상단 지금/시간표
+// 세그먼트가 함께 숨는지(자리 없음) 확인할 수 있게 한다.
 vi.mock('../map/PCMapDockPanel', () => ({
-  default: ({ filters, onToggleFilter }) => (
+  default: ({ filters, onToggleFilter, collapsed, onToggleCollapsed }) => (
     <div data-testid="dock-panel">
       DockPanel
       <span data-testid="active-filter">{filters.find((f) => f.active)?.id ?? 'none'}</span>
+      <span data-testid="panel-collapsed">{String(collapsed)}</span>
+      <button type="button" onClick={onToggleCollapsed}>패널 접기</button>
       {filters.map((f) => (
         <button key={f.id} type="button" onClick={() => onToggleFilter(f.id)}>
           {f.label}
@@ -171,6 +175,46 @@ describe('PCMainShell', () => {
       render(<PCMainShell />)
       expect(await screen.findByTestId('schedule-embedded')).toBeInTheDocument()
       expect(screen.queryByTestId('dock-panel')).not.toBeInTheDocument()
+    })
+  })
+
+  // PCSidebar가 "홈" 아래 "지금"/"시간표" 두 하위 항목을 두던 자리 — 홈과 지금이
+  // 동시에 강조돼 두 줄이 같이 칠해졌다. 그 전환 컨트롤을 이 셸의 지도 패널
+  // 상단으로 옮겼다(PCSidebar.test.jsx가 사이드바 쪽 하위 메뉴 제거를 고정한다).
+  describe('지금/시간표 전환 컨트롤(사이드바에서 이관)', () => {
+    it('지금(도킹 패널) 상태에도 지금/시간표 세그먼트가 뜬다', () => {
+      render(<PCMainShell />)
+      expect(screen.getByTestId('dock-panel')).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: '지금' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('tab', { name: '시간표' })).toBeInTheDocument()
+    })
+
+    it('지금 상태에서 세그먼트의 "시간표"를 누르면 setHomeView가 호출된다', () => {
+      render(<PCMainShell />)
+      screen.getByRole('tab', { name: '시간표' }).click()
+      expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
+    })
+
+    it('택시 필터에서는 지금/시간표 세그먼트를 아예 숨긴다(시간표 개념 없음)', () => {
+      storeState.selectedMode = 'taxi'
+      render(<PCMainShell />)
+      expect(screen.getByTestId('dock-panel')).toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: '지금' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: '시간표' })).not.toBeInTheDocument()
+    })
+
+    it('도킹 패널이 접히면 세그먼트도 함께 숨는다(놓을 자리가 없다)', () => {
+      render(<PCMainShell />)
+      fireEvent.click(screen.getByRole('button', { name: '패널 접기' }))
+      expect(screen.getByTestId('panel-collapsed')).toHaveTextContent('true')
+      expect(screen.queryByRole('tab', { name: '지금' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: '시간표' })).not.toBeInTheDocument()
+    })
+
+    it('다른 페이지(children 있음)에서는 세그먼트도 뜨지 않는다', () => {
+      render(<PCMainShell><div>FacilitiesPage</div></PCMainShell>)
+      expect(screen.queryByRole('tab', { name: '지금' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: '시간표' })).not.toBeInTheDocument()
     })
   })
 })

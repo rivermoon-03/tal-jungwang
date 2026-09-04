@@ -44,6 +44,27 @@ export function formatDday(startDate, now = new Date()) {
   return d > 0 ? `D-${d}` : `D+${Math.abs(d)}`
 }
 
+/**
+ * event가 오늘(KST) 기준으로 진행 중인지: start_date <= 오늘 <= end_date(둘 다 포함).
+ * "다가오는 학사일정"과 "진행 중인 학사일정"을 나누는 데 쓴다 — D+N(이미 시작한
+ * 일정)이 "다가오는" 쪽에 섞여 보이던 결함을 이 판정으로 막는다. end_date가
+ * 없으면 start_date와 같은 하루짜리 일정으로 본다(isDateInRange와 동일 규칙).
+ */
+export function isEventInProgress(event, now = new Date()) {
+  if (!event?.start_date) return false
+  return isDateInRange(todayKstDateString(now), event.start_date, event.end_date)
+}
+
+/**
+ * event가 오늘(KST) 기준으로 아직 시작 전인지(start_date가 미래). 오늘 시작하는
+ * 일정(D-DAY)은 진행 중으로 보고 여기서는 제외한다 — isEventInProgress와
+ * 상호 배타적이라 한 이벤트가 두 목록에 동시에 들어가지 않는다.
+ */
+export function isEventUpcoming(event, now = new Date()) {
+  if (!event?.start_date) return false
+  return ddayFrom(event.start_date, now) > 0
+}
+
 function formatMonthDay(dateStr) {
   if (!dateStr) return ''
   const parts = dateStr.split('-').map(Number)

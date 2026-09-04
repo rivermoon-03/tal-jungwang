@@ -5,7 +5,7 @@
  *
  * DS1(2026-08): 학과 드롭다운/학과 공지 제거 → 전교 게시판 카테고리 칩.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../../hooks/useMore', () => ({
@@ -89,9 +89,18 @@ describe('AcademicNoticesTab — 카테고리 칩 (DS1)', () => {
 })
 
 describe('AcademicNoticesTab — 다가오는 학사일정 리스트', () => {
+  // CALENDAR의 세 일정(기말고사 6/9, 하계방학 6/23, 개강 9/1)이 전부 "아직
+  // 시작 전"이 되도록 오늘을 그보다 앞선 날짜로 고정한다 — 진행 중/다가오는
+  // 구분이 생긴 뒤로는 오늘 날짜에 따라 어느 목록에 들어가는지가 달라진다.
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-01T09:00:00+09:00'))
     setHooks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('D-N 칩과 제목, 날짜 범위를 표시한다', () => {
@@ -136,6 +145,105 @@ describe('AcademicNoticesTab — 다가오는 학사일정 리스트', () => {
   })
 })
 
+// 결함: "26학년도 2학기 수강정정 및 확인 (9월 1일 ~ 9월 7일)"처럼 이미 시작한
+// 일정(D+3)이 "다가오는 학사일정" 목록 맨 위에 섞여 있었다. D+는 이미 시작했다는
+// 뜻이라 "다가오는"과 맞지 않는다 — 진행 중/다가오는을 별도 카드로 나눈다.
+describe('AcademicNoticesTab — 진행 중인 학사일정 vs 다가오는 학사일정', () => {
+  const CALENDAR_MIXED = {
+    next: { title: '2학기 수강정정 및 확인', start_date: '2026-09-01', end_date: '2026-09-07' },
+    upcoming: [{ title: '중간고사', start_date: '2026-10-19', end_date: '2026-10-25' }],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('이미 시작한 일정은 "진행 중인 학사일정" 아래 D+N 칩으로 보이고, "다가오는" 목록에는 없다', () => {
+    vi.setSystemTime(new Date('2026-09-04T09:00:00+09:00')) // 9/1 시작 + 3일 = D+3
+    setHooks({ calendar: { data: CALENDAR_MIXED, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+
+    const progressButton = screen.getByRole('button', { name: /2학기 수강정정 및 확인 · 캘린더에서 보기/ })
+    expect(within(progressButton).getByText('D+3')).toBeInTheDocument()
+
+    const upcomingHeading = screen.getByText('다가오는 학사일정')
+    const upcomingList = upcomingHeading.nextElementSibling
+    expect(within(upcomingList).queryByText('2학기 수강정정 및 확인')).not.toBeInTheDocument()
+    expect(within(upcomingList).getByText('중간고사')).toBeInTheDocument()
+  })
+
+  it('"진행 중인 학사일정" 카드가 "다가오는 학사일정" 카드보다 먼저(DOM 상 위쪽) 나온다', () => {
+    vi.setSystemTime(new Date('2026-09-04T09:00:00+09:00'))
+    setHooks({ calendar: { data: CALENDAR_MIXED, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+    const progressHeading = screen.getByText('진행 중인 학사일정')
+    const upcomingHeading = screen.getByText('다가오는 학사일정')
+    expect(progressHeading.compareDocumentPosition(upcomingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('진행 중인 일정이 없으면 "진행 중인 학사일정" 섹션 자체가 없다', () => {
+    vi.setSystemTime(new Date('2026-06-01T09:00:00+09:00'))
+    setHooks({
+      calendar: {
+        data: { next: { title: '중간고사', start_date: '2026-10-19', end_date: '2026-10-25' }, upcoming: [] },
+        loading: false,
+        error: null,
+      },
+    })
+    render(<AcademicNoticesTab />)
+    expect(screen.queryByText('진행 중인 학사일정')).not.toBeInTheDocument()
+    expect(screen.getByText('다가오는 학사일정')).toBeInTheDocument()
+  })
+
+  it('경계: 오늘 시작하는 일정(D-DAY)은 "다가오는"이 아니라 "진행 중"이다', () => {
+    vi.setSystemTime(new Date('2026-09-01T09:00:00+09:00'))
+    setHooks({
+      calendar: {
+        data: { next: { title: '2학기 개강', start_date: '2026-09-01', end_date: '2026-09-01' }, upcoming: [] },
+        loading: false,
+        error: null,
+      },
+    })
+    render(<AcademicNoticesTab />)
+    expect(screen.getByText('진행 중인 학사일정')).toBeInTheDocument()
+    expect(screen.getByText('D-DAY')).toBeInTheDocument()
+    expect(screen.queryByText('다가오는 학사일정')).not.toBeInTheDocument()
+  })
+
+  it('경계: 오늘 끝나는 일정은 "진행 중"이다', () => {
+    vi.setSystemTime(new Date('2026-09-07T09:00:00+09:00'))
+    setHooks({ calendar: { data: CALENDAR_MIXED, loading: false, error: null } })
+    render(<AcademicNoticesTab />)
+    expect(screen.getByText('진행 중인 학사일정')).toBeInTheDocument()
+    expect(screen.getByText('D+6')).toBeInTheDocument()
+  })
+
+  it('경계: 이미 끝난 일정은 진행 중에도 다가오는에도 나타나지 않는다(방어적 처리)', () => {
+    // end_date(9/7)보다 두 주 넘게 뒤인 오늘 — 캘린더 주간 레인이 오늘이 속한
+    // 주를 기본으로 열므로, 그 주가 지난 일정 기간과 겹치지 않게 충분히 띄운다
+    // (겹치면 캘린더 레인 막대에 같은 제목이 그려져 이 테스트의 취지와
+    // 무관한 이유로 텍스트가 발견될 수 있다). upcoming은 비워서 "다가오는"
+    // 쪽이 다른 이유로 뜨지 않게 한다 — 이 테스트가 보려는 건 진행 중 판정 하나뿐.
+    vi.setSystemTime(new Date('2026-09-20T09:00:00+09:00'))
+    setHooks({
+      calendar: {
+        data: { next: CALENDAR_MIXED.next, upcoming: [] },
+        loading: false,
+        error: null,
+      },
+    })
+    render(<AcademicNoticesTab />)
+    expect(screen.queryByText('진행 중인 학사일정')).not.toBeInTheDocument()
+    expect(screen.queryByText('다가오는 학사일정')).not.toBeInTheDocument()
+    expect(screen.queryByText('2학기 수강정정 및 확인')).not.toBeInTheDocument()
+  })
+})
+
 describe('AcademicNoticesTab — 전체 일정 보기 모달', () => {
   const MANY_UPCOMING = {
     next: { title: '기말고사', start_date: '2026-06-09', end_date: '2026-06-22' },
@@ -147,9 +255,17 @@ describe('AcademicNoticesTab — 전체 일정 보기 모달', () => {
     ],
   }
 
+  // 5개 일정(기말고사 6/9 ~ 중간고사 10/25)이 전부 "다가오는" 쪽에 들어가도록
+  // 오늘을 가장 이른 일정보다 앞선 날짜로 고정한다.
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-01T09:00:00+09:00'))
     setHooks({ calendar: { data: MANY_UPCOMING, loading: false, error: null } })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('5개보다 많으면 "전체 일정 보기" 버튼이 보이고, 탭하면 나머지 항목도 모달에 보인다', () => {
@@ -214,18 +330,33 @@ describe('AcademicNoticesTab — 학교 공지 리스트', () => {
   })
 })
 
-describe('AcademicNoticesTab — 모바일 카테고리 칩 위치', () => {
+describe('AcademicNoticesTab — 정보 우선순위(공지 탭인데 첫 화면에 공지가 없던 결함)', () => {
+  // CALENDAR의 일정이 전부 "다가오는" 쪽에 들어가도록 오늘을 앞선 날짜로 고정한다
+  // (이 describe는 순서만 확인하므로 진행/다가오는 구분 자체는 상관없다).
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-01T09:00:00+09:00'))
     setHooks()
   })
 
-  it('카테고리 칩이 다가오는 학사일정보다 먼저(DOM 상 위쪽) 렌더링된다', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('카테고리 칩이 학교 공지보다 먼저(DOM 상 위쪽) 렌더링된다', () => {
     const { container } = render(<AcademicNoticesTab />)
     const chipGroup = container.querySelector('[role="group"][aria-label="공지 카테고리 선택"]')
-    const heading = screen.getByText('다가오는 학사일정')
+    const noticesHeading = screen.getByText('학교 공지')
     expect(chipGroup).not.toBeNull()
-    expect(chipGroup.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(chipGroup.compareDocumentPosition(noticesHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('학교 공지가 다가오는 학사일정보다 먼저(DOM 상 위쪽) 렌더링된다 — 탭 이름이 약속하는 콘텐츠가 먼저 와야 한다', () => {
+    render(<AcademicNoticesTab />)
+    const noticesHeading = screen.getByText('학교 공지')
+    const upcomingHeading = screen.getByText('다가오는 학사일정')
+    expect(noticesHeading.compareDocumentPosition(upcomingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 

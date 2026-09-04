@@ -83,9 +83,29 @@ export default function Dashboard() {
   const savedScroll = useAppStore((s) => s.dashboardScrollTop)
   const setSavedScroll = useAppStore((s) => s.setDashboardScrollTop)
 
+  // 결함(히어로 아래 하늘 그라데이션이 목록 시작 지점에서 끊겨 보인다). MainShell이
+  // 히어로+대시보드를 한 overflow-y-auto 컨테이너에 함께 놓아 "통짜 스크롤"을
+  // 만드는데, 이 섹션이 예전 코드처럼 자체 overflow-y-auto를 또 가지면 스크롤
+  // 컨테이너가 중첩된다. javascript_tool로 실제 휠 스크롤을 재현해 원인을
+  // 확정했다. 중첩 상태에서는 목록 위에서 시작한 스크롤이 안쪽(이 섹션)에서
+  // 끝까지 소진돼도 바깥 컨테이너로 체이닝되지 않는다(안쪽 스크롤은 최대치,
+  // 정류장 칩과 브리핑 높이만큼인 수십 px에 닿으면 멈추고 더 내려도 반응이 없다).
+  // 그래서 사용자가 목록을 아무리 내려도 히어로가 안 빠지고, 히어로가 스크롤
+  // 밖에 고정된 것처럼 보이며 그 경계에서 하늘 그라데이션이 끊긴다. 아래에서 이
+  // 섹션은 스스로 스크롤을 갖지 않는다(overflow 기본값). 실제 스크롤은 부모
+  // (MainShell, "지금" 뷰에서는 항상 오버플로 컨테이너)가 갖고, 이 훅은 그 부모의
+  // 스크롤 위치를 구독해 재마운트 시 복원만 담당한다. "시간표" 뷰(아래 첫
+  // return)는 SchedulePage가 자체 스크롤을 관리하므로 이 로직과 무관하다.
+  // 이 훅은 여전히 조건 없이 호출한다(react-hooks/rules-of-hooks).
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = savedScroll
-    // Only restore once on mount; avoid re-triggering on every savedScroll change.
+    const scroller = scrollRef.current?.parentElement
+    if (!scroller) return
+    scroller.scrollTop = savedScroll
+    const handleScroll = () => setSavedScroll(scroller.scrollTop)
+    scroller.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scroller.removeEventListener('scroll', handleScroll)
+    // 마운트 시 한 번만 부모를 찾아 구독한다. savedScroll이 바뀔 때마다 다시
+    // 구독하면 매 스크롤 이벤트가 스스로 재구독을 유발한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -123,8 +143,7 @@ export default function Dashboard() {
   return (
     <section
       ref={scrollRef}
-      onScroll={(e) => setSavedScroll(e.currentTarget.scrollTop)}
-      className="h-full overflow-y-auto bg-bg dark:bg-bg"
+      className="bg-bg dark:bg-bg"
       aria-label="대시보드"
     >
       <ModeTabs />

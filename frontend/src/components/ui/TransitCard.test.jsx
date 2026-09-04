@@ -189,4 +189,23 @@ describe('TransitCard — 칩 상한(2개 + "+N")', () => {
     // 7개 중 앞 2개를 뺀 나머지 5개가 접힌다
     expect(screen.getByText('+5')).toBeInTheDocument()
   })
+
+  // 결함 #3 — "+5"만 봐서는 무엇의 5개인지, 눌러야 하는지 알 수 없었다(사용자
+  // 지적). 접힌 칩 라벨을 title/aria-label로 그대로 노출해 호버·스크린리더에서
+  // 바로 읽히게 한다.
+  it('"+N" 칩은 접힌 칩들의 라벨을 aria-label/title로 그대로 노출한다', () => {
+    render(<TransitCard {...BASE_PROPS} chips={manyChips} />)
+    const overflowChip = screen.getByText('+5')
+    expect(overflowChip).toHaveAttribute(
+      'aria-label',
+      '가려진 정보 5개, 3정거장 전, 베타, 제보, 경로 사고, 경유',
+    )
+    expect(overflowChip).toHaveAttribute('title', overflowChip.getAttribute('aria-label'))
+  })
+
+  it('접히지 않는 일반 칩에는 title/aria-label을 붙이지 않는다', () => {
+    render(<TransitCard {...BASE_PROPS} chips={manyChips} />)
+    expect(screen.getByText('실시간')).not.toHaveAttribute('aria-label')
+    expect(screen.getByText('실시간')).not.toHaveAttribute('title')
+  })
 })

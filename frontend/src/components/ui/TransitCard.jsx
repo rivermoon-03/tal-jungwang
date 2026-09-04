@@ -23,6 +23,10 @@
  *             이 컴포넌트는 넘어온 순서를 존중하되, 화면에는 최대 2개까지만
  *             보여주고 나머지는 "+N" 칩 하나로 접는다(칩 상한 — BusPanel처럼
  *             한 행에 7개까지 쌓이는 화면에서 행이 무한정 넓어지는 것을 막는다).
+ *             결함 #3 — "+N"만으로는 무엇이 접혔는지 알 수 없어, 접힌 칩들의
+ *             label을 title/aria-label로 그대로 붙인다(호버·스크린리더용).
+ *             칩 자체에 별도 클릭 동작은 없다. 카드 전체의 onClick이 이미
+ *             상세로 연결되므로 칩 하나에만 새 상호작용을 얹지 않는다.
  *   eta       {
  *               primary: {text, tone},  tone: 'default'|'imminent'|'muted'
  *               secondary?: {text}
@@ -116,8 +120,21 @@ export default function TransitCard({
   const sizeCfg = SIZE_CONFIG[size] ?? SIZE_CONFIG.md
 
   const overflowCount = Math.max(0, chips.length - VISIBLE_CHIP_MAX)
+  // 결함 #3 — "+N"만 보이면 무엇이 접혔는지, 눌러야 하는지 알 수 없다. 접힌
+  // 칩 라벨을 title/aria-label로 그대로 붙여 호버·스크린리더에서 바로 읽히게
+  // 한다(hiddenLabels가 있는 칩만 아래에서 이 속성을 단다). 별도 팝오버는
+  // 만들지 않는다 — 칩 자체는 버튼이 아니고, 카드 전체가 이미 onClick으로
+  // 상세로 연결돼(눌러야 더 볼 수 있는 통로는 이미 있다) 칩 하나에만 새 상호작용을
+  // 얹으면 "카드를 눌러야 하나, 칩을 눌러야 하나" 혼란이 하나 더 생긴다.
   const visibleChips = overflowCount > 0
-    ? [...chips.slice(0, VISIBLE_CHIP_MAX), { label: `+${overflowCount}`, tone: 'neutral' }]
+    ? [
+        ...chips.slice(0, VISIBLE_CHIP_MAX),
+        {
+          label: `+${overflowCount}`,
+          tone: 'neutral',
+          hiddenLabels: chips.slice(VISIBLE_CHIP_MAX).map((c) => c.label),
+        },
+      ]
     : chips
 
   return (
@@ -184,24 +201,34 @@ export default function TransitCard({
           // overflow-hidden(줄바꿈 없음) — 폭이 좁아지면 칩이 잘려 숨고, title의
           // line-clamp-2 두 줄 공간은 그대로 보장된다.
           <div className="flex items-center gap-1 overflow-hidden">
-            {visibleChips.map((chip, i) => (
-              <span
-                key={`${chip.label}-${i}`}
-                className={[
-                  'inline-flex items-center gap-1 shrink-0 rounded-full px-1.5 py-px',
-                  'text-meta font-semibold leading-none whitespace-nowrap select-none',
-                  CHIP_TONE_CLASS[chip.tone] ?? CHIP_TONE_CLASS.neutral,
-                ].join(' ')}
-              >
-                {chip.tone === 'realtime' && (
-                  <span
-                    aria-hidden="true"
-                    className="w-1 h-1 rounded-full bg-accent-ink animate-dot-blink"
-                  />
-                )}
-                {chip.label}
-              </span>
-            ))}
+            {visibleChips.map((chip, i) => {
+              // 가려진 칩 라벨을 그대로 이름으로 노출한다("+3"이 실시간 상태만
+              // 아니라 구체적으로 무엇의 3개인지). 쉼표로만 나열하고 가운뎃점·
+              // em dash는 쓰지 않는다.
+              const hiddenText = chip.hiddenLabels?.length
+                ? `가려진 정보 ${chip.hiddenLabels.length}개, ${chip.hiddenLabels.join(', ')}`
+                : undefined
+              return (
+                <span
+                  key={`${chip.label}-${i}`}
+                  className={[
+                    'inline-flex items-center gap-1 shrink-0 rounded-full px-1.5 py-px',
+                    'text-meta font-semibold leading-none whitespace-nowrap select-none',
+                    CHIP_TONE_CLASS[chip.tone] ?? CHIP_TONE_CLASS.neutral,
+                  ].join(' ')}
+                  title={hiddenText}
+                  aria-label={hiddenText}
+                >
+                  {chip.tone === 'realtime' && (
+                    <span
+                      aria-hidden="true"
+                      className="w-1 h-1 rounded-full bg-accent-ink animate-dot-blink"
+                    />
+                  )}
+                  {chip.label}
+                </span>
+              )
+            })}
           </div>
         )}
       </div>

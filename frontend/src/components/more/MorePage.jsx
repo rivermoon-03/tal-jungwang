@@ -13,14 +13,17 @@
  *
  * Sub-pages: settings, help, app-info. (/more/settings, /more/help, /more/app-info)
  */
+/* global __APP_VERSION__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
 import { useState } from 'react'
-import { ChevronRight, Info, Settings as SettingsIcon, HelpCircle, ShieldCheck } from 'lucide-react'
+import { Bus, ChevronRight, Info, Settings as SettingsIcon, HelpCircle, ShieldCheck } from 'lucide-react'
 import PageHeader from '../layout/PageHeader'
 import AppInfoPage from './AppInfoPage'
 import SettingsPage from './SettingsPage'
 import HelpPage from './HelpPage'
 import MorePCLayout from './MorePCLayout'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
+
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
 
 const SUB_PAGE_TO_NAV = { settings: 'settings', 'app-info': 'app-info', help: 'help' }
 const SUB_PAGE_PATHS = {
@@ -141,6 +144,20 @@ export default function MorePage() {
             </div>
           </div>
         ))}
+
+        {/* 항목이 넷뿐이라 화면의 40%만 채우고 나머지가 빈 채로 남았다. 항목을
+            억지로 늘리는 대신, flex-1로 남는 세로 공간을 흡수해 그 여백을 앱
+            서명 자리로 준다 — 빈 화면이 아니라 목록이 자연스럽게 끝나는
+            자리로 보이게 한다. */}
+        <div className="flex-1 flex flex-col items-center justify-end gap-1.5 pb-6 pt-8 min-h-[64px]">
+          <div
+            aria-hidden="true"
+            className="grid h-9 w-9 place-items-center rounded-badge bg-gradient-to-br from-accent to-accent-hover text-white"
+          >
+            <Bus size={16} strokeWidth={2.2} />
+          </div>
+          <p className="text-caption font-semibold text-mute dark:text-mute">탈것:정왕 · v{APP_VERSION}</p>
+        </div>
       </div>
     </div>
   )

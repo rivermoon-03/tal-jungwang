@@ -58,9 +58,10 @@ describe('PCSidebar', () => {
   it('/schedule 은 홈 탭의 하위 보기라 홈이 active로 남는다', () => {
     setPath('/schedule')
     render(<PCSidebar />)
-    // 시간표는 별도 탭이 아니라 같은 교통 정보의 다른 관점이다.
+    // 시간표는 별도 탭이 아니라 같은 교통 정보의 다른 관점이다 — 사이드바에는
+    // 더 이상 하위 메뉴로 나타나지 않는다(PCMainShell 상단 세그먼트로 이관).
     expect(screen.getByRole('link', { name: /^홈$/ })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: '시간표' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '시간표' })).not.toBeInTheDocument()
   })
 
   it('즐겨찾기가 없으면 즐겨찾기 섹션을 렌더링하지 않는다', () => {
@@ -136,42 +137,24 @@ describe('PCSidebar', () => {
     })
   })
 
-  describe('컨텍스트 서브내비 — 지도', () => {
-    it('지도 탭에는 지금/시간표 보기 전환이 붙는다', () => {
+  describe('컨텍스트 서브내비 — 지도(없음)', () => {
+    // 사용자 지적: "PC버전 지금-시간표 사용이 좀 이상함" — 홈 아래 지금/시간표
+    // 두 줄을 동시에 강조하던 자리다. 지금/시간표 전환은 PCMainShell의 지도
+    // 패널 상단 세그먼트로 옮겼고(PCMainShell.test.jsx), 사이드바는 홈 한 줄만
+    // 보여준다.
+    it('홈 탭 아래에 지금/시간표 하위 메뉴를 더 이상 렌더하지 않는다', () => {
       render(<PCSidebar />)
-      expect(screen.getByRole('link', { name: '지금' })).toHaveAttribute('aria-current', 'page')
-      screen.getByRole('link', { name: '시간표' }).click()
-      expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
+      expect(screen.queryByRole('link', { name: '지금' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: '시간표' })).not.toBeInTheDocument()
     })
 
-    // 예전에는 "시간표"만 /schedule 로 pushState 해서, PCMainShell 의
-    // showFloating(=!children) 이 꺼지며 도킹 패널이 unmount 되고 지도가 통째로
-    // 불투명 페이지에 덮였다. 지도 탭의 하위 보기이므로 주소는 지도 홈에 머문다.
-    it('시간표를 눌러도 /schedule 로 페이지 이동하지 않는다', () => {
-      render(<PCSidebar />)
-      screen.getByRole('link', { name: '시간표' }).click()
-      expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
-      expect(window.location.pathname).toBe('/')
-    })
-
-    // 택시는 시간표 개념이 없다(Dashboard.jsx canShowTimetable와 동일 규칙).
-    // homeView가 'timetable'로 남아 있어도 지도 필터(selectedMode)가 택시면
-    // PCMainShell은 도킹 패널("지금" 보기)을 계속 보여준다 — 이 서브내비의
-    // 활성 표시도 실제 화면을 따라 "지금"에 남아야, 하이라이트만 시간표로
-    // 옮겨가고 화면은 그대로인 어긋남이 생기지 않는다.
-    it('지도 필터가 택시면 homeView가 시간표여도 "지금"이 계속 활성 표시된다', () => {
+    it('homeView/selectedMode가 무엇이든 홈은 여전히 한 항목으로만 표시된다', () => {
       storeState.selectedMode = 'taxi'
       storeState.homeView = 'timetable'
       render(<PCSidebar />)
-      expect(screen.getByRole('link', { name: '지금' })).toHaveAttribute('aria-current', 'page')
-      expect(screen.getByRole('link', { name: '시간표' })).not.toHaveAttribute('aria-current')
-    })
-
-    it('지도 필터가 택시가 아니면 homeView 그대로 시간표가 활성 표시된다(회귀 방지)', () => {
-      storeState.selectedMode = 'shuttle'
-      storeState.homeView = 'timetable'
-      render(<PCSidebar />)
-      expect(screen.getByRole('link', { name: '시간표' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByRole('link', { name: /^홈$/ })).toHaveAttribute('aria-current', 'page')
+      expect(screen.queryByRole('link', { name: '지금' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: '시간표' })).not.toBeInTheDocument()
     })
   })
 

@@ -33,6 +33,7 @@ const mockUseEffectiveDirection = vi.fn(() => mockDirection)
 
 let mockSelectedBusStation = '시흥시청'
 let mockSelectedMode = 'bus'
+let mockDashboardScrollTop = 0
 vi.mock('../../stores/useAppStore', () => ({
   default: (selector) =>
     selector({
@@ -42,7 +43,7 @@ vi.mock('../../stores/useAppStore', () => ({
       selectedBusStation: mockSelectedBusStation,
       selectedSubwayStation: '정왕',
       selectedShuttleCampus: 'main',
-      dashboardScrollTop: 0,
+      dashboardScrollTop: mockDashboardScrollTop,
       setDashboardScrollTop: mockSetDashboardScrollTop,
       setDirectionOverride: mockSetDirectionOverride,
       setBusStation: mockSetBusStation,
@@ -147,5 +148,42 @@ describe('Dashboard — 홈 첫 화면 선택 단계 축소(시안 6-A)', () => 
     // 차가 보이고, 선택은 아래로 내려야 나온다.
     expect(busPanel.compareDocumentPosition(directionChip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(busPanel.compareDocumentPosition(stationPills) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+/**
+ * 결함(히어로 아래 하늘 그라데이션이 목록 시작 지점에서 끊겨 보인다) — 사용자
+ * 실측(지하철 모드 스크린샷): 히어로가 0~228px를 차지하고 스크롤바가 그 아래
+ * 228px부터 시작했다. javascript_tool로 실제 휠 스크롤을 재현해 원인을 특정했다.
+ * MainShell이 히어로+대시보드를 한 overflow-y-auto 컨테이너에 함께 두는데(통짜
+ * 스크롤), 이 섹션이 예전 코드처럼 자체 overflow-y-auto를 또 가지면 스크롤
+ * 컨테이너가 중첩된다 — 목록 위에서 시작한 스크롤이 안쪽(이 섹션)에서 소진돼도
+ * 바깥으로 체이닝되지 않아 히어로가 스크롤 밖에 고정된 것처럼 보였다. 이
+ * 섹션이 스스로 스크롤을 갖지 않고 부모의 스크롤 위치만 구독하는지 검증한다.
+ */
+describe('Dashboard — "지금" 뷰 스크롤(결함: 히어로 아래 그라데이션 끊김)', () => {
+  beforeEach(() => {
+    mockSelectedMode = 'bus'
+    mockDashboardScrollTop = 0
+    mockSetDashboardScrollTop.mockClear()
+  })
+
+  it('대시보드 섹션은 자체 overflow-y-auto를 갖지 않는다(중첩 스크롤 컨테이너 방지)', () => {
+    render(<Dashboard />)
+    const section = screen.getByLabelText('대시보드')
+    expect(section.className).not.toMatch(/overflow-y-auto/)
+  })
+
+  it('마운트 시 부모 컨테이너의 스크롤 위치를 저장된 값으로 복원한다', () => {
+    mockDashboardScrollTop = 120
+    const { container } = render(<Dashboard />)
+    // RTL이 렌더 트리를 담는 container 자체가 대시보드 섹션의 부모다.
+    expect(container.scrollTop).toBe(120)
+  })
+
+  it('부모 컨테이너에서 스크롤이 발생하면 setDashboardScrollTop을 호출한다', () => {
+    const { container } = render(<Dashboard />)
+    fireEvent.scroll(container, { target: { scrollTop: 88 } })
+    expect(mockSetDashboardScrollTop).toHaveBeenCalledWith(88)
   })
 })

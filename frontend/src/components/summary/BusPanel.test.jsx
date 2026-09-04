@@ -215,8 +215,11 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
     expect(screen.getByText('곧 도착')).toBeInTheDocument()
   })
 
-  it('카드 제목은 행선지 풀네임을 그대로 쓰고 말줄임 클래스를 쓰지 않는다', () => {
-    // 시흥시청(등교)의 5602는 ROUTE_PATH상 label='학교행'
+  // 결함 #1 — 종점 이름만 뜨면 배지를 봐야 노선을 알아본다. 최근 시간표 화면과
+  // 같은 규칙("출발지 → 목적지")으로 맞췄다. 시흥시청(등교) 5602는 이 정류장의
+  // perRouteDisplay.origin이 '시흥시청역', ROUTE_PATH 목적지가 '학교행'(말미
+  // "행"은 뗀다) → "시흥시청역 → 학교".
+  it('카드 제목은 "출발지 → 목적지" 요약이고 말줄임 클래스를 쓰지 않는다', () => {
     mockUseBusArrivals.mockReturnValue({
       data: {
         arrivals: [
@@ -236,7 +239,7 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
       refetch: vi.fn(),
     })
     render(<BusPanel />)
-    const title = screen.getByText('학교행')
+    const title = screen.getByText('시흥시청역 → 학교')
     expect(title.className).not.toMatch(/truncate/)
   })
 
@@ -280,7 +283,7 @@ describe('BusPanel — TransitCard 섹션/제목 (결함 #3/#16/#27)', () => {
     })
 
     render(<BusPanel />)
-    fireEvent.click(screen.getByText('학교행'))
+    fireEvent.click(screen.getByText('시흥시청역 → 학교'))
 
     expect(mockSetDetailModal).toHaveBeenCalledWith(expect.objectContaining({
       type: 'bus',

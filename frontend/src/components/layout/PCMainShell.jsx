@@ -157,44 +157,77 @@ export default function PCMainShell({ children }) {
     window.dispatchEvent(new PopStateEvent('popstate', { state: { routeId } }))
   }
 
+  // 지금/시간표 전환 컨트롤 — 예전엔 PCSidebar가 "홈" 아래 "지금"/"시간표" 두
+  // 하위 항목으로 이 전환을 맡았는데, 그러면 홈 자신과 그 아래 "지금"이 동시에
+  // 강조돼 두 줄이 같이 칠해졌다(계층이 홈의 하위인지 별개 탭인지 읽히지
+  // 않았다 — 사용자 지적: "PC버전 지금-시간표 사용이 좀 이상함"). PCMainShell은
+  // 이미 시간표 뷰에서만 이 세그먼트를 그리고 있었으니, 지금(도킹 패널) 뷰에도
+  // 같은 세그먼트를 얹어 사이드바 대신 여기 한 곳에서 전환하게 한다. 택시는
+  // 시간표 개념이 없어(Dashboard.jsx canShowTimetable와 동일 규칙) 숨긴다.
+  // 도킹 패널이 접힌 상태(44px)에서는 세그먼트를 놓을 자리가 없어 같이 숨긴다
+  // — PCMapDockPanel 자신도 접히면 제목/필터 없이 아이콘 두 개만 남는다.
+  const showModeSwitch = showFloating && selectedMode !== 'taxi' && (showTimetable || !panelCollapsed)
+
+  // 지금(도킹 패널)과 시간표는 폭이 다르다(도킹 340/380, 시간표 380/440 — 시간표는
+  // 하루 전체 일정을 보여줘야 해서 더 넓다). 컬럼을 하나로 합쳐도 이 폭 차이는
+  // 그대로 유지한다. 접힌 도킹 패널일 때만 컬럼 폭도 44px로 좁힌다 — 안 그러면
+  // 접힌 44px 패널 옆에 빈 여백이 300px 가까이 남는다.
+  const columnWidthClass = showTimetable
+    ? 'w-[380px] xl:w-[440px]'
+    : panelCollapsed
+      ? 'w-11'
+      : 'w-[340px] xl:w-[380px]'
+
   return (
     <div className="relative hidden h-full w-full overflow-hidden md:flex">
-      {showTimetable && (
-        <aside className="relative z-20 flex h-full w-[380px] flex-none flex-col overflow-hidden border-r border-line bg-surface dark:bg-surface xl:w-[440px]">
-          {/* px-4 — 아래 SchedulePage embedded 본문(ScheduleSectionView)의 모드/통계
-              버튼 행도 px-4를 쓴다. 여기만 px-3이면 세그먼트와 그 아래 행이 4px
-              어긋나 보였다(서로 다른 정렬 기준). */}
-          <div className="flex-none px-4 pb-2 pt-3">
-            <SegmentedControl
-              options={MAP_VIEWS}
-              value={homeView}
-              onChange={setHomeView}
-              ariaLabel="지도 보기 전환"
-            />
-          </div>
+      {showFloating && (
+        <aside
+          className={`relative z-20 flex h-full ${columnWidthClass} flex-none flex-col overflow-hidden ${
+            showTimetable ? 'border-r border-line bg-surface dark:bg-surface' : ''
+          }`}
+        >
+          {showModeSwitch && (
+            /* px-4 — 아래 SchedulePage embedded 본문(ScheduleSectionView)의 모드/통계
+               버튼 행도 px-4를 쓴다. 시간표 상태에서만 px-3이면 세그먼트와 그 아래
+               행이 4px 어긋나 보였다(서로 다른 정렬 기준). 지금(도킹) 상태에서는
+               이 헤더가 PCMapDockPanel의 border-r/bg를 대신 이어받아 컬럼 전체가
+               끊김 없는 한 장의 패널로 보이게 한다. */
+            <div
+              className={`flex-none px-4 pb-2 pt-3 ${
+                showTimetable ? '' : 'border-r border-line bg-surface-2/90 backdrop-blur-md dark:bg-surface/90'
+              }`}
+            >
+              <SegmentedControl
+                options={MAP_VIEWS}
+                value={homeView}
+                onChange={setHomeView}
+                ariaLabel="지도 보기 전환"
+              />
+            </div>
+          )}
           <div className="min-h-0 flex-1">
-            <SchedulePage embedded />
+            {showTimetable ? (
+              <SchedulePage embedded />
+            ) : (
+              <PCMapDockPanel
+                collapsed={panelCollapsed}
+                onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
+                search={search}
+                onChangeSearch={setSearch}
+                filters={filters}
+                onToggleFilter={setSelectedMode}
+                stationLabel={bottomCardData.stationLabel}
+                live={showPrimary && bottomCardData.live}
+                statusLabel={showPrimary ? bottomCardData.statusLabel : null}
+                statusTone={bottomCardData.statusTone}
+                primary={showPrimary ? (bottomCardData.primary ?? {}) : {}}
+                routes={filteredRoutes}
+                onSelectRoute={handleSelectRoute}
+                emptyState={emptyState}
+              />
+            )}
           </div>
         </aside>
-      )}
-
-      {showFloating && !showTimetable && (
-        <PCMapDockPanel
-          collapsed={panelCollapsed}
-          onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
-          search={search}
-          onChangeSearch={setSearch}
-          filters={filters}
-          onToggleFilter={setSelectedMode}
-          stationLabel={bottomCardData.stationLabel}
-          live={showPrimary && bottomCardData.live}
-          statusLabel={showPrimary ? bottomCardData.statusLabel : null}
-          statusTone={bottomCardData.statusTone}
-          primary={showPrimary ? (bottomCardData.primary ?? {}) : {}}
-          routes={filteredRoutes}
-          onSelectRoute={handleSelectRoute}
-          emptyState={emptyState}
-        />
       )}
 
       <div className="relative h-full min-w-0 flex-1 overflow-hidden">

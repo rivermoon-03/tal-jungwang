@@ -173,8 +173,12 @@ export default function FacilitiesPage() {
         {/* 헤더는 에러여도 항상 표시 */}
         <PageHeader title="학교시설" />
 
-        {/* 갱신 시각 */}
-        {updatedLabel && (
+        {/* 갱신 시각 — 식단표(diet)를 언제 받아왔는지를 말한다. 매장/도서관 탭은
+            CafeteriaVenues가 자체 "지금 HH:MM · 요일" 실시간 시계를 따로
+            보여주는데, 둘 다 항상 떠 있으면 어느 쪽이 기준 시각인지 헷갈린다
+            ("09:00 갱신"과 "지금 09:41"이 한 화면에 같이 있던 자리). 갱신
+            시각은 식단표에만 뜻이 있으니 diet 탭에서만 보여준다. */}
+        {mainTab === 'diet' && updatedLabel && (
           <p className="px-4 -mt-2 mb-2 text-caption text-mute">
             {updatedLabel}
           </p>

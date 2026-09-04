@@ -226,16 +226,20 @@ function VenueCard({ venue, nowDate, onVenueClick, style }) {
         <MenuTags menu={venue.menu} />
       </div>
 
-      <div className="flex-none flex flex-col items-end gap-2">
-        <div className="text-right">
+      {/* 상태 pill과 즐겨찾기 별을 한 줄에 둔다. 예전엔 별이 이 열 아래 줄을
+          따로 차지해 카드가 세로로 길어졌다(영업 중인 곳이 많으면 목록
+          스크롤이 그만큼 늘어났다) — 별의 44px 히트 영역이 이미 pill보다
+          커서, 같은 줄에 놓아도 터치 영역은 그대로 지키면서 줄 하나를 아낀다. */}
+      <div className="flex-none flex flex-col items-end gap-1">
+        <div className="flex items-center gap-1.5">
+          <FavoriteStarButton venueId={venue.id} />
           <StatusPill primaryLabel={primaryLabel} status={status} />
-          {subLabel && (
-            <div className="mt-1 text-caption font-semibold text-mute whitespace-nowrap">
-              {subLabel}
-            </div>
-          )}
         </div>
-        <FavoriteStarButton venueId={venue.id} />
+        {subLabel && (
+          <div className="text-right text-caption font-semibold text-mute whitespace-nowrap">
+            {subLabel}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -409,7 +413,6 @@ function FavoriteOpenSection({ nowDate, onVenueClick }) {
 // ── 메인 컴포넌트 ────────────────────────────────────────────
 
 export default function CafeteriaVenues({ onVenueClick = () => {} }) {
-  const isDark = useAppStore((s) => s.darkMode)
   const nowMs = useNow(60_000)   // 1분 단위 갱신
   const nowDate = useMemo(() => new Date(nowMs), [nowMs])
 
@@ -448,11 +451,12 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
       {/* 탭 + 정렬 스위치 */}
       <div className="mb-3.5">
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* 주 탭 (지금 영업중 / 운영시간)
-              maxWidth 없이 flex:1만 두면 PC에서 버튼 하나가 460px까지 늘어난다.
-              결함 #8: minWidth:0이면 좁은 폭에서 정렬 스위치와 한 줄을 다투다
-              라벨이 찌그러졌다 — 두 라벨이 읽히는 최소폭을 줘서, 공간이 부족하면
-              스위치 그룹이 아예 다음 줄로 깔끔하게 내려가게(의도된 2줄) 한다. */}
+          {/* 주 탭(지금 영업중 / 운영시간)과 정렬 스위치(장소별 / 카테고리별)가
+              예전엔 서로 다른 구현이었다 — 주 탭은 ui/SegmentTabs, 정렬
+              스위치는 손으로 만든 버튼 그룹이라 높이도 활성 pill 대비색도 조금씩
+              어긋났다(다크모드에서는 정렬 스위치의 활성 pill이 배경과 거의
+              구분되지 않을 만큼 대비가 약했다). 같은 컴포넌트, 같은 flex-1
+              폭 규칙을 공유시켜 대비와 균형을 한 번에 맞춘다. */}
           <div className="flex-1 min-w-[180px] max-w-[420px]">
             <SegmentTabs
               items={TABS}
@@ -461,44 +465,25 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
             />
           </div>
 
-          {/* 정렬 스위치 — 장소별 / 카테고리별 */}
+          {/* ui/SegmentTabs는 aria-label prop이 없다(role="tablist"만 그린다) —
+              구현을 손으로 만든 버튼 그룹에서 이 컴포넌트로 옮기며 놓쳤던
+              "정렬 방식" 컨텍스트를 바깥 group으로 되살린다. */}
           <div
             role="group"
             aria-label="정렬 방식"
-            className="flex items-center gap-0.5 rounded-button p-[3px] flex-shrink-0"
-            style={{ background: 'var(--tj-surface-2, var(--tj-line))' }}
+            className="flex-1 min-w-[140px] max-w-[280px]"
           >
-            {SORT_OPTIONS.map((opt) => {
-              const isActive = sortBy === opt.id
-              return (
-                <button
-                  key={opt.id}
-                  onClick={() => setSortBy(opt.id)}
-                  aria-pressed={isActive}
-                  className={[
-                    'min-h-[44px] px-3 rounded-badge border-none cursor-pointer',
-                    'text-caption whitespace-nowrap transition-colors duration-press',
-                    isActive ? 'font-extrabold' : 'font-semibold',
-                  ].join(' ')}
-                  style={{
-                    background: isActive ? (isDark ? 'var(--tj-accent)' : 'var(--tj-ink)') : 'transparent',
-                    // active 배경(라이트: ink=거의 검정, 다크: accent=밝은 틸) 위에서
-                    // 대비를 맞추려면 반대쪽 극단의 텍스트가 필요하다 — 전용 토큰은 없지만
-                    // --tj-bg가 라이트에서 거의 흰색, 다크에서 거의 검정이라 그대로 재사용하면
-                    // hex를 하드코딩하지 않고도 두 모드 모두에서 대비가 맞는다.
-                    color: isActive ? 'var(--tj-bg)' : 'var(--tj-ink-2)',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              )
-            })}
+            <SegmentTabs
+              items={SORT_OPTIONS}
+              active={sortBy}
+              onChange={setSortBy}
+            />
           </div>
         </div>
 
         {activeTab === 'now' && (
           <p className="mt-2 text-caption font-semibold text-mute">
-            {weekdayStr} 이 시각,{' '}
+            {weekdayStr},{' '}
             <b className="text-ink-2 font-extrabold">영업 중인 {openCount}곳</b>이에요
           </p>
         )}

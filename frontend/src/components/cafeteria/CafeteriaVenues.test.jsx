@@ -88,6 +88,12 @@ describe('CafeteriaVenues', () => {
     }
   })
 
+  it('"지금 영업중" 부제에 "이 시각"이라는 군더더기를 쓰지 않는다', () => {
+    render(<CafeteriaVenues />)
+    const subtitle = screen.getByText(/영업 중인 \d+곳/).closest('p')
+    expect(subtitle.textContent).not.toContain('이 시각')
+  })
+
   it('영업중 상태 텍스트가 표시된다', () => {
     render(<CafeteriaVenues />)
     // 낮 12시이므로 영업중인 곳이 있어야 함
@@ -156,9 +162,11 @@ describe('CafeteriaVenues — 정렬 스위치', () => {
 
   it('기본값은 "카테고리별"이며 카테고리 그룹 헤더가 보인다', () => {
     renderScheduleTab()
-    // aria-pressed로 어느 옵션이 기본 활성인지도 함께 확인한다.
-    expect(screen.getByText('카테고리별').closest('button')).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText('장소별').closest('button')).toHaveAttribute('aria-pressed', 'false')
+    // 정렬 스위치도 주 탭과 같은 ui/SegmentTabs를 쓴다 — role="tab" +
+    // aria-selected로 어느 옵션이 기본 활성인지 확인한다(구 aria-pressed 손제작
+    // 버튼 그룹은 대비가 약해 공용 컴포넌트로 통일했다).
+    expect(screen.getByText('카테고리별').closest('button')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('장소별').closest('button')).toHaveAttribute('aria-selected', 'false')
     // 카테고리 헤더 (한식, 분식, 중식, 양식, 패스트푸드, 카페, 편의점) 중 하나가 보여야 함
     const categoryLabels = ['한식', '분식', '중식', '양식', '패스트푸드', '카페', '편의점']
     const found = categoryLabels.some(
@@ -196,6 +204,13 @@ describe('CafeteriaVenues — 정렬 스위치', () => {
     // 기본 탭(지금 영업중) — 스위치가 있어야 함
     expect(screen.getByText('장소별')).toBeInTheDocument()
     expect(screen.getByText('카테고리별')).toBeInTheDocument()
+  })
+
+  it('주 탭과 정렬 스위치가 같은 컴포넌트(role=tablist)를 공유한다', () => {
+    render(<CafeteriaVenues />)
+    // 예전엔 정렬 스위치가 role="group" + aria-pressed 버튼으로 따로
+    // 구현돼 있었다 — 이제 둘 다 ui/SegmentTabs라 tablist가 두 개다.
+    expect(screen.getAllByRole('tablist')).toHaveLength(2)
   })
 })
 
@@ -290,6 +305,17 @@ describe('CafeteriaVenues — 카드 해부 통일', () => {
     expect(within(card).getByText('+2')).toBeInTheDocument()
     expect(within(card).queryByText('칼국수')).not.toBeInTheDocument()
     expect(within(card).queryByText('맥주')).not.toBeInTheDocument()
+  })
+
+  it('즐겨찾기 별이 상태 pill과 같은 줄에 렌더된다(별도 줄을 차지하지 않는다)', () => {
+    render(<CafeteriaVenues />)
+    // 예전엔 별이 카드 우측 하단에 자기만의 줄을 차지해 카드가 세로로
+    // 길어졌다. 별 버튼과 상태 pill이 같은 부모(가로 flex row) 아래 있으면
+    // 더 이상 별도 줄을 쓰지 않는다는 뜻이다.
+    const card = screen.getByRole('button', { name: '학생식당' })
+    const starBtn = within(card).getByRole('button', { name: /즐겨찾기/ })
+    const statusPill = within(card).getByText('영업 중').closest('.cafe-status-pill')
+    expect(starBtn.parentElement).toBe(statusPill.parentElement)
   })
 
   it('카드 그리드에 PC 다열(md/lg) 반응형 클래스가 적용된다', () => {

@@ -6,16 +6,26 @@
  * 학과 공지는 컴공 한 곳만 지원되는 반쪽 기능이었고, 실수요(장학·취업)는
  * 전교 게시판에 있다.
  *
- * 순서(모바일도 PC와 맞춘다 — 카테고리 칩이 최상단):
- *   1. 카테고리 칩 행 — 예전엔 "다가오는 학사일정"과 캘린더 아래(스크롤해야 보임)에
- *      있었다. PC(AcademicNoticesPCContent)는 처음부터 최상단이었는데 모바일만
- *      달랐던 것 — 같은 화면의 두 레이아웃이 다른 위치 학습을 요구했다.
- *   2. 다가오는 학사일정 리스트(대문) — D-day 칩 + 제목 + 기간, 상위 4개.
- *   3. 캘린더 — AcademicCalendarGrid(주간 스트립 기본, 월 전체보기는 내부 토글).
- *   4. 학교 공지 — 한 카드 안에 구분선(divide-y)으로 나뉜 행들. 각 행은
- *      "안읽음 도트 + 카테고리 태그 + D-day(우측 정렬)" 한 줄, 그 아래 제목,
- *      그 아래 날짜 순서다. 읽은 행은 opacity로 흐리게 처리하되 도트 자리는
- *      비워서 유지한다(정렬 유지).
+ * 순서(정보 우선순위 재정렬 — 결함: "공지" 탭인데 첫 화면에 공지가 없었다):
+ *   1. 카테고리 칩 행 — 학교 공지 목록의 필터라 목록 바로 위에 둔다.
+ *   2. 학교 공지 — 탭 이름이 약속하는 실제 콘텐츠. 예전엔 카테고리 칩 다음에
+ *      "다가오는 학사일정" 대문 카드와 캘린더가 화면을 다 채워, 공지 탭을 열어도
+ *      한참 스크롤해야 공지가 나왔다. 캘린더/일정은 없애지 않되 보조 정보로
+ *      아래로 내린다 — 탭을 여는 주된 의도는 공지를 읽는 것이지 일정을 보는
+ *      것이 아니다.
+ *   3. 진행 중인 학사일정 — D+day 칩(이미 시작한 일정). "다가오는"과 섞여 있으면
+ *      이미 시작한 일정이 "앞으로 올 일"처럼 읽혀 혼란스럽다(결함: D+3짜리
+ *      수강정정이 "다가오는" 목록 맨 위에 있었다). 진행 중인 일정이 더 급한
+ *      정보일 수 있어 없애지 않고 별도 그룹으로 먼저 보여준다.
+ *   4. 다가오는 학사일정 — D-day 칩(아직 시작 전), 상위 4개.
+ *   5. 캘린더 — AcademicCalendarGrid(주간 스트립 기본, 월 전체보기는 내부 토글).
+ *
+ * 진행 중/다가오는 구분은 utils/academicCalendar.js의 isEventInProgress/
+ * isEventUpcoming으로 판정한다(순수 날짜 비교 재사용 — 인라인 계산 금지).
+ * 학교 공지 행은 한 카드 안에 구분선(divide-y)으로 나뉜다. 각 행은
+ * "안읽음 도트 + 카테고리 태그 + D-day(우측 정렬)" 한 줄, 그 아래 제목,
+ * 그 아래 날짜 순서다. 읽은 행은 opacity로 흐리게 처리하되 도트 자리는
+ * 비워서 유지한다(정렬 유지).
  *
  * 원문 링크는 새 탭(`target="_blank"`)으로 열되 reverse tabnabbing 방지를 위해
  * `rel="noopener noreferrer"`를 항상 붙인다.
@@ -23,7 +33,12 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, Megaphone, RefreshCw } from 'lucide-react'
 import { useSchoolBoardNotices, useAcademicCalendar } from '../../hooks/useMore'
-import { formatDday, formatDateOrRange } from '../../utils/academicCalendar'
+import {
+  formatDday,
+  formatDateOrRange,
+  isEventInProgress,
+  isEventUpcoming,
+} from '../../utils/academicCalendar'
 import { formatFullDate } from '../../utils/noticeDate'
 import { formatRelativeTime } from '../../utils/relativeTime'
 import { formatNoticeDday, isNoticeDdayImminent } from '../../utils/noticeDeadline'
@@ -60,17 +75,61 @@ function NoticeListSkeleton() {
   )
 }
 
+// "진행 중인 학사일정"과 "다가오는 학사일정"이 공유하는 행 목록 — D-day 칩(둘 다
+// formatDday 그대로 씀, 진행 중이면 D+N/D-DAY, 다가오는이면 D-N) + 제목 + 기간.
+function EventListCard({ heading, events, focusDate, onSelect }) {
+  return (
+    <div>
+      <div
+        className="text-label font-semibold text-mute dark:text-mute uppercase mb-2"
+        style={{ letterSpacing: '-0.02em' }}
+      >
+        {heading}
+      </div>
+      <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card divide-y divide-line dark:divide-line overflow-hidden">
+        {events.map((ev) => (
+          <button
+            key={`${ev.title}-${ev.start_date}`}
+            type="button"
+            onClick={() => onSelect(ev.start_date)}
+            aria-label={`${ev.title} · 캘린더에서 보기`}
+            aria-pressed={focusDate === ev.start_date}
+            className={`pressable w-full flex items-center gap-2 px-3 py-2.5 text-left ${
+              focusDate === ev.start_date ? 'bg-accent-bg dark:bg-accent-bg' : ''
+            }`}
+          >
+            <span className="text-dest font-bold px-2 py-0.5 rounded-full bg-accent dark:bg-accent text-white dark:text-ink tracking-wide flex-shrink-0 tabular-nums">
+              {formatDday(ev.start_date)}
+            </span>
+            <span className="text-label font-bold text-ink dark:text-ink truncate flex-1 min-w-0">
+              {ev.title}
+            </span>
+            <span className="text-dest font-semibold text-mute dark:text-mute flex-shrink-0 whitespace-nowrap">
+              {formatDateOrRange(ev.start_date, ev.end_date)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AcademicNoticesTab() {
   const [category, setCategory] = useState('all')
 
   const { data: calendarData, loading: calLoading } = useAcademicCalendar()
   const next = calendarData?.next ?? null
   const upcoming = Array.isArray(calendarData?.upcoming) ? calendarData.upcoming : []
-  // 캘린더 그리드 + "다가오는 학사일정" 리스트가 공유하는 전체 이벤트(가장
-  // 임박한 일정 + 그 다음 일정들) — 표시 개수만 리스트 쪽에서 자른다.
+  // 캘린더 그리드가 쓰는 전체 이벤트(가장 임박한 일정 + 그 다음 일정들).
   const allEvents = [next, ...upcoming].filter(Boolean)
-  const upcomingList = allEvents.slice(0, UPCOMING_LIST_MAX)
-  const hasMoreEvents = allEvents.length > upcomingList.length
+  // "진행 중"(이미 시작해 아직 안 끝남)과 "다가오는"(아직 시작 전)을 나눈다 —
+  // 서로 배타적이라 한 이벤트가 두 목록에 동시에 들어가지 않는다(이미 끝난
+  // 일정은 어느 쪽에도 들지 않는다 — 백엔드가 이미 걸러 보내지만 방어적으로도
+  // 같은 규칙을 쓴다).
+  const progressEvents = allEvents.filter((ev) => isEventInProgress(ev))
+  const upcomingEvents = allEvents.filter((ev) => isEventUpcoming(ev))
+  const upcomingList = upcomingEvents.slice(0, UPCOMING_LIST_MAX)
+  const hasMoreEvents = upcomingEvents.length > upcomingList.length
 
   // "전체 일정 보기" 모달(4개보다 많을 때만 필요).
   const [showAllEvents, setShowAllEvents] = useState(false)
@@ -114,8 +173,7 @@ export default function AcademicNoticesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 카테고리 칩 — PC(AcademicNoticesPCContent)와 같은 자리(최상단). 예전엔
-          "다가오는 학사일정"·캘린더 아래에 있어 스크롤해야 보였다. */}
+      {/* 카테고리 칩 — 학교 공지 목록 바로 위(필터는 목록에 붙어 있어야 읽힌다). */}
       <div role="group" aria-label="공지 카테고리 선택" className="flex flex-wrap items-center gap-1.5">
         {NOTICE_CATEGORIES.map((c) => (
           <button
@@ -134,70 +192,8 @@ export default function AcademicNoticesTab() {
         ))}
       </div>
 
-      {/* 다가오는 학사일정 — 대문. D-day 칩 + 제목 + 기간, 상위 4개. */}
-      {calLoading && (
-        <div className="rounded-card border border-line dark:border-line p-3 space-y-2" aria-hidden="true">
-          <Skeleton height="0.9rem" width="40%" />
-          <Skeleton height="2.5rem" />
-          <Skeleton height="2.5rem" />
-        </div>
-      )}
-      {!calLoading && upcomingList.length > 0 && (
-        <div>
-          <div
-            className="text-label font-semibold text-mute dark:text-mute uppercase mb-2"
-            style={{ letterSpacing: '-0.02em' }}
-          >
-            다가오는 학사일정
-          </div>
-          <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card divide-y divide-line dark:divide-line overflow-hidden">
-            {upcomingList.map((ev) => (
-              <button
-                key={`${ev.title}-${ev.start_date}`}
-                type="button"
-                onClick={() => setFocusDate(ev.start_date)}
-                aria-label={`${ev.title} · 캘린더에서 보기`}
-                aria-pressed={focusDate === ev.start_date}
-                className={`pressable w-full flex items-center gap-2 px-3 py-2.5 text-left ${
-                  focusDate === ev.start_date ? 'bg-accent-bg dark:bg-accent-bg' : ''
-                }`}
-              >
-                <span className="text-dest font-bold px-2 py-0.5 rounded-full bg-accent dark:bg-accent text-white dark:text-ink tracking-wide flex-shrink-0 tabular-nums">
-                  {formatDday(ev.start_date)}
-                </span>
-                <span className="text-label font-bold text-ink dark:text-ink truncate flex-1 min-w-0">
-                  {ev.title}
-                </span>
-                <span className="text-dest font-semibold text-mute dark:text-mute flex-shrink-0 whitespace-nowrap">
-                  {formatDateOrRange(ev.start_date, ev.end_date)}
-                </span>
-              </button>
-            ))}
-          </div>
-          {hasMoreEvents && (
-            <button
-              type="button"
-              onClick={() => setShowAllEvents(true)}
-              className="pressable w-full text-center text-dest font-semibold text-mute dark:text-mute py-2"
-            >
-              전체 일정 보기
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* 캘린더 — focusDate가 바뀌면 그 날짜로 다시 마운트해 이동을 반영 */}
-      {!calLoading && allEvents.length > 0 && (
-        <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card px-3 py-3">
-          <AcademicCalendarGrid
-            key={calendarInitialDate ?? 'none'}
-            events={allEvents}
-            initialDate={calendarInitialDate}
-          />
-        </div>
-      )}
-
-      {/* 학교 공지 — 세로 리스트(카테고리 칩은 위로 옮겼다) */}
+      {/* 학교 공지 — 탭 이름이 약속하는 콘텐츠라 칩 바로 다음, 학사일정/캘린더보다
+          먼저 보여준다(정보 우선순위 재정렬). */}
       <div>
         <div
           className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest mb-2"
@@ -299,6 +295,57 @@ export default function AcademicNoticesTab() {
           </>
         )}
       </div>
+
+      {/* 학사일정 — 보조 정보라 공지 목록 다음으로 내렸다. 진행 중(D+N/D-DAY)과
+          다가오는(D-N)을 별도 카드로 나눈다: 진행 중인 일정이 "다가오는" 이름
+          아래 섞이면 이미 시작한 일이 앞으로 올 일처럼 읽힌다. */}
+      {calLoading && (
+        <div className="rounded-card border border-line dark:border-line p-3 space-y-2" aria-hidden="true">
+          <Skeleton height="0.9rem" width="40%" />
+          <Skeleton height="2.5rem" />
+          <Skeleton height="2.5rem" />
+        </div>
+      )}
+
+      {!calLoading && progressEvents.length > 0 && (
+        <EventListCard
+          heading="진행 중인 학사일정"
+          events={progressEvents}
+          focusDate={focusDate}
+          onSelect={setFocusDate}
+        />
+      )}
+
+      {!calLoading && upcomingList.length > 0 && (
+        <div>
+          <EventListCard
+            heading="다가오는 학사일정"
+            events={upcomingList}
+            focusDate={focusDate}
+            onSelect={setFocusDate}
+          />
+          {hasMoreEvents && (
+            <button
+              type="button"
+              onClick={() => setShowAllEvents(true)}
+              className="pressable w-full text-center text-dest font-semibold text-mute dark:text-mute py-2"
+            >
+              전체 일정 보기
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 캘린더 — focusDate가 바뀌면 그 날짜로 다시 마운트해 이동을 반영 */}
+      {!calLoading && allEvents.length > 0 && (
+        <div className="bg-surface dark:bg-surface border border-line dark:border-line rounded-card px-3 py-3">
+          <AcademicCalendarGrid
+            key={calendarInitialDate ?? 'none'}
+            events={allEvents}
+            initialDate={calendarInitialDate}
+          />
+        </div>
+      )}
 
       <UpcomingScheduleModal
         open={showAllEvents}

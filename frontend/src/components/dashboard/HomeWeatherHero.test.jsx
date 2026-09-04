@@ -138,11 +138,13 @@ describe('HomeWeatherHero — 항상 펼쳐진 스트립 + 본문(아코디언 �
 })
 
 describe('HomeWeatherHero — 스트립 인사말(heroStyle)', () => {
-  it("heroStyle='greeting'이면 글귀 첫 줄을 스트립 인사말로 쓴다(둘째 줄은 잘린다)", () => {
+  // 결함 #4 — 첫 줄만 보여주면 원문 줄바꿈이 문장 중간을 끊어 뜻이 안 잡히는
+  // 문장 조각만 남았다(사용자 지적: "뜰에는 반짝이는", "돌담에 속삭이는"). 두
+  // 줄을 공백으로 이어 붙여 항상 완결된 문장을 보여준다.
+  it("heroStyle='greeting'이면 글귀 두 줄을 공백으로 이어 붙여 완결된 문장으로 보여준다", () => {
     render(<HomeWeatherHero onOpenMap={() => {}} />)
 
-    expect(screen.getByTestId('hero-greeting-text')).toHaveTextContent('테스트 글귀')
-    expect(screen.getByTestId('hero-greeting-text')).not.toHaveTextContent('둘째 줄')
+    expect(screen.getByTestId('hero-greeting-text')).toHaveTextContent('테스트 글귀 둘째 줄')
   })
 
   it("heroStyle='greeting'이면 인사말을 클릭해 출처 툴팁을 열고 닫을 수 있다", () => {

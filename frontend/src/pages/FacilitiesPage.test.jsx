@@ -114,11 +114,22 @@ describe('FacilitiesPage', () => {
     expect(screen.getByTestId('page-header')).toHaveTextContent('학교시설')
   })
 
-  it('fetched_at 기반으로 갱신 시각을 표시한다', () => {
+  it('fetched_at 기반으로 갱신 시각을 표시한다(학식 탭)', () => {
     useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
     render(<FacilitiesPage />)
+    // 기본 탭이 매장이라 갱신 시각은 아직 없다 — 식단표를 언제 받아왔는지는
+    // 학식 탭에서만 뜻이 있다(매장 탭의 "지금 HH:MM" 실시간 시계와 헷갈리던 자리).
+    expect(screen.queryByText(/갱신/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: '학식' }))
     expect(screen.getByText(/갱신/)).toBeInTheDocument()
     expect(screen.getByText(/10:30/)).toBeInTheDocument()
+  })
+
+  it('매장 탭에서는 갱신 시각을 보여주지 않는다(결함: "이 시각" 기준 시각 혼동)', () => {
+    useCafeteriaMenu.mockReturnValue({ data: MOCK_DATA, loading: false, error: null, refetch: vi.fn() })
+    render(<FacilitiesPage />)
+    // 기본 탭이 매장이므로 별도 클릭 없이 바로 확인한다.
+    expect(screen.queryByText(/갱신/)).not.toBeInTheDocument()
   })
 
   // --- 결함 #7: 헤더와 탭까지 포함한 통짜 스크롤 ---

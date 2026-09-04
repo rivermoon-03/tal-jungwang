@@ -13,7 +13,7 @@ import StatusChip from '../ui/StatusChip.jsx'
 import TransitCard from '../ui/TransitCard.jsx'
 import Card from '../ui/Card.jsx'
 import { parseFavKey } from '../../utils/favKey'
-import { formatEta } from '../../utils/eta'
+import { formatEta, IMMINENT_THRESHOLD_SEC } from '../../utils/eta'
 import { splitFare, formatWon } from '../../utils/taxiSplit'
 import { useTrafficIncidents } from '../../hooks/useTrafficIncidents'
 import { useTaxiDestinations } from '../../hooks/useTaxi'
@@ -37,6 +37,14 @@ const DEFAULT_ROUTE_COLOR = '#64748B'
 // 결함 #3 — "5분 이하"가 곧 도착 섹션 + 임박(색만) 톤의 기준. 기존 IMMINENT_THRESHOLD_SEC(60초,
 // "곧 도착" 라벨 전환용)와는 별개 — 이 파일이 새로 정의하는 대시보드 카드 전용 규칙이다.
 const SOON_THRESHOLD_SEC = 5 * 60
+
+// 결함 #2 — "곧 도착"만 뜨고 몇 분인지 안 알려준다. eta.js가 표기의 정본이라
+// 새 임계값을 만들지 않고, eta.js가 이미 내보내는 IMMINENT_THRESHOLD_SEC(90초)를
+// 분 단위 상한으로만 바꿔 쓴다. "곧 도착" 문구 자체는 eta.js 그대로 둔다(이
+// 구간, 0~90초는 분 단위로 반올림하면 대부분 "0분"이 돼 오히려 부정확해진다).
+// 다음 차 정보(다음 N분)가 이미 있으면 그쪽이 더 유용하므로, 이 상한은 다음 차
+// 정보가 없을 때만 보조 줄에 보여준다.
+const IMMINENT_BOUND_MIN = Math.ceil(IMMINENT_THRESHOLD_SEC / 60)
 
 // B3 — ITS 돌발 유형 → 라벨. 백엔드가 사고·공사만 내려주지만, 유형이 늘어나도
 // 여기 없는 값은 배너·칩 어디에도 그리지 않는다(모르는 유형으로 겁주지 않기).
@@ -501,6 +509,39 @@ function boardingLabel(arrival, station, direction) {
   return perRoute ? getOriginLabel(station, direction, perRoute.origin) : ''
 }
 
+// 결함 #1 — 종점 이름만 제목에 뜨면(예: "아이파크아파트행") 배지의 작은 번호를
+// 봐야 노선을 알아볼 수 있다. 최근 시간표 화면(SchedulePage.headline)이 제목을
+// "출발지 → 목적지" 요약으로 바꿨다 — 홈도 같은 규칙으로 맞춘다. 같은 노선을
+// 화면마다 다른 문구로 설명하지 않는 것이 먼저고, 출발지가 붙으면 종점 하나만
+// 볼 때보다 어느 방향 차인지 더 빨리 읽힌다.
+//
+// 20-1 하교만 목적지를 덮어쓴다 — busStationConfig.ROUTE_PATH는 이 노선의
+// 물리적 종점(아이파크아파트)을 쓰지만, 통학 목적으로는 대부분 정왕역에서
+// 내린다(사용자 지적). 백엔드 bus_commute_contexts(schema.sql)도 이 노선의
+// destination_label을 이미 "정왕역"으로 관리한다 — ROUTE_PATH만 물리적 종점을
+// 쓰고 있어 통학 맥락과 어긋난다. ROUTE_PATH는 이 파일 소유가 아니라(다른
+// 화면·지도도 참조) 직접 고치지 않고, 홈 카드 제목에서만 백엔드 값에 맞춘다.
+const COMMUTE_DESTINATION_OVERRIDE = { '20-1': '정왕역' }
+
+/** "OO행"/"OO방면" 같은 종결 어미를 뗀다("정왕역행" → "정왕역"). 화살표 표기와
+ * 함께 쓰면 어미가 없어도 방향이 분명해, 백엔드 destination_label과 같은
+ * 형태(지명만)로 맞출 수 있다. */
+function stripBoundSuffix(text) {
+  return text.endsWith('행') && text.length > 1 ? text.slice(0, -1) : text
+}
+
+/**
+ * 노선 카드 제목("출발지 → 목적지")과 경유 칩을 함께 만든다. station이 없거나
+ * 이 정류장의 승차 지점 정보(perRouteDisplay)가 없으면 목적지만 남긴다(기존
+ * getRouteTitleAndVia와 동일한 폴백).
+ */
+function buildRouteHeadline(routeNo, category, fallbackDestination, station) {
+  const { title, viaChip } = getRouteTitleAndVia(routeNo, category, fallbackDestination)
+  const destination = COMMUTE_DESTINATION_OVERRIDE[routeNo] ?? stripBoundSuffix(title)
+  const origin = getPerRouteDisplay(station)?.[routeNo]?.origin
+  return { title: origin ? `${origin} → ${destination}` : destination, viaChip }
+}
+
 /** 실시간 ETA가 확보된 그룹 하나 → {sec, node(TransitCard)}. */
 function buildLiveRow(group, { station, direction, onOpenDetail, incident = null }) {
   const a = group[0]
@@ -510,7 +551,7 @@ function buildLiveRow(group, { station, direction, onOpenDetail, incident = null
   const minutes2 = arrivalSecondsToMinutes(sec2)
 
   const cfg = getRouteDisplayConfig(a.route_no)
-  const { title, viaChip } = getRouteTitleAndVia(a.route_no, a.category ?? direction, a.destination)
+  const { title, viaChip } = buildRouteHeadline(a.route_no, a.category ?? direction, a.destination, station)
   const originText = boardingLabel(a, station, direction)
 
   // A1 — 광역버스는 혼잡도(재차 인원)보다 잔여좌석이 정확한 신호라 좌석 칩으로
@@ -554,7 +595,13 @@ function buildLiveRow(group, { station, direction, onOpenDetail, incident = null
         chips={chips}
         eta={{
           primary: { text: etaResult.text, tone: imminent ? 'imminent' : 'default' },
-          secondary: minutes2 != null ? { text: `다음 ${minutes2}분` } : undefined,
+          secondary: minutes2 != null
+            ? { text: `다음 ${minutes2}분` }
+            // 결함 #2 — "곧 도착"만으로는 몇 분인지 모른다. 다음 차 정보가 없을
+            // 때만 eta.js의 IMMINENT_THRESHOLD_SEC(90초)에서 뽑은 상한을 보여준다.
+            : etaResult.tone === 'imminent'
+              ? { text: `${IMMINENT_BOUND_MIN}분 이내` }
+              : undefined,
         }}
         onClick={() => openBusDetail(onOpenDetail, {
           routeNumber: a.route_no,
@@ -590,7 +637,7 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpe
 
   const perRoute = getPerRouteDisplay(selectedBusStation)?.[route_number]
   const cfg = getRouteDisplayConfig(route_number)
-  const { title, viaChip } = getRouteTitleAndVia(route_number, selectedBusDirection, route.direction_name)
+  const { title, viaChip } = buildRouteHeadline(route_number, selectedBusDirection, route.direction_name, selectedBusStation)
   const originText = perRoute ? getOriginLabel(selectedBusStation, selectedBusDirection, perRoute.origin) : ''
 
   const etaResult = nextSec == null ? { text: '출발 정보 없음', tone: 'muted' } : formatEta(nextSec)
@@ -603,7 +650,11 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpe
       chips={viaChip ? [{ label: viaChip, tone: 'neutral' }] : []}
       eta={{
         primary: { text: etaResult.text, tone: nextSec == null ? 'muted' : imminent ? 'imminent' : 'default' },
-        secondary: secondMinutes != null ? { text: `다음 ${secondMinutes}분` } : undefined,
+        secondary: secondMinutes != null
+          ? { text: `다음 ${secondMinutes}분` }
+          : etaResult.tone === 'imminent'
+            ? { text: `${IMMINENT_BOUND_MIN}분 이내` }
+            : undefined,
       }}
       onClick={() => openBusDetail(onOpenDetail, {
         routeNumber: route_number,
@@ -635,7 +686,7 @@ function SeoulRouteCard({ route, selectedBusStation, selectedBusDirection, onOpe
 function SleepingCard({ arrival, station, direction, onOpenDetail, size }) {
   const category = arrival.category ?? direction
   const cfg = getRouteDisplayConfig(arrival.route_no)
-  const { title, viaChip } = getRouteTitleAndVia(arrival.route_no, category, arrival.destination)
+  const { title, viaChip } = buildRouteHeadline(arrival.route_no, category, arrival.destination, station)
 
   const dayWord = arrival.next_first_day === 'today' ? '오늘' : '내일'
   const firstLabel = arrival.next_first_at ? `${dayWord} 첫차 ${arrival.next_first_at}` : null
@@ -664,7 +715,7 @@ function SleepingCard({ arrival, station, direction, onOpenDetail, size }) {
 function BusFallbackCard({ arrival, station, direction, onOpenDetail, size }) {
   const category = arrival.category ?? direction
   const cfg = getRouteDisplayConfig(arrival.route_no)
-  const { title, viaChip } = getRouteTitleAndVia(arrival.route_no, category, arrival.destination)
+  const { title, viaChip } = buildRouteHeadline(arrival.route_no, category, arrival.destination, station)
 
   const next = arrival.depart_at ?? null
   const chips = [{ label: '실시간 연결 중', tone: 'neutral' }]
@@ -736,7 +787,7 @@ function NotRunningCard({ route, station, direction, onOpenDetail, size }) {
   const routeNo = route.route_no
   const category = route.category ?? direction
   const cfg = getRouteDisplayConfig(routeNo)
-  const { title } = getRouteTitleAndVia(routeNo, category, null)
+  const { title } = buildRouteHeadline(routeNo, category, null, station)
 
   return (
     <TransitCard

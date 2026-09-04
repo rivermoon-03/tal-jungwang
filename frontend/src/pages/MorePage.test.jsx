@@ -225,6 +225,16 @@ describe('MorePage — 항목 그룹핑', () => {
       expect(row.className).toMatch(/min-h-11/)
     })
   })
+
+  // 항목이 넷뿐이라 화면의 40%만 채우고 나머지가 하단 독 위에 빈 채로 남던
+  // 자리다. 빈 화면을 메우려고 항목을 늘리는 대신, 남는 공간을 앱 서명
+  // 자리로 준다 — 진입 가능한 항목 수는 그대로 4개다.
+  it('빈 여백을 가짜 항목 대신 앱 서명(브랜드 + 버전)으로 채운다', () => {
+    render(<MorePageContent />)
+    const rows = screen.getAllByRole('button', { name: /열기$/ })
+    expect(rows).toHaveLength(4)
+    expect(screen.getByText(/탈것:정왕/)).toBeInTheDocument()
+  })
 })
 
 describe('NotificationsPage — 품질 규칙', () => {

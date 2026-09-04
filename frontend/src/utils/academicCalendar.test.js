@@ -15,6 +15,8 @@ import {
   buildWeekGrid,
   shiftWeek,
   weekRangeLabel,
+  isEventInProgress,
+  isEventUpcoming,
 } from './academicCalendar'
 
 // 기준 "오늘" — Asia/Seoul 정오로 고정(자정 경계 흔들림 방지).
@@ -48,6 +50,51 @@ describe('ddayFrom / formatDday', () => {
     // 2026-07-17 15:00:01 UTC = 2026-07-18 00:00:01 KST → 이미 7/18로 넘어감
     const justAfterKstMidnight = new Date('2026-07-17T15:00:01Z')
     expect(ddayFrom('2026-07-18', justAfterKstMidnight)).toBe(0)
+  })
+})
+
+describe('isEventInProgress / isEventUpcoming — 진행 중 · 다가오는 경계', () => {
+  it('오늘 시작한 일정(start === 오늘)은 진행 중이지 다가오는 게 아니다', () => {
+    const ev = { start_date: '2026-07-18', end_date: '2026-07-20' }
+    expect(isEventInProgress(ev, NOW)).toBe(true)
+    expect(isEventUpcoming(ev, NOW)).toBe(false)
+  })
+
+  it('오늘 끝나는 일정(end === 오늘)은 진행 중이지 다가오는 게 아니다', () => {
+    const ev = { start_date: '2026-07-10', end_date: '2026-07-18' }
+    expect(isEventInProgress(ev, NOW)).toBe(true)
+    expect(isEventUpcoming(ev, NOW)).toBe(false)
+  })
+
+  it('이미 끝난 일정(end < 오늘)은 진행 중도 다가오는 것도 아니다', () => {
+    const ev = { start_date: '2026-07-01', end_date: '2026-07-10' }
+    expect(isEventInProgress(ev, NOW)).toBe(false)
+    expect(isEventUpcoming(ev, NOW)).toBe(false)
+  })
+
+  it('시작일이 미래인 일정은 다가오는 것이지 진행 중이 아니다', () => {
+    const ev = { start_date: '2026-07-19', end_date: '2026-07-25' }
+    expect(isEventInProgress(ev, NOW)).toBe(false)
+    expect(isEventUpcoming(ev, NOW)).toBe(true)
+  })
+
+  it('오늘이 기간 중간에 낀 일정은 진행 중이다', () => {
+    const ev = { start_date: '2026-07-15', end_date: '2026-07-20' }
+    expect(isEventInProgress(ev, NOW)).toBe(true)
+    expect(isEventUpcoming(ev, NOW)).toBe(false)
+  })
+
+  it('end_date가 없는 하루짜리 일정도 start_date만으로 판정한다', () => {
+    expect(isEventInProgress({ start_date: '2026-07-18' }, NOW)).toBe(true)
+    expect(isEventUpcoming({ start_date: '2026-07-19' }, NOW)).toBe(true)
+    expect(isEventInProgress({ start_date: '2026-07-19' }, NOW)).toBe(false)
+  })
+
+  it('start_date가 없으면 둘 다 false', () => {
+    expect(isEventInProgress({}, NOW)).toBe(false)
+    expect(isEventUpcoming({}, NOW)).toBe(false)
+    expect(isEventInProgress(null, NOW)).toBe(false)
+    expect(isEventUpcoming(null, NOW)).toBe(false)
   })
 })
 

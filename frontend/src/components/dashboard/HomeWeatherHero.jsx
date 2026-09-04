@@ -214,9 +214,14 @@ export default function HomeWeatherHero({ onOpenMap }) {
     [mood, weather?.rainProb, weather?.windSpeed, weather?.currentTemp],
   )
 
-  // 스트립 인사말 — 감성 인사는 글귀 첫 줄만(56px 한 줄 스트립엔 둘째 줄이 들어갈
-  // 자리가 없다), 날씨 위주는 고정 문구.
-  const stripGreetingText = heroStyle === 'greeting' ? greeting.text.split('\n')[0] : CLASSIC_STRIP_GREETING
+  // 결함 #4 — 첫 줄만 잘라 보여주면("뜰에는 반짝이는", "돌담에 속삭이는") 원문의
+  // 줄바꿈이 문장 중간을 끊어, 뜻이 안 잡히는 문장 조각만 남았다(사용자 지적).
+  // heroGreeting.js의 두 줄은 한 문장이 원문 줄바꿈 위치에서 나뉜 것이라, 첫
+  // 줄 하나만으로는 완결되지 않는 경우가 많다. 두 줄을 공백으로 이어 붙이면
+  // 늘 원문 전체 뜻이 담긴다 — 짧으면 그대로, 길면 버튼의 truncate가 말줄임표로
+  // 자연스럽게 끊는다(56px 한 줄 스트립 폭 제약은 그대로 유지). 날씨 위주는
+  // 고정 문구.
+  const stripGreetingText = heroStyle === 'greeting' ? greeting.text.split('\n').join(' ') : CLASSIC_STRIP_GREETING
   // 출처 툴팁은 감성 인사 + 출처가 있을 때만. UI 렌더 텍스트에 em-dash 금지 정책 —
   // 출처 접두는 "·"로.
   const tooltipContent = heroStyle === 'greeting' && greeting.source ? `· ${greeting.source}` : null
