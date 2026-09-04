@@ -135,6 +135,14 @@ export default function TimetableSection({
         </div>
       </div>
 
+      {/* 심야처럼 운행이 통째로 끊기는 구간은 배차 계산에서 뺐다(위 3타일에는
+          안 섞임) — 그 사실 자체를 숨기지 않고 별도 문구로 알려준다. */}
+      {summary.overnightGaps.length > 0 && (
+        <p className="text-caption text-mute dark:text-mute mb-3">
+          {summary.overnightGaps.map((g) => `${g.from}~${g.to} 운행 공백`).join(', ')}
+        </p>
+      )}
+
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

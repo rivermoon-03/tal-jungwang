@@ -107,3 +107,60 @@ describe('TimetableSection — 시 그룹 + 지금 앵커', () => {
     expect(scrollIntoViewSpy).not.toHaveBeenCalled()
   })
 })
+
+describe('TimetableSection — 심야 운행 공백', () => {
+  // 00:30 다음 차가 07:00이라 390분 벌어진다 — 3400 등교 실측 패턴을 축약한 형태.
+  const TIMETABLE_WITH_GAP = {
+    weekday: [
+      { depart_at: '00:10' },
+      { depart_at: '00:30' },
+      { depart_at: '07:00' },
+      { depart_at: '07:30' },
+      { depart_at: '07:55' },
+    ],
+    saturday: [],
+    sunday: [],
+  }
+
+  it('심야 공백은 배차 타일에서 빠지고 별도 문구로 안내한다', () => {
+    render(
+      <TimetableSection
+        timetable={TIMETABLE_WITH_GAP}
+        dayTab="weekday"
+        onDayTabChange={() => {}}
+        nowMin={8 * 60}
+        originStopName={null}
+        onJumpToHistory={null}
+      />
+    )
+    // 남은 간격은 20, 30, 25분뿐이라 배차는 20~30분으로 나와야 한다(390분 섞이면 안 됨).
+    expect(screen.getByText('20~30분')).toBeInTheDocument()
+    expect(screen.getByText('00:30~07:00 운행 공백')).toBeInTheDocument()
+  })
+
+  it('심야 공백이 없으면 안내 문구를 렌더하지 않는다', () => {
+    // 20분 간격으로 고르게 이어져 튀는 값이 없다 — TIMETABLE 픽스처는
+    // 08:50 다음이 22:50이라(14시간 공백) 이 테스트 목적에 맞지 않아 쓰지 않는다.
+    render(
+      <TimetableSection
+        timetable={{
+          weekday: [
+            { depart_at: '07:10' },
+            { depart_at: '07:30' },
+            { depart_at: '07:50' },
+            { depart_at: '08:10' },
+            { depart_at: '08:30' },
+          ],
+          saturday: [],
+          sunday: [],
+        }}
+        dayTab="weekday"
+        onDayTabChange={() => {}}
+        nowMin={NOW_MIN}
+        originStopName={null}
+        onJumpToHistory={null}
+      />
+    )
+    expect(screen.queryByText(/운행 공백/)).not.toBeInTheDocument()
+  })
+})

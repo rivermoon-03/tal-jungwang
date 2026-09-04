@@ -97,6 +97,14 @@ export default function PCSidebar() {
   const setPcNoticesTab = useAppStore((s) => s.setPcNoticesTab)
   const homeView = useAppStore((s) => s.homeView)
   const setHomeView = useAppStore((s) => s.setHomeView)
+  // 지도 필터(useAppStore.selectedMode)가 택시면 PCMainShell이 homeView와
+  // 무관하게 도킹 패널("지금" 보기)만 그린다(택시는 시간표 개념이 없다,
+  // Dashboard.jsx canShowTimetable과 동일한 규칙). 이 서브내비도 실제로
+  // 그려지는 화면을 따라가야 해서, raw homeView 대신 이 값으로 활성 표시를
+  // 계산한다 — 안 그러면 택시 필터에서 "시간표"를 눌렀을 때 하이라이트만
+  // 옮겨가고 화면은 그대로인 어긋남이 생긴다.
+  const selectedMode = useAppStore((s) => s.selectedMode)
+  const effectiveHomeView = selectedMode === 'taxi' ? 'now' : homeView
 
   const { data: notices } = useNotices()
   const hasNotices = Array.isArray(notices) && notices.length > 0
@@ -207,7 +215,7 @@ export default function PCSidebar() {
           const activeSubId =
             id === 'facilities' ? pcCafeteriaTab
             : id === 'notices' ? pcNoticesTab
-            : homeView
+            : effectiveHomeView
           const onSelectSub =
             id === 'facilities' ? selectCafeteriaTab
             : id === 'notices' ? selectNoticesTab

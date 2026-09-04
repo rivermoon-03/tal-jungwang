@@ -13,6 +13,14 @@ import { useLayoutEffect, useRef, useState } from 'react'
  *
  * 활성 탭 배경은 실제 DOM 위치를 측정해 슬라이드하는 단일 인디케이터로 구현
  * (DESIGN.md §4 "세그먼트 인디케이터 슬라이드" — e-out/dur-motion-base).
+ *
+ * 트랙 배경(dark:bg-bg dark:border dark:border-line): --tj-surface-2는 라이트에서
+ * --tj-bg 바로 위 한 단(sage2)이지만 다크에서는 두 단(sage3)이라, 다크에서만
+ * 트랙과 페이지 배경 사이 색차가 커져 옅은 경계로 도드라졌다(실측: 라이트
+ * delta 4/255, 다크 delta 16/255). TimetableSection.jsx/BusTimetableDetail.jsx가
+ * 이미 쓰는 관례(bg-surface-2 dark:bg-bg + border)를 그대로 따라, 다크에서는
+ * 채움을 페이지 배경과 맞추고 대신 보더로 층을 구분한다(DESIGN.md §4 "다크는
+ * 그림자 대신 보더"). 라이트는 기존 그대로 두어 이미 옅은 delta를 유지한다.
  */
 export default function SegmentTabs({ items = [], active, onChange, size = 'md' }) {
   const compact = size === 'sm'
@@ -56,7 +64,7 @@ export default function SegmentTabs({ items = [], active, onChange, size = 'md' 
     <div
       ref={containerRef}
       role="tablist"
-      className={`relative flex items-center gap-1 bg-surface-2 rounded-btn p-1 ${compact ? 'inline-flex' : ''}`}
+      className={`relative flex items-center gap-1 bg-surface-2 dark:bg-bg dark:border dark:border-line rounded-btn p-1 ${compact ? 'inline-flex' : ''}`}
     >
       <span
         aria-hidden="true"

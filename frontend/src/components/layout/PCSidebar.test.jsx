@@ -153,6 +153,26 @@ describe('PCSidebar', () => {
       expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
       expect(window.location.pathname).toBe('/')
     })
+
+    // 택시는 시간표 개념이 없다(Dashboard.jsx canShowTimetable와 동일 규칙).
+    // homeView가 'timetable'로 남아 있어도 지도 필터(selectedMode)가 택시면
+    // PCMainShell은 도킹 패널("지금" 보기)을 계속 보여준다 — 이 서브내비의
+    // 활성 표시도 실제 화면을 따라 "지금"에 남아야, 하이라이트만 시간표로
+    // 옮겨가고 화면은 그대로인 어긋남이 생기지 않는다.
+    it('지도 필터가 택시면 homeView가 시간표여도 "지금"이 계속 활성 표시된다', () => {
+      storeState.selectedMode = 'taxi'
+      storeState.homeView = 'timetable'
+      render(<PCSidebar />)
+      expect(screen.getByRole('link', { name: '지금' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByRole('link', { name: '시간표' })).not.toHaveAttribute('aria-current')
+    })
+
+    it('지도 필터가 택시가 아니면 homeView 그대로 시간표가 활성 표시된다(회귀 방지)', () => {
+      storeState.selectedMode = 'shuttle'
+      storeState.homeView = 'timetable'
+      render(<PCSidebar />)
+      expect(screen.getByRole('link', { name: '시간표' })).toHaveAttribute('aria-current', 'page')
+    })
   })
 
   describe('즐겨찾기', () => {

@@ -1,5 +1,7 @@
 /**
- * PCMainShell — 지도 탭 안에서 "지금 ↔ 시간표"가 제자리 전환되는지 고정한다.
+ * PCMainShell — 지도 탭 안에서 "지금 ↔ 시간표"가 제자리 전환되는지, 그리고
+ * 지도 모드 필터와 시간표 모드가 useAppStore.selectedMode 하나를 공유하는지
+ * 고정한다.
  *
  * 예전에는 사이드바의 "시간표"가 /schedule 로 pushState 했고, 그러면
  * showFloating(=!children) 이 false 가 되면서 도킹 패널이 통째로 unmount 되고
@@ -7,6 +9,12 @@
  * 스케줄 컴포넌트 import 도 없어서 지도 탭에 머문 채 시간표가 그려질 코드 경로
  * 자체가 없었다. 모바일 Dashboard 는 같은 일을 SchedulePage embedded 로
  * 제자리 렌더해 이미 올바르게 하고 있었다.
+ *
+ * 그 뒤로도 이 셸은 지도 모드 필터를 자체 useState(activeFilter)로 들고
+ * 있었다 — SchedulePage(embedded)는 이미 useAppStore.selectedMode를 읽고
+ * 쓰는데, 지도 필터 칩은 그 값을 전혀 건드리지 않아 "지도는 셔틀인데
+ * 시간표는 버스"처럼 어긋날 수 있었다. 아래 그룹은 필터 칩과 selectedMode가
+ * 하나로 묶여 있는지, 택시 필터에서는 시간표로 넘어가지 않는지를 고정한다.
  */
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -24,8 +32,20 @@ vi.mock('../map/MapView', () => ({
 vi.mock('../map/MapLegendOnboarding', () => ({
   default: () => <div data-testid="map-legend">Legend</div>,
 }))
+// filters/onToggleFilter를 그대로 노출해, 이 셸이 실제로 selectedMode 기반
+// active 필터를 넘기고 클릭을 setSelectedMode로 되돌리는지 검증한다.
 vi.mock('../map/PCMapDockPanel', () => ({
-  default: () => <div data-testid="dock-panel">DockPanel</div>,
+  default: ({ filters, onToggleFilter }) => (
+    <div data-testid="dock-panel">
+      DockPanel
+      <span data-testid="active-filter">{filters.find((f) => f.active)?.id ?? 'none'}</span>
+      {filters.map((f) => (
+        <button key={f.id} type="button" onClick={() => onToggleFilter(f.id)}>
+          {f.label}
+        </button>
+      ))}
+    </div>
+  ),
 }))
 vi.mock('../schedule/SchedulePage', () => ({
   default: ({ embedded }) => (
@@ -50,6 +70,8 @@ describe('PCMainShell', () => {
       setSelectedMarkerId: vi.fn(),
       homeView: 'now',
       setHomeView: vi.fn(),
+      selectedMode: 'bus',
+      setSelectedMode: vi.fn(),
     }
   })
 
@@ -96,5 +118,40 @@ describe('PCMainShell', () => {
     storeState.homeView = 'timetable'
     render(<PCMainShell />)
     expect(screen.queryByTestId('map-legend')).not.toBeInTheDocument()
+  })
+
+  describe('지도 필터 ↔ 시간표 모드 단일 출처(selectedMode)', () => {
+    it('도킹 패널의 active 필터는 selectedMode를 그대로 따른다', () => {
+      storeState.selectedMode = 'shuttle'
+      render(<PCMainShell />)
+      expect(screen.getByTestId('active-filter')).toHaveTextContent('shuttle')
+    })
+
+    it('필터 칩을 누르면 로컬 상태가 아니라 setSelectedMode를 호출한다', () => {
+      storeState.selectedMode = 'bus'
+      render(<PCMainShell />)
+      screen.getByRole('button', { name: '셔틀' }).click()
+      expect(storeState.setSelectedMode).toHaveBeenCalledWith('shuttle')
+    })
+
+    it('택시 필터인 채로 사이드바가 homeView를 시간표로 바꿔도 도킹 패널이 남는다', () => {
+      // 택시는 시간표 개념이 없다(Dashboard.jsx canShowTimetable와 동일 규칙).
+      // PCSidebar가 setHomeView('timetable')을 이미 호출한 상황을 store로
+      // 흉내낸다 — 이 셸은 selectedMode를 함께 봐서 스케줄을 띄우지 않아야 한다.
+      storeState.selectedMode = 'taxi'
+      storeState.homeView = 'timetable'
+      render(<PCMainShell />)
+      expect(screen.getByTestId('dock-panel')).toBeInTheDocument()
+      expect(screen.getByTestId('active-filter')).toHaveTextContent('taxi')
+      expect(screen.queryByTestId('schedule-embedded')).not.toBeInTheDocument()
+    })
+
+    it('택시가 아닌 필터 + 시간표 조합에서는 그대로 시간표가 열린다(회귀 방지)', async () => {
+      storeState.selectedMode = 'shuttle'
+      storeState.homeView = 'timetable'
+      render(<PCMainShell />)
+      expect(await screen.findByTestId('schedule-embedded')).toBeInTheDocument()
+      expect(screen.queryByTestId('dock-panel')).not.toBeInTheDocument()
+    })
   })
 })

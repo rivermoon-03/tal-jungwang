@@ -51,10 +51,24 @@ export default function PCMainShell({ children }) {
   // 바꾸는 것과 같은 방식이다. 여기서도 MapView 는 손대지 않고 도킹 패널 내용만 바꾼다.
   const homeView = useAppStore((s) => s.homeView)
   const setHomeView = useAppStore((s) => s.setHomeView)
-  const showTimetable = showFloating && homeView === 'timetable'
+
+  // 모드 필터의 단일 출처는 useAppStore.selectedMode 다. 예전엔 이 셸이 자체
+  // useState(activeFilter)를 들고 있어서, 지도 필터를 셔틀로 바꿔도 시간표
+  // (SchedulePage embedded, storedMode 구독)나 지도 마커 필터(MapView, 같은
+  // selectedMode 구독)는 그대로였다 — 세 곳이 각자 다른 상태를 보고 있었다.
+  // selectedMode는 이미 모바일 ModeTabs·Dashboard·MapView·/schedule?type= 딥링크
+  // (App.jsx adoptLegacySchedulePath)가 공유하는 값이라, PC 필터도 여기에 맞춘다.
+  const selectedMode = useAppStore((s) => s.selectedMode)
+  const setSelectedMode = useAppStore((s) => s.setSelectedMode)
+
+  // 택시는 시간표 개념이 없다(Dashboard.jsx canShowTimetable와 같은 규칙). 필터가
+  // 택시인 채로 사이드바에서 "시간표"를 눌러도 homeView는 'timetable'로 바뀌지만,
+  // 여기서 그 값을 무시하고 도킹 패널(지금 보기)을 계속 보여준다 — 모바일이
+  // Dashboard의 `view = canShowTimetable ? homeView : 'now'`로 처리하는 것과 동일한
+  // 규칙을 PC 쪽 렌더 분기에도 적용한 것이다.
+  const showTimetable = showFloating && homeView === 'timetable' && selectedMode !== 'taxi'
 
   const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState('bus')
   const [panelCollapsed, setPanelCollapsed] = useState(false)
 
   const bottomCardData = useMapBottomCardData()
@@ -64,18 +78,18 @@ export default function PCMainShell({ children }) {
   const filteredRoutes = useMemo(() => {
     // 이 목록은 MapBottomCard의 버스 전용 미니 카드 그리드에만 쓰인다 — 셔틀/
     // 지하철은 PCMapDockPanel이 ShuttlePanel/SubwayPanel로 따로 그리므로 필요 없다.
-    if (activeFilter !== 'bus') return []
+    if (selectedMode !== 'bus') return []
     const q = search.trim().toLowerCase()
     if (!q) return bottomCardData.routes
     return bottomCardData.routes.filter((r) =>
       `${r.name} ${r.badge} ${r.sub ?? ''}`.toLowerCase().includes(q)
     )
-  }, [activeFilter, search, bottomCardData.routes])
+  }, [selectedMode, search, bottomCardData.routes])
 
   // 왜 카드를 통째로 비우는가: primary(대표 도착)는 버스 전용 데이터라서, 셔틀/
   // 지하철/택시 필터에서 그대로 두면 "셔틀을 눌렀는데 버스가 보이는" 상태가 된다.
   // 검색 중일 때도 마찬가지로 검색과 무관한 대표 카드가 남으면 결과로 오인된다.
-  const isBusFilter = activeFilter === 'bus'
+  const isBusFilter = selectedMode === 'bus'
   const isSearching = search.trim().length > 0
   const showPrimary = isBusFilter && !isSearching
 
@@ -86,10 +100,15 @@ export default function PCMainShell({ children }) {
   // emptyState를 아예 쓰지 않고 ShuttlePanel/SubwayPanel을 직접 그린다(각자
   // 자기 빈 상태를 갖고 있다). 택시만 실데이터가 아직 없어 "준비 중"으로 남는다.
   const emptyState = useMemo(() => {
-    if (activeFilter === 'taxi') {
+    if (selectedMode === 'taxi') {
+      // 택시는 시간표 개념 자체가 없다(모바일 Dashboard.jsx canShowTimetable와
+      // 동일한 전제). 예전 문구는 "택시는 시간표 탭에서 확인해요"였는데, 실제로는
+      // 시간표 탭이 택시를 다루지 않고(SchedulePage isValidMode에 taxi가 없음)
+      // 필터가 택시인 동안은 사이드바에서 "시간표"를 눌러도 이 도킹 패널이 그대로
+      // 남는다(showTimetable 가드) — 존재하지 않는 곳으로 안내하지 않는다.
       return {
         title: '택시 정보는 준비 중이에요',
-        description: '지금은 버스만 지도에서 실시간으로 볼 수 있어요. 택시는 시간표 탭에서 확인해요.',
+        description: '지금은 버스만 지도에서 실시간으로 볼 수 있어요.',
       }
     }
     if (!isBusFilter) return null
@@ -106,9 +125,9 @@ export default function PCMainShell({ children }) {
       }
     }
     return null
-  }, [isBusFilter, activeFilter, isSearching, search, filteredRoutes.length, bottomCardData.primary])
+  }, [isBusFilter, selectedMode, isSearching, search, filteredRoutes.length, bottomCardData.primary])
 
-  const filters = MODE_FILTERS.map((f) => ({ ...f, active: f.id === activeFilter }))
+  const filters = MODE_FILTERS.map((f) => ({ ...f, active: f.id === selectedMode }))
 
   const handleSelectRoute = (routeNo) => {
     const routeId = `bus:${routeNo}`
@@ -148,7 +167,7 @@ export default function PCMainShell({ children }) {
           search={search}
           onChangeSearch={setSearch}
           filters={filters}
-          onToggleFilter={setActiveFilter}
+          onToggleFilter={setSelectedMode}
           stationLabel={bottomCardData.stationLabel}
           live={showPrimary && bottomCardData.live}
           statusLabel={showPrimary ? bottomCardData.statusLabel : null}
