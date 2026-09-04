@@ -5,6 +5,7 @@ import Sheet from '../ui/Sheet'
 import IconButton from '../ui/IconButton'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
 import SubwayLineMap from './SubwayLineMap'
+import { PC_SIDEBAR_WIDTH_PX } from '../layout/PCMainShell'
 
 // PC는 좌측 패널(MarkerSheet/GlobalSubwayDetailSheet)과 같은 영역 안에서
 // 콘텐츠가 교체되듯 보여야 하므로(오프스크린 슬라이드가 아니고 백드롭도 없는
@@ -48,6 +49,19 @@ export default function GlobalSubwayLineSheet() {
 
   const displayed = item ?? prevItem
   const open = !!item
+
+  // PC는 백드롭, 포커스 트랩이 없는 도킹 패널(Sheet 미적용)이라 자체 Escape
+  // 핸들러가 필요하다(모바일은 Sheet가 Escape를 자동 처리, GlobalSubwayDetailSheet와
+  // 동일한 이유다). 예전엔 이 핸들러 자체가 없어 PC에서 노선도 시트를 키보드로
+  // 닫을 방법이 없었다.
+  useEffect(() => {
+    if (!isDesktop || !open) return undefined
+    function onKey(e) {
+      if (e.key === 'Escape') close()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isDesktop, open, close])
 
   if (!displayed && !open) return null
 
@@ -108,8 +122,15 @@ export default function GlobalSubwayLineSheet() {
   if (isDesktop) {
     return (
       <div
-        className={`fixed left-0 right-auto w-[38%] h-auto bottom-[68px] top-0 ${STACKED_ABOVE_DETAIL_SHEET} bg-surface dark:bg-surface flex flex-col overflow-hidden`}
+        role="region"
+        aria-label={headerLabel || '지하철 노선도'}
+        className={`fixed top-0 bottom-0 ${STACKED_ABOVE_DETAIL_SHEET} bg-surface dark:bg-surface flex flex-col overflow-hidden`}
         style={{
+          // GlobalSubwayDetailSheet와 같은 이유, 같은 계산이다(그쪽 주석 참고).
+          // 사이드바 뒤가 아니라 사이드바 오른쪽 칼럼에서 시작하고, 오른쪽 끝은
+          // 예전 38% 폭 그대로 유지한다.
+          left: PC_SIDEBAR_WIDTH_PX,
+          width: `calc(38% - ${PC_SIDEBAR_WIDTH_PX}px)`,
           opacity: pcVisible ? 1 : 0,
           transform: pcVisible ? 'translateY(0)' : 'translateY(8px)',
           transition: `opacity var(--dur-motion-base) ${EASE}, transform var(--dur-motion-base) ${EASE}`,

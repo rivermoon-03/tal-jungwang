@@ -29,6 +29,15 @@ const MODE_FILTERS = [
   { id: 'taxi',    label: '택시' },
 ]
 
+// PCSidebar.jsx의 aside 폭(className="... w-[236px] ...")과 반드시 같은 값을
+// 유지해야 한다. GlobalSubwayDetailSheet/GlobalSubwayLineSheet처럼 뷰포트
+// 기준 fixed로 좌측에 뜨는 PC 도킹 패널이 이 값을 가져다 써서 사이드바 뒤가
+// 아니라 사이드바 오른쪽(지도 패널이 놓인 칼럼)에서 시작하게 한다. PCSidebar는
+// Tailwind JIT가 정적 문자열로 스캔해야 해서 이 상수를 클래스에 그대로 꽂아
+// 넣을 수 없어(w-[${PC_SIDEBAR_WIDTH_PX}px]는 인식되지 않는다) 값 자체는
+// 두 파일에 각각 남지만, 소비자 쪽은 전부 이 상수 하나만 참조한다.
+export const PC_SIDEBAR_WIDTH_PX = 236
+
 // PC 전용 메인 셸.
 //
 // 지도(children=null, 홈)에서는 좌측에 도킹 패널(PCMapDockPanel — 검색+필터,

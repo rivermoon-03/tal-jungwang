@@ -6,9 +6,13 @@ WARNING 이상 로그 → Discord 웹훅 파이프라인을 재사용한다(app.
 install_discord_logging(settings.DISCORD_ERROR_WEBHOOK_URL)을 호출해 루트 로거에
 핸들러를 부착한다). 웹훅 URL이 설정되지 않은 환경에서는 핸들러 자체가 부착되지
 않으므로 logger.warning 호출은 표준 로깅으로만 남고 자동으로 "로깅만" 동작이 된다.
+
+버스 만차·결행 신호 제보(구 F6, bus_full/bus_no_show 카테고리)는 2026-09에
+걷어냈다. 제출 경로와 조회 경로를 모두 삭제했다. 조회는 BusPanel 이 도착 카드
+경고 뱃지로 쓰던 것인데, 제출이 사라져 항상 빈 목록만 돌려주는 상태였다.
+소비처까지 함께 정리해 호출되지 않는 코드를 남기지 않는다.
 """
 import logging
-import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -24,74 +28,7 @@ _CATEGORY_LABELS: dict[str, str] = {
     "shuttle_full": "셔틀 만차",
     "timetable_change": "시간표 변경",
     "other": "기타",
-    "bus_full": "버스 만차",
-    "bus_no_show": "버스 결행",
 }
-
-# ── F6 실시간 신호 제보 (Redis 30분 창) ─────────────────────────────────
-# 키: report:bus:{station_key}:{route_no}:{kind} → {"count": n, "last_ts": iso}
-# TTL 30분 — 제보는 순간의 상황이라 오래 살수록 오정보가 된다.
-_SIGNAL_TTL = 1800
-_SIGNAL_KINDS = {"bus_full", "bus_no_show"}
-
-# 사용자 입력이 Redis 키·scan 패턴에 들어가므로 엄격한 화이트리스트로 막는다.
-# ':'(키 구분자 위조), '*?['(glob 인젝션)이 통과하면 키스페이스 스캔/위조가 가능해진다.
-# station_key는 GBIS 정류장 id(숫자) 계열, route_no는 "20-1"/"시흥33" 형태만 실존한다.
-_STATION_KEY_RE = re.compile(r"^[0-9A-Za-z_-]{1,40}$")
-_ROUTE_NO_RE = re.compile(r"^[0-9A-Za-z가-힣-]{1,20}$")
-
-
-def _signal_key(station_key: str, route_no: str, kind: str) -> str:
-    return f"report:bus:{station_key}:{route_no}:{kind}"
-
-
-async def _record_bus_signal(payload: ReportCreate, received_at: datetime) -> None:
-    from app.core.cache import get_cached_json, set_cached_json
-
-    key = _signal_key(payload.station_key, payload.route_no, payload.category)
-    current = await get_cached_json(key) or {"count": 0}
-    await set_cached_json(
-        key,
-        {"count": int(current.get("count", 0)) + 1, "last_ts": received_at.isoformat()},
-        ttl=_SIGNAL_TTL,
-    )
-
-
-async def get_active_bus_reports(station_key: str) -> list[dict]:
-    """정류장의 활성(30분 내) 만차·결행 신호 목록 — 도착 카드 경고 뱃지용."""
-    from app.core.cache import get_redis
-
-    # scan 패턴 glob 인젝션 방지 — 화이트리스트 불일치는 빈 목록으로 종료
-    if not _STATION_KEY_RE.match(station_key or ""):
-        return []
-
-    now = datetime.now(_KST)
-    items: list[dict] = []
-    try:
-        redis = await get_redis()
-        pattern = f"report:bus:{station_key}:*"
-        async for key in redis.scan_iter(match=pattern, count=100):
-            raw = await redis.get(key)
-            if not raw:
-                continue
-            try:
-                import json
-
-                data = json.loads(raw)
-                parts = key.split(":")  # report:bus:{station}:{route}:{kind}
-                route_no, kind = parts[3], parts[4]
-                last = datetime.fromisoformat(data["last_ts"])
-                minutes_ago = max(0, int((now - last).total_seconds() // 60))
-                items.append(
-                    {"route_no": route_no, "kind": kind, "count": int(data["count"]), "minutes_ago": minutes_ago}
-                )
-            except (KeyError, ValueError, IndexError):
-                continue
-    except Exception:
-        logger.exception("활성 제보 조회 실패 (station=%s)", station_key)
-    items.sort(key=lambda x: x["minutes_ago"])
-    return items
-
 
 def _format_report(payload: ReportCreate, client_hint: str | None, received_at: datetime) -> str:
     label = _CATEGORY_LABELS.get(payload.category, payload.category)
@@ -114,21 +51,6 @@ async def submit_report(payload: ReportCreate, client_hint: str | None = None) -
     """
     received_at = datetime.now(_KST)
     content = _format_report(payload, client_hint, received_at)
-
-    # F6 — 만차·결행 신호는 Discord 릴레이에 더해 Redis 카운터로 30분간 공유.
-    # 키 인젝션 방지: 화이트리스트를 통과한 컨텍스트만 기록한다(불일치는 조용히 무시 —
-    # 일반 제보 릴레이는 그대로 진행).
-    if (
-        payload.category in _SIGNAL_KINDS
-        and payload.route_no
-        and payload.station_key
-        and _ROUTE_NO_RE.match(payload.route_no)
-        and _STATION_KEY_RE.match(payload.station_key)
-    ):
-        try:
-            await _record_bus_signal(payload, received_at)
-        except Exception:
-            logger.exception("버스 신호 기록 실패 (route=%s)", payload.route_no)
 
     try:
         logger.warning(content)

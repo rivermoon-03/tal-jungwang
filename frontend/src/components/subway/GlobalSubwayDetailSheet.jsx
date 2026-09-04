@@ -3,6 +3,7 @@ import { X, TrainFront, RefreshCw, Map } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useSubwayTimetable, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
+import { PC_SIDEBAR_WIDTH_PX } from '../layout/PCMainShell'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 import { formatRelativeTime } from '../../utils/relativeTime'
 import { TimeGridView } from '../schedule/ScheduleDetailModal'
@@ -510,8 +511,17 @@ export default function GlobalSubwayDetailSheet() {
   if (isDesktop) {
     return (
       <div
-        className="fixed right-auto left-0 w-[38%] bottom-[68px] top-0 z-sheet bg-surface dark:bg-surface flex flex-col overflow-hidden"
+        role="region"
+        aria-label={`${displayed.station}역 · ${displayed.lineName} 상세 시간표`}
+        className="fixed top-0 bottom-0 z-sheet bg-surface dark:bg-surface flex flex-col overflow-hidden"
         style={{
+          // 왼쪽은 PCSidebar(PC_SIDEBAR_WIDTH_PX) 바로 뒤, 지도 패널이 놓인
+          // 칼럼에서 시작한다. 예전엔 left-0/w-[38%]라 뷰포트 기준 fixed가
+          // 사이드바 자체를 몰라 그 위를 그대로 덮었다. 폭은 원래 38%가
+          // 사이드바+지도 도킹 패널 칼럼을 함께 덮던 값이라, 오른쪽 끝은 그대로
+          // 두고 사이드바 폭만큼만 빼서 시작점을 옮긴다.
+          left: PC_SIDEBAR_WIDTH_PX,
+          width: `calc(38% - ${PC_SIDEBAR_WIDTH_PX}px)`,
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateY(0)' : 'translateY(8px)',
           transition: `opacity 0.24s ${EASE}, transform 0.24s ${EASE}`,

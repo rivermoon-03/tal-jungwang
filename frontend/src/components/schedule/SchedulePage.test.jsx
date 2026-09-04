@@ -355,6 +355,36 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     expect(route3401).toHaveTextContent('시흥시청 도착')
   })
 
+  it('노선 행 제목은 "출발지 → 목적지"로 요약되고, 방면 탭이 없어진 뒤에도 "OO 방면"을 반복하지 않는다', () => {
+    render(<SchedulePage />)
+
+    // 경유지가 양 끝뿐인 20-1은 제목 한 줄("학교 → 정왕역")로 끝난다 —
+    // 예전엔 이 위에 "정왕역 방면"이 따로 붙어 같은 목적지를 두 번 말했다.
+    const card20_1 = screen.getByTestId('bus-context-20-1')
+    expect(card20_1).toHaveTextContent('학교 → 정왕역')
+    expect(card20_1).not.toHaveTextContent('방면')
+
+    // 경유지가 양 끝 말고도 있는 시흥33은 제목("학교 → 시흥시청")과 별개로
+    // 아래 줄에 전체 경로("학교 → 정왕역 → 시흥시청")를 보여주되, 제목
+    // 자체가 "시흥시청 방면"을 다시 말하지는 않는다.
+    const card시흥33 = screen.getByTestId('bus-context-시흥33')
+    expect(card시흥33).toHaveTextContent('학교 → 시흥시청')
+    expect(card시흥33).toHaveTextContent('학교 → 정왕역 → 시흥시청')
+    expect(card시흥33).not.toHaveTextContent('방면')
+  })
+
+  it('승차·통과 지점이 둘 이상인 3401은 지점별 도착 정보를 목록 행에서 지우지 않는다(정보 유지)', () => {
+    render(<SchedulePage />)
+
+    // 3401은 이마트(시간표)와 시흥시청(실시간 통과 지점) 두 지점을 추적한다.
+    // 시간열 하나로는 두 지점을 다 담을 수 없어 지점별 줄을 그대로 남긴다.
+    const card = screen.getByTestId('bus-context-3401')
+    expect(card).toHaveTextContent('이마트 승차')
+    expect(card).toHaveTextContent('시간표')
+    expect(card).toHaveTextContent('시흥시청 도착')
+    expect(card).toHaveTextContent('실시간')
+  })
+
   it('3401은 중복 컨텍스트가 정리되어 상세에도 방면 전환 탭이 뜨지 않는다', async () => {
     render(<SchedulePage />)
 
@@ -388,13 +418,17 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     expect(card).toHaveTextContent('실시간')
   })
 
-  it('6502 하교는 이마트 승차 시간표만 표시한다', () => {
+  it('6502 하교는 이마트발 시간표로만 안내하고, 승차 지점이 하나뿐이라 아래 출처 줄을 반복하지 않는다', () => {
     render(<SchedulePage />)
 
     const card = screen.getByTestId('bus-context-6502')
-    expect(card).toHaveTextContent('이마트 승차')
+    // 제목이 "이마트 → 사당역"으로 출발지·목적지를 요약해 보여준다.
+    expect(card).toHaveTextContent('이마트')
     expect(card).toHaveTextContent('시간표')
     expect(card).not.toHaveTextContent('실시간')
+    // 승차 지점이 하나뿐이면 시간열 큰 숫자와 같은 값을 다시 말하는
+    // "이마트 승차 [시간표] N분 후" 줄을 목록에서 걷어낸다(상세에는 남는다).
+    expect(card).not.toHaveTextContent('이마트 승차')
   })
 
   it('실시간 전용 시흥1은 시간표를 숨기고 카드 왼쪽에 실제 도착 시간을 표시한다', () => {
@@ -429,6 +463,40 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
     const card = screen.getByTestId('bus-context-20-1')
     expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent(/(?:29|30)분/)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 프로덕션 실측(사용자 지적) — 홈 > 시간표 > 버스 > 하교 목록이 18분(20-1) →
+// 35분(11-A) → 9분(시흥33) 순으로 나와, 가장 빨리 오는 노선이 맨 아래에
+// 있었다. 정렬 키를 "카드가 데이터를 가졌는지"에서 "도착까지 남은 분"으로
+// 바꾼다.
+describe('SchedulePage — 하교 목록 도착순 정렬(시안 1-A)', () => {
+  it('도착까지 남은 시간이 짧은 노선일수록 위에 오고, 도착 정보가 없는 노선은 맨 아래로 밀린다', () => {
+    render(<SchedulePage />)
+
+    const order = screen
+      .getAllByTestId(/^bus-context-/)
+      .map((el) => el.getAttribute('data-testid').replace('bus-context-', ''))
+    const indexOf = (code) => order.indexOf(code)
+
+    // 실시간으로 남은 시간이 알려진 세 노선: 20-1(3분) < 시흥1(5분) < 5200(7분).
+    expect(indexOf('20-1')).toBeLessThan(indexOf('시흥1'))
+    expect(indexOf('시흥1')).toBeLessThan(indexOf('5200'))
+
+    // 시간표 폴백으로 30분 뒤임이 확인된 노선들(3400·3401·5602·6502)은
+    // 실시간으로 더 빨리 온다고 확인된 노선들보다는 아래에 온다.
+    for (const laterCode of ['3400', '3401', '5602', '6502']) {
+      expect(indexOf('5200')).toBeLessThan(indexOf(laterCode))
+    }
+
+    // route_no가 오늘 arrivals 응답에 없어 도착 시각을 확인할 수 없는
+    // 노선(시흥33·99-2)은, 도착 시각이 확인된 노선이 전부 위로 간 다음
+    // 맨 아래 묶음으로 밀린다.
+    for (const knownCode of ['20-1', '시흥1', '5200', '3400', '3401', '5602', '6502']) {
+      expect(indexOf(knownCode)).toBeLessThan(indexOf('시흥33'))
+      expect(indexOf(knownCode)).toBeLessThan(indexOf('99-2'))
+    }
   })
 })
 

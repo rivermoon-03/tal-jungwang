@@ -121,3 +121,31 @@ describe('Dashboard — 지금/시간표 셀렉터(ViewSwitch)를 없앴다', ()
     expect(screen.queryByRole('button', { name: '시간표' })).not.toBeInTheDocument()
   })
 })
+
+/**
+ * 홈 첫 화면 선택 단계 축소(시안 6-A, 사용자 지적) — 예전엔 모드 탭 다음에
+ * 방향 칩·정류장 칩을 먼저 골라야 도착 정보가 나왔다. 매번 같은 선택을
+ * 반복하게 만든 문제라, 선택 컨트롤(방향 칩·정류장 칩)을 목록 아래로
+ * 내렸다. 모드 탭만 화면 정체성이라 위에 남는다.
+ */
+describe('Dashboard — 홈 첫 화면 선택 단계 축소(시안 6-A)', () => {
+  it('모드 탭은 맨 위에 남고, 목록(버스 패널)이 방향 칩·정류장 칩보다 먼저 나온다', () => {
+    mockSelectedMode = 'bus'
+    mockDirection = { direction: '등교', isOverride: false }
+    render(<Dashboard />)
+
+    const modeTabs = screen.getByTestId('mode-tabs')
+    const busPanel = screen.getByTestId('bus-panel')
+    const directionChip = screen.getByRole('button', { name: '등교 · 자동' })
+    const stationPills = screen.getByTestId('station-pills')
+
+    // 모드 탭이 가장 위에 있다.
+    expect(modeTabs.compareDocumentPosition(busPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(modeTabs.compareDocumentPosition(directionChip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // 목록(버스 패널)이 방향 칩·정류장 칩보다 앞선다 — 열자마자 탈 수 있는
+    // 차가 보이고, 선택은 아래로 내려야 나온다.
+    expect(busPanel.compareDocumentPosition(directionChip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(busPanel.compareDocumentPosition(stationPills) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})

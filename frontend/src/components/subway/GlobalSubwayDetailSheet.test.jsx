@@ -14,8 +14,8 @@
  *   8. 실시간 영역은 fresh일 때만 렌더됨 (data-testid="realtime-section")
  *   9. stale / null이면 실시간 영역 숨김
  */
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // jsdom에 window.matchMedia 없어서 stub 필요
 Object.defineProperty(window, 'matchMedia', {
@@ -31,6 +31,14 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 })
+
+// PC/모바일 분기 전용 useIsDesktop mock. GlobalSubwayLineSheet.test.jsx와 같은
+// 패턴이다 - 위 matchMedia 스텁은 항상 matches:false라 PC 분기 테스트를 켤 수
+// 없어, 이 훅만 별도로 제어 가능하게 모킹한다.
+let isDesktopMock = false
+vi.mock('../../hooks/useMediaQuery', () => ({
+  useIsDesktop: () => isDesktopMock,
+}))
 
 // ──────────────────────────────────────────────────────────
 // freshness 헬퍼 단위 테스트 (named export, mock 없이 직접)
@@ -143,6 +151,7 @@ vi.mock('./SubwayCrowdingChart', () => ({
 }))
 
 import GlobalSubwayDetailSheet from './GlobalSubwayDetailSheet'
+import { PC_SIDEBAR_WIDTH_PX } from '../layout/PCMainShell'
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('GlobalSubwayDetailSheet — 하드코딩 색 제거', () => {
@@ -304,6 +313,68 @@ describe('GlobalSubwayDetailSheet — scheduleViewMode 연동', () => {
       expect(container.textContent).toMatch(/05:32/)
       expect(container.textContent).toMatch(/23:45/)
       unmount()
+    }
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PC 도킹 패널 배치 회귀 검증. 예전엔 fixed left-0 w-[38%]로 뷰포트 기준
+// 배치해 PCSidebar(왼쪽 0~236px) 위를 그대로 덮었고, bottom-[68px]는 모바일
+// FloatingDock 여백이 PC에도 새어 있었다.
+describe('GlobalSubwayDetailSheet — PC 도킹 패널 배치(사이드바 비침 버그 회귀)', () => {
+  beforeEach(() => {
+    isDesktopMock = true
+    closeSubwayDetailSheet.mockClear()
+  })
+
+  afterEach(() => {
+    isDesktopMock = false
+  })
+
+  it('PCSidebar 폭만큼 오른쪽에서 시작한다(사이드바 위를 덮지 않는다)', () => {
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel).toBeTruthy()
+    expect(panel.style.left).toBe(`${PC_SIDEBAR_WIDTH_PX}px`)
+    expect(panel.className).not.toMatch(/left-0/)
+  })
+
+  it('모바일 하단 독 여백(bottom-[68px])이 PC 패널에 남아 있지 않다', () => {
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel.className).not.toMatch(/bottom-\[68px\]/)
+    expect(panel.className).toMatch(/bottom-0/)
+  })
+
+  it('폭은 원래 38% 폭에서 사이드바 폭만큼 뺀 값이다(오른쪽 끝 유지)', () => {
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel.style.width).toContain('38%')
+    expect(panel.style.width).toContain(`${PC_SIDEBAR_WIDTH_PX}px`)
+  })
+
+  it('role=region과 aria-label로 비모달 도킹 패널임을 알린다', () => {
+    const { container } = render(<GlobalSubwayDetailSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel.getAttribute('aria-label')).toMatch(/정왕역/)
+  })
+
+  it('PC에서는 dialog(백드롭 있는 모달)로 렌더링되지 않는다 - 지도가 계속 보이는 도킹 패널이다', () => {
+    render(<GlobalSubwayDetailSheet />)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('Escape를 누르면 PC 자체 핸들러가 닫는다', () => {
+    vi.useFakeTimers()
+    try {
+      render(<GlobalSubwayDetailSheet />)
+      fireEvent.keyDown(document, { key: 'Escape' })
+      act(() => {
+        vi.advanceTimersByTime(320)
+      })
+      expect(closeSubwayDetailSheet).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
     }
   })
 })

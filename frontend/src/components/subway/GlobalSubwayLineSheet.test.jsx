@@ -31,6 +31,7 @@ vi.mock('../../hooks/useMediaQuery', () => ({
 }))
 
 import GlobalSubwayLineSheet from './GlobalSubwayLineSheet'
+import { PC_SIDEBAR_WIDTH_PX } from '../layout/PCMainShell'
 
 const ITEM = {
   line: '수인분당선',
@@ -94,10 +95,56 @@ describe('GlobalSubwayLineSheet — PC 도킹 패널', () => {
     expect(container.querySelector('.w-11.h-1.rounded-full')).toBeNull()
   })
 
-  it('PC에서는 dialog(백드롭이 있는 모달)로 렌더링되지 않는다 — 도킹 패널이다', () => {
+  it('PC에서는 dialog(백드롭이 있는 모달)로 렌더링되지 않는다 - 도킹 패널이다', () => {
     isDesktop = true
     lineSheetItem = ITEM
     render(<GlobalSubwayLineSheet />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PC 도킹 패널 배치 회귀 검증. GlobalSubwayDetailSheet와 같은 버그였다 - fixed
+// left-0 w-[38%]가 뷰포트 기준이라 PCSidebar(왼쪽 0~236px) 위를 그대로 덮었고,
+// bottom-[68px]는 모바일 FloatingDock 전용 여백이 PC에도 새어 있었다. Escape
+// 핸들러 자체가 PC 분기에 없었던 것도 이번에 추가했다.
+describe('GlobalSubwayLineSheet — PC 도킹 패널 배치(사이드바 비침 버그 회귀)', () => {
+  beforeEach(() => {
+    isDesktop = true
+    lineSheetItem = ITEM
+  })
+
+  it('PCSidebar 폭만큼 오른쪽에서 시작한다(사이드바 위를 덮지 않는다)', () => {
+    const { container } = render(<GlobalSubwayLineSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel).toBeTruthy()
+    expect(panel.style.left).toBe(`${PC_SIDEBAR_WIDTH_PX}px`)
+    expect(panel.className).not.toMatch(/left-0/)
+  })
+
+  it('모바일 하단 독 여백(bottom-[68px])이 PC 패널에 남아 있지 않다', () => {
+    const { container } = render(<GlobalSubwayLineSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel.className).not.toMatch(/bottom-\[68px\]/)
+    expect(panel.className).toMatch(/bottom-0/)
+  })
+
+  it('폭은 원래 38% 폭에서 사이드바 폭만큼 뺀 값이다(오른쪽 끝 유지)', () => {
+    const { container } = render(<GlobalSubwayLineSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel.style.width).toContain('38%')
+    expect(panel.style.width).toContain(`${PC_SIDEBAR_WIDTH_PX}px`)
+  })
+
+  it('role=region과 aria-label로 비모달 도킹 패널임을 알린다', () => {
+    const { container } = render(<GlobalSubwayLineSheet />)
+    const panel = container.querySelector('[role="region"]')
+    expect(panel.getAttribute('aria-label')).toBeTruthy()
+  })
+
+  it('Escape를 누르면 닫힌다(예전엔 PC 분기에 핸들러 자체가 없었다)', () => {
+    render(<GlobalSubwayLineSheet />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
   })
 })

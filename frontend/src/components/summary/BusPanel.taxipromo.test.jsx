@@ -36,11 +36,6 @@ vi.mock('../../hooks/useBus', () => ({
   useBusTimetableByRoute: vi.fn(() => ({ data: { times: [] }, loading: false, error: null, refetch: vi.fn() })),
 }))
 
-vi.mock('../../hooks/useBusReports', () => ({
-  useActiveBusReports: vi.fn(() => ({ data: { items: [] }, loading: false, error: null, refetch: vi.fn() })),
-  busReportChipLabel: vi.fn(() => ''),
-}))
-
 vi.mock('../../hooks/useTrafficIncidents', () => ({
   useTrafficIncidents: vi.fn(() => ({ incidents: [] })),
 }))

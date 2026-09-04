@@ -129,12 +129,15 @@ export default function Dashboard() {
     >
       <ModeTabs />
 
-      {/* 방향 칩(등하교, 자동/수동) — 정류장 칩 행과 완전히 분리된 줄. 버스 모드에서만 노출. */}
-      {selectedMode === 'bus' && <AutoDirectionChip />}
-
-      {/* 정류장 칩 행 — 다음 줄에서 단독으로 가로 스크롤(전체 이름, 잘림 없음). */}
-      <StationPills mode={selectedMode} value={stationValue} />
-
+      {/* 홈 첫 화면 선택 단계 축소(시안 6-A, 사용자 지적) — 예전엔 모드 탭
+          다음에 방향 칩·정류장 칩을 먼저 고르고서야 도착 정보가 나와, 열
+          때마다 같은 선택(정류장·방향)을 반복했다. 모드 탭(버스/지하철/
+          셔틀/택시)만 화면 정체성이라 위에 남기고, 선택 컨트롤(방향 칩·
+          정류장 칩)은 목록 아래로 내린다 — 열자마자 자동 선택된 정류장의
+          도착 정보가 먼저 보이고, 다른 정류장·방향으로 바꾸고 싶을 때만
+          아래로 내려 고치면 된다. "하교 · 자동" 칩과 자동 정류장 선택
+          (useBusStationAutoSelect, 위에서 이미 호출)은 그대로 두고 위치만
+          옮긴다 — 새 컨트롤을 만들지 않는다. */}
       <div className="px-4 pb-6">
         {selectedMode === 'bus' && (
           <div key="bus" className="animate-fade-in"><BusPanel /></div>
@@ -150,7 +153,13 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* F1 — 도착 카드 아래 빈 공간에 오늘 브리핑(학사일정 D-day · 오늘 학식) */}
+      {/* 방향 칩(등하교, 자동/수동) — 정류장 칩 행과 완전히 분리된 줄. 버스 모드에서만 노출. */}
+      {selectedMode === 'bus' && <AutoDirectionChip />}
+
+      {/* 정류장 칩 행 — 다음 줄에서 단독으로 가로 스크롤(전체 이름, 잘림 없음). */}
+      <StationPills mode={selectedMode} value={stationValue} />
+
+      {/* F1 — 선택 컨트롤 아래 빈 공간에 오늘 브리핑(학사일정 D-day · 오늘 학식) */}
       <HomeBriefing />
     </section>
   )

@@ -212,9 +212,9 @@ function BusSourceRow({ source, routeCode, category }) {
   )
 }
 
-function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHasDataChange, isFavorite, onToggleFavorite, selected }) {
+function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onArrivalChange, isFavorite, onToggleFavorite, selected }) {
   const routeCode = commuteContext.route_number
-  const journey = commuteContext.journey_labels ?? []
+  const journey = (commuteContext.journey_labels ?? []).filter(Boolean)
   const primarySource = commuteContext.sources?.[0] ?? null
   const realtimeSource = commuteContext.sources?.find((source) => source.type === 'realtime') ?? null
   const sources = useMemo(() => commuteContext.sources ?? [], [commuteContext.sources])
@@ -235,9 +235,13 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHas
   )
   const displaySnapshot = useTimetableFallback ? fallbackTimetableSnapshot : representativeSnapshot
 
+  // 도착순 정렬(시안 1-A) — 이 카드가 실제로 화면에 보여주는 도착 분(displaySnapshot과
+  // 같은 값)을 부모(BusGroupContent)에 보고해 정렬 기준으로 쓴다. 정렬 기준을
+  // 화면 표시값과 다른 지표(예전엔 sources 유무)로 따로 두면 "9분짜리가 맨
+  // 아래" 같은 어긋남이 생긴다.
   useEffect(() => {
-    onHasDataChange?.(favCode, (commuteContext.sources?.length ?? 0) > 0)
-  }, [commuteContext.sources?.length, favCode, onHasDataChange])
+    onArrivalChange?.(favCode, displaySnapshot?.minutesUntil ?? null)
+  }, [favCode, displaySnapshot?.minutesUntil, onArrivalChange])
 
   function handleClick() {
     onCardClick({
@@ -256,12 +260,31 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHas
     })
   }
 
+  // 제목 한 줄 정리 — 하교 방면 탭이 있던 시절엔 제목이 "OO 방면"(목적지만)
+  // 이어도 괜찮았다. 탭을 없앤 뒤(경유지 한 줄 표기로 대체)에는 제목이 여전히
+  // "OO 방면"만 말하고, 아래 경유 줄이 "출발지 → ... → OO"로 같은 목적지를
+  // 다시 말해 한 카드 안에서 두 번 겹쳤다. 상세 시트 헤드라인
+  // (ScheduleDetailModal.BusContextDetail)과 같은 규칙으로 통일한다: 제목은
+  // "출발지 → 목적지" 요약 한 줄, 경유지가 양 끝 말고도 더 있을 때만 아래
+  // 줄에 전체 경로를 덧붙인다.
+  const headline = `${commuteContext.origin_label} → ${commuteContext.destination_label}`
+  const journeyLine = journey.join(' → ')
+  const showJourney = journey.length > 2 && journeyLine !== headline
+
+  // 한 줄 압축 — 승차 지점이 하나뿐이면 시간열 큰 숫자와 이 노선의 유일한
+  // 출처가 같은 값이라, 아래 출처 줄("OO 승차 [실시간] N분 후")이 방금 읽은
+  // 숫자를 문장으로 반복했다. 승차·통과 지점이 둘 이상(3401처럼 승차지와
+  // 통과지가 갈릴 때)일 때만 지점별 줄을 남긴다 — 그때는 대표 시간열 하나로
+  // 담을 수 없는 정보이고, 상세 시트에도 같은 지점별 목록이 있어 여기서
+  // 지워도 정보 자체는 사라지지 않는다.
+  const showSourceRows = sources.length > 1
+
   return (
     <div data-testid={`bus-context-${routeCode}`}>
       <ScheduleSection
         type="bus"
         routeCode={routeCode}
-        title={`${commuteContext.destination_label} 방면`}
+        title={headline}
         timeLines={displaySnapshot?.timeLines ?? null}
         sleeping={Boolean(displaySnapshot?.sleeping)}
         sleepingLabel={displaySnapshot?.sleepingLabel ?? null}
@@ -271,19 +294,19 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onHas
         loading={Boolean(displaySnapshot?.loading)}
         liveChip={sources.some((source) => source.type === 'realtime')}
         timetableChip={sources.some((source) => source.type === 'timetable')}
-        boldPrefix={journey[0] ?? commuteContext.origin_label}
-        subtitle={journey.length > 1 ? ` → ${journey.slice(1).join(' → ')}` : null}
+        boldPrefix={showJourney ? journey[0] : null}
+        subtitle={showJourney ? ` → ${journey.slice(1).join(' → ')}` : null}
         isFavorite={isFavorite}
         onToggleFavorite={onToggleFavorite}
         onClick={handleClick}
         selected={selected}
-        footer={
+        footer={showSourceRows && (
           <div className="divide-y divide-line dark:divide-line">
             {sources.map((source) => (
               <BusSourceRow key={source.id} source={source} routeCode={routeCode} category={busGroup} />
             ))}
           </div>
-        }
+        )}
       />
     </div>
   )
@@ -769,19 +792,20 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
     ? hagyoQueries.flatMap((query) => (Array.isArray(query.data) ? query.data : []))
     : (singleCtx.data ?? [])
 
-  // BusRouteSection이 각자 도착/시간표 데이터 유무를 보고하는 맵.
-  // 초기엔 비어 있다가 자식들이 useEffect로 채우며, 정렬이 재계산된다.
-  const [hasDataMap, setHasDataMap] = useState({})
-  const reportHasData = useCallback((favCode, has) => {
-    setHasDataMap((prev) => (prev[favCode] === has ? prev : { ...prev, [favCode]: has }))
+  // 도착순 정렬(시안 1-A) — BusRouteSection이 각자 화면에 보여주는 도착 분을
+  // 보고하는 맵. 초기엔 비어 있다가(=정보 없음 취급) 자식들이 useEffect로
+  // 채우며 정렬이 재계산된다.
+  const [arrivalMap, setArrivalMap] = useState({})
+  const reportArrival = useCallback((favCode, minutesUntil) => {
+    setArrivalMap((prev) => (prev[favCode] === minutesUntil ? prev : { ...prev, [favCode]: minutesUntil }))
   }, [])
 
-  // 그룹 전환 시 stale 데이터 플래그를 비워서 새 그룹이 자체 보고로 채우게 한다.
+  // 그룹 전환 시 stale 도착 정보를 비워서 새 그룹이 자체 보고로 채우게 한다.
   // 렌더 중 조정 — effect로 미루면 이전 그룹의 정렬로 한 프레임이 그려진다.
   const [seenBusGroup, setSeenBusGroup] = useState(busGroup)
   if (busGroup !== seenBusGroup) {
     setSeenBusGroup(busGroup)
-    setHasDataMap({})
+    setArrivalMap({})
   }
 
   if ((usesContexts ? contextsLoading && !anyContextDataLoaded : loading && !routes)) {
@@ -820,12 +844,18 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
     }
   })
 
-  // 정렬 규칙: ① 데이터 보유 카드를 위로 ② 같은 그룹 내에서는 색상(카테고리: 광역→간선→시내) 순
+  // 정렬 규칙(시안 1-A, 사용자 실측 — "9분짜리가 맨 아래" 문제 수정):
+  // ① 도착 시각이 확인된 카드를 도착까지 남은 시간 오름차순으로 위에
+  // ② 도착 정보가 없는 노선(운행 정보 없음·아직 보고 전)은 모두 아래로 묶고,
+  //    그 안에서는 색상(카테고리: 광역→간선→시내) 순
   // ③ 동일 카테고리는 출발 정류장(originLabel)으로 안정 정렬.
   const sorted = [...entries].sort((a, b) => {
-    const ad = hasDataMap[a.favCode] ?? false
-    const bd = hasDataMap[b.favCode] ?? false
-    if (ad !== bd) return ad ? -1 : 1
+    const am = arrivalMap[a.favCode]
+    const bm = arrivalMap[b.favCode]
+    const aKnown = typeof am === 'number'
+    const bKnown = typeof bm === 'number'
+    if (aKnown !== bKnown) return aKnown ? -1 : 1
+    if (aKnown) return am - bm
     const orderA = ROUTE_CATEGORY_ORDER.indexOf(getRouteCategory(a.code))
     const orderB = ROUTE_CATEGORY_ORDER.indexOf(getRouteCategory(b.code))
     if (orderA !== orderB) return orderA - orderB
@@ -870,7 +900,7 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
           commuteContext={e.commuteContext}
           favCode={e.favCode}
           onCardClick={onCardClick}
-          onHasDataChange={reportHasData}
+          onArrivalChange={reportArrival}
           isFavorite={isFav(e.favCode, e.code)}
           onToggleFavorite={() => onToggleFav(e.favCode)}
           selected={isDesktop && selectedFavCode === e.favCode}

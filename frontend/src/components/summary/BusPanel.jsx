@@ -25,7 +25,6 @@ import {
   locationChipFromArrival,
   seatChipFromArrival,
 } from '../../utils/busArrivalRows'
-import { useActiveBusReports, busReportChipLabel } from '../../hooks/useBusReports'
 import {
   getGbisStationId,
   getPerRouteDisplay, getRoutesFor,
@@ -114,15 +113,6 @@ export default function BusPanel() {
   // gbis 정류장(한국공학대/이마트/시흥시청): arrivals API 통합 사용
   const arrivalsQuery = useBusArrivals(gbisStationId)
 
-  // F6 — 이 정류장의 활성(30분) 만차·결행 제보 → 노선별 경고 칩
-  const activeReportsQuery = useActiveBusReports(gbisStationId)
-  const reportByRoute = useMemo(() => {
-    const map = {}
-    for (const item of activeReportsQuery.data?.items ?? []) {
-      if (!map[item.route_no]) map[item.route_no] = item
-    }
-    return map
-  }, [activeReportsQuery.data])
 
   // B3 — 통학축 돌발(사고·공사). 저하·미승인 시 빈 배열 → 배너·칩 어디에도 안 그린다.
   const { incidents } = useTrafficIncidents()
@@ -208,7 +198,7 @@ export default function BusPanel() {
     } else if (sec == null && !a.is_tomorrow) {
       fallbackGroups.push(group)
     } else {
-      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal, reportByRoute, incident }))
+      liveRows.push(buildLiveRow(group, { station: selectedBusStation, direction: selectedBusDirection, onOpenDetail: setDetailModal, incident }))
     }
   }
 
@@ -512,7 +502,7 @@ function boardingLabel(arrival, station, direction) {
 }
 
 /** 실시간 ETA가 확보된 그룹 하나 → {sec, node(TransitCard)}. */
-function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute = {}, incident = null }) {
+function buildLiveRow(group, { station, direction, onOpenDetail, incident = null }) {
   const a = group[0]
   const a2 = group[1] ?? null
   const sec = arrivalEntryToSeconds(a)
@@ -541,9 +531,6 @@ function buildLiveRow(group, { station, direction, onOpenDetail, reportByRoute =
   if (locationChip) chips.push(locationChip)
   // 실시간 신규 기능 베타 정책 — 좌석·정거장 칩이 하나라도 보이면 베타 칩 1개만 단다
   if (seatChip || locationChip) chips.push({ label: '베타', tone: 'beta' })
-  // F6 — 활성 만차·결행 제보 경고(혼잡 칩보다 구체적 정보라 경유 칩보다 앞)
-  const report = reportByRoute[a.route_no]
-  if (report) chips.push({ label: busReportChipLabel(report), tone: 'warn' })
   // B3 — 서울 방면 축에 돌발이 있으면 그 축을 타는 광역(express) 노선에만 경고 칩.
   // 시내·간선은 축을 안 타므로 붙이지 않는다(오탐 경고가 신뢰를 깎는다).
   if (incident && cfg?.category === 'express') {

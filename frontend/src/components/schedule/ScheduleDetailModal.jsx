@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { PC_SIDEBAR_WIDTH_PX } from '../layout/PCMainShell'
 import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats, useBusCommuteContexts } from '../../hooks/useBus'
@@ -36,7 +37,6 @@ import ShuttleTimetableGroups from '../shuttle/ShuttleTimetableGroups'
 import HourGroupTimetable from './HourGroupTimetable'
 import TimetableStatTiles from './TimetableStatTiles'
 import { computeTimetableSummary } from '../bus/timetableStats'
-import { canSubmitBusSignal, submitBusSignal } from '../../hooks/useBusReports'
 import {
   PERIOD_VARIANTS,
   periodVariantKey,
@@ -266,56 +266,6 @@ function BusContent({ routeCode, routeId = null, stopId = null, category = null,
       ) : (
         <HourGroupTimetable items={items} now={now} nextRef={nextRef} />
       )}
-      <BusReportRow routeNo={routeCode} stationKey={stopId} />
-    </div>
-  )
-}
-
-// F6 — 만차·결행 제보 행. 제보는 30분간 같은 정류장 카드에 경고 칩으로 공유된다.
-// 기기당 (노선, 종류) 10분 1회 로컬 스로틀(useBusReports)로 어뷰즈를 완충한다.
-function BusReportRow({ routeNo, stationKey }) {
-  const [sentKind, setSentKind] = useState(null)
-  if (!stationKey || !routeNo) return null
-
-  const send = async (kind) => {
-    setSentKind(kind)
-    if (!canSubmitBusSignal(routeNo, kind)) return // 이미 제보함 — UI만 완료 표시
-    try {
-      await submitBusSignal(kind, routeNo, stationKey)
-    } catch {
-      // rate limit 등 — 제보 UX는 성공처럼 조용히 처리(서버가 이미 과다 요청을 막았다)
-    }
-  }
-
-  if (sentKind) {
-    return (
-      <p className="mt-2 px-1 text-caption font-semibold text-accent-ink dark:text-accent-ink">
-        제보 완료 · 30분 동안 다른 사람 카드에 표시돼요
-      </p>
-    )
-  }
-
-  return (
-    <div className="mt-2 pt-3 border-t border-line dark:border-line">
-      <p className="px-1 mb-2 text-caption font-medium text-mute dark:text-mute">
-        지금 상황 제보 · 익명, 30분 뒤 자동 삭제
-      </p>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => send('bus_full')}
-          className="pressable flex-1 py-2.5 rounded-button bg-surface-2 dark:bg-surface-2 text-ink-2 dark:text-ink-2 text-caption font-bold"
-        >
-          만차로 지나갔어요
-        </button>
-        <button
-          type="button"
-          onClick={() => send('bus_no_show')}
-          className="pressable flex-1 py-2.5 rounded-button bg-surface-2 dark:bg-surface-2 text-ink-2 dark:text-ink-2 text-caption font-bold"
-        >
-          시간 지나도 안 와요
-        </button>
-      </div>
     </div>
   )
 }
@@ -1254,12 +1204,19 @@ export default function ScheduleDetailModal({ open, onClose, type, routeCode, ro
   }
 
   // ── PC · overlay(기본): 좌측 패널 내 콘텐츠 교체형 크로스페이드 (기존 UX, vaul 미적용) ──
-  // GlobalDetailModal 전용 — 맵 홈(PCMainShell 38%/62% split)에서만 트리거되므로
-  // 고정 폭 38% 가정이 유효하다.
+  // GlobalDetailModal 전용 — 맵 홈(PCMainShell 38%/62% split)에서만 트리거된다.
+  //
+  // 예전에는 left-0 에 w-[38%] 를 줬는데, 뷰포트 왼쪽 끝은 PCSidebar(236px)가
+  // 쓰는 자리다. 그래서 이 패널이 사이드바를 덮고 정작 지도 도킹 패널은 일부만
+  // 가려, 뒤 카드가 오른쪽으로 비쳐 보였다(같은 결함이 지하철 시트 두 곳에도
+  // 있었다). 오른쪽 끝은 그대로 두고 시작점만 사이드바 뒤로 옮긴다.
+  // bottom-[68px] 는 모바일 FloatingDock 여백인데 PC 에는 독이 없어 새던 값이라
+  // 함께 걷는다.
   if (isPC) {
     return createPortal(
       <div
-        className="fixed inset-0 z-sheet left-0 right-auto w-[38%] bottom-[68px] flex items-stretch justify-stretch pointer-events-none"
+        className="fixed inset-y-0 z-sheet right-auto flex items-stretch justify-stretch pointer-events-none"
+        style={{ left: PC_SIDEBAR_WIDTH_PX, width: `calc(38% - ${PC_SIDEBAR_WIDTH_PX}px)` }}
         aria-modal="true"
         role="dialog"
         aria-label={`${displayTitle} ${detailTypeLabel}`}
