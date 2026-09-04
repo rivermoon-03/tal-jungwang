@@ -21,7 +21,11 @@ export function useSubwayNext({ tickMs = 1000 } = {}) {
 
 export function useSubwayRealtime({ enabled = true } = {}) {
   const { data, loading, error, fetchedAt, refetch } = useApi('/subway/realtime', { interval: 15_000, enabled })
-  const now = useNow(1000)
+  // 이 데이터의 소비처(SubwayPanel·GlobalSubwayDetailSheet → getEtaLabel/formatEta)는
+  // 초 단위를 화면에 그리지 않는다 — "곧 도착"(90초 임계) 아니면 "N분"뿐이라 분
+  // 단위 tick으로도 표시가 달라지지 않는다. 15초 간격 refetch가 데이터 자체는
+  // 이미 자주 갱신하므로, 그 사이를 메우는 tick은 60초로 낮춰도 체감 차이가 없다.
+  const now = useNow(60_000)
   const ticked = useMemo(
     () => tickSubwayRealtime(data, fetchedAt, now),
     [data, fetchedAt, now]

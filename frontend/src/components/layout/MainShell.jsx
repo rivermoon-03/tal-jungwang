@@ -1,5 +1,7 @@
+import { Suspense, useState } from 'react'
 import useAppStore from '../../stores/useAppStore'
-import MapView from '../map/MapView'
+import { LazyMapView } from '../map/MapView.lazy'
+import MapViewFallback from '../map/MapViewFallback'
 import Dashboard from '../dashboard/Dashboard'
 import HomeWeatherHero from '../dashboard/HomeWeatherHero'
 import { DOCK_RESERVED_PX } from '../common/FloatingDock'
@@ -18,10 +20,17 @@ import { DOCK_RESERVED_PX } from '../common/FloatingDock'
  * 재발하지 않는다.
  *
  * 지도 전환: 히어로 스트립의 [지도] 버튼 → mapExpanded=true → 지도가 전체 화면.
- * MapView는 접힌 상태에서도 height:0 컨테이너에 마운트 유지(재초기화 비용
- * 회피) — 기존에도 같은 이유로 always-mount였고, MapView 내부
- * ResizeObserver가 컨테이너 리사이즈마다 relayout()을 호출하므로
- * 0↔전체 전환도 기존 110px↔전체 전환과 같은 경로로 안전하게 처리된다.
+ * MapView(카카오 SDK 연동 포함, 초기 번들에서 가장 무거운 조각)는 별도
+ * 청크라 mapExpanded가 처음 true가 되는 순간에야 내려받는다(hasOpenedMap) —
+ * 그 전까지는 height:0 컨테이너 안에 아무것도 마운트하지 않는다. 한 번
+ * 펼치고 나면 hasOpenedMap이 계속 true로 남아, 이후 접었다 펼쳐도(재초기화
+ * 비용 회피 목적으로 기존에도 always-mount였다) 다시 청크를 받거나 지도를
+ * 새로 만들지 않는다 — MapView 내부 ResizeObserver가 컨테이너 리사이즈마다
+ * relayout()을 호출하므로 0↔전체 전환은 기존 110px↔전체 전환과 같은 경로로
+ * 안전하게 처리된다. 청크가 도착하기 전(Suspense pending) 자리는
+ * MapViewFallback이 채운다 — 지도가 차지하던 영역이 갑자기 비어 보이지
+ * 않게, 그리고 카카오 SDK가 실패해도 닫기 버튼은 항상 뜬다는 기존 보장
+ * (결함 #1)을 MapView 본체가 도착하기 전 단계까지 넓힌다.
  *
  * 지도 닫기 버튼(M-1 이후)은 MapView 내부의 우측 상단 컨트롤 스택으로
  * 옮겨졌다 — MainShell은 mapExpanded/onClose만 넘기고, 검색 pill·GPS/학교
@@ -51,6 +60,15 @@ export default function MainShell() {
   // Dashboard.jsx의 canShowTimetable과 같은 조건(택시는 시간표 개념이 없어 항상 '지금').
   const isTimetable = homeView === 'timetable' && selectedMode !== 'taxi'
 
+  // 지도 청크는 처음 펼칠 때만 내려받는다. mapExpanded가 true로 바뀌는 바로 그
+  // 렌더에서 함께 켜야 한 프레임이라도 빈 height:0 컨테이너가 보이지 않는다 —
+  // effect로 미루면 클릭 → 커밋(아직 false) → effect → 재렌더(true) 사이에
+  // 한 틱이 비어, 그 틱에 이미 시작된 height 트랜지션이 빈 컨테이너로 재생된다.
+  const [hasOpenedMap, setHasOpenedMap] = useState(false)
+  if (mapExpanded && !hasOpenedMap) {
+    setHasOpenedMap(true)
+  }
+
   return (
     <div
       className="h-dvh w-full flex flex-col md:hidden bg-bg dark:bg-bg overflow-hidden"
@@ -66,7 +84,11 @@ export default function MainShell() {
           transition: 'height 240ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        <MapView mapExpanded={mapExpanded} onClose={toggleMapExpanded} />
+        {hasOpenedMap && (
+          <Suspense fallback={<MapViewFallback mapExpanded={mapExpanded} onClose={toggleMapExpanded} />}>
+            <LazyMapView mapExpanded={mapExpanded} onClose={toggleMapExpanded} />
+          </Suspense>
+        )}
       </div>
 
       {/* 히어로 + 대시보드 — 지도 확장 시 숨김(언마운트: 기존에도 동일 동작).

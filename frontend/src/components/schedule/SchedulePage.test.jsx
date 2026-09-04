@@ -85,6 +85,13 @@ const ROUTES = [
   },
 ]
 
+// 하교는 방면 탭 없이 노선당 한 줄(경유지 표기)로 통합한 단일 목록이다.
+// BusGroupContent가 아래 네 group_key를 모두 조회해 화면에서 합친다.
+// 시흥33은 실제 DB 정리(prod_migration_20260904_dedupe_hagyo_bus_commute_contexts.sql)와
+// 같은 모양이다 — "학교→정왕역"(to-jeongwang)만 있는 부분 여정 컨텍스트는
+// 지웠고, "학교→정왕역→시흥시청역" 전체 여정을 담은 to-siheung-city-hall
+// 컨텍스트 하나만 남았다. 3401·5602도 같은 이유로 to-seoul 쪽 전체 여정만
+// 남기고 to-siheung-city-hall 쪽 부분 여정은 지웠다.
 const COMMUTE_CONTEXTS = {
   '하교:to-jeongwang': [
     makeContext(1, '20-1', 'to-jeongwang', '학교', '정왕역', [
@@ -93,14 +100,9 @@ const COMMUTE_CONTEXTS = {
     ]),
   ],
   '하교:to-siheung-city-hall': [
-    makeContext(4, '3401', 'to-siheung-city-hall', '이마트', '시흥시청', [
-      timetable(2, '이마트 승차'),
-      realtime(13, '시흥시청 도착', 'to-seoul', 'downstream_arrival'),
-    ]),
-    makeContext(5, '5602', 'to-siheung-city-hall', '이마트', '시흥시청', [
-      timetable(2, '이마트 승차'),
-      realtime(13, '시흥시청 도착', 'to-seoul', 'downstream_arrival'),
-    ]),
+    makeContext(10, '시흥33', 'to-siheung-city-hall', '학교', '시흥시청', [
+      realtime(10, '학교 승차', 'to-city-hall'),
+    ], '하교', ['학교', '정왕역', '시흥시청']),
   ],
   '하교:to-seoul': [
     makeContext(2, '3400', 'to-seoul', '시흥터미널', '강남역', [
@@ -116,7 +118,11 @@ const COMMUTE_CONTEXTS = {
     makeContext(8, '6502', 'to-seoul', '이마트', '사당역', [timetable(2, '이마트 승차')]),
     makeContext(9, '시흥1', 'to-seoul', '이마트', '개봉', [realtime(2, '이마트 승차')]),
   ],
-  '하교:to-wolgot': [],
+  '하교:to-wolgot': [
+    makeContext(11, '99-2', 'to-wolgot', '시흥터미널·이마트', '월곶역', [
+      realtime(11, '시흥터미널 승차', 'to-wolgot'),
+    ], '하교', ['시흥터미널', '이마트', '월곶역']),
+  ],
   '등교:from-seoul': [
     makeContext(6, '3400', 'from-seoul', '강남역', '학교', [timetable(6, '강남역 승차')], '등교'),
     makeContext(7, '6502', 'from-seoul', '사당역', '학교', [timetable(5, '사당역 승차')], '등교'),
@@ -132,8 +138,8 @@ function realtime(stopId, displayLabel, travelDirection = 'to-seoul', role = 'bo
   return { id: stopId * 10 + 1, type: 'realtime', role, stop_id: stopId, station_label: displayLabel.replace(/ (?:출발|도착|승차)$/, ''), display_label: displayLabel, travel_direction: travelDirection }
 }
 
-function makeContext(routeId, routeNumber, groupKey, origin, destination, sources, category = '하교') {
-  return { id: routeId * 100 + groupKey.length, route_id: routeId, route_number: routeNumber, category, group_key: groupKey, origin_label: origin, destination_label: destination, journey_labels: [origin, destination], sources }
+function makeContext(routeId, routeNumber, groupKey, origin, destination, sources, category = '하교', journeyLabels = null) {
+  return { id: routeId * 100 + groupKey.length, route_id: routeId, route_number: routeNumber, category, group_key: groupKey, origin_label: origin, destination_label: destination, journey_labels: journeyLabels ?? [origin, destination], sources }
 }
 
 vi.mock('../../hooks/useBus', () => ({
@@ -226,17 +232,15 @@ describe('SchedulePage — 즐겨찾기 필터(결함 #20 회귀)', () => {
   it('필터를 켜면 신규(favKey)+레거시(route_number) 저장값 모두 인식해 즐겨찾기한 노선만 보인다', () => {
     render(<SchedulePage />)
 
-    // 정왕역 방면에서는 20-1만 보이며 서울행 노선은 섞이지 않는다.
+    // 하교는 방면 탭 없이 한 목록이라 필터 전에는 정왕역·서울행 노선이 함께 보인다.
     expect(screen.getAllByText('20-1').length).toBeGreaterThan(0)
-    expect(screen.queryByText('3400')).not.toBeInTheDocument()
+    expect(screen.getAllByText('3400').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByLabelText('즐겨찾기한 노선만 보기'))
 
-    // 신규 favKey로 저장한 20-1은 방면 필터 안에서도 남는다.
+    // 신규 favKey로 저장한 20-1과 레거시 route_number로 저장한 3400 모두 남고,
+    // 즐겨찾기하지 않은 5200은 탭 전환 없이도 빠진다.
     expect(screen.getAllByText('20-1').length).toBeGreaterThan(0)
-
-    // 서울 방면으로 바꾸면 레거시 route_number 즐겨찾기도 유지되고 5200은 빠진다.
-    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
     expect(screen.getAllByText('3400').length).toBeGreaterThan(0)
     expect(screen.queryByText('5200')).not.toBeInTheDocument()
   })
@@ -274,7 +278,6 @@ describe('SchedulePage — PC master-detail(결함 #19/#33 회귀)', () => {
     expect(pushStateSpy).not.toHaveBeenCalled()
     // 좌측 목록이 그대로 남아있다(전체 페이지 이동으로 사라지지 않음).
     expect(screen.getAllByText('20-1').length).toBeGreaterThan(0)
-    expect(screen.queryByText('3400')).not.toBeInTheDocument()
 
     pushStateSpy.mockRestore()
     stubMatchMedia(false)
@@ -323,37 +326,45 @@ describe('SchedulePage — PC 홈 embedded(좁은 도킹 패널) 레이아웃', 
 })
 
 describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
-  it('하교 노선은 방면별로 분리하되 3401은 시흥시청과 서울 양쪽에 노출한다', () => {
+  it('하교는 방면 탭 없이 한 목록으로 통합되고, 시흥33은 경유지가 담긴 카드 하나로만 노출한다', () => {
     render(<SchedulePage />)
 
-    fireEvent.click(screen.getByRole('tab', { name: '시흥시청 방면' }))
-    expect(screen.getAllByText('3401').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('5602').length).toBeGreaterThan(0)
+    // 방면 탭 자체가 없다 — "정왕역 방면"/"시흥시청 방면"/"서울 방면"/"월곶역 방면"
+    // 탭 전환 없이 하교 노선이 한 목록으로 보인다(사용자 지적: 시흥33이 정왕역·
+    // 시흥시청 두 탭에 중복 노출되던 문제).
+    expect(screen.queryByRole('tab', { name: '정왕역 방면' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '시흥시청 방면' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '서울 방면' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '월곶역 방면' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
+    // 탭 전환 없이도 네 방면 노선이 모두 한 목록에 보인다.
+    expect(screen.getAllByText('20-1').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('3400').length).toBeGreaterThan(0)
     expect(screen.getAllByText('3401').length).toBeGreaterThan(0)
     expect(screen.getAllByText('5602').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('3400').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('99-2').length).toBeGreaterThan(0)
+
+    // 시흥33은 DB에서 부분 여정(학교→정왕역) 컨텍스트를 지웠으므로 카드가
+    // 하나만 존재한다 — getByTestId는 같은 testid가 둘이면 예외를 던진다.
+    const route시흥33 = screen.getByTestId('bus-context-시흥33')
+    expect(route시흥33).toHaveTextContent('정왕역')
+    expect(route시흥33).toHaveTextContent('시흥시청')
 
     const route3401 = screen.getByTestId('bus-context-3401')
     expect(route3401).toHaveTextContent('이마트 승차')
     expect(route3401).toHaveTextContent('시흥시청 도착')
   })
 
-  it('3401 상세는 현재 방면만 열고 상세 안에서 다른 방면으로 전환할 수 있다', async () => {
+  it('3401은 중복 컨텍스트가 정리되어 상세에도 방면 전환 탭이 뜨지 않는다', async () => {
     render(<SchedulePage />)
 
-    fireEvent.click(screen.getByRole('tab', { name: '시흥시청 방면' }))
     fireEvent.click(screen.getAllByText('3401')[0])
 
-    const detailTabs = await screen.findByRole('tablist', { name: '상세 방면 선택' })
-    expect(detailTabs).toBeInTheDocument()
-    expect(detailTabs).toHaveTextContent('시흥시청 방면')
-    expect(detailTabs).toHaveTextContent('서울 방면')
-    expect(detailTabs.querySelector('[aria-selected="true"]')).toHaveTextContent('시흥시청 방면')
-
-    fireEvent.click(Array.from(detailTabs.querySelectorAll('[role="tab"]')).find((tab) => tab.textContent === '서울 방면'))
-    expect(detailTabs.querySelector('[aria-selected="true"]')).toHaveTextContent('서울 방면')
+    // 예전엔 3401이 시흥시청·서울 두 group_key에 중복 노출돼 상세 안에
+    // "상세 방면 선택" 탭이 떴다. DB 중복을 지운 뒤로는 3401이 group_key
+    // 하나(to-seoul)에만 남아 그 탭이 뜨지 않는다.
+    await screen.findByText('버스 시간표')
+    expect(screen.queryByRole('tablist', { name: '상세 방면 선택' })).not.toBeInTheDocument()
   })
 
   it('등교 서울 출발의 3400·6502는 실시간 정류장이 없어도 시간표를 바로 보여준다', () => {
@@ -369,7 +380,6 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
   it('3400은 시흥터미널 시간표와 다음 정류장 이마트 실시간을 별도 행으로 표시한다', () => {
     render(<SchedulePage />)
-    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
 
     const card = screen.getByTestId('bus-context-3400')
     expect(card).toHaveTextContent('시흥터미널 승차')
@@ -380,7 +390,6 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
   it('6502 하교는 이마트 승차 시간표만 표시한다', () => {
     render(<SchedulePage />)
-    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
 
     const card = screen.getByTestId('bus-context-6502')
     expect(card).toHaveTextContent('이마트 승차')
@@ -390,7 +399,6 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
   it('실시간 전용 시흥1은 시간표를 숨기고 카드 왼쪽에 실제 도착 시간을 표시한다', () => {
     render(<SchedulePage />)
-    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
 
     const card = screen.getByTestId('bus-context-시흥1')
     expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent('5분')
@@ -401,7 +409,6 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
   it('다른 정류장 혼합형 3400은 카드 왼쪽에 시흥터미널 다음 출발 시간을 표시한다', () => {
     render(<SchedulePage />)
-    fireEvent.click(screen.getByRole('tab', { name: '서울 방면' }))
 
     const card = screen.getByTestId('bus-context-3400')
     expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent(/(?:29|30)분/)

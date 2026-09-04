@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import MapView from '../map/MapView'
+import { Suspense, useMemo, useState } from 'react'
+import { LazyMapView } from '../map/MapView.lazy'
+import MapViewFallback from '../map/MapViewFallback'
 import MapLegendOnboarding from '../map/MapLegendOnboarding'
 import PCMapDockPanel from '../map/PCMapDockPanel'
 import SegmentedControl from '../ui/SegmentedControl'
@@ -40,6 +41,14 @@ const MODE_FILTERS = [
 // 않는다(GPS watch·타일 캐시가 죽지 않게) — MapView를 담는 flex-1 래퍼는 항상
 // 같은 트리 위치에 마운트되어 있고, 도킹 패널/페이지 오버레이는 그 옆/위에서만
 // 조건부로 나타났다 사라진다.
+//
+// MapView는 별도 청크(MapView.lazy)로 내려받는다 — 모바일 MainShell은 지도를
+// 실제로 펼치는 시점에 이 청크를 불러오지만, PC는 지도가 첫 화면부터 항상
+// 보이는 레이아웃이라 지연시킬 시점 자체가 없다. 그래서 여기서는 마운트되는
+// 즉시(대기 없이) 로드한다 — Suspense fallback(MapViewFallback)이 뜨는 시간은
+// 청크 파싱·실행이 index 번들에서 빠져나가 index 자체가 가벼워진 만큼이라,
+// 기존에 index 안에 있던 MapView를 파싱하던 시간과 크게 다르지 않다.
+// PCMainShell.test.jsx가 findBy로 이 지연을 검증한다.
 export default function PCMainShell({ children }) {
   const selectedId = useAppStore((s) => s.selectedMarkerId)
   const setSelectedIdStore = useAppStore((s) => s.setSelectedMarkerId)
@@ -181,10 +190,12 @@ export default function PCMainShell({ children }) {
 
       <div className="relative h-full min-w-0 flex-1 overflow-hidden">
         {/* selectedId는 MapView가 쓰지 않는다(마커 선택 상태는 store에서 직접 읽는다). */}
-        <MapView
-          onMarkerClick={handleMarkerClick}
-          showControls={showFloating}
-        />
+        <Suspense fallback={<MapViewFallback />}>
+          <LazyMapView
+            onMarkerClick={handleMarkerClick}
+            showControls={showFloating}
+          />
+        </Suspense>
 
         {showFloating && !showTimetable && <MapLegendOnboarding />}
 

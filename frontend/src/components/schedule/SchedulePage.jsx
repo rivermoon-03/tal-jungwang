@@ -735,11 +735,39 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
   )
 }
 
+// 하교는 방면(정왕역/시흥시청/서울/월곶) 탭 없이 노선당 한 줄(경유지 표기)로
+// 통합한 단일 목록이다. 백엔드 /bus/commute-contexts는 group_key 하나만
+// 받으므로, BUS_COMMUTE_GROUPS.하교에 남아있는 네 group_key를 모두 조회해
+// 여기서 하나로 합친다. BUS_COMMUTE_GROUPS.하교 자체는 지우지 않는다 —
+// ScheduleDetailModal이 같은 배열로 "노선이 여러 group_key에 걸리는지"를
+// 확인해 상세 안 방면 전환 탭을 띄우는데, DB 쪽 중복 컨텍스트를 정리한 뒤로는
+// 하교 노선이 두 group_key에 동시에 남지 않아 그 탭도 자연히 뜨지 않는다.
+const HAGYO_GROUP_KEYS = (BUS_COMMUTE_GROUPS.하교 ?? []).map((group) => group.id)
+
 // ─── bus group content (동적 API 로드) ─────────────────────────────────────
 function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = false, isFav, onToggleFav, selectedFavCode, isDesktop }) {
   const { data: routes, loading } = useBusRoutesByCategory(busGroup)
-  const { data: commuteContexts, loading: contextsLoading } = useBusCommuteContexts(busGroup, commuteGroup)
+  const isHagyo = busGroup === '하교'
+  // 훅 호출 순서를 매 렌더 동일하게 유지하려고 하교 여부와 무관하게 항상
+  // 4개 group_key 훅 + 단일 group_key 훅을 호출한다. ready 플래그(category를
+  // null로 넘김)로 실제 요청 여부만 가른다.
+  const hagyoCtx0 = useBusCommuteContexts(isHagyo ? '하교' : null, HAGYO_GROUP_KEYS[0])
+  const hagyoCtx1 = useBusCommuteContexts(isHagyo ? '하교' : null, HAGYO_GROUP_KEYS[1])
+  const hagyoCtx2 = useBusCommuteContexts(isHagyo ? '하교' : null, HAGYO_GROUP_KEYS[2])
+  const hagyoCtx3 = useBusCommuteContexts(isHagyo ? '하교' : null, HAGYO_GROUP_KEYS[3])
+  const singleCtx = useBusCommuteContexts(!isHagyo ? busGroup : null, commuteGroup)
   const usesContexts = Boolean(BUS_COMMUTE_GROUPS[busGroup])
+
+  const hagyoQueries = [hagyoCtx0, hagyoCtx1, hagyoCtx2, hagyoCtx3]
+  const contextsLoading = isHagyo
+    ? hagyoQueries.some((query) => query.loading)
+    : singleCtx.loading
+  const anyContextDataLoaded = isHagyo
+    ? hagyoQueries.some((query) => query.data != null)
+    : singleCtx.data != null
+  const commuteContexts = isHagyo
+    ? hagyoQueries.flatMap((query) => (Array.isArray(query.data) ? query.data : []))
+    : (singleCtx.data ?? [])
 
   // BusRouteSection이 각자 도착/시간표 데이터 유무를 보고하는 맵.
   // 초기엔 비어 있다가 자식들이 useEffect로 채우며, 정렬이 재계산된다.
@@ -756,7 +784,7 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
     setHasDataMap({})
   }
 
-  if ((usesContexts ? contextsLoading && !commuteContexts : loading && !routes)) {
+  if ((usesContexts ? contextsLoading && !anyContextDataLoaded : loading && !routes)) {
     return (
       <>
         {[1, 2, 3].map((i) => (
@@ -1236,13 +1264,16 @@ function ScheduleSectionView({
         </div>
       )}
 
-      {mode === 'bus' && (BUS_COMMUTE_GROUPS[busGroup]?.length ?? 0) > 0 && (
+      {/* 하교는 방면 탭을 두지 않는다 — 노선마다 경유지(journey_labels)를
+          한 줄로 보여주는 단일 목록이다(BusGroupContent가 네 group_key를
+          모두 합쳐 조회). 등교는 출발지가 서로 다른 노선이라 탭을 유지한다. */}
+      {mode === 'bus' && busGroup !== '하교' && (BUS_COMMUTE_GROUPS[busGroup]?.length ?? 0) > 0 && (
         <div className="px-4 pb-1.5 flex-shrink-0">
           <SegmentedControl
             options={BUS_COMMUTE_GROUPS[busGroup].map((group) => ({ value: group.id, label: group.label }))}
             value={busCommuteGroup}
             onChange={setActiveCommuteGroup}
-            ariaLabel={busGroup === '하교' ? '하교 방면 선택' : '등교 출발지 선택'}
+            ariaLabel="등교 출발지 선택"
           />
         </div>
       )}

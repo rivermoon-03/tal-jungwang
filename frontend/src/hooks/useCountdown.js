@@ -21,6 +21,10 @@ export function useCountdown(targetTime) {
   // 공용 tick 훅으로 1초마다 갱신하고 남은 시간은 렌더 중 파생한다. 예전에는
   // 자체 setInterval로 state를 갱신했는데, 훅마다 타이머가 따로 돌고 targetTime이
   // 바뀔 때 effect에서 state를 다시 세팅해야 했다.
+  //
+  // 60초로 낮추지 않는 이유: 이 훅의 반환값(ss)을 SubwayCountdown·SubwayLineCard가
+  // "MM:SS" 형태로 초 단위까지 그대로 화면에 그린다 — 분 단위 tick이면 59초 동안
+  // 초 자리가 얼어붙어 카운트다운이 아니라 정지 화면처럼 보인다.
   const nowMs = useNow(1000)
   const totalSeconds = targetTime ? parseToSeconds(targetTime, nowMs) : null
 

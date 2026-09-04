@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import SegmentedControl from '../ui/SegmentedControl'
 import NowAnchorLine from '../schedule/NowAnchorLine'
+import TimetableStatTiles from '../schedule/TimetableStatTiles'
 import { anchorLabel, findAnchorSplit, insertAnchorLine } from '../schedule/timetableGroups'
-import { computeTimetableSummary, groupTimesByHour, intervalLabel } from './timetableStats'
+import { computeTimetableSummary, groupTimesByHour } from './timetableStats'
 
 // sunday 라벨은 '일/공휴일' — RouteDetailPage의 기존 관례를 그대로 따른다
 // (app/core/calendar.py가 공휴일도 'sunday'로 매핑하기 때문).
@@ -64,6 +65,8 @@ export default function TimetableSection({
     () => entries.findIndex((e) => toMinutes(e.depart_at) >= nowMin),
     [entries, nowMin]
   )
+  // 남은 횟수 — nextIdx부터 끝까지. 오늘 운행이 끝났으면(nextIdx === -1) 0.
+  const remainingCount = nextIdx === -1 ? 0 : entries.length - nextIdx
 
   // 펼침 뷰가 열릴 때 "지금"에 가장 가까운 다음 차로 스크롤한다 — 검증된 구현은
   // BusTimetableDetail.jsx(도달 불가 상태)에 이미 있었다("3시쯤 뭐 있지"를 처음부터
@@ -94,17 +97,20 @@ export default function TimetableSection({
   }))
   const anchorSplit = findAnchorSplit(anchorGroups, nextEntry?.depart_at ?? null)
 
+  // 요약 한 줄 — 셔틀 상세(ShuttleContent)와 같은 형태로 통일한다:
+  // "{요일} 시간표 · 총 N회 · 남은 M회 · OO 승차". originStopName이 없는
+  // 노선(응답에 기점 정류장명이 없는 경우)은 마지막 구절을 아예 붙이지 않는다.
+  const summaryLine =
+    `${DAY_LABELS[dayTab] ?? dayTab} 시간표 · 총 ${summary.count}회 · 남은 ${remainingCount}회` +
+    (originStopName ? ` · ${originStopName} 승차` : '')
+
   return (
     <section aria-label="시간표">
-      <div className="flex items-start justify-between gap-3 mb-2.5">
-        <h2 className="text-head font-semibold text-ink dark:text-ink tracking-[-0.01em]">
-          시간표
-        </h2>
-        <span className="text-caption font-semibold text-mute dark:text-mute shrink-0 pt-0.5">
-          {DAY_LABELS[dayTab] ?? dayTab} · {summary.count}회 운행
-        </span>
-      </div>
+      <h2 className="text-head font-semibold text-ink dark:text-ink tracking-[-0.01em] mb-2.5">
+        시간표
+      </h2>
 
+      {/* ① 요일 칩 — 셔틀 상세의 기간 칩과 같은 자리(맨 앞)에 둔다. */}
       {availableDays.length > 1 && (
         <div className="mb-3">
           <SegmentedControl
@@ -117,31 +123,12 @@ export default function TimetableSection({
         </div>
       )}
 
-      {/* 요약 3타일 — 첫차 / 막차 / 배차 */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        <div className="rounded-button bg-surface-2 dark:bg-bg border border-line dark:border-line px-3 py-2.5 text-center">
-          <span className="block text-caption font-semibold text-mute dark:text-mute mb-0.5">첫차</span>
-          <span className="block text-body font-bold text-ink dark:text-ink tabular-nums">{summary.firstBus}</span>
-        </div>
-        <div className="rounded-button bg-surface-2 dark:bg-bg border border-line dark:border-line px-3 py-2.5 text-center">
-          <span className="block text-caption font-semibold text-mute dark:text-mute mb-0.5">막차</span>
-          <span className="block text-body font-bold text-ink dark:text-ink tabular-nums">{summary.lastBus}</span>
-        </div>
-        <div className="rounded-button bg-surface-2 dark:bg-bg border border-line dark:border-line px-3 py-2.5 text-center">
-          <span className="block text-caption font-semibold text-mute dark:text-mute mb-0.5">배차</span>
-          <span className="block text-body font-bold text-ink dark:text-ink tabular-nums">
-            {intervalLabel(summary.interval) ?? '정보 없음'}
-          </span>
-        </div>
-      </div>
+      {/* ② 요약 한 줄 */}
+      <p className="text-caption font-semibold text-mute dark:text-mute mb-3">{summaryLine}</p>
 
-      {/* 심야처럼 운행이 통째로 끊기는 구간은 배차 계산에서 뺐다(위 3타일에는
-          안 섞임) — 그 사실 자체를 숨기지 않고 별도 문구로 알려준다. */}
-      {summary.overnightGaps.length > 0 && (
-        <p className="text-caption text-mute dark:text-mute mb-3">
-          {summary.overnightGaps.map((g) => `${g.from}~${g.to} 운행 공백`).join(', ')}
-        </p>
-      )}
+      {/* ③ 요약 3타일(첫차/막차/배차) — 심야 공백 안내까지 셔틀과 공유하는
+          schedule/TimetableStatTiles가 그린다(계산은 이미 위 summary가 끝냄). */}
+      <TimetableStatTiles summary={summary} />
 
       <button
         type="button"
@@ -152,13 +139,10 @@ export default function TimetableSection({
         {expanded ? '전체 시간표 접기' : '전체 시간표 보기'}
       </button>
 
+      {/* ④⑤ "지금" 앵커 + 시(hour) 그룹 — originStopName은 위 ② 요약 한 줄에
+          이미 "OO 승차"로 나오므로 여기서 다시 반복하지 않는다(중복 안내 금지). */}
       {expanded && (
         <div className="mt-3 rounded-sheet bg-surface dark:bg-surface border border-line dark:border-line overflow-hidden">
-          {originStopName && (
-            <p className="px-4 pt-3 text-caption font-semibold text-mute dark:text-mute">
-              {originStopName} 출발 시각
-            </p>
-          )}
           <div className="p-3 flex flex-col gap-3">
             {hourGroups.map((group, groupIndex) => {
               // 시(hour) 그룹 전체가 이미 지난 시간대면 헤더까지 흐리게 — 눈이

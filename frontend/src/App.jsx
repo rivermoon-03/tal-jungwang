@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import useAppStore from './stores/useAppStore'
-import { hasReloadedForChunkError, markReloadedForChunkError, clearReloadGuard } from './utils/chunkReload'
+import { lazyWithReload } from './utils/lazyWithReload'
 import { useTheme } from './hooks/useTheme'
 import { useFontScale } from './hooks/useFontScale'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
@@ -15,26 +15,6 @@ import GlobalSubwayLineSheet from './components/subway/GlobalSubwayLineSheet'
 import GlobalSubwayDetailSheet from './components/subway/GlobalSubwayDetailSheet'
 import SearchOverlay from './components/search/SearchOverlay'
 import { useNotices } from './hooks/useMore'
-
-// 배포 직후 스테일 청크(옛 해시 파일이 서버에서 사라진 경우) 복구용 가드.
-// import 실패 시 세션당 1회만 새로고침하고, 그래도 실패하면 에러를 그대로 던진다(무한 루프 방지).
-function lazyWithReload(importer) {
-  return lazy(() =>
-    importer()
-      .then((mod) => {
-        clearReloadGuard()
-        return mod
-      })
-      .catch((err) => {
-        if (!hasReloadedForChunkError()) {
-          markReloadedForChunkError()
-          window.location.reload()
-          return new Promise(() => {}) // 리로드가 일어날 때까지 렌더를 보류한다
-        }
-        throw err
-      })
-  )
-}
 
 // 지도 외 페이지는 진입 시에만 로드 — 초기 번들에서 분리한다.
 const SchedulePage = lazyWithReload(() => import('./pages/SchedulePage'))

@@ -16,6 +16,9 @@
  * 시간표는 버스"처럼 어긋날 수 있었다. 아래 그룹은 필터 칩과 selectedMode가
  * 하나로 묶여 있는지, 택시 필터에서는 시간표로 넘어가지 않는지를 고정한다.
  */
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import PCMainShell from './PCMainShell'
@@ -26,6 +29,9 @@ vi.mock('../../stores/useAppStore', () => ({
   default: vi.fn((selector) => selector(storeState)),
 }))
 
+// PCMainShell은 MapView를 MapView.lazy(React.lazy) 경유로만 부른다 — 정적
+// import가 남아 있으면 청크가 index로 합쳐지므로, 아래 지도 관련 단언은 전부
+// findBy로 Suspense 해제를 기다린다.
 vi.mock('../map/MapView', () => ({
   default: () => <div data-testid="map-view">MapView</div>,
 }))
@@ -75,19 +81,21 @@ describe('PCMainShell', () => {
     }
   })
 
-  it('지도 홈 · 지금: 도킹 패널과 지도를 함께 그린다', () => {
+  it('지도 홈 · 지금: 도킹 패널과 지도를 함께 그린다', async () => {
     render(<PCMainShell />)
     expect(screen.getByTestId('dock-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('map-view')).toBeInTheDocument()
+    // 지도는 마운트 즉시 청크를 불러오지만, MapView 자체는 여전히 lazy라
+    // Suspense 해제를 기다려야 한다(PC는 "즉시" 로드지 "동기" 로드가 아니다).
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
     expect(screen.queryByTestId('schedule-embedded')).not.toBeInTheDocument()
   })
 
   it('지도 홈 · 시간표: 도킹 패널 자리에 시간표가 들어오고 지도는 그대로 남는다', async () => {
     storeState.homeView = 'timetable'
     render(<PCMainShell />)
-    // 시간표는 lazy 라 Suspense 해제를 기다린다.
+    // 시간표도, 지도도 lazy 라 각각 Suspense 해제를 기다린다.
     expect(await screen.findByTestId('schedule-embedded')).toHaveTextContent('embedded=true')
-    expect(screen.getByTestId('map-view')).toBeInTheDocument()
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
     expect(screen.queryByTestId('dock-panel')).not.toBeInTheDocument()
   })
 
@@ -104,20 +112,31 @@ describe('PCMainShell', () => {
     expect(screen.getByRole('tab', { name: '시간표' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('다른 페이지(children 있음)에서는 도킹 패널도 시간표도 뜨지 않는다', () => {
+  it('다른 페이지(children 있음)에서는 도킹 패널도 시간표도 뜨지 않는다', async () => {
     storeState.homeView = 'timetable'
     render(<PCMainShell><div>FacilitiesPage</div></PCMainShell>)
     expect(screen.queryByTestId('dock-panel')).not.toBeInTheDocument()
     expect(screen.queryByTestId('schedule-embedded')).not.toBeInTheDocument()
     expect(screen.getByText('FacilitiesPage')).toBeInTheDocument()
     // 지도는 어떤 탭에서도 마운트를 유지한다.
-    expect(screen.getByTestId('map-view')).toBeInTheDocument()
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
   })
 
   it('시간표 상태에서는 범례 온보딩을 겹쳐 띄우지 않는다', () => {
     storeState.homeView = 'timetable'
     render(<PCMainShell />)
     expect(screen.queryByTestId('map-legend')).not.toBeInTheDocument()
+  })
+
+  // PC는 지도가 첫 화면부터 보이는 레이아웃이라 모바일처럼 펼치는 시점까지
+  // 미룰 이유가 없다 — 마운트되는 즉시(대기 조건 없이) LazyMapView를 그린다.
+  // 초기 번들에서는 여전히 빠져야 하므로(청크 분리 자체는 유지) 정적 import는
+  // 금지하되, gating 없이 곧바로 렌더하는지는 소스에서 확인한다.
+  it('MapView.jsx를 정적으로 import하지 않되, 마운트 즉시(대기 없이) LazyMapView를 그린다', () => {
+    const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'PCMainShell.jsx'), 'utf8')
+    expect(src).not.toMatch(/from ['"]\.\.\/map\/MapView['"]/)
+    expect(src).toMatch(/from ['"]\.\.\/map\/MapView\.lazy['"]/)
+    expect(src).toMatch(/<Suspense fallback=\{<MapViewFallback \/>\}>\s*<LazyMapView/)
   })
 
   describe('지도 필터 ↔ 시간표 모드 단일 출처(selectedMode)', () => {

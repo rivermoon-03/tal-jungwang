@@ -1600,6 +1600,9 @@ INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_ti
 -- 직접 조회한 결과다. prod_migration_20260903_stop_name_and_20_1_source.sql이
 -- 적용된 뒤 상태라 20-1 하교 컨텍스트에는 timetable source가 없고(실시간만
 -- 노출), bus_stops 17번 이름은 "시화터미널"이다.
+-- prod_migration_20260904_dedupe_hagyo_bus_commute_contexts.sql이 적용된
+-- 뒤 상태라 시흥33/3401/5602의 하교 부분 여정 컨텍스트(정왕역/시흥시청 방면의
+-- 짧은 쪽)는 빠져 있다 — 하교 화면이 방면 탭 없이 노선당 한 줄만 보여준다.
 -- ============================================================
 
 --
@@ -1608,12 +1611,9 @@ INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_ti
 
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (1, 13, 'to-jeongwang', '한국공학대학교', '정왕역', '["한국공학대학교", "정왕역"]', 10);
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (2, 3, 'to-jeongwang', '한국공학대학교', '정왕역', '["한국공학대학교", "정왕역"]', 20);
-INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (3, 2, 'to-jeongwang', '한국공학대학교', '정왕역', '["한국공학대학교", "정왕역"]', 30);
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (4, 2, 'to-siheung-city-hall', '한국공학대학교', '시흥시청역', '["한국공학대학교", "정왕역", "시흥시청역"]', 10);
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (5, 1, 'to-seoul', '시흥터미널', '강남역', '["시흥터미널", "이마트", "사당역", "강남역"]', 10);
-INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (6, 7, 'to-siheung-city-hall', '이마트', '시흥시청역', '["이마트", "시흥시청역"]', 20);
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (7, 7, 'to-seoul', '이마트', '석수역', '["이마트", "시흥시청역", "광명", "석수역"]', 20);
-INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (8, 11, 'to-siheung-city-hall', '이마트', '시흥시청역', '["이마트", "시흥시청역"]', 30);
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (9, 11, 'to-seoul', '이마트', '구로디지털단지역', '["이마트", "시흥시청역", "구로디지털단지역"]', 30);
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (10, 6, 'to-seoul', '이마트', '사당역', '["이마트", "사당역"]', 40);
 INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (11, 17, 'to-seoul', '시흥터미널·이마트', '신도림역', '["시흥터미널", "이마트", "신천역", "신도림역"]', 50);
@@ -1636,19 +1636,14 @@ INSERT INTO bus_information_sources (id, context_id, source_type, source_role, b
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (2, 5, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (3, 7, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (4, 7, 'realtime', 'downstream_arrival', 18, '시흥시청 도착', 'to-seoul', 20);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (5, 6, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (6, 6, 'realtime', 'downstream_arrival', 18, '시흥시청 도착', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (7, 9, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (8, 9, 'realtime', 'downstream_arrival', 18, '시흥시청 도착', 'to-seoul', 20);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (9, 8, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (10, 8, 'realtime', 'downstream_arrival', 18, '시흥시청 도착', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (11, 10, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (12, 11, 'realtime', 'boarding_arrival', 17, '시흥터미널 승차', 'to-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (13, 11, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (15, 12, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (16, 1, 'realtime', 'boarding_arrival', 3, '한국공학대학교 승차', 'to-jeongwang', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (18, 2, 'realtime', 'boarding_arrival', 3, '한국공학대학교 승차', 'to-jeongwang', 20);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (20, 3, 'realtime', 'boarding_arrival', 3, '한국공학대학교 승차', 'to-city-hall', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (23, 13, 'timetable', 'departure', 6, '강남역 승차', 'from-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (24, 14, 'timetable', 'departure', 7, '석수역 승차', 'from-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (25, 15, 'timetable', 'departure', 8, '구로디지털단지역 승차', 'from-seoul', 10);

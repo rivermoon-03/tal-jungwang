@@ -34,6 +34,8 @@ import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
 import { buildDisplayList, DIRECTION_LABELS, annotateShuttleEntries, buildShuttleGroups } from '../shuttle/shuttleSchedule'
 import ShuttleTimetableGroups from '../shuttle/ShuttleTimetableGroups'
 import HourGroupTimetable from './HourGroupTimetable'
+import TimetableStatTiles from './TimetableStatTiles'
+import { computeTimetableSummary } from '../bus/timetableStats'
 import { canSubmitBusSignal, submitBusSignal } from '../../hooks/useBusReports'
 import {
   PERIOD_VARIANTS,
@@ -576,6 +578,13 @@ function ShuttleContent({ direction, onDirectionChange, scrollContainerRef }) {
     variant: typeof t === 'object' ? t?.variant ?? null : null,
   }))
   const stripDisplayList = buildDisplayList(normalizedTimes)
+
+  // 첫차/막차/배차 3타일 — bus/TimetableSection과 같은 계산(computeTimetableSummary)을
+  // 그대로 재사용한다. 수시운행 구간의 시각도 그대로 섞어 넣는다: 3타일은 "오늘 하루
+  // 전체" 배차 범위를 답하는 요약이고, 아래 "10분 간격 수시운행" 블록은 그 안의 한
+  // 구간을 짚어 보여주는 상세라 서로 가리키는 질문이 다르다(겹치지 않는다). 심야처럼
+  // 운행이 통째로 끊기는 구간만 detectGapIndices가 골라 배차 계산에서 뺀다.
+  const timetableSummary = computeTimetableSummary(normalizedTimes.map((t) => t.depart_at))
   const stripNowMinutes = usingFallback || previewing ? 0 : now.getHours() * 60 + now.getMinutes()
   const stripNextIndex = stripDisplayList.findIndex((item) =>
     item.type === 'fixed' ? item.minutes > stripNowMinutes : item.endMin > stripNowMinutes
@@ -735,6 +744,9 @@ function ShuttleContent({ direction, onDirectionChange, scrollContainerRef }) {
           {SHUTTLE_BOARDING_INFO[direction]}
         </p>
       )}
+      {/* 요약 3타일(첫차/막차/배차) — 공공버스 노선 상세와 같은 규격(schedule/TimetableStatTiles).
+          선택한 폴백·미리보기 시간표가 비어 있을 땐(아래에서 안내 문구로 대체) 타일도 함께 숨긴다. */}
+      {!previewEmpty && !selectedEmpty && <TimetableStatTiles summary={timetableSummary} />}
       {previewEmpty ? (
         <p className="text-body font-semibold text-mute text-center py-6 px-4 leading-relaxed">
           이 기간의 평일 시간표가 비어 있어요.

@@ -10,6 +10,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import ScheduleDetailModal, { SHUTTLE_ALARM_ENABLED } from './ScheduleDetailModal'
+import * as useShuttleModule from '../../hooks/useShuttle'
 
 // 버스 시간표는 테스트별로 바꿔야 해서(운행 종료 케이스) mock 함수로 둔다.
 const busTimetable = vi.fn(() => ({ data: null, loading: false, error: null }))
@@ -241,8 +242,9 @@ describe('ScheduleDetailModal — 셔틀 방향 전환', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: '하교' }))
     expect(screen.getByText('셔틀버스 하교')).toBeInTheDocument()
-    // 하교(direction 1) 시간표가 그려진다 — SHUTTLE_DATA 기준 17:00
-    expect(screen.getByText('17:00')).toBeInTheDocument()
+    // 하교(direction 1) 시간표가 그려진다 — SHUTTLE_DATA 기준 17:00.
+    // 첫차 타일과 시(hour) 그룹 칩 두 곳에 나오므로 getAllByText로 확인한다.
+    expect(screen.getAllByText('17:00').length).toBeGreaterThan(0)
   })
 
   it('2캠은 2캠 방향(2·3) 안에서 전환한다', () => {
@@ -259,6 +261,88 @@ describe('ScheduleDetailModal — 셔틀 방향 전환', () => {
       <ScheduleDetailModal open onClose={() => {}} type="shuttle" direction={0} title="셔틀버스 등교" />
     )
     expect(screen.queryByLabelText(/셔틀 알림 설정/)).not.toBeInTheDocument()
+  })
+})
+
+// 버스 상세(TimetableSection)에만 있던 첫차/막차/배차 3타일을 셔틀 상세에도
+// 통일해 넣었다 — bus/timetableStats.computeTimetableSummary를 그대로 재사용한다.
+describe('ScheduleDetailModal — 셔틀 3타일(첫차/막차/배차)', () => {
+  afterEach(() => {
+    vi.mocked(useShuttleModule.useShuttleSchedule).mockReturnValue({
+      data: SHUTTLE_DATA, loading: false, error: null,
+    })
+    vi.mocked(useShuttleModule.useShuttlePeriods).mockReturnValue({
+      data: { periods: [] }, loading: false, error: null,
+    })
+  })
+
+  it('첫차/막차/배차 3타일을 보여준다', () => {
+    renderShuttle(0)
+    // direction 0: 08:00 · 08:30 · 09:00 — 첫차 08:00, 막차 09:00, 배차 30분.
+    expect(screen.getByText('첫차')).toBeInTheDocument()
+    expect(screen.getByText('막차')).toBeInTheDocument()
+    expect(screen.getByText('배차')).toBeInTheDocument()
+    expect(screen.getByText('30분')).toBeInTheDocument()
+  })
+
+  it('기간 칩 → 요약 한 줄 → 3타일 → 시 그룹 순서로 나온다', () => {
+    vi.mocked(useShuttleModule.useShuttlePeriods).mockReturnValue({
+      data: {
+        periods: [
+          { id: 1, name: '학기', start_date: '2026-03-01', end_date: '2026-12-31', priority: 1 },
+          { id: 2, name: '방학', start_date: '2027-01-01', end_date: '2027-02-28', priority: 1 },
+        ],
+      },
+      loading: false,
+      error: null,
+    })
+    renderShuttle(0)
+    const text = document.body.textContent
+    const chipIdx = text.indexOf('학기')
+    const summaryIdx = text.indexOf('총 3회')
+    const tileIdx = text.indexOf('첫차')
+    const hourGroupIdx = text.indexOf('08시') // HourGroupBlock 헤더 — 3타일엔 없는 문구라 겹치지 않는다.
+    expect(chipIdx).toBeGreaterThan(-1)
+    expect(chipIdx).toBeLessThan(summaryIdx)
+    expect(summaryIdx).toBeLessThan(tileIdx)
+    expect(tileIdx).toBeGreaterThan(-1)
+    expect(hourGroupIdx).toBeGreaterThan(-1)
+    expect(tileIdx).toBeLessThan(hourGroupIdx)
+  })
+
+  it('수시운행 구간의 시각도 3타일 배차 계산에 포함한다(별도 배차 통계를 두 벌로 만들지 않는다)', () => {
+    vi.mocked(useShuttleModule.useShuttleSchedule).mockReturnValue({
+      data: {
+        schedule_name: '학기 시간표',
+        schedule_type: 'weekday',
+        directions: [
+          {
+            direction: 0,
+            times: [
+              { depart_at: '08:00' },
+              { depart_at: '08:20' },
+              { depart_at: '08:40', note: '수시운행' },
+              { depart_at: '08:50', note: '수시운행' },
+              { depart_at: '09:00', note: '수시운행' },
+              { depart_at: '09:30' },
+            ],
+          },
+          { direction: 1, times: ['17:00', '17:30'] },
+        ],
+      },
+      loading: false,
+      error: null,
+    })
+    renderShuttle(0)
+    // 첫차 08:00 · 막차 09:30 — 수시운행 구간(08:40~09:00, 10분 간격)도 배차
+    // 범위 계산에 그대로 섞인다. 별도 통계를 새로 만들지 않고 bus와 같은
+    // computeTimetableSummary 하나만 쓴다.
+    expect(screen.getAllByText('08:00').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('09:30').length).toBeGreaterThan(0)
+    expect(screen.getByText('10~30분')).toBeInTheDocument()
+    // "10분 간격 수시운행" 블록도 그대로 남아 있다 — 3타일은 하루 전체 배차
+    // 범위를, 수시운행 블록은 그 안의 한 구간을 짚어 보여줘 서로 겹치지 않는다.
+    expect(screen.getByText('10분 간격 수시운행')).toBeInTheDocument()
   })
 })
 

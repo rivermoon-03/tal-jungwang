@@ -4,10 +4,16 @@
  * 시안2: 상단 컴팩트 지도 띠(~110px) + 우측 지도 확장 버튼 + 아래 Dashboard 전체.
  * 기존 2단 스냅(SnapHandle) 제거.
  */
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// MapView: 카카오 SDK 없이도 렌더 가능하도록 mock
+// MapView: 카카오 SDK 없이도 렌더 가능하도록 mock. MainShell은 이제 MapView를
+// 정적으로 import하지 않고 MapView.lazy(React.lazy) 경유로만 부른다 — vitest의
+// 모듈 모킹은 resolve된 모듈 id 기준이라 경로만 맞으면 정적/동적 import 어느
+// 쪽이든 그대로 가로챈다.
 vi.mock('../map/MapView', () => ({
   default: () => <div data-testid="map-view">MapView</div>,
 }))
@@ -44,8 +50,44 @@ describe('MainShell — 시안2 (컴팩트 지도 띠 + Dashboard)', () => {
     mockToggleMapExpanded.mockClear()
   })
 
-  it('MapView를 렌더한다', () => {
+  // 지도 청크(MapView.lazy)는 초기 번들에서 뺀 조각이라, 지도를 펼치기 전에는
+  // 아예 마운트되지 않는다(높이 0 컨테이너 안에 아무것도 없음) — 예전엔 접힌
+  // 상태에서도 MapView가 항상 렌더된다고 단언했지만, 실제로 펼치는 시점에만
+  // 불러오도록 바뀌어 이 단언은 더 이상 맞지 않는다.
+  it('지도가 접힌 상태(mapExpanded=false)에서는 MapView 청크를 로드하지 않는다', () => {
     render(<MainShell />)
+    expect(screen.queryByTestId('map-view')).not.toBeInTheDocument()
+    expect(screen.queryByText('지도를 불러오는 중...')).not.toBeInTheDocument()
+  })
+
+  it('지도를 펼치면(mapExpanded=true) MapView 청크를 지연 로드해 렌더한다', async () => {
+    mockMapExpanded = true
+    render(<MainShell />)
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
+  })
+
+  it('MapView.jsx를 정적으로 import하지 않는다(청크 분리 유지)', () => {
+    const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'MainShell.jsx'), 'utf8')
+    expect(src).not.toMatch(/from ['"]\.\.\/map\/MapView['"]/)
+    expect(src).toMatch(/from ['"]\.\.\/map\/MapView\.lazy['"]/)
+  })
+
+  // Suspense가 실제로 pending 상태를 유지하는 순간을 jsdom에서 안정적으로
+  // 붙잡기는 어렵다(모킹된 동적 import는 곧잘 같은 tick에 풀린다) — 그래서
+  // "로딩 중에도 닫기 가능"은 fallback으로 넘기는 props가 맞는지 소스 레벨로,
+  // 실제 닫기 동작은 MapViewFallback.test.jsx가 유닛 테스트로 각각 고정한다.
+  it('Suspense fallback에 MapViewFallback을 mapExpanded/onClose와 함께 넘긴다', () => {
+    const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'MainShell.jsx'), 'utf8')
+    expect(src).toMatch(/fallback=\{<MapViewFallback mapExpanded=\{mapExpanded\} onClose=\{toggleMapExpanded\} \/>\}/)
+  })
+
+  it('한 번 펼친 뒤 다시 접어도 MapView는 마운트된 채로 남는다(재초기화 비용 회피)', async () => {
+    mockMapExpanded = true
+    const { rerender } = render(<MainShell />)
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
+
+    mockMapExpanded = false
+    rerender(<MainShell />)
     expect(screen.getByTestId('map-view')).toBeInTheDocument()
   })
 

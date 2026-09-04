@@ -108,6 +108,76 @@ describe('TimetableSection — 시 그룹 + 지금 앵커', () => {
   })
 })
 
+describe('TimetableSection — 요약 한 줄 + 다섯 블록 순서', () => {
+  it('요약 한 줄은 "{요일} 시간표 · 총 N회 · 남은 M회" 형태다(기점 정류장명 없음)', () => {
+    render(
+      <TimetableSection
+        timetable={TIMETABLE}
+        dayTab="weekday"
+        onDayTabChange={() => {}}
+        nowMin={NOW_MIN}
+        originStopName={null}
+        onJumpToHistory={null}
+      />
+    )
+    // NOW_MIN(08:10) 기준 08:15/08:50/22:50 세 편이 남는다.
+    expect(screen.getByText('평일 시간표 · 총 5회 · 남은 3회')).toBeInTheDocument()
+  })
+
+  it('originStopName이 있으면 요약 한 줄 끝에 "OO 승차"를 붙인다', () => {
+    render(
+      <TimetableSection
+        timetable={TIMETABLE}
+        dayTab="weekday"
+        onDayTabChange={() => {}}
+        nowMin={NOW_MIN}
+        originStopName="강남역"
+        onJumpToHistory={null}
+      />
+    )
+    expect(screen.getByText('평일 시간표 · 총 5회 · 남은 3회 · 강남역 승차')).toBeInTheDocument()
+  })
+
+  it('요약 한 줄 → 3타일 → (지난 시 그룹) → 앵커 → (다음 시 그룹) 순서로 나온다', () => {
+    renderExpanded()
+    const section = screen.getByRole('region', { name: '시간표' })
+    const text = section.textContent
+    const summaryIdx = text.indexOf('시간표 · 총')
+    const tileIdx = text.indexOf('첫차')
+    const pastGroupIdx = text.indexOf('07시') // 08:15 이전 — 앵커보다 앞에 나와야 한다.
+    const anchorIdx = text.indexOf('지금 08:10')
+    const futureGroupIdx = text.indexOf('22시') // 08:15 이후 — 앵커보다 뒤에 나와야 한다.
+    expect(summaryIdx).toBeGreaterThan(-1)
+    expect(summaryIdx).toBeLessThan(tileIdx)
+    expect(tileIdx).toBeLessThan(pastGroupIdx)
+    expect(pastGroupIdx).toBeLessThan(anchorIdx)
+    expect(anchorIdx).toBeLessThan(futureGroupIdx)
+  })
+
+  it('요일이 둘 이상이면 요일 칩이 요약 한 줄보다 앞에 나온다', () => {
+    render(
+      <TimetableSection
+        timetable={{
+          weekday: TIMETABLE.weekday,
+          saturday: [{ depart_at: '09:00' }],
+          sunday: [],
+        }}
+        dayTab="weekday"
+        onDayTabChange={() => {}}
+        nowMin={NOW_MIN}
+        originStopName={null}
+        onJumpToHistory={null}
+      />
+    )
+    const section = screen.getByRole('region', { name: '시간표' })
+    const text = section.textContent
+    const chipIdx = text.indexOf('토요일')
+    const summaryIdx = text.indexOf('시간표 · 총')
+    expect(chipIdx).toBeGreaterThan(-1)
+    expect(chipIdx).toBeLessThan(summaryIdx)
+  })
+})
+
 describe('TimetableSection — 심야 운행 공백', () => {
   // 00:30 다음 차가 07:00이라 390분 벌어진다 — 3400 등교 실측 패턴을 축약한 형태.
   const TIMETABLE_WITH_GAP = {

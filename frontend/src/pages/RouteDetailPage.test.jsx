@@ -325,9 +325,22 @@ describe('RouteDetailPage', () => {
       expect(within(section).getByText('배차')).toBeInTheDocument()
     })
 
-    it('헤더에 "평일 · N회 운행"이 표시된다', () => {
+    it('요약 한 줄에 "평일 시간표 · 총 N회 · 남은 M회 · 기점 승차"가 표시된다', () => {
       render(<RouteDetailPage routeNumber="33" />)
-      expect(screen.getByText('평일 · 3회 운행')).toBeInTheDocument()
+      // 시스템 시각은 2026-01-06 12:00 — 07:10/08:15는 지났고 22:50만 남는다.
+      expect(screen.getByText('평일 시간표 · 총 3회 · 남은 1회 · 한국공학대학교 승차')).toBeInTheDocument()
+    })
+
+    it('요일 칩 → 요약 한 줄 → 3타일 순서로 나온다(다섯 블록 순서 고정)', () => {
+      render(<RouteDetailPage routeNumber="33" />)
+      const section = screen.getByRole('region', { name: '시간표' })
+      const text = section.textContent
+      const chipIdx = text.indexOf('토요일') // 요일 칩(평일/토요일)
+      const summaryIdx = text.indexOf('시간표 · 총')
+      const tileIdx = text.indexOf('첫차')
+      expect(chipIdx).toBeGreaterThan(-1)
+      expect(chipIdx).toBeLessThan(summaryIdx)
+      expect(summaryIdx).toBeLessThan(tileIdx)
     })
 
     it('"전체 시간표 보기"를 누르면 개별 시각이 펼쳐진다', () => {
@@ -347,7 +360,8 @@ describe('RouteDetailPage', () => {
     it('요일 칩 전환 시 해당 요일 시간표로 바뀐다', () => {
       render(<RouteDetailPage routeNumber="33" />)
       fireEvent.click(screen.getByRole('tab', { name: '토요일' }))
-      expect(screen.getByText('토요일 · 1회 운행')).toBeInTheDocument()
+      // 토요일 09:00 단일 운행 — 정오 기준 이미 지나 남은 0회.
+      expect(screen.getByText('토요일 시간표 · 총 1회 · 남은 0회 · 한국공학대학교 승차')).toBeInTheDocument()
       fireEvent.click(screen.getByText('전체 시간표 보기'))
       // 토요일은 09:00 단일 운행 — 첫차/막차 타일 + 펼침 그리드 칩까지 여러 곳에 나타난다.
       const section = screen.getByRole('region', { name: '시간표' })

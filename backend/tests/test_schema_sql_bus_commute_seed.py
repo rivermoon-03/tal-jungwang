@@ -10,13 +10,18 @@ def test_schema_sql_seeds_bus_commute_contexts():
     # 통학 컨텍스트가 통째로 비었다(해당 그룹의 버스가 없어요).
     # bus_commute_contexts는 CREATE TABLE만 있고 시드는
     # prod_migration_20260801_bus_information_sources.sql에만 있었다.
+    # prod_migration_20260904_dedupe_hagyo_bus_commute_contexts.sql이
+    # 하교 방면 탭을 없애며 시흥33/3401/5602의 부분 여정 중복 3행을 지워
+    # 20행에서 17행이 됐다.
     assert "INSERT INTO bus_commute_contexts" in SCHEMA_SQL
-    assert SCHEMA_SQL.count("INSERT INTO bus_commute_contexts (id,") == 20
+    assert SCHEMA_SQL.count("INSERT INTO bus_commute_contexts (id,") == 17
 
 
 def test_schema_sql_seeds_bus_information_sources():
+    # 위 컨텍스트 정리로 딸린 출처 5행(시흥33 1행 + 3401·5602 각 2행)도
+    # 함께 지워져 27행에서 22행이 됐다.
     assert "INSERT INTO bus_information_sources" in SCHEMA_SQL
-    assert SCHEMA_SQL.count("INSERT INTO bus_information_sources (id,") == 27
+    assert SCHEMA_SQL.count("INSERT INTO bus_information_sources (id,") == 22
 
 
 def test_schema_sql_seeds_bus_realtime_targets():
@@ -56,3 +61,16 @@ def test_schema_sql_reflects_20260903_stop_name_and_20_1_source_migration():
         in SCHEMA_SQL
     )
     assert "context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (17, 2, 'timetable'" not in SCHEMA_SQL
+
+
+def test_schema_sql_reflects_20260904_dedupe_hagyo_bus_commute_contexts_migration():
+    # 하교 화면이 방면 탭 없이 노선당 한 줄(경유지 표기)로 통합되며, 같은 노선이
+    # 여러 방면에 중복 노출되던 컨텍스트를 지웠다. 시흥33/3401/5602는 각각
+    # 하교에서 더 긴 여정(journey_labels) 쪽 컨텍스트 하나만 남아야 한다.
+    assert "'to-jeongwang', '한국공학대학교', '정왕역', '[\"한국공학대학교\", \"정왕역\"]', 30" not in SCHEMA_SQL
+    assert "'to-siheung-city-hall', '이마트', '시흥시청역', '[\"이마트\", \"시흥시청역\"]', 20" not in SCHEMA_SQL
+    assert "'to-siheung-city-hall', '이마트', '시흥시청역', '[\"이마트\", \"시흥시청역\"]', 30" not in SCHEMA_SQL
+    assert (
+        "INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, destination_label, journey_labels, sort_order) VALUES (4, 2, 'to-siheung-city-hall', '한국공학대학교', '시흥시청역', '[\"한국공학대학교\", \"정왕역\", \"시흥시청역\"]', 10);"
+        in SCHEMA_SQL
+    )
