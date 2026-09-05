@@ -1,5 +1,6 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import useAppStore from '../../stores/useAppStore'
+import { useMapHistory } from '../../hooks/useMapHistory'
 import { LazyMapView } from '../map/MapView.lazy'
 import MapViewFallback from '../map/MapViewFallback'
 import Dashboard from '../dashboard/Dashboard'
@@ -55,6 +56,14 @@ import { DOCK_RESERVED_PX } from '../common/FloatingDock'
 export default function MainShell() {
   const mapExpanded       = useAppStore((s) => s.mapExpanded)
   const toggleMapExpanded = useAppStore((s) => s.toggleMapExpanded)
+  const setMapExpanded    = useAppStore((s) => s.setMapExpanded)
+  const closeMap = useCallback(() => {
+    if (window.history.state?.mapExpanded) {
+      window.history.back()
+      return
+    }
+    setMapExpanded?.(false)
+  }, [setMapExpanded])
   const homeView          = useAppStore((s) => s.homeView)
   const selectedMode      = useAppStore((s) => s.selectedMode)
   // Dashboard.jsx의 canShowTimetable과 같은 조건(택시는 시간표 개념이 없어 항상 '지금').
@@ -69,9 +78,15 @@ export default function MainShell() {
     setHasOpenedMap(true)
   }
 
+  // 뒤로가기가 지도를 닫는다. 지도를 펼칠 때 같은 주소로 history 항목을 하나
+  // 쌓고(state.mapExpanded), popstate 로 그 항목이 사라지면 지도를 접는다.
+  // 예전엔 지도를 편 채 뒤로가기를 누르면 주소만 바뀌고 지도는 그대로였다(실측).
+  // 닫기 버튼은 그 항목이 있으면 history.back() 으로 닫아 스택을 남기지 않는다.
+  useMapHistory(mapExpanded, setMapExpanded)
+
   return (
     <div
-      className="h-dvh w-full flex flex-col md:hidden bg-bg dark:bg-bg overflow-hidden"
+      className="h-full w-full flex flex-col md:hidden bg-bg dark:bg-bg overflow-hidden"
       // mapExpanded일 땐 지도 자체 높이 계산이 이미 DOCK_RESERVED_PX+safe-area를 뺀다 —
       // 여기서도 같은 여백을 padding으로 또 빼면 지도 하단이 이중으로 잘려 보인다(#지도잘림).
       style={{ paddingBottom: mapExpanded ? undefined : `calc(${DOCK_RESERVED_PX}px + env(safe-area-inset-bottom))` }}
@@ -85,8 +100,8 @@ export default function MainShell() {
         }}
       >
         {hasOpenedMap && (
-          <Suspense fallback={<MapViewFallback mapExpanded={mapExpanded} onClose={toggleMapExpanded} />}>
-            <LazyMapView mapExpanded={mapExpanded} onClose={toggleMapExpanded} />
+          <Suspense fallback={<MapViewFallback mapExpanded={mapExpanded} onClose={closeMap} />}>
+            <LazyMapView mapExpanded={mapExpanded} onClose={closeMap} />
           </Suspense>
         )}
       </div>

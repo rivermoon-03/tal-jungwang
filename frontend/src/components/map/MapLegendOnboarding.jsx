@@ -1,14 +1,19 @@
 /**
- * MapLegendOnboarding — 지도 우상단 ⓘ 버튼 + 접이식 범례.
+ * MapLegendOnboarding — 지도 우상단 ⓘ 버튼 + 범례 시트.
  *
  * 이전: 최초 진입 시 우하단에 다크 토스트가 자동으로 뜨고, 한 번 닫으면
- * localStorage에 영구 기록돼 다시는 볼 방법이 없었다. 지도 위에 늘 떠 있는
- * 상시 노출 UI라 다른 조작(FAB·핀 탭)을 가리기도 했다.
- * 이후: 평소엔 작은 ⓘ 버튼만 떠 있고, 탭할 때만 범례 패널이 펼쳐진다 — 필요할
- * 때 언제든 다시 열어볼 수 있다.
+ * localStorage에 영구 기록돼 다시는 볼 방법이 없었다. 그 다음엔 ⓘ 아래에
+ * 256px 팝오버로 펼쳤는데, 팝오버 높이(406px)가 하단 최근접 정류장 카드와
+ * 내 위치 FAB 아래로 들어가 절반이 가려졌다(뷰포트 698px 기기에서 실측).
+ * 이후: 공용 ui/Sheet(바텀시트)로 연다. 다른 오버레이와 겹칠 수 없고 어느
+ * 화면 높이에서도 전부 보인다.
+ *
+ * 항목도 줄였다. 예전 "G", "하교 · 제2등교", "한국공대 · 정왕역" 같은 칩 안 요소
+ * 설명은 기본 도트 모드에서는 보이지도 않는 것을 설명하고 있었다. 마커 색 표,
+ * 숫자 배지, 도로 색 세 가지만 남긴다.
  *
  * Props:
- *   embedded — true면 자체 absolute 컨테이너 없이 버튼+패널만 반환한다
+ *   embedded — true면 자체 absolute 컨테이너 없이 버튼만 반환한다
  *     (MapView가 mapExpanded 상태의 우측 상단 세로 컨트롤 스택에 끼워 넣을 때 사용).
  *     false(기본)면 PCMainShell처럼 독립적으로 배치되는 호출부를 위해
  *     자체 absolute 컨테이너(top-3 right-3)를 두른다.
@@ -17,14 +22,8 @@ import { useState } from 'react'
 import { Info, X, Bus, TrainFront } from 'lucide-react'
 import { tjLineColor } from '../common/lineColor'
 import IconButton from '../ui/IconButton'
-
-// 범례 항목 — 마커 칩/배지에서 실제로 쓰는 색을 그대로 토큰으로 참조한다
-// (인라인 hex 대신 --tj-* 변수 — 다크 모드에서도 칩과 색이 어긋나지 않는다).
-const LEGEND_ITEMS = [
-  { color: 'var(--tj-delayed)', label: '하교 · 제2등교', desc: '학교 출발 다음 버스까지 남은 시간' },
-  { color: 'var(--tj-ease)', label: 'G', desc: '현재 정류장 근처 실시간 운행 중인 버스' },
-  { color: 'var(--tj-imminent)', label: '한국공대 · 정왕역', desc: '도보 예상 시간' },
-]
+import Sheet from '../ui/Sheet'
+import { CONGESTION_COLOR, CONGESTION_LABEL } from './trafficLevels'
 
 // 마커 색 범례 — "마커 색이 무엇을 뜻하는지" 앱 어디에도 답이 없던 것을 채운다.
 // 색은 절대 여기서 직접 정하지 않고 lineColor.js의 tjLineColor()만 거쳐 읽는다
@@ -38,100 +37,106 @@ const MARKER_LEGEND_ITEMS = [
   { key: 'seohae',    glyph: TrainFront, label: '서해선',     color: tjLineColor('서해선') },
 ]
 
+// 교통 링 색 — TrafficRoadOverlay 가 쓰는 네 단계를 그대로 읽는다.
+const ROAD_LEGEND_ITEMS = [1, 2, 3, 4].map((level) => ({
+  key: String(level),
+  label: CONGESTION_LABEL[level],
+  color: CONGESTION_COLOR[level],
+}))
+
 function LegendButton({ open, onToggle }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-label="지도 표시 안내"
-      aria-expanded={open}
+    <IconButton
+      label="지도 표시 안내"
       title="지도 표시 안내"
-      className="w-9 h-9 rounded-full bg-surface dark:bg-surface shadow-pill flex items-center justify-center active:scale-[0.94] transition-transform duration-press ease-spring"
+      variant="floating"
+      aria-expanded={open}
+      onClick={onToggle}
+      className="rounded-full border border-line dark:border-line active:scale-[0.94] transition-transform duration-press ease-spring"
     >
-      <Info size={17} className="text-accent dark:text-accent" aria-hidden="true" />
-    </button>
+      <Info size={18} className="text-accent dark:text-accent" aria-hidden="true" />
+    </IconButton>
   )
 }
 
-function LegendPanel({ onClose }) {
+function LegendSheet({ open, onClose }) {
   return (
-    <div
-      role="dialog"
-      aria-label="지도 표시 안내"
-      className="absolute right-0 top-[calc(100%+8px)] z-popover w-64 rounded-card border border-line dark:border-line bg-surface dark:bg-surface p-3 shadow-sh-pop"
-    >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-caption font-extrabold text-ink dark:text-ink">지도 표시 안내</p>
+    <Sheet open={open} onClose={onClose} label="지도 표시 안내" placement="bottom">
+      <div className="flex items-center justify-between gap-2 px-[18px] pt-1 pb-2">
+        <p className="text-head font-extrabold text-ink dark:text-ink">지도 표시 안내</p>
         <IconButton label="닫기" variant="ghost" onClick={onClose}>
-          <X size={14} aria-hidden="true" />
+          <X size={16} aria-hidden="true" />
         </IconButton>
       </div>
-      <ul className="space-y-1.5">
-        {LEGEND_ITEMS.map((item) => (
-          <li key={item.label} className="flex items-start gap-2">
+
+      <div className="px-[18px] pb-4">
+        <p className="mb-2 text-caption font-extrabold text-mute dark:text-mute">마커 색</p>
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
+          {MARKER_LEGEND_ITEMS.map((item) => {
+            const Glyph = item.glyph
+            return (
+              <li key={item.key} className="flex items-center gap-2 min-h-[28px]">
+                <span
+                  aria-hidden="true"
+                  style={{ background: item.color }}
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-pill text-white"
+                >
+                  <Glyph size={12} strokeWidth={2.4} aria-hidden="true" />
+                </span>
+                <span className="text-caption font-bold text-ink dark:text-ink">{item.label}</span>
+              </li>
+            )
+          })}
+        </ul>
+
+        <ul className="mt-4 space-y-2 text-caption text-ink-2 dark:text-ink-2 leading-snug">
+          <li className="flex items-start gap-2">
             <span
               aria-hidden="true"
-              style={{ background: item.color }}
-              className="mt-[3px] h-2.5 w-2.5 flex-shrink-0 rounded-pill"
-            />
-            <span className="text-caption text-ink-2 dark:text-ink-2 leading-snug">
-              <strong className="font-bold text-ink dark:text-ink">{item.label}</strong> · {item.desc}
+              className="mt-[2px] grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded-pill text-chip font-extrabold"
+              style={{ background: 'var(--tj-ink)', color: 'var(--tj-bg)' }}
+            >
+              3
+            </span>
+            <span>
+              <strong className="font-bold text-ink dark:text-ink">숫자 배지</strong>는 겹친 정류장 수다. 탭하면 펼쳐진다.
             </span>
           </li>
-        ))}
-        {/* 클러스터 배지("+N")는 설명 없이 숫자만 보이면 뜻을 알기 어렵다 */}
-        <li className="flex items-start gap-2">
-          <span
-            aria-hidden="true"
-            style={{ background: 'var(--tj-ink)' }}
-            className="mt-[3px] h-2.5 w-2.5 flex-shrink-0 rounded-pill"
-          />
-          <span className="text-caption text-ink-2 dark:text-ink-2 leading-snug">
-            <strong className="font-bold text-ink dark:text-ink">숫자 배지</strong> · 겹친 정류장 여러 개, 탭하면 확대돼요
-          </span>
-        </li>
-      </ul>
-
-      {/* 마커 색 범례 — 색 스와치 + 글리프 + 이름 표. 마커 칩 dot과 같은 색(위 LEGEND_ITEMS와
-          달리 이 항목은 "마커 자체가 무슨 노선군인지"를 설명한다 — 별도 표로 분리). */}
-      <p className="mt-3 mb-1.5 text-caption font-extrabold text-mute dark:text-mute">마커 색</p>
-      <ul className="space-y-1.5">
-        {MARKER_LEGEND_ITEMS.map((item) => {
-          const Glyph = item.glyph
-          return (
-            <li key={item.key} className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                style={{ background: item.color }}
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-pill text-white"
-              >
-                <Glyph size={12} strokeWidth={2.4} aria-hidden="true" />
-              </span>
-              <span className="text-caption font-bold text-ink dark:text-ink">{item.label}</span>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+          <li className="flex items-start gap-2">
+            <span aria-hidden="true" className="mt-[7px] flex flex-shrink-0 gap-[3px]">
+              {ROAD_LEGEND_ITEMS.map((r) => (
+                <span key={r.key} className="h-[5px] w-[6px] rounded-pill" style={{ background: r.color }} />
+              ))}
+            </span>
+            <span>
+              <strong className="font-bold text-ink dark:text-ink">자동차 링</strong>은 마유로 교통 흐름이다. 색은 {ROAD_LEGEND_ITEMS.map((r) => r.label).join(', ')} 순이다. 탭하면 방향별 속도가 보인다.
+            </span>
+          </li>
+        </ul>
+      </div>
+    </Sheet>
   )
 }
 
 export default function MapLegendOnboarding({ embedded = false }) {
   const [open, setOpen] = useState(false)
 
+  const button = <LegendButton open={open} onToggle={() => setOpen((v) => !v)} />
+  const sheet = <LegendSheet open={open} onClose={() => setOpen(false)} />
+
   if (embedded) {
     return (
-      <div className="relative">
-        <LegendButton open={open} onToggle={() => setOpen((v) => !v)} />
-        {open && <LegendPanel onClose={() => setOpen(false)} />}
-      </div>
+      <>
+        {button}
+        {sheet}
+      </>
     )
   }
 
   return (
     <div className="absolute top-3 right-3 z-[50]">
-      <LegendButton open={open} onToggle={() => setOpen((v) => !v)} />
-      {open && <LegendPanel onClose={() => setOpen(false)} />}
+      {button}
+      {sheet}
     </div>
   )
 }

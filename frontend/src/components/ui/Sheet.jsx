@@ -16,7 +16,9 @@
  * @param {boolean} [props.showGrip]        모바일 드래그 손잡이. PC 에서는 꺼둔다.
  */
 import { useEffect, useRef } from 'react'
-import { DOCK_RESERVED_PX } from '../common/FloatingDock'
+
+// bottom 배치 시트가 화면 바닥(safe-area 위)에서 띄우는 최소 여백.
+const SHEET_BOTTOM_GAP_PX = 12
 
 export default function Sheet({
   open,
@@ -28,13 +30,6 @@ export default function Sheet({
   showGrip = placement === 'bottom',
 }) {
   const panelRef = useRef(null)
-  // hooks/useMediaQuery의 useIsDesktop 대신 ScheduleDetailModal.jsx의 isPC와 같은
-  // 방식(window.matchMedia 직접 호출)을 쓴다 — Sheet는 이 앱의 아홉 시트가 전부
-  // 거쳐가는 정본이라, useIsDesktop을 구독하면 그 훅을 부분적으로만 모킹해 둔
-  // 기존 소비자 테스트들이 "useIsDesktop export가 없다"며 깨진다.
-  const isDesktop =
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
-
   useEffect(() => {
     if (!open) return undefined
 
@@ -92,19 +87,15 @@ export default function Sheet({
           className,
         ].join(' ')}
         style={{
-          // 결함 #8 — env(safe-area-inset-bottom)만 빼면 노치 여백만 비워질 뿐,
-          // FloatingDock(bottom-[14px]에 떠 있는 독)이 차지하는 높이는 그대로
-          // 남는다. 그래서 셔틀 상세 모달을 끝까지 내리면 마지막 시(hour) 그룹
-          // 헤더가 독 뒤에 깔려 안 보였다. 독이 실제로 떠 있는 모바일(bottom
-          // placement)에서만 DOCK_RESERVED_PX(FloatingDock.jsx 단일 출처)를 더
-          // 얹는다 — PC는 FloatingDock 자체가 없어(PCSidebar 대체) 더하면 오히려
-          // 빈 공간만 남는다.
+          // 예전엔 bottom 배치에서 DOCK_RESERVED_PX(76px)를 더 비웠다. 셔틀 상세
+          // 모달이 독 뒤에 가려지던 시절의 처방인데, 지금은 시트(z-sheet 100)와
+          // 백드롭(z-overlay 90)이 독(z-nav 50) 위에 있어 독은 어차피 눌리지도
+          // 보이지도 않는다. 그 76px이 액션 버튼 아래 흰 띠로만 남았다(실측
+          // 100px). safe-area와 최소 손가락 여백만 비운다.
           paddingBottom:
             placement !== 'bottom'
               ? undefined
-              : isDesktop
-                ? 'env(safe-area-inset-bottom)'
-                : `calc(${DOCK_RESERVED_PX}px + env(safe-area-inset-bottom))`,
+              : `calc(${SHEET_BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`,
         }}
       >
         {showGrip && (

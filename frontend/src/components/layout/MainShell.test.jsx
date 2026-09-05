@@ -78,7 +78,7 @@ describe('MainShell — 시안2 (컴팩트 지도 띠 + Dashboard)', () => {
   // 실제 닫기 동작은 MapViewFallback.test.jsx가 유닛 테스트로 각각 고정한다.
   it('Suspense fallback에 MapViewFallback을 mapExpanded/onClose와 함께 넘긴다', () => {
     const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'MainShell.jsx'), 'utf8')
-    expect(src).toMatch(/fallback=\{<MapViewFallback mapExpanded=\{mapExpanded\} onClose=\{toggleMapExpanded\} \/>\}/)
+    expect(src).toMatch(/fallback=\{<MapViewFallback mapExpanded=\{mapExpanded\} onClose=\{closeMap\} \/>\}/)
   })
 
   it('한 번 펼친 뒤 다시 접어도 MapView는 마운트된 채로 남는다(재초기화 비용 회피)', async () => {

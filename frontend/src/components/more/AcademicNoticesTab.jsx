@@ -173,7 +173,10 @@ export default function AcademicNoticesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 카테고리 칩 — 학교 공지 목록 바로 위(필터는 목록에 붙어 있어야 읽힌다). */}
+      {/* 카테고리 칩 + 학교 공지 목록을 한 블록으로 묶는다(칩은 목록의 필터라
+          붙어 있어야 읽힌다). "학교 공지" 소제목은 두지 않는다 — 탭 이름이 이미
+          같은 뜻이고, 그 한 줄만큼 목록이 멀어졌다. */}
+      <div className="flex flex-col gap-2">
       <div role="group" aria-label="공지 카테고리 선택" className="flex flex-wrap items-center gap-1.5">
         {NOTICE_CATEGORIES.map((c) => (
           <button
@@ -194,14 +197,7 @@ export default function AcademicNoticesTab() {
 
       {/* 학교 공지 — 탭 이름이 약속하는 콘텐츠라 칩 바로 다음, 학사일정/캘린더보다
           먼저 보여준다(정보 우선순위 재정렬). */}
-      <div>
-        <div
-          className="text-label font-semibold text-mute dark:text-mute uppercase tracking-widest mb-2"
-          style={{ letterSpacing: '0.14em' }}
-        >
-          학교 공지
-        </div>
-
+      <div aria-label="학교 공지 목록">
         {/* 로딩 / 에러 / 빈 상태 / 정상 — 넷을 서로 다른 모양으로 구분한다. */}
         {noticesLoading && <NoticeListSkeleton />}
 
@@ -294,6 +290,7 @@ export default function AcademicNoticesTab() {
             )}
           </>
         )}
+      </div>
       </div>
 
       {/* 학사일정 — 보조 정보라 공지 목록 다음으로 내렸다. 진행 중(D+N/D-DAY)과

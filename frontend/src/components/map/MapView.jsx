@@ -12,6 +12,7 @@ import { apiFetch } from '../../hooks/useApi'
 import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
+import ClusterListSheet from './ClusterListSheet'
 import GpsSoftPrompt from './GpsSoftPrompt'
 import { useGpsSoftPrompt } from '../../hooks/useGpsSoftPrompt'
 import { useShuttleNext, useShuttleSchedule, DEFAULT_CENTER } from '../../hooks/useShuttle'
@@ -48,6 +49,12 @@ const MARKER_TICK = { tickMs: 60_000 }
 // 요약 바 fetch를 시작할 수 있도록 상수로 둔다.
 const JEONGWANG_STATION = { lat: 37.352618, lng: 126.742747 }
 
+// 지도 초기 줌과 "학교로" 줌(카카오 level, 작을수록 확대).
+const SCHOOL_LEVEL = 4
+// 카메라 여백(px). 확장 화면 상단은 검색바(56px)가 지도를 덮어 더 크게 준다.
+const CAMERA_TOP_PAD_PX = 72
+const CAMERA_BASE_PAD_PX = 24
+
 // 두 좌표 사이 대권거리(km) — 결함 #28 fitBounds에서 GPS가 로컬 반경 밖(방학 중
 // 타지역 등)인지 판단하는 용도. NearestStopCard/useUserLocation의 haversine과
 // 같은 공식이지만 그 파일엔 private 헬퍼라 재사용할 수 없어 여기 따로 둔다.
@@ -80,6 +87,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   // 카메라 재정렬은 세션당 1회만). effect 재구독 없이 항상 최신 값을 보도록
   // managedStations/gpsCoords는 ref로도 따로 들고 있는다(아래 참고).
   const didInitialFitRef = useRef(false)
+  const mapExpandedRef = useRef(mapExpanded)
   const managedStationsRef = useRef([])
   const gpsCoordsRef = useRef(null)
   const [sdkReady, setSdkReady] = useState(() => Boolean(window.kakao?.maps?.LatLng))
@@ -108,6 +116,26 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   // 도는 것 방지). 진입 시 권한이 있으면 좌표가 도착하는 대로 아래 effect가 1회 센터링한다.
   const gpsCoords = useUserLocation(mapExpanded)
   const centeredOnExpandRef = useRef(false)
+
+  // 하단 오버레이 열(내 위치 FAB + 최근접 정류장 카드)의 높이. 카카오 캔버스의
+  // bottom 을 이만큼 올려 로고·축척이 카드 위에 보이게 한다. 카드가 접히고 펼칠
+  // 때마다 바뀌므로 ResizeObserver 로 따라간다.
+  const bottomOverlayRef = useRef(null)
+  const [measuredBottomInset, setMeasuredBottomInset] = useState(0)
+  // 접힌 상태(mapExpanded=false)에서는 측정값과 무관하게 0 이다 — 렌더 중 파생.
+  const bottomInset = mapExpanded ? measuredBottomInset : 0
+  useEffect(() => {
+    if (!mapExpanded) return undefined
+    const el = bottomOverlayRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    // ResizeObserver 콜백은 관찰 시작 직후 한 번 호출되므로 여기서 따로 재지 않는다.
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect
+      setMeasuredBottomInset(Math.round(rect?.height ?? el.getBoundingClientRect().height))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [mapExpanded, mapInstance])
 
   // 실시간 데이터 훅
   // 지도 마커는 분 단위 표시라 60초 tick으로 충분 — 매초 마커 재계산을 피한다.
@@ -340,8 +368,15 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       }
 
       if (m.type === 'shuttle') {
+        // 백엔드 마커 이름이 "등교", "하교" 처럼 방향만 적혀 있으면 칩과 시트에
+        // "등교 등교 시간표" 같은 반복이 생기고, 시트 제목이 정류장이 아니라 방향이
+        // 된다(실측). 이름을 "셔틀 등교"로 완성하고 배지는 "셔"로 줄인다.
+        const dirLabel = /^(등교|하교)$/.test(m.name ?? '') ? m.name : null
+        const campusTag = (ui.direction ?? 0) >= 2 ? '2캠 ' : ''
         return {
           ...base,
+          name: dirLabel ? `${campusTag}셔틀 ${dirLabel}` : m.name,
+          badgeText: dirLabel ? '셔' : base.badgeText,
           iconType: ui.iconType ?? 'bus',
           direction: ui.direction,
           showLive: ui.showLive ?? false,
@@ -480,7 +515,8 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   useEffect(() => {
     managedStationsRef.current = managedStations
     gpsCoordsRef.current = gpsCoords
-  }, [managedStations, gpsCoords])
+    mapExpandedRef.current = mapExpanded
+  }, [managedStations, gpsCoords, mapExpanded])
 
   // 결함 #28 — 초기 카메라 fitBounds. 마커 하나 없는 골목만 보이던 고정 center/level
   // 대신, 로컬 핵심 마커(학교·정왕역·주변 정류장) 전체가 보이도록 bounds를 맞춘다.
@@ -514,7 +550,11 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       bounds.extend(new window.kakao.maps.LatLng(gps[0], gps[1]))
     }
 
-    map.setBounds(bounds)
+    // 확장 화면은 상단 검색바(56px)가 지도를 덮는다 — 그 아래로 마커가 들어오게
+    // 위쪽 padding 을 준다. 하단은 캔버스 자체의 bottom 이 카드 높이만큼 올라가
+    // 있어 따로 뺄 것이 없다.
+    const topPad = mapExpandedRef.current ? CAMERA_TOP_PAD_PX : CAMERA_BASE_PAD_PX
+    map.setBounds(bounds, topPad, CAMERA_BASE_PAD_PX, CAMERA_BASE_PAD_PX, CAMERA_BASE_PAD_PX)
     didInitialFitRef.current = true
   }, [])
 
@@ -531,6 +571,9 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     )
   }, [managedStations, selectedMode])
 
+
+  // 클러스터 구성원 목록 시트 — 확대해도 안 풀리는 배지를 탭했을 때
+  const [clusterMembers, setClusterMembers] = useState(null)
 
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
@@ -870,10 +913,17 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     onMarkerClick?.(station.id)
   }, [onMarkerClick])
 
-  // 학교로 이동 버튼 핸들러
+  // 학교로 이동 버튼 핸들러. 줌도 기본 level 로 되돌린다 — 예전엔 panTo 만 해서
+  // 30m 줌에서는 건물 몇 동만, 2km 줌에서는 클러스터 하나만 보였다.
   function panToSchool() {
     if (!mapRef.current) return
-    mapRef.current.panTo(new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng))
+    const map = mapRef.current
+    if (map.getLevel() !== SCHOOL_LEVEL) map.setLevel(SCHOOL_LEVEL)
+    map.panTo(new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng))
+    // 확장 화면은 상단 검색바가 지도를 덮으므로 목표점을 그만큼 아래로 보이게 한다.
+    if (mapExpanded && typeof map.panBy === 'function') {
+      map.panBy(0, -Math.round(CAMERA_TOP_PAD_PX / 2))
+    }
   }
 
   // 내 위치 FAB 핸들러 — GPS 권한 확인 후 소프트 프롬프트 또는 지도 이동
@@ -1028,7 +1078,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
 
     const map = new window.kakao.maps.Map(containerRef.current, {
       center: new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
-      level: 4,
+      level: SCHOOL_LEVEL,
     })
     mapRef.current = map
 
@@ -1164,7 +1214,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
           ref={containerRef}
           id="kakao-map-canvas"
           className="absolute inset-0 bg-surface-2"
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: 'none', bottom: mapExpanded ? bottomInset : 0 }}
         />
 
         {/* mapExpanded=false(기본) — 기존 우하단 FAB 배치(PC 등 mapExpanded 미사용 호출부 호환) */}
@@ -1232,9 +1282,11 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
             (닫기 · 학교로 · 범례ⓘ, 검색바 아래) + 우하단 내 위치 FAB(하단 카드 위) +
             하단 최근접 정류장 카드. top/bottom 모두 safe-area-inset을 더해 노치·홈
             인디케이터를 피한다.
-            내 위치는 원래 이 우상단 스택에 있었다 — 한 손으로 쓰는 상황(엄지가 화면
-            하단에 있는 상태)에 정확히 맞지 않아, 축소·PC와 같은 우하단(카드 위)으로
-            내렸다(§M-3). */}
+            컨트롤 스택 세 버튼은 모두 44px 원형이고 오른쪽 끝을 맞춘다(items-end).
+            예전엔 정렬이 없어 학교로가 닫기 알약 폭(70px)으로 늘어나고 ⓘ(36px)는
+            왼쪽으로 붙어 오른쪽 가장자리가 세 줄 다 달랐다(사용자 리포트).
+            "정왕역 ↔ 학교" 구간 요약 pill 은 하단 카드 헤더의 보조 줄로 옮겼다 —
+            버튼처럼 생겼지만 눌리지 않았고 지도 POI 라벨을 덮었다. */}
         {mapInstance && mapExpanded && (
           <>
             <button
@@ -1251,35 +1303,30 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
               <span className="truncate">노선 · 정류장 검색</span>
             </button>
 
-            {/* 하단 구간 요약 바(§4) — 우측 세로 컨트롤 스택과 같은 높이의 좌측에 배치 */}
-            {routeSummaryText && (
-              <div
-                className="absolute left-3 z-[55] max-w-[calc(100%-140px)] truncate rounded-pill
-                           bg-surface dark:bg-surface border border-line dark:border-line
-                           shadow-pill px-3 py-1.5 text-caption font-semibold text-ink-2 dark:text-ink-2"
-                style={{ top: 'calc(env(safe-area-inset-top) + 64px)' }}
-              >
-                {routeSummaryText}
-              </div>
-            )}
-
             <div
-              className="absolute right-4 flex flex-col gap-2 z-[55]"
+              className="absolute right-4 flex flex-col items-end gap-2 z-[55]"
               style={{ top: 'calc(env(safe-area-inset-top) + 64px)' }}
             >
               {onClose && <CloseMapButton onClose={onClose} />}
-              {/* 학교로 FAB */}
-              <IconButton label="학교로" title="학교로" variant="floating" onClick={panToSchool}>
-                <School size={17} className="text-navy" />
+              {/* 학교로 FAB — 줌도 기본(level 4)으로 되돌린다 */}
+              <IconButton
+                label="학교로"
+                title="학교로"
+                variant="floating"
+                className="rounded-full border border-line dark:border-line active:scale-[0.94] transition-transform duration-press ease-spring"
+                onClick={panToSchool}
+              >
+                <School size={18} className="text-navy" aria-hidden="true" />
               </IconButton>
-              {/* 범례 안내 ⓘ — 상시 노출 토스트 대신 탭해서 여는 접이식 패널(§3) */}
+              {/* 범례 안내 ⓘ — 바텀시트로 연다(§3) */}
               <MapLegendOnboarding embedded />
             </div>
 
-            {/* 내 위치 FAB + 최근접 정류장 카드 — 우하단에 함께 쌓는다(§M-3). 정류장
-                카드 높이가 GPS 유무·도착 행 수에 따라 달라지므로, FAB을 고정 px로
-                띄우는 대신 같은 flex-column에 넣어 카드 자연 높이 위에 항상 붙게 한다. */}
+            {/* 내 위치 FAB + 최근접 정류장 카드 — 우하단에 함께 쌓는다(§M-3). 이 열의
+                높이를 재서 카카오 캔버스의 bottom 을 그만큼 올린다(bottomInset) —
+                카카오 로고와 축척이 카드 뒤에 숨지 않고 카드 바로 위에 보인다. */}
             <div
+              ref={bottomOverlayRef}
               className="absolute inset-x-3 bottom-0 z-[55] flex flex-col items-end gap-2"
               style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
             >
@@ -1287,7 +1334,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
                 label="내 위치"
                 title="내 위치"
                 variant="floating"
-                className="self-end"
+                className="self-end rounded-full border border-line dark:border-line"
                 onClick={handleLocationFab}
               >
                 <Navigation size={17} className="text-accent dark:text-accent" />
@@ -1298,6 +1345,8 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
                 arrivalsByStation={arrivalsByStation}
                 onSelectStation={handleMarkerTap}
                 onRequestGps={handleLocationFab}
+                summaryText={routeSummaryText}
+                hidden={promptState === 'prompt' || promptState === 'denied'}
               />
             </div>
           </>
@@ -1332,6 +1381,18 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
             document.body로 포탈해 그 조상 체인 자체를 끊는다 — Sheet.jsx는
             StatsSheet · GlobalSubwayLineSheet 등 다른 여덟 개 소비자가 그대로
             쓰므로 정본 자체는 건드리지 않는다. */}
+        {clusterMembers && !sheetStation && createPortal(
+          <ClusterListSheet
+            members={clusterMembers}
+            onClose={() => setClusterMembers(null)}
+            onSelect={(station) => {
+              setClusterMembers(null)
+              handleMarkerTap(station)
+            }}
+          />,
+          document.body
+        )}
+
         {sheetStation && createPortal(
           <MarkerSheet
             station={sheetStation}
@@ -1431,6 +1492,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
             map={mapInstance}
             stations={visibleStations}
             onTap={handleMarkerTap}
+            onTapCluster={setClusterMembers}
           />
         </>
       )}

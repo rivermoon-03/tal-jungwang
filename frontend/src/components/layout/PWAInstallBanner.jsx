@@ -25,8 +25,9 @@ export default function PWAInstallBanner() {
 
   const hidden = isInstalled || isDismissed || isDesktop || (!canInstall && !isIOS);
 
-  // 배너가 실제로 렌더링되는 동안 --banner-h CSS 변수를 설정해
-  // 지도 FAB 등 다른 요소가 배너 높이만큼 아래로 밀리도록 한다.
+  // 배너가 실제로 렌더링되는 동안 --banner-h CSS 변수를 설정한다. 배너가 흐름
+  // 안에 들어간 뒤로 레이아웃 보정 용도로는 쓰지 않지만, 배너 유무를 CSS 에서
+  // 알아야 하는 곳을 위해 남긴다.
   useEffect(() => {
     if (hidden) {
       document.documentElement.style.setProperty('--banner-h', '0px');
@@ -55,12 +56,15 @@ export default function PWAInstallBanner() {
 
   return (
     <>
-      {/* 상단 고정 배너 — top-0 + viewport-fit=cover라 상단 세이프에어리어를
-          padding으로 보정한다(노치/펀치홀 기기에서 배너 텍스트가 잘리지 않게). */}
+      {/* 상단 배너 — 레이아웃 흐름 안에 둔다(App 의 세로 flex 첫 자식). 예전엔
+          fixed top-0 오버레이라 히어로의 지도 칩과 시간표 화면의 모드 탭 위에
+          얹혀 그 자리의 탭을 가로챘다(실측: 자동화 클릭이 배너에 막힘). 이제
+          아래 화면이 배너 높이만큼 내려간다. viewport-fit=cover 라 상단
+          세이프에어리어는 padding 으로 보정한다. */}
       <div
         role="banner"
         aria-label="앱 설치 배너"
-        className="fixed top-0 left-0 right-0 z-toast flex items-center justify-between px-4 py-2 text-white"
+        className="relative z-toast flex flex-none items-center justify-between px-4 py-2 text-white"
         style={{
           backgroundColor: 'var(--tj-accent)',
           minHeight: '44px',

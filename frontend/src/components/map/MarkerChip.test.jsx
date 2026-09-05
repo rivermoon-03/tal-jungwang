@@ -5,8 +5,9 @@
  * 크기 기준: 패딩 5px 11px 5px 5px, font-size >= 13px
  */
 
-import { describe, it, expect } from 'vitest'
-import { createMarkerChipElement, createSeohaeSiheungChipElement, createSubwayMultiChipElement } from './MarkerChip'
+import { describe, it, expect, vi } from 'vitest'
+import { createMarkerChipElement, createSeohaeSiheungChipElement, createSubwayMultiChipElement, createClusterBadgeElement, dedupeChipName } from './MarkerChip'
+import { createMarkerDotElement } from './MarkerDot'
 
 function outerHTML(el) {
   return el.outerHTML
@@ -330,5 +331,56 @@ describe('시안1 — createSeohaeSiheungChipElement 정보 밀도형 구조', (
     const el = createSeohaeSiheungChipElement({ stationName: '시흥시청역', upMinutes: 5, dnMinutes: 8, earliestBus: null })
     const html = outerHTML(el)
     expect(html).toContain('data-role="live"')
+  })
+})
+
+// ============================================================
+// 라벨 중복 제거 + 접근성
+// ============================================================
+
+describe('dedupeChipName — 배지 글자와 이름의 반복을 없앤다', () => {
+  it('이름이 배지와 같으면 이름을 비운다("등교 등교")', () => {
+    expect(dedupeChipName('등교', '등교')).toBe('')
+  })
+
+  it('이름 끝의 "(배지)" 꼬리를 뗀다("제2 꽃집앞 (제2)")', () => {
+    expect(dedupeChipName('꽃집앞 (제2)', '제2')).toBe('꽃집앞')
+  })
+
+  it('겹치지 않으면 그대로 둔다', () => {
+    expect(dedupeChipName('정왕역', '20')).toBe('정왕역')
+    expect(dedupeChipName('시흥시청', '')).toBe('시흥시청')
+  })
+
+  it('칩은 이름이 배지와 같을 때 name 영역을 그리지 않는다', () => {
+    const el = createMarkerChipElement({ routeCode: '셔틀', badgeText: '등교', stationName: '등교' })
+    expect(el.querySelector('[data-role="name"]')).toBeNull()
+    expect(el.querySelector('[data-role="dot"]').textContent).toBe('등교')
+  })
+})
+
+describe('마커 오버레이 접근성 — 캔버스 안에 포커스 가능한 요소가 있다', () => {
+  it('칩 루트는 role=button, tabindex=0, aria-label 을 갖는다', () => {
+    const el = createMarkerChipElement({ routeCode: '20-1', stationName: '정왕역', liveMinutes: 5, showLive: true })
+    expect(el.getAttribute('role')).toBe('button')
+    expect(el.getAttribute('tabindex')).toBe('0')
+    expect(el.getAttribute('aria-label')).toBe('정왕역, 5분')
+  })
+
+  it('도트와 클러스터 배지도 같은 규약을 따른다', () => {
+    const dot = createMarkerDotElement({ type: 'bus', label: '이마트' })
+    expect(dot.getAttribute('role')).toBe('button')
+    expect(dot.getAttribute('aria-label')).toBe('이마트')
+    const cluster = createClusterBadgeElement({ count: 3, colors: [] })
+    expect(cluster.getAttribute('role')).toBe('button')
+    expect(cluster.getAttribute('aria-label')).toBe('겹친 정류장 3개')
+  })
+
+  it('Enter 와 Space 키가 탭과 같은 동작을 한다', () => {
+    const onClick = vi.fn()
+    const el = createMarkerChipElement({ routeCode: '20-1', stationName: '정왕역', onClick })
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))
+    expect(onClick).toHaveBeenCalledTimes(2)
   })
 })

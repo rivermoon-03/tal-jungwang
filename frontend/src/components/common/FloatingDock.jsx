@@ -82,6 +82,11 @@ export default function FloatingDock() {
     // 유일한 진입점이라 여기서 한 번만 풀어준다 — MainShell의 effect나 App의
     // 라우팅 쪽에서 또 풀면 책임이 두 곳으로 갈린다.
     useAppStore.getState().setMapExpanded(false)
+    // 지도가 히스토리 항목(useMapHistory)을 쌓아 둔 상태면 그 항목을 일반
+    // 홈 항목으로 바꿔 둔다 — 다른 탭에서 뒤로 왔을 때 지도가 다시 펼쳐지지 않게.
+    if (window.history.state?.mapExpanded) {
+      window.history.replaceState({}, '', window.location.href)
+    }
     // 결함(사용자 실측) — 히어로 위 "지금/시간표" 셀렉터를 없애고 독의 홈/시간표
     // 탭이 그 자리를 대신하게 됐다. 시간표 탭으로 한 번 들어가면 homeView가
     // 'timetable'로 남는데, 셀렉터가 없으니 'now'로 되돌릴 길이 이 탭 말고는

@@ -8,12 +8,16 @@
  * 새 API를 호출하지 않는다(CLAUDE.md 3-6, 새 호출 발명 금지).
  *
  * GPS 위치가 없으면 카드 대신 안내 1행을 보여주고, 탭하면 MapView의 기존
- * GPS 소프트 프롬프트 플로우(checkGps)로 연계한다.
+ * GPS 소프트 프롬프트 플로우(checkGps)로 연계한다. 그 프롬프트 카드가 떠 있는
+ * 동안(hidden)은 안내 행을 그리지 않는다 — 예전엔 "위치 켜기"와 "허용하기"
+ * 두 CTA 가 위아래로 동시에 보였다.
+ *
+ * 접힘/펼침: 3행을 다 펼친 카드가 뷰포트의 27~36%를 차지해(실측) 지도가 가운데
+ * 띠만 남았다. 기본은 1행(정류장명 + 첫 도착)으로 접혀 있고, 손잡이나 헤더를
+ * 탭하면 3행이 된다. 상태는 컴포넌트가 살아 있는 동안 유지된다.
  *
  * 위치 지정은 이 컴포넌트가 하지 않는다(w-full 블록으로만 렌더) — MapView가
- * 우하단 "내 위치" FAB과 함께 flex-column에 넣어 absolute로 띄운다(§M-3, 카드
- * 높이가 GPS 유무·행 수마다 달라 FAB이 항상 카드 위에 붙게 하려면 고정 px보다
- * 이 편이 안전하다).
+ * 우하단 "내 위치" FAB과 함께 flex-column에 넣어 absolute로 띄운다(§M-3).
  *
  * Props:
  *   userLocation      — { lat, lng } | null
@@ -21,10 +25,13 @@
  *   arrivalsByStation — { [stationName]: { arrivals: [...] } | null }
  *   onSelectStation   — (syntheticStation) => void — 행 탭 시 기존 마커 시트 오픈 핸들러 재사용
  *   onRequestGps      — () => void — GPS 없음 배너 탭 시 호출
+ *   summaryText       — string | null — 헤더 아래 보조 줄(정왕역 ↔ 학교 구간 요약)
+ *   hidden            — true면 아무것도 그리지 않는다(GPS 프롬프트가 떠 있는 동안)
+ *   defaultExpanded   — 초기 펼침 상태(기본 false)
  */
 
-import { useMemo } from 'react'
-import { MapPin } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ChevronUp, MapPin } from 'lucide-react'
 import { getNearestStationInfo, STATION_COORDS } from '../../hooks/useUserLocation'
 import { getGbisStationId, getRouteDisplayConfig } from '../dashboard/busStationConfig'
 import { formatArrival, formatArrivalFromTime } from '../../utils/arrivalTime'
@@ -38,6 +45,7 @@ import RouteBadge from '../ui/RouteBadge'
 const SUPPORTED_STATION_NAMES = ['한국공학대', '이마트', '시흥시청']
 
 const MAX_ROWS = 3
+const COLLAPSED_ROWS = 1
 
 function buildRows(arrivalsData, direction) {
   const arrivals = arrivalsData?.arrivals ?? []
@@ -76,11 +84,18 @@ export default function NearestStopCard({
   arrivalsByStation = {},
   onSelectStation,
   onRequestGps,
+  summaryText = null,
+  hidden = false,
+  defaultExpanded = false,
 }) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+
   const nearest = useMemo(() => {
     if (userLocation?.lat == null || userLocation?.lng == null) return null
     return getNearestStationInfo(userLocation.lat, userLocation.lng, SUPPORTED_STATION_NAMES)
   }, [userLocation])
+
+  if (hidden) return null
 
   if (!userLocation) {
     return (
@@ -107,6 +122,8 @@ export default function NearestStopCard({
 
   const walkMinutes = metersToWalkMinutes(nearest.distanceM)
   const rows = buildRows(arrivalsByStation[nearest.name], direction)
+  const visibleRows = expanded ? rows : rows.slice(0, COLLAPSED_ROWS)
+  const hiddenCount = rows.length - visibleRows.length
   const coord = STATION_COORDS[nearest.name]
 
   function handleTap() {
@@ -123,19 +140,36 @@ export default function NearestStopCard({
 
   return (
     <div
+      data-expanded={expanded ? 'true' : 'false'}
       className="w-full bg-surface dark:bg-surface
                  rounded-card shadow-sh-pop border border-line dark:border-line overflow-hidden"
     >
-      <header className="flex items-center justify-between gap-2 px-3.5 pt-3 pb-1.5">
+      {/* 손잡이 — 탭하면 접힘/펼침. 시각 높이는 작지만 히트 영역은 28px. */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-label={expanded ? '가까운 정류장 카드 접기' : '가까운 정류장 카드 펼치기'}
+        className="w-full flex items-center justify-center min-h-[22px] pt-2 pb-0.5"
+      >
+        <span aria-hidden="true" className="h-1 w-9 rounded-pill bg-line-strong" />
+      </button>
+
+      <header className="flex items-center justify-between gap-2 px-3.5 pt-0.5 pb-1.5">
         <button
           type="button"
           onClick={handleTap}
-          className="flex items-center gap-1.5 min-w-0 text-left min-h-[28px]"
+          className="flex flex-col items-start min-w-0 text-left min-h-[28px]"
         >
-          <span className="text-body font-bold text-ink dark:text-ink truncate">{nearest.name}</span>
-          <span className="text-caption text-mute dark:text-mute whitespace-nowrap">
-            · 도보 {walkMinutes}분
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="text-body font-bold text-ink dark:text-ink truncate">{nearest.name}</span>
+            <span className="text-caption text-mute dark:text-mute whitespace-nowrap">
+              · 도보 {walkMinutes}분
+            </span>
           </span>
+          {summaryText && (
+            <span className="text-meta text-mute dark:text-mute truncate">{summaryText}</span>
+          )}
         </button>
         <span className="text-caption text-mute dark:text-mute whitespace-nowrap flex-shrink-0">
           {getKstHourMinuteLabel()} · {direction}
@@ -148,7 +182,7 @@ export default function NearestStopCard({
             도착 정보를 준비 중이에요
           </li>
         )}
-        {rows.map((row) => (
+        {visibleRows.map((row) => (
           <li key={row.routeNo}>
             <button
               type="button"
@@ -168,6 +202,19 @@ export default function NearestStopCard({
             </button>
           </li>
         ))}
+        {!expanded && hiddenCount > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="w-full flex items-center justify-center gap-1 px-2 py-1 min-h-[32px]
+                         text-caption font-semibold text-accent-ink dark:text-accent-ink"
+            >
+              노선 {hiddenCount}개 더 보기
+              <ChevronUp size={14} aria-hidden="true" />
+            </button>
+          </li>
+        )}
       </ul>
     </div>
   )

@@ -75,3 +75,40 @@ export const DEFAULT_CLUSTER_THRESHOLD_PX = 110
 
 /** 클러스터 배지 탭 시 줌인할 레벨 단계(카카오 level 기준, 클수록 더 확대). */
 export const CLUSTER_TAP_ZOOM_STEP = 2
+
+/** 도트 모드(줌아웃) 임계값(px). 도트는 지름 20px 이라 칩 폭 기준 110px 을 그대로
+ *  쓰면 500m 줌에서도 서로 멀리 떨어진 정류장이 묶였다(실측: 정왕역 일대 4개가
+ *  100m 줌까지 하나의 배지). 최소 터치 타깃 크기만큼만 묶는다. */
+export const DOT_CLUSTER_THRESHOLD_PX = 44
+
+/** 클러스터 구성원이 이 거리(m) 안에 다 들어 있으면, 확대해도 절대 안 풀린다
+ *  (예: 정왕역의 4호선, 수인분당, 셔틀 정류장). 이때는 확대 대신 목록 시트를 연다. */
+export const CLUSTER_LIST_SPAN_M = 30
+
+function distanceMeters(a, b) {
+  const R = 6371000
+  const toRad = (d) => (d * Math.PI) / 180
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+
+/**
+ * 구성원 좌표들 사이의 최대 거리(m). 좌표가 없는 항목은 무시한다.
+ * @param {{ lat?: number, lng?: number }[]} members
+ * @returns {number} 구성원이 둘 미만이면 0
+ */
+export function clusterSpanMeters(members) {
+  const pts = (members ?? []).filter((m) => m && m.lat != null && m.lng != null)
+  let max = 0
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const d = distanceMeters(pts[i], pts[j])
+      if (d > max) max = d
+    }
+  }
+  return max
+}

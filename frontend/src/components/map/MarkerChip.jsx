@@ -40,6 +40,46 @@ function isImminent(minutes) {
   return typeof minutes === 'number' && minutes <= 3
 }
 
+/**
+ * 배지 글자와 정류장명이 같은 말을 반복하지 않게 이름을 다듬는다.
+ * 실측: "등교 등교 시간표", "제2 꽃집앞 (제2) 시간표" 처럼 배지(dot) 글자가
+ * 이름에 또 들어 있었다. 이름이 배지와 완전히 같으면 이름을 비우고(배지가
+ * 이미 말한다), 이름 끝의 "(배지)" 꼬리는 떼어낸다.
+ * @param {string} stationName
+ * @param {string} dotText
+ * @returns {string}
+ */
+export function dedupeChipName(stationName, dotText) {
+  const name = (stationName ?? '').trim()
+  const dot = (dotText ?? '').trim()
+  if (!name || !dot) return name
+  if (name === dot) return ''
+  const tail = new RegExp(`\\s*\\(${dot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*$`)
+  return name.replace(tail, '').trim()
+}
+
+/**
+ * 지도 오버레이 루트를 키보드와 스크린리더가 다룰 수 있게 만든다. 예전엔 지도
+ * 캔버스 안에 포커스 가능한 요소가 하나도 없었다(실측 0개).
+ * @param {HTMLElement} el
+ * @param {string} label
+ * @param {(() => void)|undefined} onClick
+ */
+export function makeOverlayAccessible(el, label, onClick) {
+  el.setAttribute('role', 'button')
+  el.setAttribute('tabindex', '0')
+  if (label) el.setAttribute('aria-label', label)
+  if (onClick) {
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onClick()
+      }
+    })
+  }
+  return el
+}
+
 // ─────────────────────────────────────────────────────────────
 // 공통 DOM 빌더: 시안1 칩 래퍼(pin) 구조
 // wrapper(pin)
@@ -71,7 +111,7 @@ function makeTail() {
  * (yAnchor:1.0)에 앵커링하므로, 래퍼도 하단 정렬(justify-content:flex-end)해야
  * 래퍼를 씌우기 전과 지도 좌표 위 표시 위치가 그대로 유지된다.
  */
-function wrapWithHitArea(el, onClick) {
+function wrapWithHitArea(el, onClick, label = null) {
   const hit = document.createElement('div')
   hit.style.cssText = [
     'display:inline-flex',
@@ -84,7 +124,7 @@ function wrapWithHitArea(el, onClick) {
   ].join(';')
   hit.appendChild(el)
   if (onClick) hit.addEventListener('click', onClick)
-  return hit
+  return makeOverlayAccessible(hit, label, onClick)
 }
 
 /** 22x22 원형 색 배지 (dot) */
@@ -152,6 +192,7 @@ export function createMarkerChipElement({
   const hasLive = showLive && liveMinutes != null
   const imminentEta = hasLive && isImminent(liveMinutes)
   const dotText = badgeText ?? (routeCode ?? '').slice(0, 2)
+  const displayName = dedupeChipName(stationName, dotText)
 
   // 래퍼 (pin): flex-column, align-items:center
   const wrapper = document.createElement('div')
@@ -212,8 +253,8 @@ export function createMarkerChipElement({
     'overflow:hidden',
     'text-overflow:ellipsis',
   ].join(';')
-  nameEl.textContent = stationName
-  chip.appendChild(nameEl)
+  nameEl.textContent = displayName
+  if (displayName) chip.appendChild(nameEl)
 
   // 실시간 or 서브레이블
   if (hasLive) {
@@ -267,7 +308,8 @@ export function createMarkerChipElement({
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
-  return wrapWithHitArea(wrapper, onClick)
+  const a11yLabel = [stationName, hasLive ? (liveMinutes <= 3 ? '곧 도착' : `${liveMinutes}분`) : (subLabel ?? '시간표')].filter(Boolean).join(', ')
+  return wrapWithHitArea(wrapper, onClick, a11yLabel)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -360,7 +402,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
-  return wrapWithHitArea(wrapper, onClick)
+  return wrapWithHitArea(wrapper, onClick, earliestMin != null ? `정왕역, ${earliestMin}분` : '정왕역')
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -424,7 +466,7 @@ export function createClusterBadgeElement({ count, colors = [], onClick }) {
   wrapper.appendChild(countBadge)
 
   if (onClick) wrapper.addEventListener('click', onClick)
-  return wrapper
+  return makeOverlayAccessible(wrapper, `겹친 정류장 ${count}개`, onClick)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -504,5 +546,5 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
-  return wrapWithHitArea(wrapper, onClick)
+  return wrapWithHitArea(wrapper, onClick, bestMin != null ? `${stationName}, ${bestMin}분` : stationName)
 }

@@ -8,7 +8,7 @@
  * 저장값(순수 route_number) 양쪽 모두 필터가 인식하는지 검증한다.
  */
 import { render, screen, fireEvent, within } from '@testing-library/react'
-import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -228,21 +228,36 @@ describe('SchedulePage — 모드 탭 URL 동기화 회귀', () => {
   })
 })
 
-describe('SchedulePage — 즐겨찾기 필터(결함 #20 회귀)', () => {
-  it('필터를 켜면 신규(favKey)+레거시(route_number) 저장값 모두 인식해 즐겨찾기한 노선만 보인다', () => {
+describe('SchedulePage — 즐겨찾기 우선 정렬(예전 ★ 즐겨찾기 필터 대체)', () => {
+  // 예전 "★ 즐겨찾기" 토글은 나머지를 숨기는 필터였다. 이제 토글은 없고, 즐겨찾기한
+  // 노선(신규 favKey 20-1, 레거시 route_number 3400)이 "즐겨찾기" 절로 목록 맨 위에
+  // 오고 나머지(5200)는 "전체" 절로 이어진다.
+  it('즐겨찾기 토글이 없고, 즐겨찾기한 노선이 "즐겨찾기" 절로 맨 위에 온다', () => {
     render(<SchedulePage />)
 
-    // 하교는 방면 탭 없이 한 목록이라 필터 전에는 정왕역·서울행 노선이 함께 보인다.
-    expect(screen.getAllByText('20-1').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('3400').length).toBeGreaterThan(0)
+    expect(screen.queryByLabelText('즐겨찾기한 노선만 보기')).not.toBeInTheDocument()
+    expect(screen.getByText('즐겨찾기')).toBeInTheDocument()
+    expect(screen.getByText('전체')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('즐겨찾기한 노선만 보기'))
+    const favLabel = screen.getByText('즐겨찾기')
+    const allLabel = screen.getByText('전체')
+    const fav20 = screen.getAllByText('20-1')[0]
+    const fav3400 = screen.getAllByText('3400')[0]
+    const other5200 = screen.getAllByText('5200')[0]
+    const before = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(before(favLabel, fav20)).toBe(true)
+    expect(before(favLabel, fav3400)).toBe(true)
+    expect(before(fav20, allLabel)).toBe(true)
+    expect(before(fav3400, allLabel)).toBe(true)
+    expect(before(allLabel, other5200)).toBe(true)
+  })
 
-    // 신규 favKey로 저장한 20-1과 레거시 route_number로 저장한 3400 모두 남고,
-    // 즐겨찾기하지 않은 5200은 탭 전환 없이도 빠진다.
-    expect(screen.getAllByText('20-1').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('3400').length).toBeGreaterThan(0)
-    expect(screen.queryByText('5200')).not.toBeInTheDocument()
+  it('통계는 목록 맨 아래 이름 있는 버튼이다', () => {
+    render(<SchedulePage />)
+    expect(screen.queryByLabelText('오늘의 교통 통계 보기')).not.toBeInTheDocument()
+    const statsBtn = screen.getByRole('button', { name: /오늘의 교통 통계/ })
+    const other5200 = screen.getAllByText('5200')[0]
+    expect(Boolean(other5200.compareDocumentPosition(statsBtn) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
   })
 })
 
@@ -472,6 +487,16 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 // 있었다. 정렬 키를 "카드가 데이터를 가졌는지"에서 "도착까지 남은 분"으로
 // 바꾼다.
 describe('SchedulePage — 하교 목록 도착순 정렬(시안 1-A)', () => {
+  // 즐겨찾기는 도착순보다 먼저 "즐겨찾기" 절로 올라가므로, 도착순 자체는
+  // 즐겨찾기가 없는 상태에서 본다.
+  const favoritesWithStars = favoritesState
+  beforeEach(() => {
+    favoritesState = { routes: [], stations: [], venues: [], keys: [] }
+  })
+  afterEach(() => {
+    favoritesState = favoritesWithStars
+  })
+
   it('도착까지 남은 시간이 짧은 노선일수록 위에 오고, 도착 정보가 없는 노선은 맨 아래로 밀린다', () => {
     render(<SchedulePage />)
 

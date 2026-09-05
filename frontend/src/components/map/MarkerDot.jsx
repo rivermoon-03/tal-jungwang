@@ -21,6 +21,7 @@
  */
 
 import { tjLineColor } from '../common/lineColor'
+import { makeOverlayAccessible } from './MarkerChip'
 
 export const TYPE_COLOR_MAP = {
   bus:       '#1b3a6e',
@@ -66,7 +67,7 @@ function resolveTypeIcon(type) {
  * @param {{ type: 'bus'|'bus_seoul'|'subway'|'seohae'|'shuttle', customColor?: string, routeCode?: string, onClick?: () => void }} options
  * @returns {HTMLElement}
  */
-export function createMarkerDotElement({ type, customColor, routeCode, onClick }) {
+export function createMarkerDotElement({ type, customColor, routeCode, onClick, label = null }) {
   const color = resolveTypeColor(type, customColor, routeCode)
   const iconSvg = resolveTypeIcon(type)
 
@@ -104,5 +105,5 @@ export function createMarkerDotElement({ type, customColor, routeCode, onClick }
     hit.addEventListener('click', onClick)
   }
 
-  return hit
+  return makeOverlayAccessible(hit, label, onClick)
 }

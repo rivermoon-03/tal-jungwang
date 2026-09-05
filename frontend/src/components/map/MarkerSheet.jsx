@@ -22,7 +22,7 @@
  * ETA 색상: ≤3분 imminent / 일반 ink (amber 중간 단계 없음).
  */
 
-import { MapPin, Star, StarOff, X, Navigation, Info, ChevronRight } from 'lucide-react'
+import { MapPin, Star, X, Navigation, Info, ChevronRight } from 'lucide-react'
 import { DEFAULT_COLOR, ROUTE_COLOR_MAP } from './MarkerChip'
 import useAppStore from '../../stores/useAppStore'
 import Sheet from '../ui/Sheet'
@@ -88,6 +88,7 @@ export default function MarkerSheet({
 
   const statusInfo = station.boardingStatus ? STATUS_DOT[station.boardingStatus] : null
   const groups = groupArrivalsByRoute(arrivals)
+  const hasArrivals = arrivals.length > 0
 
   return (
     <Sheet
@@ -178,10 +179,9 @@ export default function MarkerSheet({
             onClick={() => station.id && toggleFavoriteStation(String(station.id))}
             aria-label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           >
-            {isFav
-              ? <Star size={16} strokeWidth={2} fill="currentColor" />
-              : <StarOff size={16} strokeWidth={2} />
-            }
+            {/* 미등록은 빗금 별(StarOff)이 아니라 빈 별이다. 빗금 별은 "해제"로
+                읽혀 등록 상태와 반대로 보였다. 시간표 카드의 별과 같은 관례. */}
+            <Star size={16} strokeWidth={2} fill={isFav ? 'currentColor' : 'none'} />
           </button>
           <IconButton
             label="닫기"
@@ -270,7 +270,7 @@ export default function MarkerSheet({
       <div className="flex-1 overflow-y-auto px-[18px] py-3">
         {arrivals.length === 0 ? (
           <p className="text-label font-semibold text-mute dark:text-mute text-center py-4">
-            {directionControl?.placeholder ?? '도착 정보가 없습니다'}
+            {directionControl?.placeholder ?? '지금은 도착 정보가 없어요'}
           </p>
         ) : (
           <ul style={{ display: 'flex', flexDirection: 'column' }}>
@@ -393,9 +393,10 @@ export default function MarkerSheet({
         )}
       </div>
 
-      {/* ── 하단 액션 버튼 ── */}
+      {/* ── 하단 액션 버튼 ── 바닥 여백은 Sheet가 safe-area 기준으로 책임진다.
+          예전 pb-6은 Sheet의 독 예약 76px과 겹쳐 버튼 아래 100px이 비었다. */}
       <div
-        className="flex gap-2.5 px-[18px] pb-6 pt-3 flex-shrink-0"
+        className="flex gap-2.5 px-[18px] pb-2 pt-3 flex-shrink-0"
         style={{ borderTop: '1px solid var(--tj-line)' }}
       >
         {/* 걸어가기 — 주 액션 */}
@@ -420,9 +421,11 @@ export default function MarkerSheet({
           걸어가기
         </button>
 
-        {/* 상세 보기 — 강조 액션 */}
+        {/* 상세 보기 — 강조 액션. 보여줄 도착 정보가 없으면 비활성으로 둔다. */}
         <button
           className="pressable text-label font-extrabold tracking-[-0.01em]"
+          disabled={!hasArrivals}
+          aria-disabled={!hasArrivals}
           style={{
             flex: 1,
             height: 46,
@@ -434,7 +437,8 @@ export default function MarkerSheet({
             border: 'none',
             background: 'var(--tj-accent)',
             color: '#fff',
-            cursor: 'pointer',
+            cursor: hasArrivals ? 'pointer' : 'default',
+            opacity: hasArrivals ? 1 : 0.45,
           }}
           onClick={onDetail}
         >

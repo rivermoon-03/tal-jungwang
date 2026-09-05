@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useApi } from '../../hooks/useApi'
+import { CONGESTION_COLOR, CONGESTION_LABEL } from './trafficLevels'
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
@@ -14,31 +15,22 @@ const ROAD_POSITIONS = {
   '마유로':    { lat: 37.343398, lng: 126.732849 },
 }
 
-// 혼잡도 레벨 → 테두리 색상
-const CONGESTION_COLOR = {
-  1: '#22c55e', // 원활
-  2: '#eab308', // 서행
-  3: '#f97316', // 지체
-  4: '#ef4444', // 정체
-}
-
-// 혼잡도 레벨 → 원 안 표시 텍스트
-const CONGESTION_LABEL = {
-  1: '여유',
-  2: '혼잡',
-  3: '혼잡',
-  4: '정체',
-}
-
 // direction 코드 → 한글 라벨
 const DIRECTION_LABEL = {
   to_school: '등교방향',
   to_station: '하교방향',
 }
 
-const PILL_H = 28
+const RING_SIZE = 24
 
-/** 오버레이 DOM 구조 생성. 반환값을 ref에 저장해 업데이트에 재사용한다. */
+// 자동차 글리프(흰색 stroke). 정류장 마커의 버스/열차 글리프와 같은 11px 규격.
+const CAR_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h-2v-6l2-5h12l2 5v6h-2"/><path d="M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M15 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M5 11h14"/></svg>'
+
+/** 오버레이 DOM 구조 생성. 반환값을 ref에 저장해 업데이트에 재사용한다.
+ *  예전엔 "마유로 혼잡" 글자가 든 28px 노란 알약이었다. 정류장 칩과 같은 알약
+ *  문법이라 정류장으로 오해됐고, 클러스터 배지 바로 위에 겹쳤다(실측). 지금은
+ *  글자 없는 24px 색 링 하나다. 뜻은 범례(MapLegendOnboarding)가 설명하고,
+ *  탭하면 툴팁이 도로명과 속도를 보여준다. */
 function createOverlayDOM() {
   const wrapper = document.createElement('div')
   wrapper.style.cssText = 'position:relative;display:inline-block;cursor:pointer'
@@ -47,7 +39,7 @@ function createOverlayDOM() {
   tooltip.style.cssText = [
     'display:none',
     'position:absolute',
-    `bottom:${PILL_H + 8}px`,
+    `bottom:${RING_SIZE + 8}px`,
     'left:50%',
     'transform:translateX(-50%)',
     'background:var(--tj-surface)',
@@ -61,27 +53,26 @@ function createOverlayDOM() {
   ].join(';')
 
   const circle = document.createElement('div')
+  circle.setAttribute('role', 'img')
   circle.style.cssText = [
-    `height:${PILL_H}px`,
-    'padding:0 10px',
+    `width:${RING_SIZE}px`,
+    `height:${RING_SIZE}px`,
     'border-radius:9999px',
     'background:var(--tj-surface)',
-    'border:2px solid var(--tj-line)',
+    'border:3px solid var(--tj-line)',
     'box-shadow:0 2px 6px rgba(0,0,0,0.22)',
     'display:inline-flex',
     'align-items:center',
     'justify-content:center',
-    'white-space:nowrap',
+    'color:var(--tj-mute)',
   ].join(';')
-
-  const label = document.createElement('span')
-  label.style.cssText = 'font-size:12px;font-weight:700;color:var(--tj-mute);letter-spacing:-0.3px;line-height:1'
-  circle.appendChild(label)
+  circle.innerHTML = CAR_ICON_SVG
 
   wrapper.appendChild(tooltip)
   wrapper.appendChild(circle)
 
-  return { wrapper, tooltip, circle, label }
+  // label 은 색을 받는 요소를 가리킨다(글리프 색). 글자는 더 이상 그리지 않는다.
+  return { wrapper, tooltip, circle, label: circle }
 }
 
 /** 방향별 한 줄 HTML. road가 없으면 "정보 없음" 표시(자리표시 대시 대신 말로 설명). */
@@ -138,7 +129,8 @@ export default function TrafficRoadOverlay({ map }) {
         content: wrapper,
         xAnchor: 0.5,
         yAnchor: 0.5,
-        zIndex: 4,
+        // 정류장 마커(4)보다 아래. 도로 표시가 정류장을 가리면 안 된다.
+        zIndex: 2,
       })
       overlay.setMap(map)
 
@@ -213,7 +205,7 @@ export default function TrafficRoadOverlay({ map }) {
       const color = CONGESTION_COLOR[worst] ?? '#94a3b8'
       item.circle.style.borderColor = color
       const statusText = CONGESTION_LABEL[worst] ?? ''
-      item.label.textContent = statusText ? `마유로 ${statusText}` : ''
+      item.circle.setAttribute('aria-label', statusText ? `${roadName} ${statusText}` : roadName)
       item.label.style.color = color
 
       // 툴팁이 열려있으면 내용도 함께 갱신

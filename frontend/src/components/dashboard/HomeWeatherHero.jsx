@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Sun, MapPin, Utensils, Wind, Search } from 'lucide-react'
+import { Sun, Map as MapIcon, Utensils, Wind, Search } from 'lucide-react'
 import { useWeather } from '../../hooks/useWeather'
 import useEffectiveDirection from '../../hooks/useEffectiveDirection'
 import useAppStore from '../../stores/useAppStore'
@@ -110,7 +110,7 @@ const SKY_REFRESH_MS = 5 * 60 * 1000
  *   - 스트립(최소 56px): 인사말 + 위치 칩(지도 진입 겸함) + 뷰 토글 3칸(날씨/식당/검색)
  *   - 본문(하단 정렬): 온도(text-hero-temp, 60px/800) + 하늘 상태(19px) + 메타 줄
  *     (정왕풍 pill·강수확률·이동지수·미세먼지) + 우측 날씨 아이콘(52px)
- *   - 바닥 40px 이음매(seam) — 하늘을 대시보드 배경(--tj-bg)으로 얇게 블렌드
+ *   - 바닥 이음매는 .whero 자신의 background 두 번째 레이어다(별도 요소 없음)
  *
  * 하늘은 하나다
  * ─────────────
@@ -184,6 +184,8 @@ export default function HomeWeatherHero({ onOpenMap }) {
     '--whero-scrim': sky.scrim,
     '--whero-scrim-a': sky.scrimAlpha,
     '--daylight': daylight.toFixed(3),
+    // 낮 글로우는 항상 흰색이다. 다크 팔레트(어두운 하늘)에서는 세기만 낮춘다.
+    '--whero-glow-k': darkMode ? '0.35' : '1',
   }
 
   const snowflakes = useMemo(() => SNOWFLAKES, [])
@@ -305,6 +307,111 @@ export default function HomeWeatherHero({ onOpenMap }) {
         />
       )}
 
+      {/* 대기 이펙트 — 히어로 전체(스트립 + 본문)를 한 장으로 덮는다. 예전엔 이
+          레이어들이 .whero-panel 안에 있어서 inset:0 이 본문 박스에만 걸렸고,
+          낮 글로우가 스트립 바로 아래(y=56px)에서 시작해 그 경계가 가로줄로
+          보였다(실측: 경계 위아래 RGB 델타 130). */}
+      <div className="whero-fx" aria-hidden="true">
+        {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다.
+            무드당 한 겹씩만 얹는다. */}
+        {mood === 'sunny' && sunAltitude > 0 && <div className="whero-daylight" aria-hidden="true" />}
+        {mood === 'sunny' && timeOfDay === 'night' && (
+          <div className="whero-night-sky" aria-hidden="true">
+            {stars.map((s, i) => (
+              <span
+                key={i}
+                className="whero-star"
+                style={{
+                  left: `${s.left}%`,
+                  top: `${s.top}%`,
+                  width: s.size, height: s.size,
+                  animationDuration: `${s.duration}s`,
+                  animationDelay: `${s.delay}s`,
+                }}
+              />
+            ))}
+            <span className="whero-meteor" />
+          </div>
+        )}
+        {mood === 'cloudy' && (
+          <div className="whero-clouds" aria-hidden="true">
+            {clouds.map((c, i) => (
+              <span
+                key={i}
+                style={{
+                  top: `${c.top}%`,
+                  width: `${c.width}px`,
+                  animationDuration: `${c.duration}s`,
+                  animationDelay: `${c.delay}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+        {mood === 'rainy' && (
+          <div className="whero-rain" aria-hidden="true" style={rainSkewStyle}>
+            <div className="whero-rain-far">
+              {rainFar.map((d, i) => (
+                <span
+                  key={i}
+                  style={{
+                    left: `${d.left}%`,
+                    animationDelay: `${d.delay}s`,
+                    animationDuration: `${d.duration * rainSpeedFactor}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="whero-rain-mid">
+              {rainMid.map((d, i) => (
+                <span
+                  key={i}
+                  style={{
+                    left: `${d.left}%`,
+                    animationDelay: `${d.delay}s`,
+                    animationDuration: `${d.duration * rainSpeedFactor}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="whero-rain-near">
+              {rainNear.map((d, i) => (
+                <span
+                  key={i}
+                  style={{
+                    left: `${d.left}%`,
+                    animationDelay: `${d.delay}s`,
+                    animationDuration: `${d.duration * rainSpeedFactor}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="whero-splash">
+              {splashes.map((s, i) => (
+                <span key={i} style={{ left: `${s.left}%`, animationDelay: `${s.delay}s` }} />
+              ))}
+            </div>
+          </div>
+        )}
+        {mood === 'rainy' && timeOfDay === 'night' && <div className="whero-lightning" aria-hidden="true" />}
+        {mood === 'snowy' && (
+          <div className="whero-snow" aria-hidden="true">
+            {snowflakes.map((f, i) => (
+              <span
+                key={i}
+                className={f.far ? 'far' : undefined}
+                style={{
+                  left: `${f.left}%`,
+                  width: f.size, height: f.size,
+                  animationDelay: `${f.delay}s`,
+                  animationDuration: `${f.duration}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* 스크림 — 하늘 위 베일. 스트립과 본문이 하나의 하늘을 공유하므로
           이 한 겹이 두 곳의 가독성을 함께 책임진다(두께는 skyPalette가 계산). */}
       <div className="whero-scrim" aria-hidden="true" />
@@ -342,17 +449,17 @@ export default function HomeWeatherHero({ onOpenMap }) {
           )}
         </div>
 
-        {/* 위치 칩 — 지도 진입을 겸한다(예전엔 별도 "지도" 칩이 있었지만, 스트립이
-            "인사말 + 위치 칩 + 뷰 토글 3칸" 세 자리로 고정되며 위치 칩이 그 역할을
-            이어받았다 — 지금 보고 있는 곳을 탭하면 지도가 열리는 편이 자연스럽다). */}
+        {/* 지도 칩. 예전엔 "한국공학대 본캠" 위치 칩이 지도 진입을 겸했는데, 핀
+            아이콘과 장소 이름만 보여서 현재 위치 표시기로 읽혔다(사용자 리포트).
+            무엇이 열리는지 글자로 말한다. */}
         <button
           type="button"
           onClick={onOpenMap}
           aria-label="지도 보기"
           className="whero-chip shrink-0 inline-flex items-center gap-1 rounded-card px-2.5 h-8 text-chip font-bold active:scale-[0.94] transition-transform duration-press ease-spring"
         >
-          <MapPin size={14} aria-hidden="true" />
-          한국공학대 본캠
+          <MapIcon size={14} aria-hidden="true" />
+          지도 보기
         </button>
 
         <div
@@ -417,106 +524,6 @@ export default function HomeWeatherHero({ onOpenMap }) {
       {/* 본문 — 항상 펼쳐진다(아코디언 없음). 결함 #31 재발 방지는 MainShell의
           통짜 스크롤이 맡는다. */}
       <div className="whero-panel">
-      {/* 날씨 이펙트 — 날씨/식당 두 뷰 모두에서 렌더해, 식당 뷰에서도 날씨 배경/분위기를 유지한다.
-          무드당 한 겹씩만 얹는다. */}
-      {mood === 'sunny' && sunAltitude > 0 && <div className="whero-daylight" aria-hidden="true" />}
-      {mood === 'sunny' && timeOfDay === 'night' && (
-        <div className="whero-night-sky" aria-hidden="true">
-          {stars.map((s, i) => (
-            <span
-              key={i}
-              className="whero-star"
-              style={{
-                left: `${s.left}%`,
-                top: `${s.top}%`,
-                width: s.size, height: s.size,
-                animationDuration: `${s.duration}s`,
-                animationDelay: `${s.delay}s`,
-              }}
-            />
-          ))}
-          <span className="whero-meteor" />
-        </div>
-      )}
-      {mood === 'cloudy' && (
-        <div className="whero-clouds" aria-hidden="true">
-          {clouds.map((c, i) => (
-            <span
-              key={i}
-              style={{
-                top: `${c.top}%`,
-                width: `${c.width}px`,
-                animationDuration: `${c.duration}s`,
-                animationDelay: `${c.delay}s`,
-              }}
-            />
-          ))}
-        </div>
-      )}
-      {mood === 'rainy' && (
-        <div className="whero-rain" aria-hidden="true" style={rainSkewStyle}>
-          <div className="whero-rain-far">
-            {rainFar.map((d, i) => (
-              <span
-                key={i}
-                style={{
-                  left: `${d.left}%`,
-                  animationDelay: `${d.delay}s`,
-                  animationDuration: `${d.duration * rainSpeedFactor}s`,
-                }}
-              />
-            ))}
-          </div>
-          <div className="whero-rain-mid">
-            {rainMid.map((d, i) => (
-              <span
-                key={i}
-                style={{
-                  left: `${d.left}%`,
-                  animationDelay: `${d.delay}s`,
-                  animationDuration: `${d.duration * rainSpeedFactor}s`,
-                }}
-              />
-            ))}
-          </div>
-          <div className="whero-rain-near">
-            {rainNear.map((d, i) => (
-              <span
-                key={i}
-                style={{
-                  left: `${d.left}%`,
-                  animationDelay: `${d.delay}s`,
-                  animationDuration: `${d.duration * rainSpeedFactor}s`,
-                }}
-              />
-            ))}
-          </div>
-          <div className="whero-splash">
-            {splashes.map((s, i) => (
-              <span key={i} style={{ left: `${s.left}%`, animationDelay: `${s.delay}s` }} />
-            ))}
-          </div>
-        </div>
-      )}
-      {mood === 'rainy' && timeOfDay === 'night' && <div className="whero-lightning" aria-hidden="true" />}
-      {mood === 'snowy' && (
-        <div className="whero-snow" aria-hidden="true">
-          {snowflakes.map((f, i) => (
-            <span
-              key={i}
-              className={f.far ? 'far' : undefined}
-              style={{
-                left: `${f.left}%`,
-                width: f.size, height: f.size,
-                animationDelay: `${f.delay}s`,
-                animationDuration: `${f.duration}s`,
-              }}
-            />
-          ))}
-        </div>
-      )}
-      {/* 하단 seam — 하늘을 대시보드 배경으로 얇게 블렌드(40px, 근거는 HomeWeatherHero.css 주석) */}
-      <div className="whero-seam" aria-hidden="true" />
 
       {view === 'weather' ? (
         // 본문 — 온도(60px/800) + 하늘 상태(19px), 그 아래 메타 줄, 우측 날씨 아이콘(52px).
