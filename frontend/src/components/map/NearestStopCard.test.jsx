@@ -61,6 +61,7 @@ describe('NearestStopCard — 최근접 정류장 선정', () => {
         userLocation={{ lat: hakLat, lng: hakLng }}
         direction="하교"
         arrivalsByStation={{ 한국공학대: HAKGONG_ARRIVALS }}
+        defaultExpanded
       />
     )
     expect(screen.getByText('11-A')).toBeInTheDocument()
@@ -106,6 +107,55 @@ describe('NearestStopCard — 최근접 정류장 선정', () => {
       />
     )
     expect(screen.getByText('도착 정보를 준비 중이에요')).toBeInTheDocument()
+  })
+})
+
+describe('NearestStopCard — 접힘/펼침', () => {
+  // 3행을 다 펼친 카드가 뷰포트의 27~36%를 차지해 지도가 가운데 띠만 남았다(실측).
+  // 기본은 1행으로 접혀 있고, "더 보기"나 손잡이를 탭하면 나머지 행이 나온다.
+  it('기본은 접힌 상태라 첫 행만 보이고 나머지는 "더 보기"로 안내한다', () => {
+    render(
+      <NearestStopCard
+        userLocation={{ lat: hakLat, lng: hakLng }}
+        direction="하교"
+        arrivalsByStation={{ 한국공학대: HAKGONG_ARRIVALS }}
+      />
+    )
+    expect(screen.getByText('11-A')).toBeInTheDocument()
+    expect(screen.queryByText('20-1')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /노선 1개 더 보기/ })).toBeInTheDocument()
+  })
+
+  it('"더 보기"를 탭하면 나머지 행이 펼쳐지고 손잡이가 접기로 바뀐다', () => {
+    render(
+      <NearestStopCard
+        userLocation={{ lat: hakLat, lng: hakLng }}
+        direction="하교"
+        arrivalsByStation={{ 한국공학대: HAKGONG_ARRIVALS }}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /노선 1개 더 보기/ }))
+    expect(screen.getByText('20-1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '가까운 정류장 카드 접기' })).toBeInTheDocument()
+  })
+
+  it('summaryText 가 있으면 헤더 아래 보조 줄로 보여준다', () => {
+    render(
+      <NearestStopCard
+        userLocation={{ lat: hakLat, lng: hakLng }}
+        direction="하교"
+        arrivalsByStation={{ 한국공학대: HAKGONG_ARRIVALS }}
+        summaryText="정왕역 ↔ 학교 · 도보 33분"
+      />
+    )
+    expect(screen.getByText('정왕역 ↔ 학교 · 도보 33분')).toBeInTheDocument()
+  })
+
+  it('hidden 이면 아무것도 그리지 않는다(GPS 프롬프트가 떠 있는 동안 CTA 중복 방지)', () => {
+    const { container } = render(
+      <NearestStopCard userLocation={null} direction="하교" onRequestGps={vi.fn()} hidden />
+    )
+    expect(container).toBeEmptyDOMElement()
   })
 })
 

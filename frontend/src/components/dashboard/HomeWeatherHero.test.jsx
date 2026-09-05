@@ -99,12 +99,14 @@ describe('HomeWeatherHero — 항상 펼쳐진 스트립 + 본문(아코디언 �
     expect(screen.queryByLabelText('날씨 요약 접기')).not.toBeInTheDocument()
   })
 
-  it('위치 칩(지도 진입 겸함)이 스트립에 항상 보이고, 클릭하면 onOpenMap을 호출한다', () => {
+  it('지도 칩이 스트립에 항상 보이고 "지도 보기"라고 읽히며, 클릭하면 onOpenMap을 호출한다', () => {
     const onOpenMap = vi.fn()
     render(<HomeWeatherHero onOpenMap={onOpenMap} />)
 
+    // 예전 "한국공학대 본캠" 위치 칩은 현재 위치 표시기로 읽혀 지도 진입점인 줄 몰랐다.
     const mapChip = screen.getByLabelText('지도 보기')
-    expect(mapChip).toHaveTextContent('한국공학대 본캠')
+    expect(mapChip).toHaveTextContent('지도 보기')
+    expect(mapChip).not.toHaveTextContent('본캠')
 
     fireEvent.click(mapChip)
     expect(onOpenMap).toHaveBeenCalledTimes(1)
@@ -528,19 +530,22 @@ describe('HomeWeatherHero — 하늘 그라데이션이 히어로 실제 높이�
   })
 })
 
-// 사용자 실측(2차) — 위 수정(background-size: 100% 100%) 이후에도 "모드 탭 바로
-// 위에서 색이 딱 끊긴다"는 지적이 계속됐다. claude-in-chrome으로 실제 렌더 픽셀을
-// 재서 원인을 다시 특정했다: .whero 자체는 색이 어긋나지 않는다 — 하늘 그라데이션은
-// 요소 바닥에서 정확히 sky-c에 닿고, .whero-seam도 정확히 --tj-bg로 끝난다(라이트/
-// 다크, 기온 유무 4가지 조합 모두 경계 색이 픽셀 단위로 연속이었다). 문제는 변화
-// "속도"였다 — seam이 26px로 고정돼 있으면, 그 위 나머지 높이에 걸쳐 느리게 번지던
-// 하늘→스크림 변화가 마지막 26px 안에 전부 몰려 끝나야 한다. 다크 테마 스크린샷을
-// 픽셀 단위로 스캔한 결과 seam 구간의 픽셀당 색 변화율이 그 위 구간보다 약 5~6배
-// 빨랐다(RGB 델타가 px당 약 0.35에서 약 1.8로 뜀) — 완만하던 그라데이션이 바닥에서
-// 급하게 빨리 감기처럼 끝나 보였다. seam을 40px로 늘려 같은 방식으로 재보니 변화율
-// 배율이 약 3.5배로 줄었고, 라이트/다크 스크린샷에서도 경계가 뚜렷하게 부드러워졌다.
-describe('HomeWeatherHero — 바닥 이음매(seam)가 26px로 되돌아가지 않는다(결함: 경계 변화율 급증)', () => {
+// 사용자 실측(3차) — 스트립과 본문 사이(y=56px)에 가로줄이 보였다(경계 위아래 RGB
+// 델타 130). 원인은 .whero-daylight 가 .whero-panel(position: relative) 안에 있어
+// inset:0 이 본문 박스에만 걸린 데다, 글로우 색으로 --whero-on(밝은 하늘에서는 어두운
+// 잉크)을 써서 본문 위쪽이 오히려 어두워진 것이다. 이펙트 레이어를 히어로 전체를 덮는
+// .whero-fx 로 올리고 글로우는 흰색으로 고정한다.
+// 또 히어로 배경이 자기 박스 아래 1px 까지 번져 칠해지는데(히어로 다음 행이 전 폭에서
+// 하늘색) absolute 자식인 .whero-seam 은 그 1px 을 덮지 못했다. 이음매를 .whero 의
+// background 레이어로 옮겨 배경과 같은 박스를 칠하게 한다.
+describe('HomeWeatherHero — 이펙트 레이어와 이음매가 히어로 전체 박스를 기준으로 그려진다', () => {
   const css = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'HomeWeatherHero.css'), 'utf8')
+  const REAL_DATE = Date
+
+  function renderAt(iso) {
+    vi.setSystemTime(new REAL_DATE(`${iso}+09:00`))
+    return render(<HomeWeatherHero onOpenMap={() => {}} />)
+  }
 
   function extractBlock(source, startMarker) {
     const start = source.indexOf(startMarker)
@@ -557,15 +562,49 @@ describe('HomeWeatherHero — 바닥 이음매(seam)가 26px로 되돌아가지 
     return source.slice(start, i + 1)
   }
 
-  it('.whero-seam의 높이가 26px보다 크다(실측: 26px는 경계 변화율이 위 구간보다 5~6배 급해 끊겨 보인다)', () => {
-    const block = extractBlock(css, '.whero-seam {')
-    const match = block.match(/height:\s*(\d+)px/)
-    expect(match, '.whero-seam에 px 높이가 없다').not.toBeNull()
-    expect(Number(match[1])).toBeGreaterThan(26)
+  it('낮 글로우(.whero-daylight)는 .whero-panel 이 아니라 .whero-fx 안에 있다', () => {
+    const { container } = renderAt('2026-08-02T12:40:00')
+    const daylight = container.querySelector('.whero-daylight')
+    expect(daylight).toBeTruthy()
+    expect(daylight.closest('.whero-fx')).toBeTruthy()
+    expect(daylight.closest('.whero-panel')).toBeNull()
   })
 
-  it('.whero-seam은 여전히 투명에서 --tj-bg로 끝난다(색 자체는 바꾸지 않았다)', () => {
-    const block = extractBlock(css, '.whero-seam {')
-    expect(block).toMatch(/linear-gradient\(to bottom,\s*transparent,\s*var\(--tj-bg\)\)/)
+  it('.whero-fx 는 히어로 전체를 덮는다(inset: 0)', () => {
+    const block = extractBlock(css, '.whero-fx {')
+    expect(block).toMatch(/position:\s*absolute/)
+    expect(block).toMatch(/inset:\s*0/)
+  })
+
+  it('낮 글로우는 잉크(--whero-on)가 아니라 흰색으로 그린다', () => {
+    const block = extractBlock(css, '.whero-daylight {')
+    expect(block).not.toContain('--whero-on')
+    expect(block).toMatch(/rgba\(255,\s*255,\s*255/)
+  })
+
+  it('.whero-seam 요소와 CSS 블록이 더 이상 없다', () => {
+    const { container } = renderAt('2026-08-02T12:40:00')
+    expect(container.querySelector('.whero-seam')).toBeNull()
+    expect(css).not.toContain('.whero-seam {')
+  })
+
+  it('히어로가 아래로 1px 겹치고(margin-bottom -1px), 대시보드 섹션이 위치 지정돼 번진 행을 덮는다', () => {
+    const block = extractBlock(css, '.whero {')
+    expect(block).toMatch(/margin-bottom:\s*-1px/)
+    // 위치 지정된 히어로는 비위치 형제의 배경보다 위에 그려지므로, 대시보드도
+    // 위치 지정이어야 DOM 순서대로 히어로의 번진 행을 배경으로 덮는다.
+    const dashboardSrc = fs.readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), 'Dashboard.jsx'),
+      'utf8',
+    )
+    expect(dashboardSrc).toMatch(/className="relative bg-bg dark:bg-bg"\s*\n\s*aria-label="대시보드"/)
+  })
+
+  it('이음매는 .whero 의 background-image 레이어로, --tj-bg 로 끝나고 40px 이상이다', () => {
+    const block = extractBlock(css, '.whero {')
+    expect(block).toMatch(/var\(--tj-bg\)\s*100%/)
+    const match = block.match(/--whero-seam-h:\s*(\d+)px/)
+    expect(match, '--whero-seam-h 가 없다').not.toBeNull()
+    expect(Number(match[1])).toBeGreaterThanOrEqual(40)
   })
 })

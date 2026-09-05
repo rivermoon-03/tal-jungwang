@@ -141,9 +141,13 @@ export default function Dashboard() {
   }
 
   return (
+    // relative: 히어로(.whero, position: relative)가 자기 박스 아래 1px 까지 번져
+    // 칠하는데, 위치 지정된 히어로는 비위치 형제의 배경보다 위에 그려진다. 이
+    // 섹션도 위치 지정으로 두면 DOM 순서상 나중이라 히어로의 번진 행을 배경으로
+    // 덮는다(히어로가 margin-bottom -1px 로 그만큼 겹쳐 준다).
     <section
       ref={scrollRef}
-      className="bg-bg dark:bg-bg"
+      className="relative bg-bg dark:bg-bg"
       aria-label="대시보드"
     >
       <ModeTabs />

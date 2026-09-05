@@ -6,11 +6,11 @@
  * 늦게 본다. 탭 하나를 통째로 준다 — 시간표가 홈으로 들어가며 비운 자리다.
  *
  * PC는 사이드바가 서브내비(학사공지/앱 공지)를 그리므로 여기서는 세그먼트를
- * 생략하고 store(pcNoticesTab)를 따른다. 모바일은 자체 SegmentTabs.
+ * 생략하고 store(pcNoticesTab)를 따른다. 모바일은 SegmentedControl 세그먼트.
  */
 import { useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
-import SegmentTabs from '../components/ui/SegmentTabs.jsx'
+import SegmentedControl from '../components/ui/SegmentedControl'
 import AcademicNoticesTab from '../components/more/AcademicNoticesTab'
 import AcademicNoticesPCContent from '../components/more/AcademicNoticesPCContent'
 import AppNoticesTab from '../components/notices/AppNoticesTab'
@@ -19,8 +19,8 @@ import useAppStore from '../stores/useAppStore'
 import { useIsDesktop } from '../hooks/useMediaQuery'
 
 const TOP_TABS = [
-  { id: 'academic', label: '학사공지' },
-  { id: 'app', label: '앱 공지' },
+  { value: 'academic', label: '학사공지' },
+  { value: 'app', label: '앱 공지' },
 ]
 
 // ?tab=academic|app — 주소가 화면을 설명해야 링크 공유·새로고침이 같은 화면을 연다.
@@ -76,11 +76,14 @@ export default function NoticesTabPage() {
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-fade-in-up">
       <PageHeader title="공지" />
 
-      <div className="px-4 pt-1 pb-2 flex-shrink-0">
-        <SegmentTabs items={TOP_TABS} active={tab} onChange={selectTab} />
+      {/* 홈과 시간표가 쓰는 정본 SegmentedControl 을 쓴다. 예전엔 이 탭만
+          ui/SegmentTabs 라 활성 배경이 텍스트와 어긋나 잘려 보였다(사용자 리포트).
+          아래 여백은 두지 않는다 — 콘텐츠(카테고리 칩)가 탭 바로 아래 온다. */}
+      <div className="px-4 pt-1 flex-shrink-0">
+        <SegmentedControl options={TOP_TABS} value={tab} onChange={selectTab} ariaLabel="공지 종류 선택" />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-6">
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6">
         {tab === 'academic' ? (
           <AcademicNoticesTab />
         ) : (

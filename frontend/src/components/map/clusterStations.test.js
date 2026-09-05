@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { clusterStationPoints, DEFAULT_CLUSTER_THRESHOLD_PX } from './clusterStations'
+import { clusterStationPoints, clusterSpanMeters, DEFAULT_CLUSTER_THRESHOLD_PX, DOT_CLUSTER_THRESHOLD_PX, CLUSTER_LIST_SPAN_M } from './clusterStations'
 
 describe('clusterStationPoints', () => {
   it('빈 배열이면 빈 배열을 반환한다', () => {
@@ -130,5 +130,37 @@ describe('clusterStationPoints', () => {
       0,
     )
     expect(groups).toHaveLength(2)
+  })
+})
+
+describe('도트 모드 임계값과 구성원 거리', () => {
+  it('도트 모드 임계값은 칩 폭 기준(110px)이 아니라 최소 터치 타깃(44px)이다', () => {
+    expect(DOT_CLUSTER_THRESHOLD_PX).toBe(44)
+    expect(DOT_CLUSTER_THRESHOLD_PX).toBeLessThan(DEFAULT_CLUSTER_THRESHOLD_PX)
+  })
+
+  it('clusterSpanMeters 는 구성원 사이 최대 거리(m)를 돌려준다', () => {
+    // 위도 0.001도 ≈ 111m
+    const span = clusterSpanMeters([
+      { lat: 37.34, lng: 126.73 },
+      { lat: 37.341, lng: 126.73 },
+      { lat: 37.3405, lng: 126.73 },
+    ])
+    expect(span).toBeGreaterThan(100)
+    expect(span).toBeLessThan(120)
+  })
+
+  it('구성원이 하나이거나 좌표가 없으면 0 이다', () => {
+    expect(clusterSpanMeters([{ lat: 1, lng: 1 }])).toBe(0)
+    expect(clusterSpanMeters([{ lat: null, lng: null }, {}])).toBe(0)
+    expect(clusterSpanMeters([])).toBe(0)
+  })
+
+  it('정왕역처럼 수십 m 안에 겹친 구성원은 목록 시트 기준(CLUSTER_LIST_SPAN_M) 안에 든다', () => {
+    const span = clusterSpanMeters([
+      { lat: 37.352618, lng: 126.742747 },
+      { lat: 37.352700, lng: 126.742800 },
+    ])
+    expect(span).toBeLessThanOrEqual(CLUSTER_LIST_SPAN_M)
   })
 })

@@ -344,19 +344,21 @@ describe('AcademicNoticesTab — 정보 우선순위(공지 탭인데 첫 화면
     vi.useRealTimers()
   })
 
-  it('카테고리 칩이 학교 공지보다 먼저(DOM 상 위쪽) 렌더링된다', () => {
+  it('카테고리 칩이 학교 공지 목록보다 먼저(DOM 상 위쪽) 렌더링되고, "학교 공지" 소제목은 없다', () => {
     const { container } = render(<AcademicNoticesTab />)
     const chipGroup = container.querySelector('[role="group"][aria-label="공지 카테고리 선택"]')
-    const noticesHeading = screen.getByText('학교 공지')
+    const noticesList = screen.getByLabelText('학교 공지 목록')
     expect(chipGroup).not.toBeNull()
-    expect(chipGroup.compareDocumentPosition(noticesHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(chipGroup.compareDocumentPosition(noticesList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // 탭 이름이 이미 "학사공지"라 같은 뜻의 소제목을 한 줄 더 두지 않는다.
+    expect(screen.queryByText('학교 공지')).not.toBeInTheDocument()
   })
 
-  it('학교 공지가 다가오는 학사일정보다 먼저(DOM 상 위쪽) 렌더링된다 — 탭 이름이 약속하는 콘텐츠가 먼저 와야 한다', () => {
+  it('학교 공지 목록이 다가오는 학사일정보다 먼저(DOM 상 위쪽) 렌더링된다 — 탭 이름이 약속하는 콘텐츠가 먼저 와야 한다', () => {
     render(<AcademicNoticesTab />)
-    const noticesHeading = screen.getByText('학교 공지')
+    const noticesList = screen.getByLabelText('학교 공지 목록')
     const upcomingHeading = screen.getByText('다가오는 학사일정')
-    expect(noticesHeading.compareDocumentPosition(upcomingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(noticesList.compareDocumentPosition(upcomingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 

@@ -28,14 +28,31 @@
      얼마든 마지막 스톱이 항상 바닥에 닿는다. background-color는 트랜지션
      중 배경 이미지가 아직 안 걸린 순간을 위한 폴백으로 남긴다. */
   background-color: var(--whero-sky-c, #142639);
-  background-image: linear-gradient(
-    168deg,
-    var(--whero-sky-a, #0d2038) 0%,
-    var(--whero-sky-b, #123049) 52%,
-    var(--whero-sky-c, #142639) 100%
-  );
+  /* 두 레이어. 위쪽이 바닥 이음매(seam), 아래쪽이 하늘 그라데이션이다.
+     이음매는 예전에 .whero-seam 이라는 absolute 자식 요소였다. 그런데 히어로
+     배경은 자기 박스 아래 1px 까지 번져 칠해지고(실측: 히어로 다음 행이 전 폭에
+     걸쳐 하늘색), absolute 자식은 그 1px 을 덮지 못해 얇은 파란 선이 남았다.
+     같은 background 스택 안에 두면 두 레이어가 정확히 같은 박스를 칠하므로 번진
+     행도 --tj-bg 로 끝난다. 이음매 길이(--whero-seam-h)는 40px 에서 56px 로
+     늘리고 중간 스톱을 둬 변화가 바닥에 몰리지 않게 했다. */
+  --whero-seam-h: 56px;
+  background-image:
+    linear-gradient(
+      to bottom,
+      transparent calc(100% - var(--whero-seam-h)),
+      rgb(from var(--tj-bg) r g b / 0.45) calc(100% - var(--whero-seam-h) * 0.5),
+      var(--tj-bg) 100%
+    ),
+    linear-gradient(
+      168deg,
+      var(--whero-sky-a, #0d2038) 0%,
+      var(--whero-sky-b, #123049) 52%,
+      var(--whero-sky-c, #142639) 100%
+    );
   background-size: 100% 100%;
   background-repeat: no-repeat;
+  /* 번진 1px 을 다음 형제(대시보드, bg-bg)가 덮도록 겹친다. */
+  margin-bottom: -1px;
 
   /* 잉크는 하루에 걸쳐 아주 천천히 바뀐다. 5분 간격 갱신 사이를 부드럽게 잇는다. */
   transition: background-color 600ms ease;
@@ -105,33 +122,6 @@
   .whero-panel { animation: none; }
 }
 
-/* 바닥 이음매(seam) — 히어로를 대시보드 배경(var(--tj-bg))으로 얇게 블렌드.
-   콘텐츠는 z-10, seam은 z-5라 콘텐츠가 seam 위에 그려진다(콘텐츠는 pb로 seam을 피함).
-
-   높이를 26px에서 40px로 늘렸다 — 브라우저 실측(라이트/다크, 기온 유무 4가지 조합)으로
-   경계 위아래 픽셀 색을 직접 재서 원인을 특정했다. .whero 자체의 하늘 그라데이션은
-   background-size: 100% 100%로 요소 실제 높이에 맞춰 늘어나 마지막 스톱(sky-c)이
-   항상 바닥에 닿고, 이 seam도 정확히 --tj-bg로 끝난다 — 색 자체는 어긋나지 않는다.
-   문제는 변화 "속도"였다: seam이 26px로 고정돼 있으면, 그 위 87%대 높이에 걸쳐
-   느리게 번지던 하늘→스크림 변화가 마지막 26px 안에 전부 몰려 끝나야 한다. 다크
-   테마에서 실측한 결과 seam 구간의 픽셀당 색 변화율이 그 위 구간보다 약 5~6배
-   빨랐다(예: RGB 델타가 px당 0.35에서 1.8로 뜀) — 완만하던 그라데이션이 바닥에서
-   갑자기 빨리 감기처럼 끝나는 것처럼 보여, 그 위에 바로 붙는 모드 탭 카드
-   경계(그 카드 자체의 표면색은 이 컴포넌트 소관이 아니다)와 맞물려 "뚝 끊긴다"는
-   인상을 만들었다. seam을 40px로 늘려 같은 실측을 반복하니 구간 변화율 배율이
-   약 3.5배로 줄었고(더 늘릴수록 계속 줄지만, 기온이 없어 히어로가 짧을 때
-   본문 높이의 절반 가까이를 seam이 먹게 돼 하늘 자체가 안 보이는 역효과가 생긴다),
-   라이트/다크 스크린샷에서도 경계가 훨씬 부드럽게 보였다. */
-.whero-seam {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 40px;
-  z-index: 5;
-  pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--tj-bg));
-}
 
 /* ── 잉크를 쓰는 요소들 ──────────────────────────────────────────────────
    전부 --whero-on / --whero-on-2 만 본다. 예전엔 이 자리마다 lightText
@@ -184,6 +174,17 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
+/* 이펙트 컨테이너. 히어로 전체(스트립 + 본문)를 한 장으로 덮는다. 예전엔 각
+   레이어가 .whero-panel(position: relative) 안에 있어 inset:0 이 본문 박스에만
+   걸렸고, 스트립 바닥(56px)에서 글로우가 갑자기 시작해 가로줄로 보였다. */
+.whero-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* ── 대기 레이어 ────────────────────────────────────────────────────────
    무드당 하나만 남겼다. 예전엔 glow · rays · breath · grain · seam 다섯 겹이
    겹쳐서, 흰 호흡 글로우와 overlay 그레인이 어두운 하늘을 회색으로 씻어냈다
@@ -199,12 +200,13 @@
 .whero-daylight {
   position: absolute;
   inset: 0;
-  z-index: 2;
   pointer-events: none;
-  opacity: var(--daylight, 0);
+  opacity: calc(var(--daylight, 0) * var(--whero-glow-k, 1));
+  /* 글로우는 항상 흰색이다. 예전엔 잉크 변수를 썼는데, 밝은 하늘에서는 잉크가
+     어두운 색이라 "낮 글로우"가 본문 위쪽을 오히려 어둡게 칠했다. */
   background:
-    radial-gradient(120% 78% at 78% -18%, rgb(from var(--whero-on, #f5f8f9) r g b / 0.5), transparent 62%),
-    radial-gradient(90% 52% at 22% -10%, rgb(from var(--whero-on, #f5f8f9) r g b / 0.16), transparent 70%);
+    radial-gradient(120% 78% at 78% -18%, rgba(255, 255, 255, 0.5), transparent 62%),
+    radial-gradient(90% 52% at 22% -10%, rgba(255, 255, 255, 0.16), transparent 70%);
   transition: opacity 900ms ease;
 }
 

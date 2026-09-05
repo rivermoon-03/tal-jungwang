@@ -24,7 +24,6 @@ import { selectRepresentativeBusSource } from '../../utils/busInformationSource'
 import { makeFavKey, matchesLegacy } from '../../utils/favKey'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
 import EmptyState from '../ui/EmptyState'
-import IconButton from '../ui/IconButton'
 import StatsSheet from './StatsSheet'
 import HolidayBanner from '../common/HolidayBanner'
 import { scaledPx } from '../../utils/fontScale'
@@ -83,6 +82,42 @@ const SHUTTLE_CAMPUS_GROUPS = [
 const SHUTTLE_CAMPUS_DIRECTIONS = {
   main:   [{ id: '등교', label: '등교', direction: 0 }, { id: '하교', label: '하교', direction: 1 }],
   second: [{ id: '등교', label: '등교', direction: 2 }, { id: '하교', label: '하교', direction: 3 }],
+}
+
+// 셔틀 즐겨찾기 키 — ShuttleSection 과 목록 정렬(즐겨찾기 우선)이 같은 값을 쓴다.
+function shuttleFavCode(direction) {
+  const label = direction % 2 === 0 ? '등교' : '하교'
+  return makeFavKey({ mode: 'shuttle', id: direction >= 2 ? 'second' : 'main', direction: label })
+}
+
+// 목록 안 소제목("즐겨찾기", "전체").
+function GroupLabel({ children, star = false }) {
+  return (
+    <p className="mt-1 flex items-center gap-1 text-label font-semibold text-mute dark:text-mute">
+      {star && <Star size={12} strokeWidth={2.4} fill="currentColor" aria-hidden="true" />}
+      {children}
+    </p>
+  )
+}
+
+/**
+ * 즐겨찾기한 항목을 목록 맨 위 "즐겨찾기" 절로 올리고 나머지를 "전체" 절로 잇는다.
+ * 예전엔 "★ 즐겨찾기" 토글이 나머지를 숨기는 필터였다 — 즐겨찾기가 없는 사용자에게는
+ * 빈 화면만 만들었고, 있어도 목록 순서는 그대로였다. 즐겨찾기가 하나도 없으면
+ * 절 제목 없이 원래 순서대로 그린다.
+ */
+function GroupedByFavorite({ items, isFavItem, renderItem }) {
+  const favs = items.filter(isFavItem)
+  if (favs.length === 0) return <>{items.map(renderItem)}</>
+  const rest = items.filter((item) => !isFavItem(item))
+  return (
+    <>
+      <GroupLabel star>즐겨찾기</GroupLabel>
+      {favs.map(renderItem)}
+      {rest.length > 0 && <GroupLabel>전체</GroupLabel>}
+      {rest.map(renderItem)}
+    </>
+  )
 }
 
 // ─── mode label config ───────────────────────────────────────────────────────
@@ -337,7 +372,7 @@ const SUBWAY_DEST_LABEL = {
 }
 
 // ─── subway section ──────────────────────────────────────────────────────────
-function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, isFav, onToggleFav, selectedFavCode }) {
+function SubwaySection({ stationGroup, onCardClick, isFav, onToggleFav, selectedFavCode }) {
   // PC 2열 레이아웃에서는 버스/셔틀처럼 우측 인라인 패널(ScheduleDetailModal
   // pcMode="inline")에 떠야 한다. 모바일은 기존 zustand 전역 시트(GlobalSubwayDetailSheet,
   // 열차 위치 지도 등 subway 전용 UI)를 그대로 유지한다.
@@ -401,21 +436,24 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, isFav
     )
   }
 
+  const items = directions.flatMap((dir) => [
+    { dir, key: dir.upKey, label: dir.upLabel },
+    { dir, key: dir.downKey, label: dir.downLabel },
+  ])
+  const favCodeOf = (key) => makeFavKey({ mode: 'subway', id: stationGroup, direction: key })
+
   return (
-    <>
-      {directions.flatMap((dir) => [
-        ...[
-          { key: dir.upKey, label: dir.upLabel },
-          { key: dir.downKey, label: dir.downLabel },
-        ].map(({ key, label }) => {
+    <GroupedByFavorite
+      items={items}
+      isFavItem={({ key }) => isFav(favCodeOf(key))}
+      renderItem={({ dir, key, label }) => {
           const entry = data?.[key]
           const depart = entry?.depart_at ?? null
           const mins = depart ? timeStrToMinutes(depart, now) : null
           const validMins = mins != null && mins >= 0 ? mins : null
           const secondDepart = secondDepartMap[key] ?? null
           const isLastTrain = depart != null && timetable != null && secondDepart == null
-          const favCode = makeFavKey({ mode: 'subway', id: stationGroup, direction: key })
-          if (favoritesOnly && !isFav(favCode)) return null
+          const favCode = favCodeOf(key)
           const destLabel = SUBWAY_DEST_LABEL[key] ?? null
           const handleClick = () => {
             if (isDesktop) {
@@ -460,9 +498,8 @@ function SubwaySection({ stationGroup, onCardClick, favoritesOnly = false, isFav
               )}
             />
           )
-        }),
-      ])}
-    </>
+      }}
+    />
   )
 }
 
@@ -514,11 +551,11 @@ function buildShuttleWeekdayOffLabel(periods, todayStr) {
     : `${current.name} 기간 · 평일 운행 정보 없음`
 }
 
-function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, onToggleFav, selectedFavCode, isDesktop }) {
+function ShuttleSection({ direction, onCardClick, isFav, onToggleFav, selectedFavCode, isDesktop }) {
   const label = direction % 2 === 0 ? '등교' : '하교'
   const campusTag = direction >= 2 ? '2캠 ' : ''
   const titleText = `${campusTag}셔틀 ${label}`.trim()
-  const favCode = makeFavKey({ mode: 'shuttle', id: direction >= 2 ? 'second' : 'main', direction: label })
+  const favCode = shuttleFavCode(direction)
   const today = useShuttleSchedule(direction)
   // 미운행일에만 다음 평일 폴백 fetch (enabled로 운행일에는 호출 안 함).
   // 본캠은 토·일 모두 미운행, 2캠은 일요일만 미운행이라 판정이 다르다.
@@ -541,8 +578,6 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
   // 폴백 fetch가 끝날 때까지 loading 유지 (깜빡임 방지)
   const loading = today.loading || (offDay && fallback.loading)
   const error = today.error && (!offDay || fallback.error)
-
-  if (favoritesOnly && !isFav(favCode)) return null
 
   const routeCode = `${campusTag}셔틀${label}`.trim()
   const rowBaseProps = {
@@ -768,7 +803,7 @@ function ShuttleSection({ direction, onCardClick, favoritesOnly = false, isFav, 
 const HAGYO_GROUP_KEYS = (BUS_COMMUTE_GROUPS.하교 ?? []).map((group) => group.id)
 
 // ─── bus group content (동적 API 로드) ─────────────────────────────────────
-function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = false, isFav, onToggleFav, selectedFavCode, isDesktop }) {
+function BusGroupContent({ busGroup, commuteGroup, onCardClick, isFav, onToggleFav, selectedFavCode, isDesktop }) {
   const { data: routes, loading } = useBusRoutesByCategory(busGroup)
   const isHagyo = busGroup === '하교'
   // 훅 호출 순서를 매 렌더 동일하게 유지하려고 하교 여부와 무관하게 항상
@@ -861,15 +896,11 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
     if (orderA !== orderB) return orderA - orderB
     return (a.originLabel ?? '').localeCompare(b.originLabel ?? '', 'ko')
   })
-  const displayEntries = favoritesOnly
-    ? sorted.filter((e) => isFav(e.favCode, e.code))
-    : sorted
+  const displayEntries = sorted
 
   if (displayEntries.length === 0) {
     return (
-      <p className="py-8 text-center text-body text-mute">
-        {favoritesOnly ? '즐겨찾기한 노선이 없어요' : '해당 그룹의 버스가 없어요'}
-      </p>
+      <p className="py-8 text-center text-body text-mute">해당 그룹의 버스가 없어요</p>
     )
   }
 
@@ -893,32 +924,24 @@ function BusGroupContent({ busGroup, commuteGroup, onCardClick, favoritesOnly = 
           </p>
         </div>
       )}
-      {displayEntries.map((e) => (
-        <BusRouteSection
-          key={e.favCode}
-          busGroup={busGroup}
-          commuteContext={e.commuteContext}
-          favCode={e.favCode}
-          onCardClick={onCardClick}
-          onArrivalChange={reportArrival}
-          isFavorite={isFav(e.favCode, e.code)}
-          onToggleFavorite={() => onToggleFav(e.favCode)}
-          selected={isDesktop && selectedFavCode === e.favCode}
-        />
-      ))}
+      <GroupedByFavorite
+        items={displayEntries}
+        isFavItem={(e) => isFav(e.favCode, e.code)}
+        renderItem={(e) => (
+          <BusRouteSection
+            key={e.favCode}
+            busGroup={busGroup}
+            commuteContext={e.commuteContext}
+            favCode={e.favCode}
+            onCardClick={onCardClick}
+            onArrivalChange={reportArrival}
+            isFavorite={isFav(e.favCode, e.code)}
+            onToggleFavorite={() => onToggleFav(e.favCode)}
+            selected={isDesktop && selectedFavCode === e.favCode}
+          />
+        )}
+      />
     </>
-  )
-}
-
-// 즐겨찾기 필터를 켰지만 해당 모드에 즐겨찾기가 없을 때의 안내.
-function FavoritesEmpty() {
-  return (
-    <EmptyState
-      size="sm"
-      icon={<Star size={24} aria-hidden="true" />}
-      title="즐겨찾기한 노선이 없어요"
-      desc="노선 카드의 별을 누르면 여기에 모여요."
-    />
   )
 }
 
@@ -956,7 +979,6 @@ export default function SchedulePage({ embedded = false }) {
     : (isValidMode(storedMode) ? storedMode : 'bus')
 
   const [mode, setMode] = useState(initialMode)
-  const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
   const [busGroup, setBusGroup] = useState('하교')
   const [busCommuteGroup, setBusCommuteGroup] = useState(BUS_COMMUTE_GROUPS.하교[0].id)
@@ -1068,10 +1090,6 @@ export default function SchedulePage({ embedded = false }) {
     setSelectedDetail(null)
     setBusCommuteGroup(next)
   }
-  const handleFavoritesOnlyChange = (next) => {
-    setSelectedDetail(null)
-    setFavoritesOnly(next)
-  }
 
   const detailModalProps = {
     open: selectedDetail != null,
@@ -1104,28 +1122,9 @@ export default function SchedulePage({ embedded = false }) {
         : null,
   }
 
-  // 즐겨찾기 필터를 켰을 때 지하철/셔틀은 각 행이 개별적으로 null을 반환해 화면이
-  // 통째로 백지가 됐다(버스만 자체 빈 상태가 있었다). 해당 모드에 즐겨찾기가 하나라도
-  // 있는지 먼저 판정해 안내를 띄운다. 신규(favorites.keys)·레거시(favorites.routes)
-  // 저장값을 모두 본다.
-  const allFavKeys = [...(favorites.keys ?? []), ...(favorites.routes ?? [])]
-  const hasFavoriteInMode = !favoritesOnly || (
-    mode === 'subway'
-      ? allFavKeys.some((c) => typeof c === 'string' && c.startsWith(`subway:${subwayGroup}:`))
-      : mode === 'shuttle'
-        ? allFavKeys.some((c) => {
-            if (typeof c !== 'string' || !c.startsWith('shuttle:')) return false
-            const isSecondKey = c.includes(':second:') || c.includes('2캠')
-            return shuttleCampus === 'second' ? isSecondKey : !isSecondKey
-          })
-        : true
-  )
-
   const sectionViewProps = {
     mode,
     handleModeChange,
-    favoritesOnly,
-    setFavoritesOnly: handleFavoritesOnlyChange,
     groups,
     activeGroupId,
     setActiveGroup,
@@ -1139,16 +1138,12 @@ export default function SchedulePage({ embedded = false }) {
     onToggleFav: handleToggleFav,
     selectedFavCode: selectedDetail?.favCode ?? null,
     isDesktop,
-    hasFavoriteInMode,
     onOpenStats: () => setStatsOpen(true),
     embedded,
   }
 
   return (
-    <div
-      className={`flex flex-col h-full bg-surface dark:bg-bg ${embedded ? '' : 'animate-fade-in-up'}`}
-      style={embedded ? undefined : { paddingTop: 'var(--banner-h, 0px)' }}
-    >
+    <div className={`flex flex-col h-full bg-surface dark:bg-bg ${embedded ? '' : 'animate-fade-in-up'}`}>
       {!embedded && <PageHeader title="시간표" />}
 
       {isDesktop && !embedded ? (
@@ -1205,8 +1200,6 @@ export default function SchedulePage({ embedded = false }) {
 function ScheduleSectionView({
   mode,
   handleModeChange,
-  favoritesOnly,
-  setFavoritesOnly,
   groups,
   activeGroupId,
   setActiveGroup,
@@ -1220,65 +1213,28 @@ function ScheduleSectionView({
   onToggleFav,
   selectedFavCode,
   isDesktop,
-  hasFavoriteInMode,
   onOpenStats,
   embedded = false,
 }) {
   return (
     <>
-      {/* 모드 탭 + 통계·즐겨찾기 유틸. 탭은 flex-1로 행을 채우고 유틸 버튼은 우측에
-          고정. 홈에 얹힌 경우 모드 탭은 홈이 이미 그렸으니 여기서는 다시 그리지
+      {/* 모드 탭. 홈에 얹힌 경우 모드 탭은 홈이 이미 그렸으니 여기서는 다시 그리지
           않는다 — 그 자리에 있던 지금/시간표 전환 셀렉터는 하단 독의 홈/시간표
           탭으로 옮겨갔다(SchedulePage 파일 상단 JSDoc 참고). 아래 그룹 탭과 같은
-          SegmentedControl을 쓴다 — 예전엔 이 자리만 별도 ui/SegmentTabs를 써서
-          한 화면 안에서 세그먼트 스타일이 갈렸다. */}
-      <div className="px-4 pt-2 pb-1.5 flex items-center gap-2 flex-shrink-0">
-        <div className="flex-1 min-w-0">
-          {!embedded && (
-            <SegmentedControl
-              options={MODES}
-              value={mode}
-              onChange={handleModeChange}
-              ariaLabel="교통수단 모드 선택"
-            />
-          )}
+          SegmentedControl을 쓴다.
+          예전엔 이 행 오른쪽에 통계 아이콘과 "★ 즐겨찾기" 토글이 있었다. 통계는
+          목록 맨 아래 이름 있는 버튼으로 내렸고, 토글은 없앴다 — 즐겨찾기는 이제
+          목록 맨 위 절로 올라온다(GroupedByFavorite). */}
+      {!embedded && (
+        <div className="px-4 pt-2 pb-1.5 flex-shrink-0">
+          <SegmentedControl
+            options={MODES}
+            value={mode}
+            onChange={handleModeChange}
+            ariaLabel="교통수단 모드 선택"
+          />
         </div>
-        <div className="shrink-0 flex items-center gap-1.5">
-          {/* 예전엔 30px 원형 버튼이라 44px 터치 타깃 규정에 못 미쳤다 —
-              ui/IconButton(md=44px)으로 옮긴다. */}
-          <IconButton
-            onClick={onOpenStats}
-            label="오늘의 교통 통계 보기"
-            variant="ghost"
-          >
-            <BarChart3 size={14} strokeWidth={2.2} aria-hidden="true" />
-          </IconButton>
-          <button
-            type="button"
-            onClick={() => setFavoritesOnly((v) => !v)}
-            aria-pressed={favoritesOnly}
-            aria-label={favoritesOnly ? '즐겨찾기만 보기 해제' : '즐겨찾기한 노선만 보기'}
-            className="pressable"
-            style={{
-              padding: '6px 11px',
-              borderRadius: 999,
-              border: favoritesOnly
-                ? '1.5px solid var(--tj-pill-active-bg)'
-                : '1.5px solid var(--tj-line)',
-              background: favoritesOnly ? 'var(--tj-pill-active-bg)' : 'transparent',
-              color: favoritesOnly ? 'var(--tj-pill-active-fg)' : 'var(--tj-mute)',
-              fontSize: scaledPx(12),
-              fontWeight: 700,
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              transition:
-                'background var(--dur-motion-base) var(--e-out), color var(--dur-motion-base) var(--e-out), border-color var(--dur-motion-base) var(--e-out)',
-            }}
-          >
-            ★ 즐겨찾기
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* 그룹 탭 — 대시보드와 동일한 SegmentedControl(민트 칩 대신 일관된 세그먼트). */}
       {groups.length > 0 && (
@@ -1319,7 +1275,6 @@ function ScheduleSectionView({
               busGroup={busGroup}
               commuteGroup={busCommuteGroup}
               onCardClick={handleCardClick}
-              favoritesOnly={favoritesOnly}
               isFav={isFav}
               onToggleFav={onToggleFav}
               selectedFavCode={selectedFavCode}
@@ -1327,38 +1282,43 @@ function ScheduleSectionView({
             />
           )}
           {mode === 'subway' && (
-            hasFavoriteInMode ? (
-              <SubwaySection
-                stationGroup={subwayGroup}
-                onCardClick={handleCardClick}
-                favoritesOnly={favoritesOnly}
-                isFav={isFav}
-                onToggleFav={onToggleFav}
-                selectedFavCode={selectedFavCode}
-              />
-            ) : (
-              <FavoritesEmpty />
-            )
+            <SubwaySection
+              stationGroup={subwayGroup}
+              onCardClick={handleCardClick}
+              isFav={isFav}
+              onToggleFav={onToggleFav}
+              selectedFavCode={selectedFavCode}
+            />
           )}
           {mode === 'shuttle' && (
-            hasFavoriteInMode ? (
-              (SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main).map((g) => (
+            <GroupedByFavorite
+              items={SHUTTLE_CAMPUS_DIRECTIONS[shuttleCampus] ?? SHUTTLE_CAMPUS_DIRECTIONS.main}
+              isFavItem={(g) => isFav(shuttleFavCode(g.direction))}
+              renderItem={(g) => (
                 <ShuttleSection
                   key={`${shuttleCampus}:${g.id}`}
                   direction={g.direction}
                   onCardClick={handleCardClick}
-                  favoritesOnly={favoritesOnly}
                   isFav={isFav}
                   onToggleFav={onToggleFav}
                   selectedFavCode={selectedFavCode}
                   isDesktop={isDesktop}
                 />
-              ))
-            ) : (
-              <FavoritesEmpty />
-            )
+              )}
+            />
           )}
         </div>
+
+        {/* 오늘의 교통 통계 — 목록 맨 아래 전폭 버튼. 예전엔 모드 탭 옆 아이콘
+            하나(라벨 없음)라 무엇인지 알기 어려웠다. */}
+        <button
+          type="button"
+          onClick={onOpenStats}
+          className="pressable mt-3 flex w-full items-center justify-center gap-2 rounded-card border border-line dark:border-line bg-surface dark:bg-surface px-4 py-3 min-h-[48px] text-label font-semibold text-ink-2 dark:text-ink-2"
+        >
+          <BarChart3 size={16} strokeWidth={2.2} aria-hidden="true" />
+          오늘의 교통 통계
+        </button>
       </div>
     </>
   )

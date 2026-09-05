@@ -47,13 +47,17 @@
 import { useEffect, useRef } from 'react'
 import { createMarkerChipElement, createSubwayMultiChipElement, createSeohaeSiheungChipElement, createClusterBadgeElement, resolveColor } from './MarkerChip'
 import { createMarkerDotElement } from './MarkerDot'
-import { clusterStationPoints, DEFAULT_CLUSTER_THRESHOLD_PX, CLUSTER_TAP_ZOOM_STEP } from './clusterStations'
+import { clusterStationPoints, clusterSpanMeters, DEFAULT_CLUSTER_THRESHOLD_PX, DOT_CLUSTER_THRESHOLD_PX, CLUSTER_TAP_ZOOM_STEP, CLUSTER_LIST_SPAN_M } from './clusterStations'
 
 // 줌 임계값: 이 값 이하이면 Chip 표시
 const CHIP_ZOOM_THRESHOLD = 6
 
-// 클러스터링 픽셀 거리 임계값(px). 마커 최소 터치 타겟 크기와 맞춤.
-const CLUSTER_THRESHOLD_PX = DEFAULT_CLUSTER_THRESHOLD_PX
+// 클러스터링 픽셀 거리 임계값(px). 칩(줌인)은 칩 평균 폭, 도트(줌아웃)는 최소
+// 터치 타깃 크기. 예전엔 둘 다 110px 이라 도트끼리 멀리 떨어져도 묶였다.
+const thresholdForMode = (mode) => (mode === 'chip' ? DEFAULT_CLUSTER_THRESHOLD_PX : DOT_CLUSTER_THRESHOLD_PX)
+
+// 이 레벨(카카오 level, 작을수록 확대)까지 확대해도 안 풀리면 더 확대하지 않는다.
+const CLUSTER_MAX_ZOOM_LEVEL = 2
 
 // chip 콘텐츠에 영향을 주는 라이브/표시 필드만 모은 시그니처.
 // 이 값이 같으면 mode/위치 변화가 없는 한 콘텐츠 재생성 불필요.
@@ -82,16 +86,18 @@ function contentSignature(s) {
   ])
 }
 
-export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
+export default function ZoomAwareOverlayManager({ map, stations = [], onTap, onTapCluster }) {
   // overlaysRef: Map<id, { overlay, station, mode, sig }>
   const overlaysRef = useRef(new Map())
   // onTap을 ref로 보관 → 콘텐츠 빌더는 항상 최신 onTap을 보되 effect 재실행을 유발하지 않음.
   // 갱신은 렌더 중이 아니라 커밋 이후(effect)에 한다. 렌더 중 ref를 쓰면 렌더가
   // 버려지는 경우 실제로 반영되지 않은 값이 남을 수 있다.
   const onTapRef = useRef(onTap)
+  const onTapClusterRef = useRef(onTapCluster)
   useEffect(() => {
     onTapRef.current = onTap
-  }, [onTap])
+    onTapClusterRef.current = onTapCluster
+  }, [onTap, onTapCluster])
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return
@@ -131,12 +137,26 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
       })
     }
 
-    // 클러스터 배지 탭 → MarkerSheet를 열지 않고 해당 위치로 줌인해 겹침을 해소
+    // 클러스터 배지 탭 → 해당 위치로 줌인해 겹침을 해소한다. 구성원이 수십 m
+    // 안에 겹쳐 있어 확대해도 절대 안 풀리거나(정왕역의 역 두 개 + 셔틀), 이미
+    // 충분히 확대돼 있으면 확대 대신 구성원 목록 시트를 연다 — 예전엔 확대만
+    // 반복하다 끝내 어느 마커에도 닿지 못했다.
     function handleClusterTap(clusterItem) {
+      const members = (clusterItem.__clusterIds ?? [])
+        .map((id) => stationsById.get(id))
+        .filter(Boolean)
+      const stuck =
+        clusterSpanMeters(members) <= CLUSTER_LIST_SPAN_M ||
+        map.getLevel() <= CLUSTER_MAX_ZOOM_LEVEL
+      if (stuck && members.length && onTapClusterRef.current) {
+        onTapClusterRef.current(members)
+        return
+      }
       const anchor = new window.kakao.maps.LatLng(clusterItem.lat, clusterItem.lng)
       const nextLevel = Math.max(1, map.getLevel() - CLUSTER_TAP_ZOOM_STEP)
       map.setLevel(nextLevel, { anchor })
     }
+    const stationsById = new Map(stations.map((s) => [s.id, s]))
 
     function buildContent(item, mode) {
       if (item.__cluster) {
@@ -151,6 +171,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
         : createMarkerDotElement({
             type:        item.type,
             customColor: item.routeColor,
+            label:       item.name,
             onClick: () => handleTap(item),
           })
     }
@@ -172,7 +193,7 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap }) {
         return { id: s.id, x: p.x, y: p.y }
       })
 
-      const groups = clusterStationPoints(points, CLUSTER_THRESHOLD_PX)
+      const groups = clusterStationPoints(points, thresholdForMode(modeForLevel(map.getLevel())))
       const byId = new Map(list.map((s) => [s.id, s]))
       const items = []
 

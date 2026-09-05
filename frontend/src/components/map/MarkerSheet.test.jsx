@@ -76,7 +76,9 @@ describe('MarkerSheet — 기본 렌더', () => {
         onDetail={vi.fn()}
       />
     )
-    expect(screen.getByText('도착 정보가 없습니다')).toBeTruthy()
+    expect(screen.getByText('지금은 도착 정보가 없어요')).toBeTruthy()
+    // 보여줄 게 없으니 상세 보기는 비활성이다.
+    expect(screen.getByText('상세 보기').closest('button')).toBeDisabled()
   })
 
   it('도보 정보가 헤더에 표시된다', () => {
