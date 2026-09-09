@@ -47,9 +47,15 @@ const TABS = [
  * 결함 #12 — 매칭 실패 시 무조건 'home'을 반환하던 폴백을 제거했다. /more가
  * 이제 독의 다섯 번째 탭이 됐으므로 그 경로는 명시적으로 'more'를 반환하고,
  * 그 외 다섯 탭 어디에도 속하지 않는 화면(/favorites, /settings 등)은
- * 여전히 아무 탭도 활성이 아니다. 홈은 실제 홈 경로(정확히 '/')일 때만 활성이다.
+ * 여전히 아무 탭도 활성이 아니다.
+ *
+ * 홈과 시간표는 주소만으로 가를 수 없다. 모바일에서 /schedule 은 홈의 "시간표"
+ * 보기라 App.adoptLegacySchedulePath 가 주소를 '/' 로 되돌리고 homeView 에
+ * 'timetable' 을 남긴다. 주소만 보면 그 순간부터 둘 다 '/' 라 시간표를 보고
+ * 있는데도 홈이 눌린 것처럼 보였다. homeView 는 저장되는 값이라 앱을 다시 열어도
+ * 같은 어긋남이 남는다. 그래서 '/' 에서는 homeView 가 활성 탭을 정한다.
  */
-function getActiveId(pathname) {
+function getActiveId(pathname, homeView) {
   if (pathname.startsWith('/schedule')) return 'schedule'
   if (pathname.startsWith('/notices'))  return 'notices'
   if (pathname.startsWith('/more'))     return 'more'
@@ -58,13 +64,14 @@ function getActiveId(pathname) {
   if (pathname.startsWith('/facilities') || pathname.startsWith('/cafeteria')) {
     return 'facilities'
   }
-  if (pathname === '/') return 'home'
+  if (pathname === '/') return homeView === 'timetable' ? 'schedule' : 'home'
   return null
 }
 
 export default function FloatingDock() {
   const pathname = usePathname()
-  const activeId = getActiveId(pathname)
+  const homeView = useAppStore((s) => s.homeView)
+  const activeId = getActiveId(pathname, homeView)
   const [longPressActive, setLongPressActive] = useState(false)
   const longPressTimerRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
@@ -94,6 +101,12 @@ export default function FloatingDock() {
     // 여기서 홈 탭을 누를 때만 되돌린다.
     if (href === '/') {
       useAppStore.getState().setHomeView('now')
+    }
+    // 시간표 탭은 모바일에서 주소가 아니라 homeView 로 표현된다. 여기서 직접
+    // 맞추지 않으면 이미 '/' 에 있을 때(홈에서 시간표를 누를 때) 아래 pushState
+    // 조건에 걸려 아무 일도 일어나지 않는다.
+    if (href === '/schedule') {
+      useAppStore.getState().setHomeView('timetable')
     }
     // 예전엔 href가 쿼리를 포함할 수 있어(예: /facilities?tab=diet) pathname만
     // 비교하면 늘 다르다고 나와 매번 새 히스토리 항목이 쌓였다. 이제 다섯 탭 href가

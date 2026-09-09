@@ -342,3 +342,46 @@ describe('FloatingDock — 홈 탭을 누르면 homeView를 "now"로 되돌린�
     expect(useAppStore.getState().homeView).toBe('timetable')
   })
 })
+
+/**
+ * 모바일에서 /schedule 은 홈의 "시간표" 보기다. App 이 주소를 '/' 로 되돌리고
+ * homeView 에 'timetable' 을 남기므로, 주소만 보면 홈과 시간표가 같은 '/' 다.
+ * 그래서 시간표를 보고 있는데 독은 홈이 눌린 것처럼 보였다. homeView 는
+ * 저장되는 값이라 앱을 다시 열어도 어긋남이 남았다.
+ */
+describe('FloatingDock — 홈과 시간표는 homeView 로 가른다', () => {
+  beforeEach(() => {
+    window.history.replaceState({}, '', '/')
+  })
+  afterEach(() => {
+    useAppStore.getState().setHomeView('now')
+  })
+
+  it("'/' 에서 homeView 가 timetable 이면 시간표 탭이 활성이다", () => {
+    useAppStore.getState().setHomeView('timetable')
+    render(<FloatingDock />)
+    expect(screen.getByRole('link', { name: '시간표' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: '홈' })).not.toHaveAttribute('aria-current')
+  })
+
+  it("'/' 에서 homeView 가 now 면 홈 탭이 활성이다", () => {
+    useAppStore.getState().setHomeView('now')
+    render(<FloatingDock />)
+    expect(screen.getByRole('link', { name: '홈' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: '시간표' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('홈에서 시간표 탭을 누르면 homeView 가 바뀐다 — 주소가 이미 / 라 pushState 만으로는 안 바뀐다', () => {
+    useAppStore.getState().setHomeView('now')
+    render(<FloatingDock />)
+    fireEvent.click(screen.getByRole('link', { name: '시간표' }))
+    expect(useAppStore.getState().homeView).toBe('timetable')
+  })
+
+  it('시간표에서 홈 탭을 누르면 되돌아온다', () => {
+    useAppStore.getState().setHomeView('timetable')
+    render(<FloatingDock />)
+    fireEvent.click(screen.getByRole('link', { name: '홈' }))
+    expect(useAppStore.getState().homeView).toBe('now')
+  })
+})
