@@ -140,7 +140,8 @@ describe('RouteDetailPage', () => {
 
   it('노선 번호 뱃지가 렌더링됨', () => {
     render(<RouteDetailPage routeNumber="33" />)
-    expect(screen.getByText('시흥33')).toBeInTheDocument()
+    // 헤더와 도착 카드 타일 두 곳에 같은 번호가 나온다.
+    expect(screen.getAllByText('시흥33').length).toBeGreaterThan(0)
   })
 
   it('뒤로가기 버튼 클릭 시 history.back() 호출', () => {
@@ -217,8 +218,7 @@ describe('RouteDetailPage', () => {
       render(<RouteDetailPage routeNumber="33" />)
       expect(screen.getByText('5분')).toBeInTheDocument()
       expect(screen.getByText('09:05 도착')).toBeInTheDocument()
-      expect(screen.getByText('15분')).toBeInTheDocument()
-      expect(screen.getByText('09:20 도착')).toBeInTheDocument()
+      expect(screen.getByText('다음 15분 (09:20)')).toBeInTheDocument()
     })
 
     it('secondary가 없으면 시간표 기준 다음 출발로 둘째 슬롯을 보강한다', () => {
@@ -236,8 +236,7 @@ describe('RouteDetailPage', () => {
       // 정오(720분) 기준 다음 출발은 22:50
       render(<RouteDetailPage routeNumber="33" />)
       const arrivalSection = screen.getByRole('region', { name: '도착 정보' })
-      expect(within(arrivalSection).getByText('22:50')).toBeInTheDocument()
-      expect(screen.getByText('시간표 기준 출발')).toBeInTheDocument()
+      expect(within(arrivalSection).getByText('다음 22:50 출발')).toBeInTheDocument()
     })
 
     it('secondary도 시간표도 없으면 "이후 정보 없음"을 표시한다', () => {
@@ -265,8 +264,8 @@ describe('RouteDetailPage', () => {
         error: null,
       })
       render(<RouteDetailPage routeNumber="33" />)
-      expect(screen.getByText('다음 출발 (시간표 기준)')).toBeInTheDocument()
       const arrivalSection = screen.getByRole('region', { name: '도착 정보' })
+      expect(within(arrivalSection).getByText('다음 출발 (시간표 기준)')).toBeInTheDocument()
       expect(within(arrivalSection).getByText('22:50')).toBeInTheDocument()
       // 모순 카피("실시간 도착 정보가 없어요" + "시간표가 없는 실시간 노선") 제거 확인
       expect(screen.queryByText(/실시간 도착 정보가 없어요/)).not.toBeInTheDocument()

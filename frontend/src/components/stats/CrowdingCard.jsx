@@ -1,16 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
 import { crowdedColor, ROUTE_ACCENTS } from '../../utils/crowdingPalette'
-import { labelFromRatio } from '../../utils/crowdingLevel'
+import { labelFromRatio, levelFromRatio } from '../../utils/crowdingLevel'
+import SegmentedControl from '../ui/SegmentedControl'
 import ChartSkeleton from './ChartSkeleton'
 import CrowdingChart from './CrowdingChart'
 
-const ROUTE_TABS = [
-  { id: '시흥33', label: '시흥33' },
-  { id: '20-1',  label: '20-1'   },
-  { id: '시흥1', label: '시흥1'  },
-  { id: '11-A',  label: '11-A'   },
-]
+const ROUTE_NUMBERS = ['시흥33', '20-1', '시흥1', '11-A']
+
+// 노선마다 고유색 점을 라벨 앞에 붙인다. 차트 선 색과 같은 팔레트라 탭과
+// 그래프가 같은 노선을 말한다는 것이 색으로 읽힌다.
+const ROUTE_TABS = ROUTE_NUMBERS.map((no) => ({
+  value: no,
+  label: (
+    <>
+      <span
+        aria-hidden="true"
+        className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+        style={{ background: ROUTE_ACCENTS[no] }}
+      />
+      {no}
+    </>
+  ),
+}))
 
 const RANGE_H = 8
 
@@ -87,44 +99,24 @@ export default function CrowdingCard() {
         </header>
 
         {/* 노선 탭 — 헤더 아래 전체 폭, 필요 시 가로 스크롤 */}
-        <div
-          className="mt-2.5 flex gap-0.5 rounded-full p-0.5 bg-surface-2 ring-1 ring-line overflow-x-auto"
-          role="tablist"
-        >
-          {ROUTE_TABS.map((tab) => {
-            const active = tab.id === routeNo
-            const color = ROUTE_ACCENTS[tab.id] ?? accent
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setRouteNo(tab.id)}
-                className={`flex items-center gap-1 px-2.5 py-1 text-label font-semibold rounded-full transition whitespace-nowrap ${
-                  active ? 'bg-accent text-accent-ink shadow-sm' : 'text-mute hover:text-ink'
-                }`}
-              >
-                {active && (
-                  <span
-                    className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: color }}
-                  />
-                )}
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
+        <SegmentedControl
+          className="mt-2.5 overflow-x-auto"
+          options={ROUTE_TABS}
+          value={routeNo}
+          onChange={setRouteNo}
+          ariaLabel="노선 선택"
+        />
 
         {/* 현재 상태 */}
         <div className="mt-3 flex items-end justify-between gap-4">
           <div>
             <div className="text-caption text-mute mb-1">지금</div>
+            {/* 색도 글자와 같은 축(비율)에서 뽑는다 — 평균에서 뽑으면
+                "매우 혼잡"이 "보통"의 노란색으로 나온다. */}
             {currentPoint ? (
               <div
                 className="text-eta font-bold tracking-tight leading-none"
-                style={{ color: crowdedColor(currentPoint.crowded) }}
+                style={{ color: crowdedColor(levelFromRatio(currentPoint.ratio)) }}
               >
                 {labelFromRatio(currentPoint.ratio, {
                   estimated: currentPoint.estimated,
@@ -142,7 +134,7 @@ export default function CrowdingCard() {
               </div>
               <div
                 className="text-head font-bold"
-                style={{ color: crowdedColor(futurePeak.crowded) }}
+                style={{ color: crowdedColor(levelFromRatio(futurePeak.ratio)) }}
               >
                 {labelFromRatio(futurePeak.ratio, {
                   estimated: futurePeak.estimated,

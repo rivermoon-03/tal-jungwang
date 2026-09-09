@@ -60,8 +60,8 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('3')).toBeInTheDocument()
-    expect(screen.queryByText('4')).not.toBeInTheDocument()
+    expect(screen.getByText('3분')).toBeInTheDocument()
+    expect(screen.queryByText('4분')).not.toBeInTheDocument()
   })
 
   it('180초 → "3분"', () => {
@@ -72,7 +72,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('3분')).toBeInTheDocument()
   })
 
   it('600초 (>90) → "10분"', () => {
@@ -83,7 +83,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('10')).toBeInTheDocument()
+    expect(screen.getByText('10분')).toBeInTheDocument()
   })
 
   // ─── 임박(≤90초) ─────────────────────────────────────────────────────────────
@@ -96,9 +96,10 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('곧')).toBeInTheDocument()
-    const eta = container.querySelector('[data-eta]')
-    expect(eta.className).toMatch(/imminent/)
+    // 임박은 색만 바뀐다 — 배경도 보더도 건드리지 않는다(DESIGN.md).
+    const eta = screen.getByText('곧')
+    expect(eta.className).toMatch(/text-imminent/)
+    expect(container.innerHTML).not.toMatch(/animate-halo-pulse/)
   })
 
   it('90초 → "곧" (formatEta 임박 임계값)', () => {
@@ -120,7 +121,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('1분')).toBeInTheDocument()
     expect(screen.queryByText('곧')).not.toBeInTheDocument()
   })
 
@@ -153,7 +154,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
 
   // ─── 특수 상태 ────────────────────────────────────────────────────────────────
 
-  it('arrivals 없으면(arrive_in_seconds null) "·" 표시', () => {
+  it('arrivals 없으면(arrive_in_seconds null) "운행 정보 없음" 표시', () => {
     render(
       <BusArrivalCard
         arrivals={[{ route_no: '11-A', route_id: 11, destination: '정왕역', category: '하교', arrival_type: 'realtime' }]}
@@ -161,7 +162,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('·')).toBeInTheDocument()
+    expect(screen.getByText('운행 정보 없음')).toBeInTheDocument()
   })
 
   it('arrive_in_seconds <= 0 버스는 건너뛰고 다음 버스를 primary로', () => {
@@ -175,11 +176,11 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('10')).toBeInTheDocument()
+    expect(screen.getByText('10분')).toBeInTheDocument()
     expect(screen.queryByText('곧')).not.toBeInTheDocument()
   })
 
-  it('모든 arrival이 <=0이면 "·" 표시', () => {
+  it('모든 arrival이 <=0이면 "운행 정보 없음" 표시', () => {
     render(
       <BusArrivalCard
         arrivals={[baseRealtime({ arrive_in_seconds: 0 })]}
@@ -187,7 +188,7 @@ describe('BusArrivalCard — 재설계 layout', () => {
         onTimetableClick={() => {}}
       />
     )
-    expect(screen.getByText('·')).toBeInTheDocument()
+    expect(screen.getByText('운행 정보 없음')).toBeInTheDocument()
   })
 
   it('stats.tolerance_min 있을 때 "보통 ±N분" 표시', () => {

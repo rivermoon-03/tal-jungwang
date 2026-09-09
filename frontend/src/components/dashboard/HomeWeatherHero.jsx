@@ -129,7 +129,7 @@ const SKY_REFRESH_MS = 5 * 60 * 1000
  */
 export default function HomeWeatherHero({ onOpenMap }) {
   const { weather } = useWeather()
-  const { direction, isOverride } = useEffectiveDirection()
+  const { direction, isOverride, reason: directionReason } = useEffectiveDirection()
   const heroStyle = useAppStore((s) => s.heroStyle) // 'greeting'(기본) | 'classic'
   const setSearchOpen = useAppStore((s) => s.setSearchOpen)
   // useTheme이 themeMode + 시스템 설정을 종합해 스토어에 넣어 둔 실제 화면 상태.
@@ -300,7 +300,7 @@ export default function HomeWeatherHero({ onOpenMap }) {
       {/* 자동 방향 전환 토스트 */}
       {previousDirection && (
         <DirectionAutoToast
-          message={getDirectionAutoChangeMessage(direction)}
+          message={getDirectionAutoChangeMessage(direction, { reason: directionReason })}
           previousDirection={previousDirection}
           visible={toastVisible}
           onClose={() => setToastVisible(false)}

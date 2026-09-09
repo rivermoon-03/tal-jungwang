@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatEta, isImminent, IMMINENT_THRESHOLD_SEC } from './eta'
+import { formatEta, isImminent, IMMINENT_THRESHOLD_SEC, isImminentMinutes, IMMINENT_THRESHOLD_MIN } from './eta'
 
 describe('formatEta', () => {
   it('null이면 정보 없음/none', () => {
@@ -8,8 +8,8 @@ describe('formatEta', () => {
   it('undefined이면 정보 없음/none', () => {
     expect(formatEta(undefined)).toEqual({ text: '운행 정보 없음', tone: 'none' })
   })
-  it('90초 이하는 곧 도착/imminent', () => {
-    expect(formatEta(60)).toEqual({ text: '곧 도착', tone: 'imminent' })
+  it('90초 이하는 곧/imminent', () => {
+    expect(formatEta(60)).toEqual({ text: '곧', tone: 'imminent' })
   })
   it('239초는 3분(floor)/normal', () => {
     expect(formatEta(239)).toEqual({ text: '3분', tone: 'normal' })
@@ -24,20 +24,20 @@ describe('formatEta', () => {
 
   // ── 경계값 ──────────────────────────────────────────────────────────
   describe('경계값', () => {
-    it('0초는 곧 도착/imminent', () => {
-      expect(formatEta(0)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('0초는 곧/imminent', () => {
+      expect(formatEta(0)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
-    it('음수는 곧 도착/imminent (formatEta 자체에는 "이미 도착" 개념이 없다)', () => {
-      expect(formatEta(-10)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('음수는 곧/imminent (formatEta 자체에는 "이미 도착" 개념이 없다)', () => {
+      expect(formatEta(-10)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
-    it('임계 직전(89초)은 곧 도착/imminent', () => {
-      expect(formatEta(89)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('임계 직전(89초)은 곧/imminent', () => {
+      expect(formatEta(89)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
-    it('정확히 임계(90초)는 곧 도착/imminent', () => {
-      expect(formatEta(IMMINENT_THRESHOLD_SEC)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('정확히 임계(90초)는 곧/imminent', () => {
+      expect(formatEta(IMMINENT_THRESHOLD_SEC)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
     it('임계 직후(91초)는 1분/normal', () => {
@@ -82,9 +82,33 @@ describe('isImminent', () => {
     expect(isImminent(180)).toBe(false)
   })
 
-  it('formatEta의 곧 도착 판정과 항상 같은 값을 낸다', () => {
+  it('formatEta의 곧 판정과 항상 같은 값을 낸다', () => {
     for (const sec of [-10, 0, 1, 89, 90, 91, 120, 179, 180, 181, 3600, 3601]) {
       expect(formatEta(sec).tone === 'imminent').toBe(isImminent(sec))
     }
+  })
+})
+
+// 임박 판정이 화면마다 60초·90초·180초로 갈려, 같은 목록의 같은 시간 열에서
+// 버스는 90초에 지하철은 60초에 강조로 바뀌었다. 분 단위 화면도 이 규칙을 쓴다.
+describe('isImminentMinutes', () => {
+  it('초 단위 임계값과 같은 규칙이다', () => {
+    expect(IMMINENT_THRESHOLD_MIN).toBe(Math.floor(IMMINENT_THRESHOLD_SEC / 60))
+  })
+
+  it('임계 이하는 임박이다', () => {
+    expect(isImminentMinutes(0)).toBe(true)
+    expect(isImminentMinutes(IMMINENT_THRESHOLD_MIN)).toBe(true)
+  })
+
+  it('임계 초과는 임박이 아니다', () => {
+    expect(isImminentMinutes(IMMINENT_THRESHOLD_MIN + 1)).toBe(false)
+    expect(isImminentMinutes(3)).toBe(false)
+  })
+
+  it('숫자가 아니면 임박이 아니다', () => {
+    expect(isImminentMinutes(null)).toBe(false)
+    expect(isImminentMinutes(undefined)).toBe(false)
+    expect(isImminentMinutes('1')).toBe(false)
   })
 })

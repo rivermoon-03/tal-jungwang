@@ -21,12 +21,14 @@ import { getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationC
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 import { describeArrival } from '../../utils/arrivalTime'
 import { selectRepresentativeBusSource } from '../../utils/busInformationSource'
+import { BUS_GROUP_IDS } from './busGroups'
 import { makeFavKey, matchesLegacy } from '../../utils/favKey'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
 import EmptyState from '../ui/EmptyState'
 import StatsSheet from './StatsSheet'
 import HolidayBanner from '../common/HolidayBanner'
 import { scaledPx } from '../../utils/fontScale'
+import { isImminentMinutes, IMMINENT_LABEL } from '../../utils/eta'
 
 // PC · 시간표 2열 레이아웃(좌: 노선 리스트 / 우: 상세)에서 아직 아무 노선도
 // 선택하지 않았을 때 우측 컬럼에 보이는 빈 상태.
@@ -62,12 +64,6 @@ function navigateSchedule({ type = null, route = null, stop = null } = {}) {
 }
 
 // ─── static section definitions ────────────────────────────────────────────
-const BUS_GROUP_IDS = [
-  { id: '하교', label: '하교' },
-  { id: '등교', label: '등교' },
-  { id: '기타', label: '기타 노선' },
-]
-
 const SUBWAY_GROUPS = [
   { id: '정왕',     label: '정왕',     stationCode: 'K449' },
   { id: '초지',     label: '초지',     stationCode: 'K448' },
@@ -121,9 +117,6 @@ function GroupedByFavorite({ items, isFavItem, renderItem }) {
 }
 
 // ─── mode label config ───────────────────────────────────────────────────────
-// SegmentedControl(options: {value,label}[])이 정본 세그먼트 컨트롤이다 — 예전엔
-// 이 파일이 모드 탭엔 ui/SegmentTabs를, 그룹 탭엔 ui/SegmentedControl을 동시에 써서
-// 같은 화면 한 탭 간격으로 세그먼트 스타일이 두 벌 섞여 있었다.
 const MODES = [
   { value: 'bus',     label: '버스'   },
   { value: 'subway',  label: '지하철' },
@@ -204,7 +197,7 @@ function useBusSourceState(source, routeCode, category) {
       .sort((a, b) => (a.arrive_in_seconds ?? Infinity) - (b.arrive_in_seconds ?? Infinity))[0]
     if (next?.arrive_in_seconds != null) {
       const described = describeArrival(next.arrive_in_seconds)
-      value = described.imminent ? '곧 도착' : `${described.minutes}분 후`
+      value = described.imminent ? IMMINENT_LABEL : `${described.minutes}분`
       const arrivalAt = new Date(now.getTime() + next.arrive_in_seconds * 1000)
       snapshot = {
         sourceId: source.id,
@@ -308,11 +301,13 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onArr
 
   // 한 줄 압축 — 승차 지점이 하나뿐이면 시간열 큰 숫자와 이 노선의 유일한
   // 출처가 같은 값이라, 아래 출처 줄("OO 승차 [실시간] N분 후")이 방금 읽은
-  // 숫자를 문장으로 반복했다. 승차·통과 지점이 둘 이상(3401처럼 승차지와
-  // 통과지가 갈릴 때)일 때만 지점별 줄을 남긴다 — 그때는 대표 시간열 하나로
-  // 담을 수 없는 정보이고, 상세 시트에도 같은 지점별 목록이 있어 여기서
-  // 지워도 정보 자체는 사라지지 않는다.
-  const showSourceRows = sources.length > 1
+  // 숫자를 문장으로 반복했다.
+  //
+  // 기준은 출처 개수가 아니라 정류장 개수다. 같은 정류장에 시간표와 실시간이
+  // 함께 있는 조합(2026-09 승차점 관측 이후 3401·5602·6502)은 출처가 둘이지만
+  // 승차 지점은 하나라, 같은 정류장 이름이 두 줄 반복될 뿐이다. 3400·99-2·5200
+  // 처럼 승차 지점이 실제로 둘일 때만 지점별 줄을 남긴다.
+  const showSourceRows = new Set(sources.map((source) => source.stop_id)).size > 1
 
   return (
     <div data-testid={`bus-context-${routeCode}`}>
@@ -327,8 +322,11 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onArr
         hhmm={displaySnapshot?.hhmm ?? null}
         imminent={displaySnapshot?.imminent ?? false}
         loading={Boolean(displaySnapshot?.loading)}
-        liveChip={sources.some((source) => source.type === 'realtime')}
-        timetableChip={sources.some((source) => source.type === 'timetable')}
+        // 칩은 지금 이 카드가 보여주는 값의 출처 하나만 말한다. 예전엔 출처
+        // 배열에 하나라도 있으면 켰기 때문에, 3400 처럼 시간표와 실시간을 모두
+        // 가진 노선이 "실시간" 칩을 달고 정지된 시간표 시각을 띄웠다.
+        liveChip={displaySnapshot?.type === 'realtime'}
+        timetableChip={displaySnapshot?.type === 'timetable'}
         boldPrefix={showJourney ? journey[0] : null}
         subtitle={showJourney ? ` → ${journey.slice(1).join(' → ')}` : null}
         isFavorite={isFavorite}
@@ -485,7 +483,7 @@ function SubwaySection({ stationGroup, onCardClick, isFav, onToggleFav, selected
               routeCode={dir.subtitle}
               minutesUntil={validMins}
               hhmm={depart}
-              imminent={validMins != null && validMins <= 1}
+              imminent={isImminentMinutes(validMins)}
               subtitle={secondDepart ? `그 다음 ${secondDepart}` : null}
               onClick={handleClick}
               loading={loading}
@@ -565,6 +563,11 @@ function ShuttleSection({ direction, onCardClick, isFav, onToggleFav, selectedFa
   // 평일인데 오늘 데이터가 빌 때(noSchedule 분기)만 실제 소비하지만, 조건부 훅
   // 호출은 금지이므로 항상 호출한다 — 응답은 1시간 TTL 공유 캐시라 추가 비용 없음.
   const periodsQuery = useShuttlePeriods()
+  // 셔틀 목록에는 tick 훅이 없어서 리렌더를 유발하는 유일한 소스가 30분 주기
+  // 시간표 재조회였다. "12분" 이라 적힌 셔틀이 18분 전에 떠났을 수 있었다.
+  // 버스 행(useBusSourceState) 과 같은 30초 주기로 맞춘다. 아래 조기 return
+  // 보다 위에 있어야 렌더마다 훅 개수가 같다.
+  const nowMs = useNow(30_000)
 
   // 요청한 direction에 시간 데이터가 있는지로 판정.
   // (백엔드는 direction param을 받아도 다른 방향이 응답 directions에 포함될 수 있어서
@@ -644,7 +647,7 @@ function ShuttleSection({ direction, onCardClick, isFav, onToggleFav, selectedFa
     )
   }
 
-  const now = new Date()
+  const now = new Date(nowMs)
   const dirData = data?.directions?.find((d) => d.direction === direction)
 
   const rawEntries = (dirData?.times ?? []).map((t) =>
@@ -776,7 +779,7 @@ function ShuttleSection({ direction, onCardClick, isFav, onToggleFav, selectedFa
       timeLines={firstTimeLines}
       minutesUntil={firstTimeLines ? null : first?.mins ?? null}
       hhmm={firstTimeLines ? null : first?.departStr ?? null}
-      imminent={!firstTimeLines && first?.mins != null && first.mins <= 1}
+      imminent={!firstTimeLines && isImminentMinutes(first?.mins)}
       subtitle={subtitleBottom}
       onClick={handleClick}
       loading={loading}

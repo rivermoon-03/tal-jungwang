@@ -318,7 +318,7 @@ const SubwayRealtimeBoard = memo(function SubwayRealtimeBoard({ arrivals, lastFe
         </div>
       )}
       {(stale || isRealtimeStale(lastSuccessfulRealtimeAt)) && (
-        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-card bg-surface-2 dark:bg-surface-2-dark border border-line dark:border-line">
+        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-card bg-surface-2 border border-line dark:border-line">
           <span className="w-2 h-2 rounded-full bg-ease flex-shrink-0" />
           <p className="text-caption font-bold text-ease leading-tight">
             실시간 데이터가 {stale ? '잠시 끊겼습니다' : '지연되고 있습니다'}. 시간표 정보를 우선 확인하세요.

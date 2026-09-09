@@ -90,7 +90,6 @@ export default {
         // ── 노선 색 (지도 마커용 진한 단색 — 그대로 유지) ──
         'line-201':    '#2563eb',
         'line-33':     '#0891b2',
-        'line-1':      '#f97316',
         'line-express':'#dc2626',
         'line-4':      '#1B5FAD',
         'line-suin':   '#F5A623',
@@ -162,8 +161,6 @@ export default {
 
         // 큰 숫자 (시간 ETA · 카운트다운)
         'countdown':  ['calc(32px * var(--tj-font-scale,1))', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.05em' }],
-        'eta-pc':     ['calc(22px * var(--tj-font-scale,1))', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.03em' }],
-        'eta-mob':    ['calc(26px * var(--tj-font-scale,1))', { lineHeight: '1.0',  fontWeight: '900', letterSpacing: '-0.03em' }],
 
         // 페이지 / 패널 헤더
         'page-ttl':   ['calc(26px * var(--tj-font-scale,1))', { lineHeight: '1.1',  fontWeight: '900', letterSpacing: '-0.03em' }],
@@ -193,7 +190,6 @@ export default {
         //    Phase A에서는 굵기(weight)는 유지, 신규 DESIGN.md §3 크기/행간만 반영.
         //    폰트 굵기 강등은 IMPLEMENTATION-PLAN Phase B 항목.
         'hero-temp': ['calc(60px * var(--tj-font-scale,1))', { lineHeight: '1', fontWeight: '800', letterSpacing: '-0.045em' }],
-        'eta-xl': ['calc(38px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
         'eta':    ['calc(28px * var(--tj-font-scale,1))', { lineHeight: '1',    fontWeight: '800' }],
         'title':  ['calc(21px * var(--tj-font-scale,1))', { lineHeight: '1.15', fontWeight: '800' }],
         // title(21)과 head(17) 사이 — F4 전수 적용 때 추가(기존 임의값 text-[19px]).
@@ -208,10 +204,9 @@ export default {
         'list-nm':['calc(15px * var(--tj-font-scale,1))', { lineHeight: 'calc(21px * var(--tj-font-scale,1))', fontWeight: '700' }],
         // 도착 숫자 — 상대시간이 행에서 가장 큰 요소다.
         'eta-num':['calc(22px * var(--tj-font-scale,1))', { lineHeight: '1.1', fontWeight: '800', letterSpacing: '-0.03em' }],
-        // eta-num(22)보다 한 단 작은 도착 숫자(다음 차·대체 도착) — F4 전수 적용 때
-        // 추가(기존 임의값 text-[20px]). eta-num과 달리 letterSpacing은 넣지 않는다
-        // (기존 사용처 전부 tracking 없이 쓰던 값이라 baked 자간을 새로 얹지 않는다).
-        'eta-sm': ['calc(20px * var(--tj-font-scale,1))', { lineHeight: '1.1', fontWeight: '700' }],
+        // title-sm(19)과 head(17) 사이의 20px 자리. 이름이 eta-sm 이었는데 남은
+        // 사용처가 학식 그리드 글자와 경고 글리프라 도착 숫자와 아무 관계가 없다.
+        'num-sm': ['calc(20px * var(--tj-font-scale,1))', { lineHeight: '1.1', fontWeight: '700' }],
 
         // ── DESIGN.md §3 신규 스케일(무충돌 키) — Phase B/D에서 화면 적용 ──
         'body-sm': ['calc(14px * var(--tj-font-scale,1))', { lineHeight: 'calc(19px * var(--tj-font-scale,1))', fontWeight: '400' }],
@@ -293,14 +288,6 @@ export default {
         motionSheet: '440ms', // 바텀시트(구 sheet=280ms와 별도 — vaul 등 Phase C 적용)
       },
       keyframes: {
-        haloPulse: {
-          '0%':   { boxShadow: '0 0 0 0 rgba(226, 106, 77, 0.45)' },
-          '100%': { boxShadow: '0 0 0 18px rgba(226, 106, 77, 0)' },
-        },
-        haloPulseDark: {
-          '0%':   { boxShadow: '0 0 0 0 rgba(248, 113, 113, 0.5)' },
-          '100%': { boxShadow: '0 0 0 18px rgba(248, 113, 113, 0)' },
-        },
         userPulse: {
           '0%':   { boxShadow: '0 0 0 0 rgba(79, 159, 255, 0.5)' },
           '100%': { boxShadow: '0 0 0 18px rgba(79, 159, 255, 0)' },
@@ -322,8 +309,6 @@ export default {
         },
       },
       animation: {
-        'halo-pulse':      'haloPulse 1.6s ease-out infinite',
-        'halo-pulse-dark': 'haloPulseDark 1.6s ease-out infinite',
         'user-pulse':      'userPulse 2.5s ease-out infinite',
         'dot-blink':       'dotBlink 1.5s ease-in-out infinite',
         'slide-in-left':   'slideInLeft var(--dur-motion-enter) cubic-bezier(0.16, 1, 0.3, 1)',

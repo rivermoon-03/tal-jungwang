@@ -45,6 +45,68 @@ describe('SegmentedControl', () => {
     expect(container.firstChild.className).toMatch(/inline-flex/)
   })
 
+  it('md·sm 모두 최소 터치 영역 44px를 지킨다', () => {
+    for (const size of ['md', 'sm']) {
+      const { unmount } = render(
+        <SegmentedControl options={OPTIONS} value="commute" onChange={() => {}} size={size} />
+      )
+      expect(screen.getByRole('tab', { name: '등교' }).className).toMatch(/min-h-\[44px\]/)
+      unmount()
+    }
+  })
+
+  it('sm은 높이가 아니라 폭 거동만 바꾼다 — 36px·38px 같은 축소 높이가 없다', () => {
+    expect(SRC).not.toMatch(/min-h-\[(2\d|3\d|4[0-3])px\]/)
+  })
+
+  it('disabled 항목은 onChange 대신 onDisabledClick을 부른다', () => {
+    const onChange = vi.fn()
+    const onDisabledClick = vi.fn()
+    render(
+      <SegmentedControl
+        options={[{ value: 'a', label: '가' }, { value: 'b', label: '나', disabled: true }]}
+        value="a"
+        onChange={onChange}
+        onDisabledClick={onDisabledClick}
+      />
+    )
+    const disabled = screen.getByRole('tab', { name: '나' })
+    expect(disabled).toHaveAttribute('aria-disabled', 'true')
+    disabled.click()
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onDisabledClick).toHaveBeenCalledWith('b')
+  })
+
+  it('다크에서 트랙 배경을 bg-bg로 맞추고 border-line으로 층을 구분한다', () => {
+    render(<SegmentedControl options={OPTIONS} value="commute" onChange={() => {}} />)
+    const tablist = screen.getByRole('tablist')
+    expect(tablist.className).toContain('bg-surface-2')
+    expect(tablist.className).toContain('dark:bg-bg')
+    expect(tablist.className).toContain('dark:border-line')
+  })
+
+  it('src 안에 세그먼트 컨트롤 구현체가 이 파일 하나뿐이다', () => {
+    const SRC_ROOT = path.resolve(__dirname, '..', '..')
+    const offenders = []
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) { walk(full); continue }
+        if (!entry.name.endsWith('.jsx') || entry.name.includes('.test.')) continue
+        if (full === path.join(__dirname, 'SegmentedControl.jsx')) continue
+        const body = fs.readFileSync(full, 'utf8')
+        // role="tablist" 를 직접 그리면서 슬라이딩 인디케이터까지 가진 파일은
+        // 정본을 우회한 두 번째 구현이다. (요일 그리드처럼 인디케이터가 없는
+        // tablist 는 세그먼트 컨트롤이 아니라 통과시킨다.)
+        if (body.includes('role="tablist"') && body.includes('translateX(')) {
+          offenders.push(path.relative(SRC_ROOT, full))
+        }
+      }
+    }
+    walk(SRC_ROOT)
+    expect(offenders, `${offenders.join(', ')} 가 별도 세그먼트 컨트롤을 구현함`).toEqual([])
+  })
+
   it('선택 배경은 --tj-pill-active-bg 토큰만 참조(teal 하드코딩 없음)', () => {
     expect(SRC).toMatch(/var\(--tj-pill-active-bg\)/)
     expect(SRC).not.toMatch(/bg-accent\b/)

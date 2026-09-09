@@ -66,7 +66,7 @@ export default function MealGridSection({
         <span
           className={[
             'font-bold text-ink leading-tight',
-            compact ? 'text-list-nm' : 'text-eta-sm',
+            compact ? 'text-list-nm' : 'text-num-sm',
           ].join(' ')}
         >
           {meal.type}

@@ -29,7 +29,7 @@ function HistoryCell({ item }) {
       <div
         className={[
           'text-display font-semibold leading-none tracking-tight tabular-nums',
-          position === 'past' ? 'text-ink-2 dark:text-ink-2-dark' : 'text-ink dark:text-ink',
+          position === 'past' ? 'text-ink-2' : 'text-ink dark:text-ink',
         ].join(' ')}
       >
         {time}

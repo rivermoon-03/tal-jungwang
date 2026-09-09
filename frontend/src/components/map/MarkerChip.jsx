@@ -1,3 +1,5 @@
+// ETA 임박 판정은 eta.js 하나만 쓴다(분 단위 화면용 래퍼).
+import { isImminentMinutes as isImminent, IMMINENT_LABEL } from '../../utils/eta'
 /**
  * MarkerChip — 시안1 정보 밀도형 마커 칩.
  *
@@ -33,11 +35,6 @@ export const DEFAULT_COLOR = '#2563EB'
 export function resolveColor(routeCode, routeColor) {
   if (routeColor) return routeColor
   return ROUTE_COLOR_MAP[routeCode] ?? DEFAULT_COLOR
-}
-
-/** ETA가 임박(3분 이하)인지 판단 */
-function isImminent(minutes) {
-  return typeof minutes === 'number' && minutes <= 3
 }
 
 /**
@@ -173,6 +170,12 @@ function makeBlip(imminentEta) {
 
 // ─────────────────────────────────────────────────────────────
 // createMarkerChipElement — kakao CustomOverlay 용
+/** 마커 분 표기. 시간표 값에는 임박 문구를 쓰지 않는다 — 예보가 아니라 예정이다. */
+function formatMarkerMinutes(minutes, isRealtime) {
+  if (!isRealtime) return `${minutes}분 뒤 예정`
+  return isImminent(minutes) ? IMMINENT_LABEL : `${minutes}분`
+}
+
 // 시안1: pill(999px) · [dot | name | live/sub] + tail
 // ─────────────────────────────────────────────────────────────
 
@@ -182,6 +185,10 @@ export function createMarkerChipElement({
   stationName,
   liveMinutes,
   showLive = false,
+  // 'realtime' | 'timetable'. 이 값이 펄스 점의 유일한 근거다.
+  // 예전엔 minutes 가 있으면 무조건 펄스를 붙였는데, 서울 허브 마커의 분은
+  // 전부 시간표에서 계산한 값이라 정지된 숫자에 실시간 표시가 붙어 있었다.
+  minutesSource = 'realtime',
   inaccurate = false,
   onClick,
   badgeText,
@@ -190,7 +197,8 @@ export function createMarkerChipElement({
 }) {
   const color = resolveColor(routeCode, routeColor)
   const hasLive = showLive && liveMinutes != null
-  const imminentEta = hasLive && isImminent(liveMinutes)
+  const isRealtime = minutesSource !== 'timetable'
+  const imminentEta = hasLive && isRealtime && isImminent(liveMinutes)
   const dotText = badgeText ?? (routeCode ?? '').slice(0, 2)
   const displayName = dedupeChipName(stationName, dotText)
 
@@ -262,17 +270,18 @@ export function createMarkerChipElement({
     liveEl.setAttribute('data-role', 'live')
     liveEl.style.cssText = [
       'font-size:14px',
-      'font-weight:800',
-      `color:${imminentEta ? 'var(--tj-imminent)' : 'var(--tj-ink)'}`,
+      `font-weight:${isRealtime ? '800' : '600'}`,
+      `color:${imminentEta ? 'var(--tj-imminent)' : (isRealtime ? 'var(--tj-ink)' : 'var(--tj-ink-2)')}`,
       'display:inline-flex',
       'align-items:center',
       'gap:4px',
       'font-variant-numeric:tabular-nums',
     ].join(';')
 
-    liveEl.appendChild(makeBlip(imminentEta))
+    // 펄스는 실제 실시간 값에만 붙인다(DESIGN.md §6.3).
+    if (isRealtime) liveEl.appendChild(makeBlip(imminentEta))
 
-    const liveText = liveMinutes <= 3 ? '곧 도착' : `${liveMinutes}분`
+    const liveText = formatMarkerMinutes(liveMinutes, isRealtime)
     const textSpan = document.createElement('span')
     textSpan.textContent = liveText
     liveEl.appendChild(textSpan)
@@ -301,14 +310,17 @@ export function createMarkerChipElement({
       'color:var(--tj-mute,#868e8b)',
       'font-variant-numeric:tabular-nums',
     ].join(';')
-    subEl.textContent = subLabel ?? '시간표'
+    subEl.textContent = subLabel ?? '시간표 기준'
     chip.appendChild(subEl)
   }
 
   wrapper.appendChild(chip)
   wrapper.appendChild(makeTail())
 
-  const a11yLabel = [stationName, hasLive ? (liveMinutes <= 3 ? '곧 도착' : `${liveMinutes}분`) : (subLabel ?? '시간표')].filter(Boolean).join(', ')
+  const a11yLabel = [
+    stationName,
+    hasLive ? formatMarkerMinutes(liveMinutes, isRealtime) : (subLabel ?? '시간표 기준'),
+  ].filter(Boolean).join(', ')
   return wrapWithHitArea(wrapper, onClick, a11yLabel)
 }
 
@@ -390,7 +402,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
   if (earliestMin != null) {
     liveEl.appendChild(makeBlip(imminentEta))
     const textSpan = document.createElement('span')
-    textSpan.textContent = earliestMin <= 3 ? '곧 도착' : `${earliestMin}분`
+    textSpan.textContent = isImminent(earliestMin) ? IMMINENT_LABEL : `${earliestMin}분`
     liveEl.appendChild(textSpan)
   } else {
     const textSpan = document.createElement('span')
@@ -534,7 +546,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
   if (bestMin != null) {
     liveEl.appendChild(makeBlip(imminentEta))
     const textSpan = document.createElement('span')
-    textSpan.textContent = bestMin <= 3 ? '곧 도착' : `${bestMin}분`
+    textSpan.textContent = isImminent(bestMin) ? IMMINENT_LABEL : `${bestMin}분`
     liveEl.appendChild(textSpan)
   } else {
     const textSpan = document.createElement('span')

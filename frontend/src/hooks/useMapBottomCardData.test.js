@@ -29,7 +29,7 @@ vi.mock('./useBus', () => ({
 
 import useMapBottomCardData from './useMapBottomCardData'
 
-// 시화터미널 실측 시나리오(2026-09-01 하교) — 99-2는 실시간으로 곧 도착, 3400은
+// 시화터미널 실측 시나리오(2026-09-01 하교) — 99-2는 실시간으로 곧, 3400은
 // 시간표상 9분 뒤 출발, 5200은 오늘 시간표에 남은 출발이 없어 정보가 없다.
 const ARRIVALS = [
   {
@@ -118,7 +118,7 @@ describe('useMapBottomCardData — 노선별 실시간/시간표 출처', () => 
 
     const route992 = result.current.routes.find((r) => r.id === '99-2')
     expect(route992.source).toBe('live')
-    expect(route992.etaText).toBe('곧 도착')
+    expect(route992.etaText).toBe('곧')
   })
 
   it('시간표 노선은 계산된 분 단위 ETA와 함께 source=timetable을 받는다', () => {

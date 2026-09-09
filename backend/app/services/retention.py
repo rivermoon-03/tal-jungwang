@@ -13,6 +13,8 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.bus_crowding_stats import CROWDING_STATS_LOOKBACK_DAYS
+
 logger = logging.getLogger(__name__)
 
 # 한 배치당 삭제 행 수 (락 최소화)
@@ -20,9 +22,15 @@ _BATCH_SIZE = 5000
 # 무한루프 방지 상한 (배치 횟수)
 _MAX_BATCHES = 10000
 
+# 혼잡도 원본은 읽는 창보다 오래 두지 않는다. 집계(bus_crowding_stats)도
+# 조회(compute_crowding_flow)도 60일까지만 보고, 그 밖의 행은 아무도 읽지
+# 않으면서 테이블의 3분의 1을 차지하고 있었다. 나이틀리 집계가 하루 밀리는
+# 경우를 위해 일주일만 여유를 둔다.
+_CROWDING_RETENTION_DAYS = CROWDING_STATS_LOOKBACK_DAYS + 7
+
 # (테이블명, 시각 컬럼, 보존기간) — 컷오프는 서버측 now()로 계산해 tz 이슈 회피
 _RETENTION_TARGETS: list[tuple[str, str, str]] = [
-    ("bus_crowding_logs", "recorded_at", "90 days"),
+    ("bus_crowding_logs", "recorded_at", f"{_CROWDING_RETENTION_DAYS} days"),
     ("bus_arrival_history", "arrived_at", "90 days"),
     ("traffic_history", "collected_at", "180 days"),
     # subway_arrival_history(A5)는 아직 조회 경로가 없다 — 현재는

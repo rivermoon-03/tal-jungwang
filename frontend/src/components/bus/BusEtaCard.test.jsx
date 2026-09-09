@@ -67,13 +67,13 @@ describe('BusEtaCard', () => {
       expect(screen.getByText('실시간 수신 중')).toBeInTheDocument()
       // 옛 문구가 남아 있으면 안 된다 (A4 카피 교체)
       expect(screen.queryByText('GBIS 도착 정보 수신 중')).not.toBeInTheDocument()
-      // 첫차: 195s → eta.js floor(195/60) = 3분 후
-      expect(screen.getByText('3분 후')).toBeInTheDocument()
+      // 첫차: 195s → eta.js floor(195/60) = 3분
+      expect(screen.getByText('3분')).toBeInTheDocument()
       // 절대 시각
       expect(screen.getByText('21:01 도착 예정')).toBeInTheDocument()
-      // 다음 한 대 — 840s → 14분 후
+      // 다음 한 대: 840s → 14분
       expect(screen.getByText('다음 한 대')).toBeInTheDocument()
-      expect(screen.getByText('14분 후')).toBeInTheDocument()
+      expect(screen.getByText('14분')).toBeInTheDocument()
     })
 
     it('renders only primary, no divider / secondary row, when secondary is absent', () => {
@@ -86,11 +86,11 @@ describe('BusEtaCard', () => {
           predictedEta={null}
         />
       )
-      expect(screen.getByText('3분 후')).toBeInTheDocument()
+      expect(screen.getByText('3분')).toBeInTheDocument()
       expect(screen.queryByText('다음 한 대')).not.toBeInTheDocument()
     })
 
-    it('shows "곧 도착" when primary is within the imminent threshold (90s)', () => {
+    it('shows "곧" when primary is within the imminent threshold (90s)', () => {
       render(
         <BusEtaCard
           realtimeEta={{
@@ -100,14 +100,14 @@ describe('BusEtaCard', () => {
           predictedEta={null}
         />
       )
-      expect(screen.getByText('곧 도착')).toBeInTheDocument()
+      expect(screen.getByText('곧')).toBeInTheDocument()
     })
 
-    // 회귀 방지 — 예전엔 "곧 도착" 텍스트 임계(60초)와 빨간 강조 임계(180초)가
+    // 회귀 방지 — 예전엔 "곧" 텍스트 임계(60초)와 빨간 강조 임계(180초)가
     // 서로 달라 "2분 후"(120~179초)가 빨갛게 떴다. 이제 텍스트/강조 둘 다
     // eta.js의 IMMINENT_THRESHOLD_SEC(90초) 하나를 쓰므로, 90초보다 큰 값은
     // 절대 강조되지 않는다.
-    it('does not mark a non-imminent "N분 후" value as imminent (2분 후 회귀 방지)', () => {
+    it('does not mark a non-imminent "N분" value as imminent (2분 회귀 방지)', () => {
       const { container } = render(
         <BusEtaCard
           realtimeEta={{
@@ -117,13 +117,13 @@ describe('BusEtaCard', () => {
           predictedEta={null}
         />
       )
-      expect(screen.getByText('2분 후')).toBeInTheDocument()
-      const etaEl = screen.getByText('2분 후')
+      expect(screen.getByText('2분')).toBeInTheDocument()
+      const etaEl = screen.getByText('2분')
       expect(etaEl.className).not.toMatch(/text-imminent/)
       expect(container.innerHTML).not.toMatch(/text-imminent/)
     })
 
-    it('shows "이미 도착" when primary < 0', () => {
+    it('음수는 곧으로 표시한다', () => {
       render(
         <BusEtaCard
           realtimeEta={{
@@ -133,7 +133,7 @@ describe('BusEtaCard', () => {
           predictedEta={null}
         />
       )
-      expect(screen.getByText('이미 도착')).toBeInTheDocument()
+      expect(screen.getByText('곧')).toBeInTheDocument()
     })
   })
 
@@ -144,28 +144,49 @@ describe('BusEtaCard', () => {
       secondary: null,
     }
 
-    it('within60_ratio ≥ 0.8이면 실측 정확도 문구를 보여준다', () => {
+    // 2026-09-09 프로덕션 실측에서 ±1분 적중률은 14개 조합 중 최고가 76% 였다.
+    // 80% 를 "좋음" 기준으로 두었더니 정확도가 붙는 모든 노선이 "편차가 큰
+    // 노선이에요" 를 달고 있었다. 전부에게 같은 경고를 띄우는 지표는 정보가 아니다.
+    // 이제는 편향과 분산만 말하고, 잘 맞는 노선에는 아무 말도 하지 않는다.
+    it('꾸준히 늦는 노선은 여유를 두라고 말한다', () => {
       render(
         <BusEtaCard
-          realtimeEta={{ ...baseEta, eta_accuracy: { within60_ratio: 0.84, sample_size: 132 } }}
+          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: 111, mae_sec: 134, within60_ratio: 0.33, sample_size: 9491 } }}
           predictedEta={null}
         />
       )
-      expect(screen.getByText('최근 4주 실측: 예측 ±1분 내 도착 84%')).toBeInTheDocument()
-      expect(screen.queryByText(/예측 편차가 큰 노선이에요/)).not.toBeInTheDocument()
+      expect(screen.getByText('예보보다 평균 1분 51초 늦게 와요 · 여유 있게')).toBeInTheDocument()
     })
 
-    it('within60_ratio < 0.8이면 여유 이동 안내를 보여준다', () => {
+    it('꾸준히 일찍 오는 노선은 일찍 나가라고 말한다', () => {
       render(
         <BusEtaCard
-          realtimeEta={{ ...baseEta, eta_accuracy: { within60_ratio: 0.61, sample_size: 97 } }}
+          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: -78, mae_sec: 122, within60_ratio: 0.37, sample_size: 6048 } }}
           predictedEta={null}
         />
       )
-      expect(
-        screen.getByText('예측 편차가 큰 노선이에요 · 여유 있게 이동하세요')
-      ).toBeInTheDocument()
-      expect(screen.queryByText(/±1분 내 도착/)).not.toBeInTheDocument()
+      expect(screen.getByText('예보보다 평균 1분 18초 일찍 와요 · 조금 일찍 나가세요')).toBeInTheDocument()
+    })
+
+    it('잘 맞는 노선에는 아무 말도 하지 않는다', () => {
+      render(
+        <BusEtaCard
+          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: -9, mae_sec: 46, within60_ratio: 0.76, sample_size: 1032 } }}
+          predictedEta={null}
+        />
+      )
+      expect(screen.queryByText(/예보보다/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/들쭉날쭉/)).not.toBeInTheDocument()
+    })
+
+    it('적중률 퍼센트를 화면에 쓰지 않는다', () => {
+      const { container } = render(
+        <BusEtaCard
+          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: 111, mae_sec: 134, within60_ratio: 0.33, sample_size: 9491 } }}
+          predictedEta={null}
+        />
+      )
+      expect(container.textContent).not.toMatch(/33%|±1분/)
     })
 
     it('eta_accuracy가 없으면 아무 문구도 그리지 않는다', () => {
@@ -228,10 +249,10 @@ describe('BusEtaCard', () => {
   })
 
   describe('상태 3 — 도착 정보 없음', () => {
-    it('renders dash and prose only', () => {
+    it('안내 문장만 렌더한다 — 자리채움 점은 두지 않는다', () => {
       render(<BusEtaCard realtimeEta={null} predictedEta={null} />)
       expect(screen.getByText('도착 정보 없음')).toBeInTheDocument()
-      expect(screen.getByText('·')).toBeInTheDocument()
+      expect(screen.queryByText('·')).not.toBeInTheDocument()
       // prose
       expect(
         screen.getByText(/같은 요일·시간대 과거 기록도 충분하지 않아/)
@@ -244,7 +265,7 @@ describe('BusEtaCard', () => {
     it('falls back to state 3 when both props are undefined', () => {
       render(<BusEtaCard />)
       expect(screen.getByText('도착 정보 없음')).toBeInTheDocument()
-      expect(screen.getByText('·')).toBeInTheDocument()
+      expect(screen.queryByText('·')).not.toBeInTheDocument()
     })
   })
 })

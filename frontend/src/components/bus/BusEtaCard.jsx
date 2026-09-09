@@ -16,22 +16,17 @@ import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
 import { formatEta, isImminent } from '../../utils/eta'
+import { describeEtaAccuracy, shouldShowAccuracy } from '../../utils/etaAccuracy'
 
 // arrive_in_seconds → 표시 문자열 + imminent 여부.
-//
-// "초 → 표시 문자열" 변환과 임박 임계값은 utils/eta.js에 위임한다. 예전엔 이
-// 함수가 텍스트 전환은 60초, 빨간 강조는 180초로 서로 다른 임계를 써서
-// "2분 후"(120~179초)가 빨갛게 뜨는 버그가 있었다 — 이제 둘 다 eta.js의
-// IMMINENT_THRESHOLD_SEC(90초) 하나로 맞춘다.
-// "이미 도착"(음수)은 eta.js에 없는 이 카드만의 상태라 여기서 얹는다.
+// 문구와 임계는 utils/eta.js 하나에서 온다. 접미사("N분 후")를 붙이지 않는
+// 이유도 거기 적혀 있다 — 같은 값이 화면마다 다른 문구로 보이지 않게 한다.
 function formatEtaLocal(sec) {
-  if (sec == null) return { text: '·', imminent: false }
-  if (sec < 0) return { text: '이미 도착', imminent: true }
+  if (sec == null) return { text: '운행 정보 없음', imminent: false }
+  // 음수는 eta.js에 없는 이 카드만의 상태다(예보 시각이 이미 지난 경우).
+  if (sec < 0) return { text: '곧', imminent: true }
   const { text } = formatEta(sec)
-  // eta.js는 접미사 없는 "N분"을 준다 — 이 카드는 "N분 후"로 붙여 쓴다.
-  // ("곧 도착"이나 60분 초과의 절대 시각(HH:MM)에는 접미사를 붙이지 않는다.)
-  const suffixed = /^\d+분$/.test(text) ? `${text} 후` : text
-  return { text: suffixed, imminent: isImminent(sec) }
+  return { text, imminent: isImminent(sec) }
 }
 
 function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
@@ -68,10 +63,13 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
     const { text: primaryText, imminent } = formatEtaLocal(primary.arrive_in_seconds)
     const hasSecondary = secondary && secondary.arrive_in_seconds != null
     const secondaryText = hasSecondary ? formatEtaLocal(secondary.arrive_in_seconds).text : null
-    // A4 — ETA 자가 채점(bus_eta_accuracy). 표본 50 이상인 노선·정류장만 백엔드가
-    // 값을 실어 주므로, 없으면 아무 말도 하지 않는다(모르는 것을 아는 척하지 않는다).
+    // ETA 자가 채점(bus_eta_accuracy). 표본 50 이상인 조합만 백엔드가 값을
+    // 실어 주고, 그중에서도 말할 것이 있을 때만 한 줄을 띄운다.
+    // 판정 규칙과 근거는 utils/etaAccuracy.js 참고 — 적중률 퍼센트는 쓰지 않는다.
     const accuracy = realtimeEta.eta_accuracy ?? null
-    const accuracyGood = accuracy != null && accuracy.within60_ratio >= 0.8
+    const accuracyNote = shouldShowAccuracy(accuracy, primary.arrive_in_seconds)
+      ? describeEtaAccuracy(accuracy)
+      : null
 
     return (
       <div className="mb-4">
@@ -83,7 +81,7 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
         </div>
         <div>
           <div
-            className={`text-eta-mob font-bold tabular-nums ${
+            className={`text-eta tabular-nums ${
               imminent
                 ? 'text-imminent dark:text-imminent'
                 : 'text-ink dark:text-ink'
@@ -109,20 +107,17 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
               </div>
             </>
           )}
-          {accuracy && (
-            // 최근 4주 실측 자가 채점 한 줄. 잘 맞는 노선(±1분 내 80% 이상)은
-            // 신뢰를, 편차 큰 노선은 여유 이동을 말한다 — 색만으로 구분하지 않고
-            // 문구 자체가 다르다.
+          {accuracyNote && (
+            // 최근 4주 실측이 말하는 것은 "이 예보를 어느 쪽으로 보정해 읽어야
+            // 하는가" 다. 색은 보조 신호이고 문구 자체가 행동을 말한다.
             <p
               className={`mt-2 text-caption font-medium ${
-                accuracyGood
-                  ? 'text-ease dark:text-ease'
+                accuracyNote.tone === 'early'
+                  ? 'text-accent-ink dark:text-accent'
                   : 'text-imminent dark:text-imminent'
               }`}
             >
-              {accuracyGood
-                ? `최근 4주 실측: 예측 ±1분 내 도착 ${Math.round(accuracy.within60_ratio * 100)}%`
-                : '예측 편차가 큰 노선이에요 · 여유 있게 이동하세요'}
+              {accuracyNote.text}
             </p>
           )}
         </div>
@@ -150,12 +145,12 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
           </span>
         </div>
         <div>
-          {/* 각 조각을 flex-wrap 아이템으로 분리 — 큰 숫자(text-eta-mob, lineHeight 1.0)와
+          {/* 각 조각을 flex-wrap 아이템으로 분리 — 큰 숫자(text-eta, lineHeight 1.0)와
               작은 단어("보통"/"쯤 도착")를 한 인라인 블록에 섞으면 좁은 폭에서 줄바꿈될 때
               줄간격이 없어 다음 줄과 겹쳐 보이는 문제가 있었다(실사용 리포트: 3400·99-2). */}
           <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5">
             <span className="text-body font-semibold text-ink dark:text-ink">보통</span>
-            <span className="text-eta-mob font-bold tabular-nums text-ink dark:text-ink">{predictedEta.hhmm}</span>
+            <span className="text-eta tabular-nums text-ink dark:text-ink">{predictedEta.hhmm}</span>
             <span className="text-body font-semibold text-mute dark:text-mute">쯤 도착</span>
           </div>
           <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
@@ -174,7 +169,6 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
         <StatusChip kind="last">도착 정보 없음</StatusChip>
       </div>
       <div>
-        <div className="text-eta-mob font-bold text-mute dark:text-mute">·</div>
         <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
           지금 실시간 도착 정보가 들어오지 않고, 같은 요일·시간대 과거 기록도 충분하지 않아 평소
           도착 시각을 알려드리기 어려워요.

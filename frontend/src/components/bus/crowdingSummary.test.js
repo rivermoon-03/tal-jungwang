@@ -61,14 +61,14 @@ describe('summarizeCrowding', () => {
       19
     )
     expect(s.peak.hour).toBe(17)
-    expect(s.peak.label).toBe('매우 붐빔')
+    expect(s.peak.label).toBe('매우 혼잡')
     expect(s.nowLabel).toBe('여유')
     expect(s.hasVariance).toBe(true)
   })
 
   it('nowLabel은 시간 단위로 읽는다 — 2시간 버킷 평활을 타지 않는다', () => {
     const s = summarizeCrowding(hourly24({ 16: h(16, 0.089), 17: h(17, 0.466) }), 17)
-    expect(s.nowLabel).toBe('매우 붐빔')
+    expect(s.nowLabel).toBe('매우 혼잡')
   })
 
   it('nowHour에 표본이 없으면 nowLabel은 null', () => {
@@ -87,7 +87,7 @@ describe('summarizeCrowding', () => {
 
   it('경험 기준 피크는 문구에 출처가 붙는다', () => {
     const s = summarizeCrowding(hourly24({ 17: h(17, 1.0, 50, { estimated: true }) }), 17)
-    expect(s.peak.label).toBe('매우 붐빔 · 경험 기준')
-    expect(s.nowLabel).toBe('매우 붐빔 · 경험 기준')
+    expect(s.peak.label).toBe('매우 혼잡 · 경험 기준')
+    expect(s.nowLabel).toBe('매우 혼잡 · 경험 기준')
   })
 })

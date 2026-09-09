@@ -30,7 +30,7 @@
 import { useMemo, useState } from 'react'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
 import { mergeToHourly, crowdedToneStyle, isWeekendNow } from '../../utils/crowdingHeatmap'
-import { labelFromRatio } from '../../utils/crowdingLevel'
+import { CROWDING_LABELS, labelFromRatio, RATIO_THRESHOLDS } from '../../utils/crowdingLevel'
 import { getKstHour } from '../../utils/timeOfDay'
 import { summarizeCrowding } from './crowdingSummary'
 
@@ -120,10 +120,9 @@ export default function RouteCrowdingSummary({ routeNumber }) {
               {/* 범례 — 색 의미가 title 툴팁에만 있으면 모바일 터치에서 확인이 안 되므로
                   화면에 상시 보이는 텍스트 범례를 둔다. */}
               <div className="flex items-center gap-3 mt-2 flex-wrap">
-                <LegendDot toneRatio={0} text="여유" />
-                <LegendDot toneRatio={0.1} text="보통" />
-                <LegendDot toneRatio={0.25} text="붐빔" />
-                <LegendDot toneRatio={0.5} text="매우 붐빔" />
+                {LEGEND_STOPS.map(({ ratio, text }) => (
+                  <LegendDot key={text} toneRatio={ratio} text={text} />
+                ))}
                 <LegendDot toneRatio={null} text="데이터 없음" />
               </div>
             </div>
@@ -133,6 +132,15 @@ export default function RouteCrowdingSummary({ routeNumber }) {
     </section>
   )
 }
+
+// 범례 낱말과 색 경계를 모두 crowdingLevel 정본에서 읽는다. 범례만 손으로
+// 적어 두면 임계값을 바꿨을 때 색과 낱말이 어긋난다.
+const LEGEND_STOPS = [
+  { ratio: 0,                             text: CROWDING_LABELS[0] },
+  { ratio: RATIO_THRESHOLDS.normal,       text: CROWDING_LABELS[1] },
+  { ratio: RATIO_THRESHOLDS.busy,         text: CROWDING_LABELS[2] },
+  { ratio: RATIO_THRESHOLDS.veryBusy,     text: CROWDING_LABELS[3] },
+]
 
 function LegendDot({ toneRatio, text }) {
   const tone = crowdedToneStyle(toneRatio)

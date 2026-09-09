@@ -25,11 +25,12 @@ import Skeleton from '../common/Skeleton'
 import Sheet from '../ui/Sheet'
 import IconButton from '../ui/IconButton'
 import ErrorState from '../ui/ErrorState'
-import { RouteProgressStrip } from '../bus/BusArrivalCard'
+import RouteProgressStrip from '../bus/RouteProgressStrip'
 import { ROUTE_WAYPOINTS, getGbisStationIdForRoute, getRouteDisplayConfig } from '../dashboard/busStationConfig'
 import BusStatsHeader from '../bus/BusStatsHeader'
 import BusEtaCard from '../bus/BusEtaCard'
 import { scrollToCenter } from '../../utils/scrollToCenter'
+import { isNoScheduleError } from '../../utils/apiError'
 import ShuttleNotifySheet from '../shuttle/ShuttleNotifySheet'
 import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
 import { buildDisplayList, DIRECTION_LABELS, annotateShuttleEntries, buildShuttleGroups } from '../shuttle/shuttleSchedule'
@@ -49,6 +50,7 @@ import {
 } from '../shuttle/shuttlePeriods'
 import SegmentedControl from '../ui/SegmentedControl'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
+import { IMMINENT_LABEL } from '../../utils/eta'
 
 /**
  * 셔틀 알림(종 버튼 + 예약 시트) 노출 스위치.
@@ -73,7 +75,7 @@ function minutesUntil(hhmm, now = new Date()) {
 }
 
 function fmtDelta(mins) {
-  if (mins <= 0) return '곧 출발'
+  if (mins <= 0) return IMMINENT_LABEL
   if (mins < 60) return `${mins}분 뒤`
   const h = Math.floor(mins / 60)
   const m = mins % 60
@@ -496,9 +498,14 @@ function ShuttleContent({ direction, onDirectionChange, scrollContainerRef }) {
   const loading = previewing
     ? previewQuery.loading
     : today.loading || (offDay && (weekdayFallback.loading || (isSecondCampus && saturdayFallback.loading)))
+  // `a && b` 로 두면 결과가 boolean 이 돼 Error 객체(와 그 code)를 잃는다.
+  // NO_SCHEDULE 과 통신 실패를 가르려면 객체를 그대로 넘겨야 한다.
+  const allShuttleQueriesFailed =
+    Boolean(today.error) &&
+    (!offDay || (Boolean(weekdayFallback.error) && (!isSecondCampus || Boolean(saturdayFallback.error))))
   const error = previewing
     ? previewQuery.error
-    : today.error && (!offDay || (weekdayFallback.error && (!isSecondCampus || saturdayFallback.error)))
+    : (allShuttleQueriesFailed ? today.error : null)
   // 어느 쿼리가 실패했는지에 따라 다시 시도할 쿼리도 갈린다 — 화면에 보이는
   // 데이터의 출처(today/폴백/미리보기)와 항상 같은 쿼리를 재호출해야 한다.
   const retryError = previewing
@@ -554,6 +561,16 @@ function ShuttleContent({ direction, onDirectionChange, scrollContainerRef }) {
   }, [data, scrollContainerRef])
 
   if (loading) return <LoadingList />
+  // NO_SCHEDULE 은 통신 실패가 아니라 "그 날짜에 적용되는 운행 기간이 없다" 는
+  // 업무 상태다. useApi 가 ApiResponse.fail 을 예외로 바꿔 보내기 때문에 둘이
+  // 같은 자리로 들어온다. 코드로 갈라야 한다 — 안 그러면 학기가 끝난 다음 날부터
+  // 셔틀 상세가 통째로 "정보를 불러오지 못했어요 + 다시 시도" 화면이 되고,
+  // 그 버튼은 영원히 성공하지 않는다.
+  if (error && isNoScheduleError(error)) {
+    return (
+      <EmptyMsg text="지금은 셔틀 운행 기간이 아니에요. 다음 학기 시간표가 등록되면 여기에 표시됩니다." />
+    )
+  }
   if (error) return <ErrorMsg onRetry={retryError} />
   // 폴백조차 없는(또는 선택과 무관하게 둘 다 비어있는) 진짜 empty 케이스만 여기서 차단.
   // usingFallback/미리보기 상태에서는 배너·기간 칩을 유지해 사용자가 되돌아갈 수 있게 한다.
@@ -622,7 +639,7 @@ function ShuttleContent({ direction, onDirectionChange, scrollContainerRef }) {
             borderLeft: '4px solid #d4a14a',
           }}
         >
-          <span className="text-eta-sm font-normal leading-none mt-0.5 flex-shrink-0">⚠</span>
+          <span className="text-num-sm font-normal leading-none mt-0.5 flex-shrink-0">⚠</span>
           <div className="flex-1 min-w-0 dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
             <div className="text-label font-semibold tracking-tight leading-tight">
               {isSecondCampus
@@ -871,7 +888,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
             <div key={ci} className="flex-1 min-w-0">
               {/* 헤더 */}
               <div className="text-center py-2 border-b border-line dark:border-line mb-0.5">
-                <span className="block text-caption font-bold text-ink-2 dark:text-ink-2-dark whitespace-nowrap">
+                <span className="block text-caption font-bold text-ink-2 whitespace-nowrap">
                   {col.label}
                 </span>
                 <span className="block text-caption text-mute dark:text-mute whitespace-nowrap">

@@ -188,9 +188,9 @@ describe('MarkerSheet — 빠듯 상태 미표시 (시안2 요구사항)', () =>
 })
 
 describe('MarkerSheet — ETA 색상 두 단계 (imminent/일반)', () => {
-  it('ETA 3분 이하는 imminent 클래스가 적용된다', () => {
+  it('임박(eta.js 기준 1분 이하) ETA 에 imminent 클래스가 적용된다', () => {
     const imminentArrivals = [
-      { routeCode: '수인분당', routeColor: null, direction: '인천 방면', minutes: 2 },
+      { routeCode: '수인분당', routeColor: null, direction: '인천 방면', minutes: 1 },
     ]
     render(
       <MarkerSheet
@@ -324,5 +324,32 @@ describe('MarkerSheet — ui/Sheet 전환', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: '닫기' }))
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+// 로딩과 실패를 빈 배열로 뭉개면 시트가 조회 중에도 "지금은 도착 정보가 없어요"
+// 를 띄운다. 마커를 누를 때마다 그 문구가 먼저 보이던 자리다.
+describe('MarkerSheet 도착 목록 상태 구분', () => {
+  it('조회 중에는 없음 문구 대신 로딩을 보여준다', () => {
+    render(<MarkerSheet station={baseStation} arrivals={[]} loading onClose={vi.fn()} />)
+    expect(screen.queryByText('지금은 도착 정보가 없어요')).toBeNull()
+    expect(screen.getByLabelText('도착 정보를 불러오는 중')).toBeTruthy()
+  })
+
+  it('통신 실패는 없음과 다른 문구를 쓴다', () => {
+    render(<MarkerSheet station={baseStation} arrivals={[]} failed onClose={vi.fn()} />)
+    expect(screen.queryByText('지금은 도착 정보가 없어요')).toBeNull()
+    expect(screen.getByText('도착 정보를 불러오지 못했어요')).toBeTruthy()
+  })
+
+  it('조회가 끝나고 정말 비었을 때만 없음 문구를 쓴다', () => {
+    render(<MarkerSheet station={baseStation} arrivals={[]} onClose={vi.fn()} />)
+    expect(screen.getByText('지금은 도착 정보가 없어요')).toBeTruthy()
+  })
+
+  it('도착이 있으면 로딩 플래그가 남아 있어도 목록을 보여준다', () => {
+    render(<MarkerSheet station={baseStation} arrivals={baseArrivals} loading onClose={vi.fn()} />)
+    expect(screen.queryByLabelText('도착 정보를 불러오는 중')).toBeNull()
+    expect(screen.getByText('인천 방면')).toBeTruthy()
   })
 })

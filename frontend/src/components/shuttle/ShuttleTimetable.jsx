@@ -20,7 +20,7 @@ import { Bell, BellRing } from 'lucide-react'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
 import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
 import { scrollToCenter, scrollToCenterX } from '../../utils/scrollToCenter'
-import { formatEta, isImminent } from '../../utils/eta'
+import { formatEta, isImminent, IMMINENT_LABEL } from '../../utils/eta'
 import ShuttleNotifySheet from './ShuttleNotifySheet'
 
 
@@ -33,7 +33,7 @@ import ShuttleNotifySheet from './ShuttleNotifySheet'
 // (임박 임계값·"N분" 서식을 화면마다 새로 만들지 않는다).
 function nextLabel(diffMin) {
   const seconds = diffMin * 60
-  if (isImminent(seconds)) return '곧 출발'
+  if (isImminent(seconds)) return IMMINENT_LABEL
   return `${formatEta(seconds).text} 뒤`
 }
 
@@ -258,7 +258,7 @@ export default function ShuttleTimetable({ times, direction = 0 }) {
               {isReturn ? (
                 <div className="min-w-0">
                   <p className="text-body text-mute">회차편</p>
-                  <p className={`text-body font-medium mt-0.5 leading-snug ${isNext ? 'text-accent-ink dark:text-accent-ink' : 'text-ink-2 dark:text-ink-2-dark'}`}>
+                  <p className={`text-body font-medium mt-0.5 leading-snug ${isNext ? 'text-accent-ink dark:text-accent-ink' : 'text-ink-2'}`}>
                     {schoolTime
                       ? `${schoolTime}에 출발 후 도착하는 버스가 회차하면 탑승하세요`
                       : '수시운행(17:00~18:00) 버스가 회차하면 탑승하세요'}

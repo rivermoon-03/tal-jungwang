@@ -69,16 +69,14 @@ function contentSignature(s) {
     s.routeColor ?? null,
     s.name ?? null,
     s.liveMinutes ?? null,
+    s.minutesSource ?? null,
     s.showLive ?? false,
     s.liveInaccurate ?? false,
     s.badgeText ?? null,
     s.extraPillText ?? null,
     s.subLabel ?? null,
-    s.iconType ?? null,
-    s.subLabelSep ?? null,
     s.upMinutes ?? null,
     s.dnMinutes ?? null,
-    s.earliestBus ?? null,
     // subwayMulti chip은 subwayData에서 분을 직접 계산하므로 도착 초들을 시그니처에 포함
     s.subwayData
       ? ['up', 'down', 'line4_up', 'line4_down'].map((k) => s.subwayData[k]?.arrive_in_seconds ?? null)
@@ -117,7 +115,6 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap, onT
           stationName: station.name,
           upMinutes:   station.upMinutes ?? null,
           dnMinutes:   station.dnMinutes ?? null,
-          earliestBus: station.earliestBus ?? null,
           onClick: () => handleTap(station),
         })
       }
@@ -126,13 +123,12 @@ export default function ZoomAwareOverlayManager({ map, stations = [], onTap, onT
         routeColor:  station.routeColor,
         stationName: station.name,
         liveMinutes: station.liveMinutes ?? null,
+        minutesSource: station.minutesSource ?? 'realtime',
         showLive:    station.showLive ?? false,
         inaccurate:  station.liveInaccurate ?? false,
         badgeText:   station.badgeText,
         extraPillText: station.extraPillText ?? null,
         subLabel:    station.subLabel ?? null,
-        iconType:    station.iconType ?? null,
-        subLabelSep: station.subLabelSep ?? '·',
         onClick: () => handleTap(station),
       })
     }

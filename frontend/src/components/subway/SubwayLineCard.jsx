@@ -3,6 +3,7 @@ import useAppStore from '../../stores/useAppStore'
 import { getSpecialTrainIndices } from '../../utils/trainTime'
 import StatusChip from '../ui/StatusChip'
 import Card from '../ui/Card'
+import { IMMINENT_LABEL } from '../../utils/eta'
 
 function timeToMinutes(t) {
   const [hh, mm] = t.split(':').map(Number)
@@ -26,7 +27,7 @@ function NextTrainBadge({ train, color, darkColor }) {
         className="text-countdown font-bold tabular-nums leading-none tracking-tight"
         style={{ color: timerColor }}
       >
-        {isExpired ? '곧 출발' : `${mm}:${ss}`}
+        {isExpired ? IMMINENT_LABEL : `${mm}:${ss}`}
       </span>
       <span className="text-label font-semibold text-ink-2 dark:text-ink-2 mb-1 leading-none">
         {train.depart_at} · {train.destination}행

@@ -25,6 +25,28 @@ def test_subway_arrival_history의_시각_컬럼과_보존기간은_arrived_at_9
     assert target == ("subway_arrival_history", "arrived_at", "90 days")
 
 
+def test_혼잡도_보존기간은_집계_lookback보다_길다():
+    """읽는 창보다 짧으면 나이틀리 집계가 꼬리를 잘린 채로 계산한다."""
+    from app.services.bus_crowding_stats import CROWDING_STATS_LOOKBACK_DAYS
+
+    target = next(
+        t for t in retention._RETENTION_TARGETS if t[0] == "bus_crowding_logs"
+    )
+    days = int(target[2].split()[0])
+    assert days > CROWDING_STATS_LOOKBACK_DAYS
+
+
+def test_혼잡도_보존기간은_읽지_않는_구간까지_늘리지_않는다():
+    """아무도 읽지 않는 행이 테이블의 대부분을 차지하던 회귀를 막는다."""
+    from app.services.bus_crowding_stats import CROWDING_STATS_LOOKBACK_DAYS
+
+    target = next(
+        t for t in retention._RETENTION_TARGETS if t[0] == "bus_crowding_logs"
+    )
+    days = int(target[2].split()[0])
+    assert days <= CROWDING_STATS_LOOKBACK_DAYS + 7
+
+
 def test_기존_3개_테이블도_여전히_대상에_남아있다():
     tables = [target[0] for target in retention._RETENTION_TARGETS]
     assert tables == [

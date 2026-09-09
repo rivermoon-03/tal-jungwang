@@ -12,8 +12,8 @@
  *   secondsLeft: 지금부터 도착까지 남은 초 (백엔드 arrive_in_seconds 필드)
  *   반환값:
  *     - secondsLeft == null    → null  (표시 없음)
- *     - secondsLeft < 0        → "곧 출발"
- *     - 임박 임계 이하(eta.js) → "곧 도착"
+ *     - secondsLeft < 0        → 임박 문구(eta.js IMMINENT_LABEL)
+ *     - 임박 임계 이하(eta.js) → 임박 문구
  *     - 남은 시간 ≤ 60분      → "N분"
  *     - 남은 시간 > 60분      → "HH:MM" (절대 시각, KST)
  *
@@ -21,15 +21,16 @@
  *   departAtStr: "HH:MM" 또는 "HH:MM:SS" 형식의 출발 시각 문자열
  *   지금 시각과 비교하여 위와 동일한 규칙으로 반환.
  */
-import { IMMINENT_THRESHOLD_SEC, isImminent, formatEta } from './eta'
+import { IMMINENT_LABEL, IMMINENT_THRESHOLD_SEC, isImminent, formatEta } from './eta'
 
 export { IMMINENT_THRESHOLD_SEC, isImminent }
 
 /**
- * mode에 따라 "곧 도착"(버스/지하철) 또는 "곧 출발"(셔틀) 반환.
+ * 임박 문구. 예전에는 mode 로 버스/지하철과 셔틀의 낱말을 갈랐는데, 같은 목록의
+ * 같은 열에서 두 문구가 섞여 보였다. 도착과 출발의 구분은 부제가 한다.
  */
-export function imminentLabel(mode = 'arrive') {
-  return mode === 'depart' ? '곧 출발' : '곧 도착'
+export function imminentLabel() {
+  return IMMINENT_LABEL
 }
 
 /**
@@ -46,14 +47,14 @@ export function describeArrival(seconds, { mode = 'arrive' } = {}) {
 }
 
 /**
- * 남은 초를 기반으로 도착 표시 문자열을 반환한다. 음수(이미 지남)만 이 함수
- * 고유의 "곧 출발" 라벨로 처리하고, 나머지는 eta.js formatEta에 위임한다.
+ * 남은 초를 기반으로 도착 표시 문자열을 반환한다. 음수(이미 지남)만 이 함수가
+ * 직접 임박으로 처리하고, 나머지는 eta.js formatEta에 위임한다.
  * @param {number|null} secondsLeft
  * @returns {string|null}
  */
 export function formatArrival(secondsLeft) {
   if (secondsLeft == null) return null
-  if (secondsLeft < 0) return '곧 출발'
+  if (secondsLeft < 0) return IMMINENT_LABEL
   return formatEta(secondsLeft).text
 }
 

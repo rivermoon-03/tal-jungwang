@@ -513,3 +513,4 @@ describe('ScheduleDetailModal — 모바일 경로(ui/Sheet)', () => {
     expect(closeBtn.className).toMatch(/min-h-\[44px\]/)
   })
 })
+

@@ -124,9 +124,12 @@ export default function PCMainShell({ children }) {
       // 시간표 탭이 택시를 다루지 않고(SchedulePage isValidMode에 taxi가 없음)
       // 필터가 택시인 동안은 사이드바에서 "시간표"를 눌러도 이 도킹 패널이 그대로
       // 남는다(showTimetable 가드) — 존재하지 않는 곳으로 안내하지 않는다.
+      // 예전 문구는 "택시 정보는 준비 중이에요" 였는데 사실이 아니다. 택시 패널은
+      // 모바일 홈에서 요금·소요시간·인원 분할·경로 오버레이까지 동작한다.
+      // PC 에 아직 안 붙였을 뿐이라, 없는 기능이 아니라 여기 없다고 말한다.
       return {
-        title: '택시 정보는 준비 중이에요',
-        description: '지금은 버스만 지도에서 실시간으로 볼 수 있어요.',
+        title: '택시는 지도에 표시하지 않아요',
+        description: 'PC 화면에는 아직 택시 카드가 없어요. 휴대폰 홈에서 요금과 소요시간을 볼 수 있어요.',
       }
     }
     if (!isBusFilter) return null

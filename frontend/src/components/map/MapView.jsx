@@ -12,6 +12,7 @@ import { apiFetch } from '../../hooks/useApi'
 import TrafficRoadOverlay from './TrafficRoadOverlay'
 import ZoomAwareOverlayManager from './ZoomAwareOverlayManager'
 import MarkerSheet from './MarkerSheet'
+import { buildScheduleHint } from './scheduleHint'
 import ClusterListSheet from './ClusterListSheet'
 import GpsSoftPrompt from './GpsSoftPrompt'
 import { useGpsSoftPrompt } from '../../hooks/useGpsSoftPrompt'
@@ -177,7 +178,9 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     const stations = stationsData ?? []
     const byName = (name) => stations.find((s) => s.name === name)?.station_id ?? null
     return {
-      sihwa:   byName('시화'),
+      // '시화'(stop 1) 에는 3400 시간표가 한 행도 없다. 2026-04 마이그레이션이
+      // 전부 시화터미널로 옮겼는데 이 조회만 옛 이름에 남아 있었다.
+      sihwa:   byName('시화터미널') ?? byName('시화'),
       emart:   byName('이마트'),
       sadang:  byName('사당역'),
       gangnam: byName('강남역'),
@@ -319,12 +322,17 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     }
   }, [busArrivalsSiheung])
 
-  // 노선 번호 + 방향(out/in) → 계산된 분 lookup
-  const liveMinByRouteDir = useMemo(() => ({
-    '3400-out': bus3400OutMinutes, '3400-in': bus3400InMinutes,
-    '6502-out': bus6502OutMinutes, '6502-in': bus6502InMinutes,
-    '3401-out': bus3401OutMinutes, '3401-in': bus3401InMinutes,
-    '5602-out': bus5602OutMinutes, '5602-in': bus5602InMinutes,
+  // 노선 번호 + 허브 위치 → 다음 출발까지 남은 분.
+  //
+  // 전부 시간표에서 계산한 값이다. 실시간이 아니다. 예전엔 키가 `${노선}-out`
+  // 하나뿐이라 서울 허브 마커도 학교 주변(이마트·시화터미널) 시각을 받았다.
+  // 사당역 마커에 뜨던 "12분" 은 이마트에서 12분 뒤 출발한다는 뜻이었다.
+  // local(학교 주변 출발) 과 seoul(서울 출발) 을 나눠 각 마커가 자기 정류장을 본다.
+  const timetableMinByRouteHub = useMemo(() => ({
+    '3400-local': bus3400OutMinutes, '3400-seoul': bus3400InMinutes,
+    '6502-local': bus6502OutMinutes, '6502-seoul': bus6502InMinutes,
+    '3401-local': bus3401OutMinutes, '3401-seoul': bus3401InMinutes,
+    '5602-local': bus5602OutMinutes, '5602-seoul': bus5602InMinutes,
   }), [bus3400OutMinutes, bus3400InMinutes, bus6502OutMinutes, bus6502InMinutes, bus3401OutMinutes, bus3401InMinutes, bus5602OutMinutes, bus5602InMinutes])
 
   // ── STATIC 레이어 (#7a): markersData에만 의존 ──────────────────
@@ -371,7 +379,11 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
         // 백엔드 마커 이름이 "등교", "하교" 처럼 방향만 적혀 있으면 칩과 시트에
         // "등교 등교 시간표" 같은 반복이 생기고, 시트 제목이 정류장이 아니라 방향이
         // 된다(실측). 이름을 "셔틀 등교"로 완성하고 배지는 "셔"로 줄인다.
-        const dirLabel = /^(등교|하교)$/.test(m.name ?? '') ? m.name : null
+        // DB 이름은 "등교"·"하교"·"제2 등교"·"제2 하교"·"꽃집앞 (제2)" 다.
+        // 앞의 넷을 한 규칙으로 묶어 "셔틀 등교"·"2캠 셔틀 하교" 로 완성한다.
+        // 예전엔 정규식이 "등교|하교" 만 봐서 제2 마커가 매칭에서 빠졌고,
+        // 그래서 2캠 접두사가 한 번도 붙지 않았다(같은 지도에 두 작명 규칙 공존).
+        const dirLabel = /^(제2\s*)?(등교|하교)$/.exec(m.name ?? '')?.[2] ?? null
         const campusTag = (ui.direction ?? 0) >= 2 ? '2캠 ' : ''
         return {
           ...base,
@@ -483,7 +495,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       }
       if (s.type === 'bus') {
         const busArrivalLabel = busLiveMinutes != null ? `정왕역 ${busLiveMinutes}분` : '정왕역'
-        return { ...s, subLabel: s.subLabel ?? busArrivalLabel, liveMinutes: busLiveMinutes }
+        return { ...s, subLabel: s.subLabel ?? busArrivalLabel, liveMinutes: busLiveMinutes, minutesSource: 'realtime' }
       }
       if (s.type === 'seohae') {
         const mins = s.tabId === 'choji' ? chojiMinutes : siheungMinutes
@@ -500,14 +512,19 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
       }
       if (s.type === 'bus_seoul') {
         if (s.isMultiRoute) return s
-        const outMins = (s.routes ?? [])
-          .map((r) => liveMinByRouteDir[`${r.route_number}-out`])
+        const hub = s.isLocalHub ? 'local' : 'seoul'
+        const mins = (s.routes ?? [])
+          .map((r) => timetableMinByRouteHub[`${r.route_number}-${hub}`])
           .filter((v) => v != null)
-        return { ...s, liveMinutes: outMins.length ? Math.min(...outMins) : null }
+        return {
+          ...s,
+          liveMinutes: mins.length ? Math.min(...mins) : null,
+          minutesSource: 'timetable',
+        }
       }
       return s
     })
-  }, [staticStationData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, shuttleToCampus2Mins, shuttleFromCampus2Mins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, siheungUpMinutes, siheungDnMinutes, siheungEarliestBus, liveMinByRouteDir])
+  }, [staticStationData, shuttleToSchoolData, shuttleToSchoolMins, shuttleFromSchoolMins, shuttleToCampus2Mins, shuttleFromCampus2Mins, subwayLiveMinutes, subwayNextData, busLiveMinutes, chojiMinutes, siheungMinutes, siheungUpMinutes, siheungDnMinutes, siheungEarliestBus, timetableMinByRouteHub])
 
   // attemptInitialFit(아래)이 effect 재구독 없이 항상 최신 마커/GPS를 보도록 커밋 이후 갱신.
   // (ZoomAwareOverlayManager의 onTapRef와 같은 패턴 — 렌더 중 대입은 react-hooks/refs 위반이라
@@ -562,6 +579,10 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   // - taxi: 관리형 정류장 마커(학교방향 chip 포함) 전체 숨김
   // - bus : 전부 노출 (현상 유지)
   // - subway / shuttle : 마커는 노출하되 G (extraPillText) pill만 숨김
+  // 택시 모드는 지도에 그릴 마커가 없다. 예전엔 조용히 빈 지도만 남아
+  // 고장으로 보였다(모드 값은 앱 전역 공유라 다른 화면에서 택시를 고른 뒤
+  // 지도를 열면 그 상태로 들어온다). PC 도킹 패널만 문구를 띄우고 있었다.
+  const taxiModeEmpty = selectedMode === 'taxi'
   const visibleStations = useMemo(() => {
     if (selectedMode === 'taxi') return []
     if (selectedMode === 'bus') return managedStations
@@ -578,7 +599,10 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   // 마커 바텀시트 상태 (sheetArrivals useMemo보다 먼저 선언)
   const [sheetStation, setSheetStation] = useState(null)
   const [sheetBusArrivals, setSheetBusArrivals] = useState(null)
-  const [, setSheetBusLoading] = useState(false)
+  // 로딩과 실패를 빈 배열로 뭉개면 시트가 조회 중에도 "지금은 도착 정보가 없어요"
+  // 를 띄운다. 느린 회선에서는 그게 지배적인 화면이 된다. 둘을 구분해 둔다.
+  const [sheetBusLoading, setSheetBusLoading] = useState(false)
+  const [sheetBusFailed, setSheetBusFailed] = useState(false)
   const [, setSheetDirection] = useState('outbound')
 
   // 정류장이 바뀌는 순간 이전 도착 정보를 비우는 일은 렌더 중에 한다. effect로
@@ -598,9 +622,10 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
     // 렌더 중으로 옮길 수 없다(렌더가 부수효과를 갖게 된다).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSheetBusLoading(true)
+    setSheetBusFailed(false)
     apiFetch(`/bus/arrivals/${stopId}`)
-      .then((res) => { if (!cancelled) setSheetBusArrivals(res ?? null) })
-      .catch(() => { if (!cancelled) setSheetBusArrivals(null) })
+      .then((res) => { if (!cancelled) { setSheetBusArrivals(res ?? null); setSheetBusFailed(false) } })
+      .catch(() => { if (!cancelled) { setSheetBusArrivals(null); setSheetBusFailed(true) } })
       .finally(() => { if (!cancelled) setSheetBusLoading(false) })
     return () => { cancelled = true }
   }, [sheetStation])
@@ -1322,6 +1347,19 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
               <MapLegendOnboarding embedded />
             </div>
 
+            {/* 택시 모드는 지도에 그릴 마커가 없다. 빈 지도만 남으면 고장으로 읽힌다. */}
+            {taxiModeEmpty && (
+              <div
+                className="absolute inset-x-3 top-1/2 z-[55] -translate-y-1/2 rounded-card bg-surface px-4 py-3.5 text-center shadow-sh-pop"
+                role="status"
+              >
+                <p className="text-label font-semibold text-ink dark:text-ink">택시는 지도에 표시하지 않아요</p>
+                <p className="text-caption text-mute dark:text-mute mt-1">
+                  요금과 소요시간은 홈의 택시 카드에서 볼 수 있어요
+                </p>
+              </div>
+            )}
+
             {/* 내 위치 FAB + 최근접 정류장 카드 — 우하단에 함께 쌓는다(§M-3). 이 열의
                 높이를 재서 카카오 캔버스의 bottom 을 그만큼 올린다(bottomInset) —
                 카카오 로고와 축척이 카드 뒤에 숨지 않고 카드 바로 위에 보인다. */}
@@ -1418,6 +1456,12 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
                 useAppStore.getState().setDetailModal(detail)
               }
             }}
+            loading={
+              (sheetStation.type === 'bus' || sheetStation.type === 'bus_seoul') && sheetBusLoading
+            }
+            failed={
+              (sheetStation.type === 'bus' || sheetStation.type === 'bus_seoul') && sheetBusFailed
+            }
             relatedMarkers={[]}
             onRelatedMarker={(key) => {
               const target = managedStations.find((s) => s.id === key)
@@ -1453,18 +1497,7 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
               }
             }}
             onDetail={() => {
-              const hint =
-                sheetStation.type === 'shuttle'
-                  ? { mode: 'shuttle' }
-                  : sheetStation.type === 'subway'
-                  ? { mode: 'subway', group: '정왕' }
-                  : sheetStation.type === 'bus'
-                  ? { mode: 'bus', group: '정왕역행' }
-                  : sheetStation.type === 'bus_seoul'
-                  ? { mode: 'bus', group: '버스 - 서울행', routeCode: sheetStation.route }
-                  : sheetStation.type === 'seohae'
-                  ? { mode: 'subway', group: sheetStation.tabId === 'choji' ? '초지' : '시흥시청' }
-                  : null
+              const hint = buildScheduleHint(sheetStation)
               setSheetStation(null)
               if (hint) {
                 useAppStore.getState().setScheduleHint(hint)

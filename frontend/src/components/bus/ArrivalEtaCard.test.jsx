@@ -21,7 +21,7 @@ describe('ArrivalEtaCard — 승차 정류장 표기', () => {
         nextScheduled={null}
       />
     )
-    expect(screen.getByText('· 시흥시청역 기준')).toBeInTheDocument()
+    expect(screen.getByText('시흥시청역 기준')).toBeInTheDocument()
   })
 
   it('stop_name이 없으면 정류장 표기를 지어내지 않는다', () => {

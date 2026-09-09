@@ -13,13 +13,14 @@ import FavoritesTimeline from './FavoritesTimeline'
 import EmptyState from '../ui/EmptyState'
 import ErrorState from '../ui/ErrorState'
 import Skeleton from '../common/Skeleton'
-import SegmentTabs from '../common/SegmentTabs'
+import SegmentedControl from '../ui/SegmentedControl'
 import PageHeader from '../layout/PageHeader'
 import ScheduleDetailModal from '../schedule/ScheduleDetailModal'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { useBusTimetableByRoute, useBusArrivals, useBusStations, useBusRoutesByCategory } from '../../hooks/useBus'
 import { makeFavKey, parseFavKey } from '../../utils/favKey'
+import { isImminent, IMMINENT_LABEL } from '../../utils/eta'
 
 // 스케줄 페이지가 생성하는 새 형식 버스 favKey: "등교:X" / "하교:X" / "기타:X"
 const BUS_CATEGORY_PREFIXES = ['등교:', '하교:', '기타:']
@@ -290,7 +291,7 @@ function useFavoriteItems(favorites) {
           sec = Math.max(0, Math.floor((d - new Date()) / 1000))
           min = Math.max(0, Math.round(sec / 60))
         }
-        const imminent = sec != null && sec < 60
+        const imminent = isImminent(sec)
         result.push({
           id: `route:${routeCode}`,
           type: 'subway',
@@ -298,7 +299,7 @@ function useFavoriteItems(favorites) {
           stationName: station,
           destination: destLabel,
           minutes: min,
-          imminentLabel: imminent ? '곧 도착' : null,
+          imminentLabel: imminent ? IMMINENT_LABEL : null,
           walkMin: 10,
           status: getBoardingStatus(min, 10),
           commute: classifyCommute(routeCode),
@@ -333,7 +334,7 @@ function useFavoriteItems(favorites) {
           routeCode: `${campusTag}${label}셔틀`.trim(),
           stationName: isSecondCampus ? '2캠' : '본캠',
           minutes: mins,
-          imminentLabel: imminent ? '곧 출발' : null,
+          imminentLabel: imminent ? IMMINENT_LABEL : null,
           walkMin: 3,
           status: getBoardingStatus(mins, 3),
           commute: classifyCommute(routeCode),
@@ -526,16 +527,19 @@ export default function FavoritesPage({ onGoSchedule }) {
       <PageHeader title="즐겨찾기" />
 
       <div className="flex items-center justify-between gap-2 px-4 pb-2">
-        <SegmentTabs
-          tabs={[{ id: '등교', label: '등교' }, { id: '하교', label: '하교' }]}
-          active={commute}
+        <SegmentedControl
+          options={[{ value: '등교', label: '등교' }, { value: '하교', label: '하교' }]}
+          value={commute}
           onChange={setCommute}
+          size="sm"
+          ariaLabel="방향"
         />
-        <SegmentTabs
-          tabs={[{ id: 'list', label: '리스트' }, { id: 'timeline', label: '타임라인' }]}
-          active={view}
+        <SegmentedControl
+          options={[{ value: 'list', label: '리스트' }, { value: 'timeline', label: '타임라인' }]}
+          value={view}
           onChange={setView}
           size="sm"
+          ariaLabel="보기 방식"
         />
       </div>
 

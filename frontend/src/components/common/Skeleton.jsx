@@ -12,7 +12,7 @@
  *
  * F1-4(레이아웃 시프트 0): 범용 Skeleton 외에, 실제 카드와 골격(높이/radius/행 구성)이
  * 1:1 대응하는 변형을 이 파일에서 함께 export한다.
- *   - SkeletonArrivalCard: ArrivalRow(버스 도착 행) 대응
+ *   - SkeletonArrivalCard: TransitCard(도착 카드) 대응
  *   - SkeletonPanelRow: SubwayPanel/ShuttlePanel의 듀얼 컬럼(좌우 방향) 카드 대응.
  *     예전엔 DualDirectionCard가 그 실제 카드였지만 TransitCard로 대체되며
  *     삭제됐다(결함 #4, 2026-08). 로딩 스켈레톤 모양 자체는 그대로 유효해 남긴다.
@@ -28,32 +28,32 @@ export default function Skeleton({ width = '100%', height = '1rem', rounded = 'r
 }
 
 /**
- * SkeletonArrivalCard — ArrivalRow(components/dashboard/ArrivalRow.jsx)와
- * 동일한 골격의 로딩 자리표시자.
+ * SkeletonArrivalCard — TransitCard(components/ui/TransitCard.jsx)와 동일한
+ * 골격의 로딩 자리표시자.
  *
- * 레이아웃 시프트 0을 위해 실제 카드와 같은 컨테이너 클래스(rounded-card p-[18px],
- * bg-surface border border-line)를 그대로 공유한다. 내부는 실제 카드의 3분할
- * (좌: 노선 뱃지 / 중앙: 제목 2줄 / 우: 큰 숫자)을 그대로 흉내낸다.
+ * 레이아웃 시프트 0을 위해 실제 카드와 같은 셸 클래스(rounded-card p-3
+ * bg-surface shadow-sh-card)와 같은 그리드 트랙을 그대로 공유한다.
  */
 export function SkeletonArrivalCard({ className = '' }) {
   return (
     <div
-      className={`rounded-card p-[18px] bg-surface border border-line ${className}`}
+      className={`rounded-card p-3 bg-surface shadow-sh-card ${className}`}
       aria-hidden="true"
     >
-      <div className="flex items-center gap-3">
-        {/* 좌: 노선번호 뱃지 자리 (RouteBadge와 동일 radius) */}
-        <div className="tj-skeleton rounded-badge w-10 h-6 shrink-0" />
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+        {/* 좌: 노선 타일 56px (RouteBadge variant="tile"와 동일 치수) */}
+        <div className="tj-skeleton rounded-tile w-14 h-14 shrink-0" />
 
-        {/* 중앙: 제목(본문) 1줄 + 부제(캡션) 1줄 */}
-        <div className="flex-1 min-w-0 space-y-2">
+        {/* 중앙: 제목 1줄 + 칩 행 1줄 */}
+        <div className="min-w-0 space-y-2">
           <div className="tj-skeleton rounded-button h-4 w-3/5" />
           <div className="tj-skeleton rounded-button h-3 w-2/5" />
         </div>
 
-        {/* 우: 큰 숫자(ETA) 자리 */}
-        <div className="flex-shrink-0">
-          <div className="tj-skeleton rounded-button h-7 w-11" />
+        {/* 우: 상대시간 + 보조 캡션 — 실제 카드가 항상 두 줄을 예약한다 */}
+        <div className="shrink-0 flex flex-col items-end gap-1 min-h-[44px] justify-center">
+          <div className="tj-skeleton rounded-button h-6 w-12" />
+          <div className="tj-skeleton rounded-button h-3 w-9" />
         </div>
       </div>
     </div>

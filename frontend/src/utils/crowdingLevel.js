@@ -1,11 +1,7 @@
 /**
  * crowdingLevel.js — 혼잡도 라벨의 단일 출처.
  *
- * 라벨 규칙이 crowdingPalette.crowdedLabel, BusPanel.CROWDED_META,
- * ArrivalRow.CROWDED_KIND 세 곳에 흩어져 있었고, 그 결과 등급 4가 한 화면에선
- * "혼잡", 다른 화면에선 "매우혼잡"으로 보였다. 여기 하나로 모은다.
- *
- * 축이 둘이라는 점이 중요하다.
+ * 축이 둘이고 낱말은 하나다.
  *
  * - **비율**(과거 통계): 이 시간대 도착 버스 중 혼잡(등급 3 이상) 비율.
  *   평균을 쓰지 않는 이유는 하한이 1이라서다 — 값 1인 버스와 3인 버스가 반씩이면
@@ -24,11 +20,18 @@ export const RATIO_THRESHOLDS = {
   veryBusy: 0.35,
 }
 
+/**
+ * 낱말은 한 세트뿐이다. 비율 축과 등급 축이 서로 다른 낱말을 쓰면 한 컴포넌트
+ * 안에서 색은 등급으로, 글자는 비율로 정해져 "매우 혼잡"이 "보통"의 노란색으로
+ * 나온다(CrowdingChart 의 툴팁과 범례가 그랬다).
+ */
+export const CROWDING_LABELS = ['여유', '보통', '혼잡', '매우 혼잡']
+
 const LEVEL_LABELS = {
-  1: '여유',
-  2: '보통',
-  3: '혼잡',
-  4: '매우혼잡',
+  1: CROWDING_LABELS[0],
+  2: CROWDING_LABELS[1],
+  3: CROWDING_LABELS[2],
+  4: CROWDING_LABELS[3],
 }
 
 // 보정(bus_crowding_calibrations)이 값을 올린 경우 붙는 꼬리표. 사람이 넣은 단언을
@@ -51,10 +54,10 @@ export function labelFromRatio(ratio, { estimated = false, reliable = true } = {
   if (!reliable) return '정보 부족'
 
   let label
-  if (ratio < RATIO_THRESHOLDS.normal) label = '여유'
-  else if (ratio < RATIO_THRESHOLDS.busy) label = '보통'
-  else if (ratio < RATIO_THRESHOLDS.veryBusy) label = '붐빔'
-  else label = '매우 붐빔'
+  if (ratio < RATIO_THRESHOLDS.normal) label = CROWDING_LABELS[0]
+  else if (ratio < RATIO_THRESHOLDS.busy) label = CROWDING_LABELS[1]
+  else if (ratio < RATIO_THRESHOLDS.veryBusy) label = CROWDING_LABELS[2]
+  else label = CROWDING_LABELS[3]
 
   return withSource(label, estimated)
 }
@@ -71,7 +74,22 @@ export function labelFromLevel(level, { estimated = false } = {}) {
   return withSource(label, estimated)
 }
 
-/** 칩 색 톤. 붐빔 이상만 경고색을 쓴다(대면적 경고색 남용 방지). */
+/**
+ * 혼잡 비율 → 등급(1~4). 색을 등급 팔레트에서 뽑아야 하는 자리에서 쓴다.
+ * 글자는 비율로, 색은 평균으로 정하면 "매우 혼잡"이 "보통"의 노란색으로 나온다.
+ *
+ * @param {number|null|undefined} ratio
+ * @returns {number|null}
+ */
+export function levelFromRatio(ratio) {
+  if (ratio == null || Number.isNaN(ratio)) return null
+  if (ratio < RATIO_THRESHOLDS.normal) return 1
+  if (ratio < RATIO_THRESHOLDS.busy) return 2
+  if (ratio < RATIO_THRESHOLDS.veryBusy) return 3
+  return 4
+}
+
+/** 칩 색 톤. 혼잡 이상만 경고색을 쓴다(대면적 경고색 남용 방지). */
 export function toneFromLevel(level) {
   return level >= 3 ? 'warn' : 'neutral'
 }

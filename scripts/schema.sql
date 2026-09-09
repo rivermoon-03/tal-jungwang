@@ -516,7 +516,7 @@ INSERT INTO app_info (id, version, description, feedback_url, updated_at) VALUES
 -- Data for Name: bus_routes; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (3, '20-1', '시흥20-1번', '아이파크아파트방면', '224000011', '하교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (3, '20-1', '시흥20-1번', '정왕역 방면', '224000011', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (2, '시흥33', '시흥33번', '시흥시청방면', '224000062', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (1, '3400', NULL, '시화터미널 출발 사당 경유 강남행', '224000050', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (6, '6502', NULL, '사당행', '224000061', '하교');
@@ -1633,12 +1633,14 @@ INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, des
 --
 
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (1, 5, 'timetable', 'departure', 17, '시흥터미널 승차', 'to-seoul', 10);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (2, 5, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
+INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (33, 5, 'realtime', 'boarding_arrival', 17, '시흥터미널 승차', 'to-seoul', 20);
+INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (2, 5, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 30);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (3, 7, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (4, 7, 'realtime', 'downstream_arrival', 18, '시흥시청 도착', 'to-seoul', 20);
+INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (34, 7, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (7, 9, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (8, 9, 'realtime', 'downstream_arrival', 18, '시흥시청 도착', 'to-seoul', 20);
+INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (35, 9, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (11, 10, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
+INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (36, 10, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (12, 11, 'realtime', 'boarding_arrival', 17, '시흥터미널 승차', 'to-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (13, 11, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (15, 12, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
@@ -1664,8 +1666,8 @@ INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_directio
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (2, 3, 3, 'to-jeongwang', true);
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (3, 2, 3, 'to-city-hall', true);
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (4, 1, 2, 'to-seoul', true);
-INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (5, 7, 18, 'to-seoul', true);
-INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (6, 11, 18, 'to-seoul', true);
+INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (5, 7, 18, 'to-seoul', false);
+INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (6, 11, 18, 'to-seoul', false);
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (7, 17, 17, 'to-seoul', true);
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (8, 17, 2, 'to-seoul', true);
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (9, 4, 2, 'to-seoul', true);
@@ -1674,6 +1676,10 @@ INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_directio
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (12, 14, 13, 'from-city-hall', true);
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (14, 15, 17, 'to-wolgot', true);
 INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (15, 15, 2, 'to-wolgot', true);
+INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (16, 1, 17, 'to-seoul', true);
+INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (17, 7, 2, 'to-seoul', true);
+INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (18, 11, 2, 'to-seoul', true);
+INSERT INTO bus_realtime_targets (id, bus_route_id, bus_stop_id, travel_direction, enabled) VALUES (19, 6, 2, 'to-seoul', true);
 
 
 --
@@ -1687,7 +1693,7 @@ INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, so
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (15, 'shuttle2_ggotjip', 'shuttle', '꽃집앞 (제2)', 37.350833, 126.742848, 35, '{"showLive": true, "direction": 2, "routeCode": "제2 등교", "routeColor": "#5b3aa8", "variant": "via_station"}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (3, 'jeongwang_station', 'subway', '정왕역', 37.352618, 126.742747, 30, '{"showLive": true, "routeCode": "수인분당", "routeColor": "#F5A623", "chipVariant": "subwayMulti"}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (4, 'tec_bus_stop', 'bus', '한국공대', 37.341633, 126.731252, 40, '{"showLive": true, "routeCode": "33번", "routeColor": "#0891B2", "liveInaccurate": true, "primaryStopGbisId": "224000639"}', true);
-INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (5, 'bus_hub_jw_sihwa', 'bus_seoul', '3400', 37.342546, 126.735365, 50, '{}', true);
+INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (5, 'bus_hub_jw_sihwa', 'bus_seoul', '시화터미널', 37.342546, 126.735365, 50, '{}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (6, 'bus_hub_jw_emart', 'bus_seoul', '이마트', 37.345999, 126.737995, 60, '{}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (7, 'bus_hub_sl_gangnam', 'bus_seoul', '강남역', 37.498427, 127.029829, 70, '{}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (8, 'bus_hub_sl_sadang', 'bus_seoul', '사당역', 37.476654, 126.982610, 80, '{"extraPillText": "3400도 탑승 가능"}', true);
@@ -1704,14 +1710,15 @@ INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, so
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (1, 5, '3400', '#DC2626', 'G', 17, 6, '{"spineLeft": "시화", "spineRight": "강남", "inboundSegment": "정왕행", "inboundDirLabel": "강남 → 학교행", "outboundSegment": "서울행", "outboundDirLabel": "학교 → 강남행", "inboundActiveSide": "left", "outboundActiveSide": "right"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (2, 6, '6502', '#DC2626', 'G', 2, 5, '{"spineLeft": "이마트", "spineRight": "사당", "inboundSegment": "정왕행", "inboundDirLabel": "사당 → 이마트행", "outboundSegment": "서울행", "outboundDirLabel": "이마트 → 사당행", "inboundActiveSide": "left", "outboundActiveSide": "right"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (3, 6, '3401', '#DC2626', 'G', 2, 7, '{"spineLeft": "이마트", "spineRight": "석수", "inboundSegment": "정왕행", "inboundDirLabel": "석수 → 이마트행", "outboundSegment": "서울행", "outboundDirLabel": "이마트 → 석수행", "inboundActiveSide": "left", "outboundActiveSide": "right"}', 10);
-INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (4, 7, '3400', '#DC2626', 'G', 6, 1, '{"spineLeft": "시화", "spineRight": "강남", "inboundSegment": "서울행", "inboundDirLabel": "학교 → 강남행", "outboundSegment": "정왕행", "outboundDirLabel": "강남 → 학교행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (4, 7, '3400', '#DC2626', 'G', 6, 17, '{"spineLeft": "시화", "spineRight": "강남", "inboundSegment": "서울행", "inboundDirLabel": "학교 → 강남행", "outboundSegment": "정왕행", "outboundDirLabel": "강남 → 학교행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (5, 8, '6502', '#DC2626', 'G', 5, 2, '{"spineLeft": "이마트", "spineRight": "사당", "inboundSegment": "서울행", "inboundDirLabel": "이마트 → 사당행", "outboundSegment": "정왕행", "outboundDirLabel": "사당 → 이마트행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (6, 9, '3401', '#DC2626', 'G', 7, 2, '{"spineLeft": "이마트", "spineRight": "석수", "inboundSegment": "서울행", "inboundDirLabel": "이마트 → 석수행", "outboundSegment": "정왕행", "outboundDirLabel": "석수 → 이마트행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
-INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (7, 6, '5602', '#DC2626', 'G', 2, 8, '{"outboundDirLabel": "이마트 → 구로행"}', 20);
-INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (8, 12, '5602', '#DC2626', 'G', 8, 2, '{"spineLeft": "이마트", "spineRight": "구로", "inboundSegment": "서울행", "inboundDirLabel": "이마트 → 구로행", "outboundSegment": "정왕행", "outboundDirLabel": "구로 → 이마트행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (7, 6, '5602', '#2563EB', 'G', 2, 8, '{"outboundDirLabel": "이마트 → 구로행"}', 20);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (8, 12, '5602', '#2563EB', 'G', 8, 2, '{"spineLeft": "이마트", "spineRight": "구로", "inboundSegment": "서울행", "inboundDirLabel": "이마트 → 구로행", "outboundSegment": "정왕행", "outboundDirLabel": "구로 → 이마트행", "inboundActiveSide": "right", "outboundActiveSide": "left"}', 0);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (9, 4, '11-A', '#0891B2', NULL, 3, NULL, '{"showLive": true}', 10);
-INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (13, 6, '99-2', '#0D9488', 'L', 2, NULL, '{}', 30);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (13, 6, '99-2', '#0891B2', NULL, 2, NULL, '{}', 30);
 INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (14, 5, '99-2', '#0891B2', NULL, 17, NULL, '{}', 10);
+INSERT INTO map_marker_routes (id, marker_id, route_number, route_color, badge_text, outbound_stop_id, inbound_stop_id, ui_meta, sort_order) VALUES (15, 5, '5200', '#DC2626', 'G', 17, NULL, '{}', 20);
 
 
 --
@@ -3425,14 +3432,14 @@ SELECT pg_catalog.setval('bus_crowding_logs_id_seq', 7758, true);
 -- Name: bus_information_sources_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('bus_information_sources_id_seq', 32, true);
+SELECT pg_catalog.setval('bus_information_sources_id_seq', 36, true);
 
 
 --
 -- Name: bus_realtime_targets_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('bus_realtime_targets_id_seq', 15, true);
+SELECT pg_catalog.setval('bus_realtime_targets_id_seq', 19, true);
 
 
 --
@@ -3462,7 +3469,7 @@ SELECT pg_catalog.setval('bus_timetable_entries_id_seq', 1005, true);
 -- Name: map_marker_routes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('map_marker_routes_id_seq', 14, true);
+SELECT pg_catalog.setval('map_marker_routes_id_seq', 15, true);
 
 
 --

@@ -1,19 +1,36 @@
 /**
  * favCode.js — 즐겨찾기 코드 문자열을 화면이 쓸 수 있는 형태로 푼다.
  *
- * 즐겨찾기는 `등교:3400` / `subway:정왕:up` / `shuttle:2캠 하교` 같은 문자열 하나로
- * 저장된다(useAppStore.favorites.routes). 이걸 푸는 코드가 팝오버 안에만 있어서
- * PC 사이드바는 같은 목록을 띄워 놓고도 항목을 열 수단이 없었다 — 그래서 모든 행이
- * 설정 페이지로 가는 오배선이 남아 있었다. 파싱을 여기로 올려 두 화면이 같은
- * 결과를 쓰게 한다.
+ * 즐겨찾기는 문자열 하나로 저장되는데 형식이 두 세대다.
+ *   신규(utils/favKey.js)  `bus:3:하교` · `shuttle:main:등교` · `subway:정왕:up`
+ *   레거시                 `등교:3400` · `shuttle:2캠 하교` · `3400`
+ * 화면에 따라 쓰는 배열이 달라(favorites.keys / favorites.routes) 둘 다 들어온다.
+ *
+ * 신규 스키마를 못 읽던 시절 시간표에서 누른 별은 독 팝오버와 PC 사이드바에서
+ * 조용히 사라졌고(`bus:3:하교` → null → filter(Boolean) 에서 제거), 셔틀은
+ * `셔틀main:등교` 라는 문자열이 그대로 화면에 찍혔다.
+ *
+ * 파싱을 여기로 올려 두 화면이 같은 결과를 쓰게 한다.
  */
+
+const SHUTTLE_CAMPUS_TAG = { main: '', second: '2캠 ' }
 
 function parseShuttleFav(favCode) {
   if (!favCode.startsWith('shuttle:')) return null
   const rest = favCode.slice(8)
-  const isCampus2 = rest.startsWith('2캠 ')
-  const campusTag = isCampus2 ? '2캠 ' : ''
-  const label = rest.slice(campusTag.length)
+  let campusTag
+  let label
+  if (rest.includes(':')) {
+    // 신규 "shuttle:{main|second}:{등교|하교}"
+    const [campus, dir] = rest.split(':')
+    campusTag = SHUTTLE_CAMPUS_TAG[campus]
+    label = dir
+    if (campusTag === undefined || !label) return null
+  } else {
+    campusTag = rest.startsWith('2캠 ') ? '2캠 ' : ''
+    label = rest.slice(campusTag.length)
+  }
+  if (!label) return null
   return {
     type: 'shuttle',
     routeCode: `${campusTag}셔틀${label}`,
@@ -23,16 +40,36 @@ function parseShuttleFav(favCode) {
 }
 
 function parseBusFav(favCode) {
-  const match = favCode.match(/^(등교|하교|기타):(.+)$/)
-  if (!match) return null
-  const [, category, routeNumber] = match
-  return {
-    type: 'bus',
-    routeCode: routeNumber,
-    title: `${routeNumber} (${category})`,
-    favCode,
-    category,
+  // 신규 "bus:{id}:{category}" — id 는 route_id(숫자) 또는 route_number 다.
+  const modern = favCode.match(/^bus:([^:]+):(등교|하교|기타)?$/)
+  if (modern) {
+    const [, id, category] = modern
+    return {
+      type: 'bus',
+      routeCode: id,
+      title: category ? `${id} (${category})` : id,
+      favCode,
+      category: category ?? null,
+      routeId: /^\d+$/.test(id) ? Number(id) : null,
+    }
   }
+  const match = favCode.match(/^(등교|하교|기타):(.+)$/)
+  if (match) {
+    const [, category, routeNumber] = match
+    return {
+      type: 'bus',
+      routeCode: routeNumber,
+      title: `${routeNumber} (${category})`,
+      favCode,
+      category,
+    }
+  }
+  // 가장 오래된 형태 — useFavorites 훅이 쓰던 순수 노선번호("3400", "시흥33").
+  // 콜론이 없으면 이것뿐이다. 못 읽으면 사이드바와 팝오버에서 조용히 사라진다.
+  if (!favCode.includes(':')) {
+    return { type: 'bus', routeCode: favCode, title: favCode, favCode, category: null }
+  }
+  return null
 }
 
 function parseSubwayFav(favCode) {

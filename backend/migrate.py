@@ -49,7 +49,10 @@ def main():
 
     os.execvp("uvicorn", [
         "uvicorn", "app.main:app",
-        "--host", "0.0.0.0",
+        # Railway 사설망(*.railway.internal)은 IPv6 전용이다. 0.0.0.0 으로 묶으면
+        # 같은 프로젝트 안에서도 닿지 않아 Prometheus 가 공개 도메인으로 우회한다.
+        # "::" 는 리눅스 기본값(bindv6only=0)에서 IPv4 까지 함께 받는다.
+        "--host", "::",
         "--port", "8000",
     ])
 

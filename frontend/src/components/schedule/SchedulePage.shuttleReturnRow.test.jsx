@@ -97,7 +97,7 @@ describe('SchedulePage — 셔틀 목록 회차편 행(결함 6)', () => {
     const outboundCard = screen.getAllByText('셔틀 등교')[0].closest('[role="button"]')
     expect(outboundCard).toBeTruthy()
 
-    const timeColumn = within(outboundCard).getByTestId('schedule-time-column')
+    const timeColumn = within(outboundCard).getByTestId('transit-card-eta')
     // 시각 칸에는 depart_at(19:40)이 그대로 떠야 한다 — "회차편"/"탑승" 같은
     // 상태 문구가 아니라 실제 시각이어야 한다(결함 6).
     expect(timeColumn).toHaveTextContent('19:40')
@@ -118,7 +118,7 @@ describe('SchedulePage — 셔틀 목록 회차편 행(결함 6)', () => {
     const inboundCard = screen.getAllByText('셔틀 하교')[0].closest('[role="button"]')
     expect(inboundCard).toBeTruthy()
 
-    const timeColumn = within(inboundCard).getByTestId('schedule-time-column')
+    const timeColumn = within(inboundCard).getByTestId('transit-card-eta')
     expect(timeColumn).toHaveTextContent('19:35')
     expect(timeColumn).toHaveTextContent('3분')
   })

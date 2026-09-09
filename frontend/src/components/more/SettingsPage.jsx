@@ -16,15 +16,16 @@
  * 서버 프리퍼런스(preferences.last_train) 동기화까지 처리한다.
  * (utils/pushNotifications.js 참조.)
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  ArrowLeft, Palette, Type, LayoutGrid, List, Navigation, Home,
+  ArrowLeft, Palette, Type, LayoutGrid, List, Navigation,
   Bell, BellRing, Zap, Utensils, Moon, RefreshCw, MapPin, Globe, Trash2, Info,
   ChevronRight, Sparkles, CloudSun,
 } from 'lucide-react'
 import DarkModeSegment from './DarkModeSegment'
 import IconButton from '../ui/IconButton'
 import useAppStore from '../../stores/useAppStore'
+import { allFavoriteCodes } from '../../utils/favKey'
 import {
   isPushSupported,
   hasActivePushSubscription,
@@ -96,15 +97,6 @@ function PreparingBadge() {
   return (
     <span className="flex-shrink-0 px-2 py-0.5 rounded-pill text-caption font-semibold bg-surface-2 dark:bg-bg text-mute dark:text-mute">
       준비 중
-    </span>
-  )
-}
-
-function ValueChevron({ value, accent = false }) {
-  return (
-    <span className={`flex items-center gap-0.5 flex-shrink-0 text-body-sm font-semibold ${accent ? 'text-accent-ink dark:text-accent' : 'text-mute dark:text-mute'}`}>
-      {value}
-      <ChevronRight size={15} aria-hidden="true" />
     </span>
   )
 }
@@ -193,7 +185,10 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
   // 위치 권한 상태 표시 — 전부 별도 기획/구현 필요.
 
   // ── F5: 노선 알림(막차/첫차 시각 푸시) ────────────────────────────────
-  const favoriteRoutes = useAppStore((s) => s.favorites.routes)
+  // keys(신규 스키마) 와 routes(레거시) 를 함께 보낸다. 예전엔 routes 만 보내서
+  // 시간표와 노선 상세에서 누른 별이 알림 대상에 한 번도 들어가지 않았다.
+  const favorites = useAppStore((s) => s.favorites)
+  const favoriteRoutes = useMemo(() => allFavoriteCodes(favorites), [favorites])
   const [routeAlertOn, setRouteAlertOn] = useState(false)
   const [routeAlertBusy, setRouteAlertBusy] = useState(false)
   // 'default' | 'granted' | 'denied' | 'unsupported'
@@ -478,7 +473,6 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
             )}
           </div>
 
-          <Row icon={Home} title="시작 화면" desc="앱을 열었을 때 처음 보이는 화면" right={<ValueChevron value="홈" />} />
         </SettingsGroup>
         </Section>
 

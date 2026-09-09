@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
-import SegmentTabs from '../components/common/SegmentTabs'
+import SegmentedControl from '../components/ui/SegmentedControl'
 import StationChips from '../components/ui/StationChips'
 import EmptyState from '../components/ui/EmptyState'
 import ErrorState from '../components/ui/ErrorState'
@@ -39,9 +39,9 @@ import { useNow } from '../hooks/useNow'
 // 메인 탭 정의. id 는 기존 딥링크(/cafeteria?tab=diet|venues)와 PC 사이드바
 // 서브내비가 쓰던 값이라 그대로 둔다 — 라벨만 탭 이름에 맞춰 바꾼다.
 const MAIN_TABS = [
-  { id: 'diet', label: '학식' },
-  { id: 'venues', label: '매장' },
-  { id: 'library', label: '도서관' },
+  { value: 'diet', label: '학식' },
+  { value: 'venues', label: '매장' },
+  { value: 'library', label: '도서관' },
 ]
 
 const FACILITY_TABS = ['diet', 'venues', 'library']
@@ -122,7 +122,7 @@ export default function FacilitiesPage() {
   const cafeteriaTabItems = useMemo(
     () =>
       (data?.cafeterias ?? []).map((c, i) => ({
-        id: String(i),
+        value: String(i),
         label: c.name,
       })),
     [data?.cafeterias]
@@ -196,10 +196,11 @@ export default function FacilitiesPage() {
 
         {/* 메인 탭: 학식 / 매장 / 도서관 */}
         <div className="px-4 pb-3">
-          <SegmentTabs
-            tabs={MAIN_TABS}
-            active={mainTab}
+          <SegmentedControl
+            options={MAIN_TABS}
+            value={mainTab}
             onChange={setMainTab}
+            ariaLabel="시설 종류"
           />
         </div>
 
@@ -209,13 +210,14 @@ export default function FacilitiesPage() {
             {/* 식당 세그먼트 탭 — 에러여도 data가 있으면 표시 */}
             {cafeteriaTabItems.length > 0 && (
               <div className="px-4 pb-2">
-                <SegmentTabs
-                  tabs={cafeteriaTabItems}
-                  active={String(selectedCafeteriaIdx)}
-                  onChange={(id) => {
-                    setSelectedCafeteriaIdx(Number(id))
+                <SegmentedControl
+                  options={cafeteriaTabItems}
+                  value={String(selectedCafeteriaIdx)}
+                  onChange={(next) => {
+                    setSelectedCafeteriaIdx(Number(next))
                     setSelectedDay(null)
                   }}
+                  ariaLabel="식당 선택"
                 />
               </div>
             )}

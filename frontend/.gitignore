@@ -13,7 +13,9 @@ dist-ssr
 *.local
 
 # 디자인 인벤토리 등 로컬 전용 스탠드얼론 페이지 (커밋 제외)
-test/
+# 선행 슬래시로 이 디렉터리 바로 아래만 가리킨다. 없으면 src/test(vitest 셋업)
+# 까지 매칭돼 그 안의 새 파일이 조용히 커밋에서 빠진다.
+/test/
 
 # Editor directories and files
 .vscode/*

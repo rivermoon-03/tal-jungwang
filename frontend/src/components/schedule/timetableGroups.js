@@ -10,7 +10,7 @@
  * 갈리는 걸 막기 위해 기존 관례를 그대로 따른다.
  */
 import { createElement } from 'react'
-import { formatEta, isImminent } from '../../utils/eta'
+import { formatEta, isImminent, IMMINENT_LABEL } from '../../utils/eta'
 import NowAnchorLine from './NowAnchorLine'
 
 // "HH:MM" → 하루 중 분(0~1439). 파싱 실패 시 null.
@@ -47,7 +47,7 @@ export function groupItemsByHour(items) {
 
 /**
  * anchorLabel(now, nextTime) — "지금" 앵커 알약 문구("지금 HH:MM · 다음 N분").
- * 임박 판정(곧 출발)과 "N분" 라운딩은 utils/eta.js에 위임한다(감사(2026-09) 이후
+ * 임박 판정과 "N분" 라운딩은 utils/eta.js에 위임한다(감사(2026-09) 이후
  * 임박 임계값 단일 출처 — 여기서 새로 만들지 않는다).
  *
  * @param {Date} now
@@ -68,7 +68,7 @@ export function anchorLabel(now, nextTime) {
   const seconds = (targetMins - nowMins) * 60
 
   const { text } = formatEta(seconds)
-  const nextLabel = isImminent(seconds) ? '곧 출발' : `다음 ${text}`
+  const nextLabel = isImminent(seconds) ? IMMINENT_LABEL : `다음 ${text}`
   return `지금 ${nowStr} · ${nextLabel}`
 }
 

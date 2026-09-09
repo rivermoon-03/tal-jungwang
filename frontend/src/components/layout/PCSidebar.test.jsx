@@ -69,6 +69,17 @@ describe('PCSidebar', () => {
     expect(screen.queryByText('즐겨찾기')).not.toBeInTheDocument()
   })
 
+  it('신규 스키마(favorites.keys)로 저장한 별도 목록에 뜬다', () => {
+    // 시간표·노선 상세는 keys 에 쓴다. 예전엔 사이드바가 routes 만 읽어서
+    // 그 별들이 통째로 사라졌다.
+    storeState = {
+      ...storeState,
+      favorites: { routes: [], stations: [], venues: [], keys: ['shuttle:main:등교'] },
+    }
+    render(<PCSidebar />)
+    expect(screen.getByText('셔틀버스 등교')).toBeInTheDocument()
+  })
+
   it('즐겨찾기 노선이 있으면 목록에 렌더링한다', () => {
     storeState = {
       ...storeState,
@@ -77,7 +88,10 @@ describe('PCSidebar', () => {
     render(<PCSidebar />)
     expect(screen.getByText('즐겨찾기')).toBeInTheDocument()
     expect(screen.getByText('3400')).toBeInTheDocument()
-    expect(screen.getByText('정왕 up')).toBeInTheDocument()
+    // 저장 키를 그대로 자르면 "정왕 up" 이라는 내부 값이 화면에 찍힌다.
+    // parseFavCode 를 거쳐 사람이 읽는 행선지로 바꾼다.
+    expect(screen.getByText('정왕 왕십리행')).toBeInTheDocument()
+    expect(screen.queryByText('정왕 up')).not.toBeInTheDocument()
   })
 
   it('다크모드 토글 버튼 클릭 시 toggleDarkMode를 호출한다', () => {

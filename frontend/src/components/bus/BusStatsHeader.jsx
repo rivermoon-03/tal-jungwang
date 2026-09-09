@@ -21,7 +21,7 @@ export default function BusStatsHeader({ stats, dayLabel, hourLabel }) {
               <StatusChip kind="last">데이터 부족</StatusChip>
             )}
           </div>
-          <span className="text-eta-mob font-bold text-ink dark:text-white leading-none tabular-nums">
+          <span className="text-eta text-ink dark:text-white leading-none tabular-nums">
             약 {stats.mean_min}분
           </span>
         </div>

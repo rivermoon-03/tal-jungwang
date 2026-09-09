@@ -208,6 +208,42 @@ describe('tokenRules — src/ 전역 디자인 토큰 준수', () => {
     expect(SOURCE_FILES.length).toBeGreaterThan(50)
   })
 
+  // 도착 숫자는 규격이 두 개다 — 목록 행은 text-eta-num(22/800), 화면에 한 장만
+  // 놓이는 카드는 text-eta(28/800). 감사(2026-09) 시점에는 앱 전체에서 여덟
+  // 크기 세 굵기로 렌더되고 있었다. 새 크기가 다시 들어오는 것을 막는다.
+  it('a) 도착 숫자 크기는 eta / eta-num 둘뿐이다', () => {
+    const allowed = new Set(['text-eta', 'text-eta-num'])
+    const violations = []
+    for (const file of SOURCE_FILES) {
+      const src = fs.readFileSync(file, 'utf8')
+      for (const m of src.match(/text-eta[a-z-]*/g) ?? []) {
+        if (!allowed.has(m)) violations.push(`${relPath(file)}: ${m}`)
+      }
+    }
+    expect(violations, `규격 밖 도착 숫자 크기:\n${violations.join('\n')}`).toEqual([])
+  })
+
+  // 같은 목록의 같은 열에서 버스가 "곧 도착", 지하철이 "곧", 셔틀이 "곧 출발"
+  // 이었다. 임박 문구는 utils/eta.js 의 IMMINENT_LABEL 하나만 쓴다.
+  it('a) 임박 문구를 문자열 리터럴로 직접 쓰지 않는다', () => {
+    // 두 곳은 ETA 값이 아니라서 뺀다. BusPanel 의 "곧 도착" 은 5분 이내 노선을
+    // 모으는 섹션 제목이고, GlobalSubwayDetailSheet 는 지하철 API 의
+    // status_code(진입·도착·출발)를 옮겨 적는 자리다.
+    const NOT_AN_ETA_VALUE = new Set([
+      'src/components/summary/BusPanel.jsx',
+      'src/components/subway/GlobalSubwayDetailSheet.jsx',
+    ])
+    const violations = []
+    for (const file of SOURCE_FILES) {
+      if (NOT_AN_ETA_VALUE.has(relPath(file))) continue
+      const src = fs.readFileSync(file, 'utf8')
+      for (const m of src.match(/['"`]곧 (도착|출발)['"`]/g) ?? []) {
+        violations.push(`${relPath(file)}: ${m}`)
+      }
+    }
+    expect(violations, `임박 문구 리터럴 잔존:\n${violations.join('\n')}`).toEqual([])
+  })
+
   it('a) text-slate-*/text-gray-* 생색 클래스를 쓰지 않는다', () => {
     const violations = []
     for (const file of SOURCE_FILES) {

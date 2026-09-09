@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react'
 import { ChevronLeft, BusFront, MapPin, Clock } from 'lucide-react'
 import { useBusTimetable, useBusHistoryPreview, useBusArrivalStats } from '../../hooks/useBus'
 import { ROUTE_WAYPOINTS, getGbisStationIdForRoute } from '../dashboard/busStationConfig'
-import { RouteProgressStrip } from './BusArrivalCard'
+import RouteProgressStrip from './RouteProgressStrip'
 import BusStatsHeader from './BusStatsHeader'
 import DataBadge from '../ui/DataBadge'
 import IconButton from '../ui/IconButton'
@@ -239,8 +239,8 @@ export default function BusTimetableDetail({ routeId, routeNo, destination, stat
                     )}
                     <span className={`tabular-nums min-w-[60px] tracking-tight ${
                       isNext
-                        ? 'text-eta-mob font-bold text-line-4 dark:text-accent pl-1.5'
-                        : 'text-eta-mob font-bold text-ink dark:text-ink'
+                        ? 'text-eta text-line-4 dark:text-accent pl-1.5'
+                        : 'text-eta text-ink dark:text-ink'
                     }`}>
                       {t}
                     </span>

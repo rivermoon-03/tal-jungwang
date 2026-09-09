@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { crowdedColor } from '../../utils/crowdingPalette'
-import { labelFromRatio, labelFromLevel } from '../../utils/crowdingLevel'
+import { labelFromRatio, labelFromLevel, levelFromRatio } from '../../utils/crowdingLevel'
 
 // 48개 버킷(30분) × 높이 = 혼잡도/4. 호버하면 tooltip + 현재 시각 dashed line.
 const W = 320
@@ -214,14 +214,21 @@ export default function CrowdingChart({ points, nowMinutes = null, stroke = '#ff
           <div className="text-caption text-mute tabular-nums text-center">
             {String(active.hour).padStart(2, '0')}:{String(active.minute).padStart(2, '0')}
           </div>
-          <div className="text-label font-bold text-center" style={{ color: crowdedColor(active.point.crowded) }}>
+          {/* 색도 글자와 같은 축(비율)에서 뽑는다. 색을 평균에서 뽑으면
+              "매우 혼잡"이 "보통"의 노란색으로 나온다. */}
+          <div
+            className="text-label font-bold text-center"
+            style={{ color: crowdedColor(levelFromRatio(active.point.ratio)) }}
+          >
             {labelFromRatio(active.point.ratio, {
               estimated: active.point.estimated,
               reliable: active.point.reliable,
             })}
           </div>
+          {/* 평균 대신 분포를 그대로 적는다 — 평균은 하한이 1이라 실제로
+              존재한 어떤 버스도 설명하지 못한다. */}
           <div className="text-caption text-mute text-center tabular-nums">
-            평균 {active.point.crowded.toFixed(2)} · {active.point.samples}건
+            {active.point.samples}대 중 {Math.round(active.point.ratio * active.point.samples)}대 혼잡
           </div>
         </div>
       )}

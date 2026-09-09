@@ -3,14 +3,17 @@
  *
  * 감사(2026-09) 전에는 ArrivalEtaCard.jsx(90초 임계)·BusEtaCard.jsx(60초 임계로
  * 텍스트를 바꾸지만 강조는 180초까지 유지)·arrivalTime.js(60초 임계)·
- * busArrivalDisplay.js가 각자 "곧 도착" 임계값과 라운딩을 따로 들고 있었다.
+ * busArrivalDisplay.js가 각자 임박 임계값과 라운딩을 따로 들고 있었다.
  * 특히 BusEtaCard는 텍스트 전환(60초)과 빨간 강조(180초) 임계가 서로 달라
  * "2분 후"가 빨갛게 뜨는 버그가 있었다. 이 파일이 임박 임계값·라운딩·60분
  * 초과 절대시각 전환 규칙을 정하고, arrivalTime.js·busArrivalDisplay.js와
  * 카드 컴포넌트들은 여기에 위임한다.
  *
- * 문구는 "N분" 하나로 통일한다 — "후"/"뒤" 같은 접미사는 붙이지 않는다.
- * 접미사가 필요한 화면(BusEtaCard의 "N분 후" 등)은 호출부에서 직접 붙인다.
+ * 문구는 "N분" 하나로 통일한다. "후"/"뒤" 같은 접미사는 붙이지 않는다.
+ *
+ * 임박 문구도 하나다. 같은 목록의 같은 열에서 모드마다 다른 낱말이 섞이면
+ * 훑는 속도가 떨어진다. 도착과 출발의 구분은 부제가 하는 일이고, 임박
+ * 자리에는 IMMINENT_LABEL 하나만 쓴다.
  */
 
 const KST_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
@@ -24,7 +27,7 @@ export function formatHHMM(ms) {
   return KST_FORMATTER.format(new Date(ms))
 }
 
-// "곧 도착" 텍스트 전환 + 빨간 강조(imminent) 공용 임계값(초) — 반드시 하나만 둔다.
+// 임박 문구 전환 + 빨간 강조(imminent) 공용 임계값(초). 반드시 하나만 둔다.
 //
 // 90초를 고른 근거: 리팩터 전에도 ArrivalEtaCard.jsx가 90초를 썼고,
 // BusArrivalCard.jsx·SchedulePage.jsx는 각각 "eta.js와 동일하게 90초"라는
@@ -34,8 +37,20 @@ export function formatHHMM(ms) {
 // 원인이었던 쪽이다. 그래서 60초가 아니라 90초로 통일한다.
 export const IMMINENT_THRESHOLD_SEC = 90
 
+// 임박 자리에 들어가는 유일한 문구. 도착이냐 출발이냐는 이 낱말이 말하지 않는다.
+export const IMMINENT_LABEL = '곧'
+
 export function isImminent(seconds) {
   return seconds != null && seconds <= IMMINENT_THRESHOLD_SEC
+}
+
+// 분 단위 값만 가진 화면(지도 마커, 시간표 목록의 시간열)용 같은 판정.
+// 초를 안 가진 자리에서 각자 "3분 이하"·"1분 이하"로 다르게 재던 것을 여기로 모은다.
+// 같은 목록의 같은 열에서 버스는 90초에, 지하철은 60초에 강조로 바뀌던 원인이었다.
+export const IMMINENT_THRESHOLD_MIN = Math.floor(IMMINENT_THRESHOLD_SEC / 60)
+
+export function isImminentMinutes(minutes) {
+  return typeof minutes === 'number' && minutes <= IMMINENT_THRESHOLD_MIN
 }
 
 /**
@@ -52,7 +67,7 @@ export function formatEta(seconds, opts = {}) {
   }
 
   if (isImminent(seconds)) {
-    return { text: '곧 도착', tone: 'imminent' }
+    return { text: IMMINENT_LABEL, tone: 'imminent' }
   }
 
   const min = Math.floor(seconds / 60)

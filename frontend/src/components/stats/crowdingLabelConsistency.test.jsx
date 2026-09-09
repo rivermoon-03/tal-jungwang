@@ -3,7 +3,7 @@
  *
  * 배경: StatusChips는 utils/crowdingLevel.labelFromRatio(정본)를 쓰는데
  * CrowdingCard는 한때 utils/crowdingPalette.crowdedLabel(구버전, 평균 기준)을
- * 써서, 같은 화면 안에서 같은 노선이 "보통"이자 "붐빔"으로 동시에 보였다.
+ * 써서, 같은 화면 안에서 같은 노선이 "보통"이자 "혼잡"으로 동시에 보였다.
  * 이 파일은 같은 입력(ratio/estimated/reliable)에 대해 두 컴포넌트가
  * 항상 같은 라벨 문자열을 렌더하는지 고정한다.
  */
@@ -26,7 +26,7 @@ vi.mock('../../hooks/useTrafficLive', () => ({
 }))
 
 // 시흥33 하교 17시 실측 사례(감사 보고서 원인) — 혼잡(≥3) 비율 46.6%.
-// 평균(crowded=2.1, "보통" 근처)과 비율(ratio=0.466, "매우 붐빔") 축이 갈라지는
+// 평균(crowded=2.1, "보통" 근처)과 비율(ratio=0.466, "매우 혼잡") 축이 갈라지는
 // 지점이라 두 컴포넌트가 실제로 같은 함수를 타는지 검증하기에 적합하다.
 const CROWD_DATA = {
   points: [
@@ -50,23 +50,25 @@ describe('혼잡도 라벨 일관성 — StatusChips vs CrowdingCard', () => {
 
   it('같은 시각·같은 노선 데이터에 대해 두 컴포넌트가 같은 라벨을 보여준다', () => {
     const { unmount } = render(<StatusChips />)
-    expect(screen.getByText('매우 붐빔')).toBeInTheDocument()
+    expect(screen.getByText('매우 혼잡')).toBeInTheDocument()
     unmount()
 
+    // CrowdingCard 는 같은 낱말 세트로 된 범례를 차트 아래 함께 그리므로
+    // 문서 전체 조회로는 값과 범례가 구분되지 않는다 — "지금" 값만 본다.
     render(<CrowdingCard />)
-    expect(screen.getByText('매우 붐빔')).toBeInTheDocument()
+    expect(screen.getByText('지금').nextElementSibling).toHaveTextContent('매우 혼잡')
   })
 
   it('CrowdingCard가 더 이상 평균(crowded) 기준 구버전 라벨을 쓰지 않는다', () => {
     // crowdedLabel(2.1)이면 "보통"이 나왔을 것 — 정본 함수(labelFromRatio)를
-    // 쓰면 ratio=0.466 기준 "매우 붐빔"이 나와야 한다.
+    // 쓰면 ratio=0.466 기준 "매우 혼잡"이 나와야 한다.
     //
     // "지금" 상태 표시 영역만 본다 — CrowdingChart가 항상 보이는 4단계 색 범례
-    // (여유/보통/혼잡/매우혼잡)를 차트 아래 함께 그리므로, 문서 전체에서 '보통'
+    // (여유/보통/혼잡/매우 혼잡)를 차트 아래 함께 그리므로, 문서 전체에서 '보통'
     // 문자열의 존재/부재만으로는 판정할 수 없다(범례는 정상적으로 '보통'을 포함한다).
     render(<CrowdingCard />)
     const nowValue = screen.getByText('지금').nextElementSibling
     expect(nowValue).not.toHaveTextContent('보통')
-    expect(nowValue).toHaveTextContent('매우 붐빔')
+    expect(nowValue).toHaveTextContent('매우 혼잡')
   })
 })

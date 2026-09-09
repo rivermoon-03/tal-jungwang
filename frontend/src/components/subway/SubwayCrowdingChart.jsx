@@ -44,7 +44,7 @@ export default function SubwayCrowdingChart({ station, lineName, direction, enab
   if (maxLevel <= 0 || peakHour == null) return null
 
   // em-dash("—")는 UI 렌더 텍스트 금지(tokenRules.test.js c항) — 구분자는 "·" 로 통일.
-  const conclusion = `${peakHour}시대 붐빔${
+  const conclusion = `${peakHour}시대 혼잡${
     relaxedHour != null ? ` · ${relaxedHour}시 이후 여유` : ''
   } · 교통카드 통계 기준`
   const ariaLabel = `시간대 혼잡 차트: ${conclusion}`

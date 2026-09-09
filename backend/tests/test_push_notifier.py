@@ -37,6 +37,24 @@ from app.services.push_notifier import ParsedFavCode
             "subway:초지:choji_up",
             ParsedFavCode(kind="subway", station_group="초지", subway_key="choji_up"),
         ),
+        # 신규 스키마(frontend/src/utils/favKey.js) — 시간표·노선 상세가 쓰는 형식.
+        # 이걸 못 읽던 시절 그 화면들에서 누른 별은 알림 대상에서 통째로 빠졌다.
+        # 숫자 식별자는 route_id 일 수도 노선번호일 수도 있다. 3400·5602 처럼
+        # 노선번호 자체가 숫자인 노선이 있어 문법으로는 못 가른다 — 둘 다 후보로
+        # 채우고 판정은 DB 조회가 한다.
+        (
+            "bus:3:하교",
+            ParsedFavCode(kind="bus", route_number="3", route_id=3, category="하교"),
+        ),
+        ("bus:20-1:하교", ParsedFavCode(kind="bus", route_number="20-1", category="하교")),
+        (
+            "bus:5602:등교",
+            ParsedFavCode(kind="bus", route_number="5602", route_id=5602, category="등교"),
+        ),
+        ("shuttle:main:등교", ParsedFavCode(kind="shuttle", direction=0)),
+        ("shuttle:main:하교", ParsedFavCode(kind="shuttle", direction=1)),
+        ("shuttle:second:등교", ParsedFavCode(kind="shuttle", direction=2)),
+        ("shuttle:second:하교", ParsedFavCode(kind="shuttle", direction=3)),
     ],
 )
 def test_parse_fav_code_valid(fav_code, expected):
@@ -53,6 +71,11 @@ def test_parse_fav_code_valid(fav_code, expected):
         "subway:정왕:unknown_key",
         "subway::up",  # station_group 빈 문자열
         "등교:",  # route_number 빈 문자열
+        "bus::하교",  # 신규 스키마 id 빈 문자열
+        "bus:3",  # 세그먼트 부족
+        "bus:3:하교:추가",  # 세그먼트 초과
+        "shuttle:없는캠퍼스:등교",
+        "shuttle:main:없는방향",
     ],
 )
 def test_parse_fav_code_invalid_returns_none(fav_code):
@@ -132,6 +155,47 @@ async def test_resolve_bus_edges_no_times_returns_none():
     ):
         result = await pn._resolve_bus_edges(db=None, parsed=parsed, d=date(2026, 7, 18))
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_bus_edges_falls_back_to_route_number_for_numeric_id():
+    """숫자 식별자가 route_id 로 안 풀리면 노선번호로 다시 본다.
+
+    "bus:5602:등교" 의 5602 는 route_id 가 아니라 노선번호다. route_id 로 단정하면
+    시간표를 못 찾아 알림 대상에서 조용히 빠진다.
+    """
+    parsed = pn.parse_fav_code("bus:5602:등교")
+    with (
+        patch.object(pn.bus_service, "get_timetable", new=AsyncMock(return_value=None)) as by_id,
+        patch.object(
+            pn.bus_service,
+            "get_timetable_by_route_number",
+            new=AsyncMock(return_value={"times": ["05:32", "21:40"]}),
+        ) as by_number,
+    ):
+        result = await pn._resolve_bus_edges(db=None, parsed=parsed, d=date(2026, 7, 18))
+
+    by_id.assert_awaited_once_with(None, 5602, date(2026, 7, 18))
+    by_number.assert_awaited_once_with(None, "5602", date(2026, 7, 18), category="등교")
+    assert result["label"] == "5602번"
+
+
+@pytest.mark.asyncio
+async def test_resolve_bus_edges_prefers_route_id_when_it_resolves():
+    """route_id 로 풀리면 라벨은 응답의 노선명을 쓴다 — "3번" 이 되면 안 된다."""
+    parsed = pn.parse_fav_code("bus:3:하교")
+    with (
+        patch.object(
+            pn.bus_service,
+            "get_timetable",
+            new=AsyncMock(return_value={"times": ["06:00", "22:10"], "route_name": "시흥33"}),
+        ),
+        patch.object(pn.bus_service, "get_timetable_by_route_number", new=AsyncMock()) as by_number,
+    ):
+        result = await pn._resolve_bus_edges(db=None, parsed=parsed, d=date(2026, 7, 18))
+
+    by_number.assert_not_awaited()
+    assert result["label"] == "시흥33번"
 
 
 @pytest.mark.asyncio

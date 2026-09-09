@@ -16,6 +16,7 @@ import Skeleton from '../common/Skeleton'
 import SubwayCrowdingChart from './SubwayCrowdingChart'
 import { isRealtimeFresh } from './realtimeFreshness'
 import { useNow } from '../../hooks/useNow'
+import { isImminent, IMMINENT_LABEL } from '../../utils/eta'
 
 // DESIGN.md §4 모션 이징 — PC 크로스페이드 전용(모바일은 Sheet가 담당).
 const EASE = 'var(--e-out)'
@@ -55,7 +56,7 @@ function getEtaLabel(rtTrain) {
   if (rtTrain.status_code === 1 || rtTrain.status_code === 2) return '이미 도착'
   if (rtTrain.status_code === 0) return '진입 중'
   if (typeof secs === 'number' && secs > 0) {
-    if (secs < 60) return '곧 도착'
+    if (isImminent(secs)) return IMMINENT_LABEL
     return `${Math.ceil(secs / 60)}분`
   }
   if ([3, 4, 5].includes(rtTrain.status_code)) return '곧 도착'
@@ -251,7 +252,7 @@ export default function GlobalSubwayDetailSheet() {
     const secs = nextRealtimeTrain.arrive_seconds
     if (typeof secs === 'number' && secs > 0) {
       etaMinutes = Math.ceil(secs / 60)
-      etaUrgent = secs < 180
+      etaUrgent = isImminent(secs)
     }
     const statusCode = nextRealtimeTrain.status_code
     if ([0, 1, 2].includes(statusCode)) etaUrgent = true
@@ -486,7 +487,7 @@ export default function GlobalSubwayDetailSheet() {
             {secondRealtimeTrain && (
               <div className="flex items-center gap-2 px-4 py-3 border-t border-line dark:border-line">
                 <div className="w-[5px] h-[5px] rounded-full bg-mute dark:bg-mute flex-shrink-0" />
-                <p className="text-label font-semibold text-ink-2 dark:text-ink-2-dark">
+                <p className="text-label font-semibold text-ink-2">
                   다음 열차{' '}
                   <span className="font-semibold text-ink dark:text-ink">
                     {getEtaLabel(secondRealtimeTrain)}
