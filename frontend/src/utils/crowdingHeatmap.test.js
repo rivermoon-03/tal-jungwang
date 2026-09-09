@@ -66,7 +66,7 @@ describe('crowdedToneStyle', () => {
   })
 
   it('낮은 비율일수록 ease 비중이, 높은 비율일수록 delayed 비중이 커진다', () => {
-    // 라벨 임계(붐빔 15%, 매우 붐빔 35%)와 색 구간이 같은 축을 쓴다
+    // 라벨 임계(혼잡 15%, 매우 혼잡 35%)와 색 구간이 같은 축을 쓴다
     const easeHeavy = crowdedToneStyle(0.02)
     const delayedHeavy = crowdedToneStyle(0.34)
     expect(easeHeavy.style.backgroundColor).toMatch(/var\(--tj-ease\) 8\d%/)

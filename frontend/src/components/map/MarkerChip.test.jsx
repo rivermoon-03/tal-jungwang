@@ -123,7 +123,7 @@ describe('createSubwayMultiChipElement — 다크 대응', () => {
   })
 
   it('subwayData가 있을 때 분 값이 렌더된다', () => {
-    // arrive_in_seconds: 240 = 4분 (3분 이하는 "곧 도착"으로 표시되므로 4분 사용)
+    // arrive_in_seconds: 240 = 4분 (3분 이하는 "곧"으로 표시되므로 4분 사용)
     const el = createSubwayMultiChipElement({
       subwayData: {
         up: { arrive_in_seconds: 240 },
@@ -282,7 +282,7 @@ describe('시안1 — createSubwayMultiChipElement 정보 밀도형 구조', () 
   })
 
   it('subwayData가 있을 때 live 영역에 분 값이 렌더된다', () => {
-    // 4분(240초): 3분 이하는 "곧 도착"으로 표시되므로 4분으로 테스트
+    // 4분(240초): 3분 이하는 "곧"으로 표시되므로 4분으로 테스트
     const el = createSubwayMultiChipElement({
       subwayData: { up: { arrive_in_seconds: 240 }, down: null, line4_up: null, line4_down: null },
     })
@@ -405,15 +405,15 @@ describe('createMarkerChipElement 분 출처 표기', () => {
     expect(el.querySelector('.animate-dot-blink')).toBeNull()
   })
 
-  it('시간표 값은 예정이라고 말한다 — 곧 도착으로 바꾸지 않는다', () => {
+  it('시간표 값은 예정이라고 말한다 — 곧으로 바꾸지 않는다', () => {
     const el = chipOf({ liveMinutes: 1, minutesSource: 'timetable' })
     expect(el.textContent).toContain('1분 뒤 예정')
-    expect(el.textContent).not.toContain('곧 도착')
+    expect(el.textContent).not.toContain('곧')
   })
 
-  it('실시간 임박은 곧 도착으로 바꾼다', () => {
+  it('실시간 임박은 곧으로 바꾼다', () => {
     const el = chipOf({ liveMinutes: 1, minutesSource: 'realtime' })
-    expect(el.textContent).toContain('곧 도착')
+    expect(el.textContent).toContain('곧')
   })
 
   it('출처를 안 주면 실시간으로 본다 — 기존 호출부 호환', () => {

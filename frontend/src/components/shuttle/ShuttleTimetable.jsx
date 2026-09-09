@@ -20,7 +20,7 @@ import { Bell, BellRing } from 'lucide-react'
 import { useIsNarrowPhone } from '../../hooks/useMediaQuery'
 import { useShuttleAlarms } from '../../hooks/useShuttleNotification'
 import { scrollToCenter, scrollToCenterX } from '../../utils/scrollToCenter'
-import { formatEta, isImminent } from '../../utils/eta'
+import { formatEta, isImminent, IMMINENT_LABEL } from '../../utils/eta'
 import ShuttleNotifySheet from './ShuttleNotifySheet'
 
 
@@ -33,7 +33,7 @@ import ShuttleNotifySheet from './ShuttleNotifySheet'
 // (임박 임계값·"N분" 서식을 화면마다 새로 만들지 않는다).
 function nextLabel(diffMin) {
   const seconds = diffMin * 60
-  if (isImminent(seconds)) return '곧 출발'
+  if (isImminent(seconds)) return IMMINENT_LABEL
   return `${formatEta(seconds).text} 뒤`
 }
 

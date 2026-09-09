@@ -1,5 +1,5 @@
 // ETA 임박 판정은 eta.js 하나만 쓴다(분 단위 화면용 래퍼).
-import { isImminentMinutes as isImminent } from '../../utils/eta'
+import { isImminentMinutes as isImminent, IMMINENT_LABEL } from '../../utils/eta'
 /**
  * MarkerChip — 시안1 정보 밀도형 마커 칩.
  *
@@ -173,7 +173,7 @@ function makeBlip(imminentEta) {
 /** 마커 분 표기. 시간표 값에는 임박 문구를 쓰지 않는다 — 예보가 아니라 예정이다. */
 function formatMarkerMinutes(minutes, isRealtime) {
   if (!isRealtime) return `${minutes}분 뒤 예정`
-  return isImminent(minutes) ? '곧 도착' : `${minutes}분`
+  return isImminent(minutes) ? IMMINENT_LABEL : `${minutes}분`
 }
 
 // 시안1: pill(999px) · [dot | name | live/sub] + tail
@@ -402,7 +402,7 @@ export function createSubwayMultiChipElement({ subwayData, onClick }) {
   if (earliestMin != null) {
     liveEl.appendChild(makeBlip(imminentEta))
     const textSpan = document.createElement('span')
-    textSpan.textContent = isImminent(earliestMin) ? '곧 도착' : `${earliestMin}분`
+    textSpan.textContent = isImminent(earliestMin) ? IMMINENT_LABEL : `${earliestMin}분`
     liveEl.appendChild(textSpan)
   } else {
     const textSpan = document.createElement('span')
@@ -546,7 +546,7 @@ export function createSeohaeSiheungChipElement({ stationName, upMinutes, dnMinut
   if (bestMin != null) {
     liveEl.appendChild(makeBlip(imminentEta))
     const textSpan = document.createElement('span')
-    textSpan.textContent = isImminent(bestMin) ? '곧 도착' : `${bestMin}분`
+    textSpan.textContent = isImminent(bestMin) ? IMMINENT_LABEL : `${bestMin}분`
     liveEl.appendChild(textSpan)
   } else {
     const textSpan = document.createElement('span')

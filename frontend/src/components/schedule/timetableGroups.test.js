@@ -69,9 +69,9 @@ describe('anchorLabel', () => {
     expect(anchorLabel(now, '21:48')).toBe('지금 21:45 · 다음 3분')
   })
 
-  it('임박(90초 이하)이면 "곧 출발"로 표시한다', () => {
+  it('임박(90초 이하)이면 "곧"로 표시한다', () => {
     const now = new Date(2026, 8, 1, 21, 45, 0)
-    expect(anchorLabel(now, '21:46')).toBe('지금 21:45 · 곧 출발')
+    expect(anchorLabel(now, '21:46')).toBe('지금 21:45 · 곧')
   })
 
   it('현재 시각(now)의 시/분을 그대로 앞부분에 붙인다', () => {
@@ -89,7 +89,7 @@ describe('anchorLabel', () => {
 
   it('now의 초가 0이 아니어도 임박(90초 이하) 판정은 분 차이 기준으로 흔들리지 않는다', () => {
     const now = new Date(2026, 8, 1, 21, 45, 50)
-    expect(anchorLabel(now, '21:46')).toBe('지금 21:45 · 곧 출발')
+    expect(anchorLabel(now, '21:46')).toBe('지금 21:45 · 곧')
   })
 })
 

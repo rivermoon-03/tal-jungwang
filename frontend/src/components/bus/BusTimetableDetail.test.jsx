@@ -35,8 +35,8 @@ vi.mock('../dashboard/busStationConfig', () => ({
   getGbisStationIdForRoute: () => 'stop-1',
 }))
 
-vi.mock('./BusArrivalCard', () => ({
-  RouteProgressStrip: () => <div data-testid="route-strip" />,
+vi.mock('./RouteProgressStrip', () => ({
+  default: () => <div data-testid="route-strip" />,
 }))
 
 vi.mock('./BusStatsHeader', () => ({

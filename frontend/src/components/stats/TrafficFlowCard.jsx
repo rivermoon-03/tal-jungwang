@@ -3,6 +3,7 @@ import { useTrafficFlow } from '../../hooks/useTrafficFlow'
 import { useTrafficLive } from '../../hooks/useTrafficLive'
 import ChartSkeleton from './ChartSkeleton'
 import FlowChart from './FlowChart'
+import { trafficLevelFromSpeed } from '../../utils/trafficLevel'
 
 const DIRECTION_TABS = [
   { id: 'to_school',  label: '등교', hint: '정왕역 → 학교' },
@@ -15,16 +16,10 @@ function isWeekend(d = new Date()) {
   return d.getDay() === 0 || d.getDay() === 6
 }
 
-// 3단계(원활/서행/정체)를 3색으로 분리한다. 예전엔 서행·정체가 둘 다 text-imminent라
-// 색만 훑어서는 구분이 안 되고 글자를 읽어야 했다 — imminent(곧·주의)는 서행에,
-// delayed(지연·경고)는 정체에 배정해 두 단계가 시각적으로도 갈리게 한다.
-const SPEED_LABEL_COLOR = { 원활: 'text-ease', 서행: 'text-imminent', 정체: 'text-delayed' }
-
 function speedStatus(kmh) {
-  if (kmh == null) return { label: '--', sub: null, colorClass: 'text-mute' }
-  if (kmh >= 25) return { label: '원활', sub: `${kmh.toFixed(0)} km/h`, colorClass: SPEED_LABEL_COLOR.원활 }
-  if (kmh >= 15) return { label: '서행', sub: `${kmh.toFixed(0)} km/h`, colorClass: SPEED_LABEL_COLOR.서행 }
-  return { label: '정체', sub: `${kmh.toFixed(0)} km/h`, colorClass: SPEED_LABEL_COLOR.정체 }
+  const level = trafficLevelFromSpeed(kmh)
+  if (!level) return { label: '--', sub: null, colorClass: 'text-mute' }
+  return { label: level.label, sub: `${kmh.toFixed(0)} km/h`, colorClass: level.cls }
 }
 
 export default function TrafficFlowCard() {
@@ -66,9 +61,9 @@ export default function TrafficFlowCard() {
     })
     if (!future.length) return null
     const worst = future.reduce((a, b) => (a.speed < b.speed ? a : b))
-    if (worst.speed >= 25) return null // 원활하면 표시 안 함
-    const label = worst.speed >= 15 ? '서행' : '정체'
-    return { hour: worst.hour, minute: worst.minute ?? 0, label, speed: worst.speed }
+    const level = trafficLevelFromSpeed(worst.speed)
+    if (!level || level.key === 'smooth') return null // 원활하면 표시 안 함
+    return { hour: worst.hour, minute: worst.minute ?? 0, level, speed: worst.speed }
   }, [points, nowMinutes])
 
   const hasData = points.length > 0
@@ -133,8 +128,8 @@ export default function TrafficFlowCard() {
               <div className="text-caption font-bold text-mute tracking-wide mb-1.5">
                 {String(futurePeak.hour).padStart(2, '0')}시경 예상
               </div>
-              <div className={`text-head font-semibold tracking-tight ${SPEED_LABEL_COLOR[futurePeak.label] ?? 'text-imminent'}`}>
-                {futurePeak.label}
+              <div className={`text-head font-semibold tracking-tight ${futurePeak.level.cls}`}>
+                {futurePeak.level.label}
               </div>
             </div>
           )}

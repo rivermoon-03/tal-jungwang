@@ -25,7 +25,7 @@ import Skeleton from '../common/Skeleton'
 import Sheet from '../ui/Sheet'
 import IconButton from '../ui/IconButton'
 import ErrorState from '../ui/ErrorState'
-import { RouteProgressStrip } from '../bus/BusArrivalCard'
+import RouteProgressStrip from '../bus/RouteProgressStrip'
 import { ROUTE_WAYPOINTS, getGbisStationIdForRoute, getRouteDisplayConfig } from '../dashboard/busStationConfig'
 import BusStatsHeader from '../bus/BusStatsHeader'
 import BusEtaCard from '../bus/BusEtaCard'
@@ -50,6 +50,7 @@ import {
 } from '../shuttle/shuttlePeriods'
 import SegmentedControl from '../ui/SegmentedControl'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
+import { IMMINENT_LABEL } from '../../utils/eta'
 
 /**
  * 셔틀 알림(종 버튼 + 예약 시트) 노출 스위치.
@@ -74,7 +75,7 @@ function minutesUntil(hhmm, now = new Date()) {
 }
 
 function fmtDelta(mins) {
-  if (mins <= 0) return '곧 출발'
+  if (mins <= 0) return IMMINENT_LABEL
   if (mins < 60) return `${mins}분 뒤`
   const h = Math.floor(mins / 60)
   const m = mins % 60
@@ -638,7 +639,7 @@ function ShuttleContent({ direction, onDirectionChange, scrollContainerRef }) {
             borderLeft: '4px solid #d4a14a',
           }}
         >
-          <span className="text-eta-sm font-normal leading-none mt-0.5 flex-shrink-0">⚠</span>
+          <span className="text-num-sm font-normal leading-none mt-0.5 flex-shrink-0">⚠</span>
           <div className="flex-1 min-w-0 dark:text-[#d4a14a]" style={{ color: '#a07517' }}>
             <div className="text-label font-semibold tracking-tight leading-tight">
               {isSecondCampus

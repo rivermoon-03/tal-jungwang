@@ -19,20 +19,14 @@ import { formatEta, isImminent } from '../../utils/eta'
 import { describeEtaAccuracy, shouldShowAccuracy } from '../../utils/etaAccuracy'
 
 // arrive_in_seconds → 표시 문자열 + imminent 여부.
-//
-// "초 → 표시 문자열" 변환과 임박 임계값은 utils/eta.js에 위임한다. 예전엔 이
-// 함수가 텍스트 전환은 60초, 빨간 강조는 180초로 서로 다른 임계를 써서
-// "2분 후"(120~179초)가 빨갛게 뜨는 버그가 있었다 — 이제 둘 다 eta.js의
-// IMMINENT_THRESHOLD_SEC(90초) 하나로 맞춘다.
-// "이미 도착"(음수)은 eta.js에 없는 이 카드만의 상태라 여기서 얹는다.
+// 문구와 임계는 utils/eta.js 하나에서 온다. 접미사("N분 후")를 붙이지 않는
+// 이유도 거기 적혀 있다 — 같은 값이 화면마다 다른 문구로 보이지 않게 한다.
 function formatEtaLocal(sec) {
-  if (sec == null) return { text: '·', imminent: false }
-  if (sec < 0) return { text: '이미 도착', imminent: true }
+  if (sec == null) return { text: '운행 정보 없음', imminent: false }
+  // 음수는 eta.js에 없는 이 카드만의 상태다(예보 시각이 이미 지난 경우).
+  if (sec < 0) return { text: '곧', imminent: true }
   const { text } = formatEta(sec)
-  // eta.js는 접미사 없는 "N분"을 준다 — 이 카드는 "N분 후"로 붙여 쓴다.
-  // ("곧 도착"이나 60분 초과의 절대 시각(HH:MM)에는 접미사를 붙이지 않는다.)
-  const suffixed = /^\d+분$/.test(text) ? `${text} 후` : text
-  return { text: suffixed, imminent: isImminent(sec) }
+  return { text, imminent: isImminent(sec) }
 }
 
 function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
@@ -87,7 +81,7 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
         </div>
         <div>
           <div
-            className={`text-eta-mob font-bold tabular-nums ${
+            className={`text-eta tabular-nums ${
               imminent
                 ? 'text-imminent dark:text-imminent'
                 : 'text-ink dark:text-ink'
@@ -151,12 +145,12 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
           </span>
         </div>
         <div>
-          {/* 각 조각을 flex-wrap 아이템으로 분리 — 큰 숫자(text-eta-mob, lineHeight 1.0)와
+          {/* 각 조각을 flex-wrap 아이템으로 분리 — 큰 숫자(text-eta, lineHeight 1.0)와
               작은 단어("보통"/"쯤 도착")를 한 인라인 블록에 섞으면 좁은 폭에서 줄바꿈될 때
               줄간격이 없어 다음 줄과 겹쳐 보이는 문제가 있었다(실사용 리포트: 3400·99-2). */}
           <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5">
             <span className="text-body font-semibold text-ink dark:text-ink">보통</span>
-            <span className="text-eta-mob font-bold tabular-nums text-ink dark:text-ink">{predictedEta.hhmm}</span>
+            <span className="text-eta tabular-nums text-ink dark:text-ink">{predictedEta.hhmm}</span>
             <span className="text-body font-semibold text-mute dark:text-mute">쯤 도착</span>
           </div>
           <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
@@ -175,7 +169,6 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
         <StatusChip kind="last">도착 정보 없음</StatusChip>
       </div>
       <div>
-        <div className="text-eta-mob font-bold text-mute dark:text-mute">·</div>
         <p className="mt-2 text-caption leading-relaxed font-medium text-ink-2 dark:text-ink-2">
           지금 실시간 도착 정보가 들어오지 않고, 같은 요일·시간대 과거 기록도 충분하지 않아 평소
           도착 시각을 알려드리기 어려워요.

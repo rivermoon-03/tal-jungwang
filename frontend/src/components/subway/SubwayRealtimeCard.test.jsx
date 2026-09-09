@@ -46,7 +46,7 @@ const DOWN_TRAIN = {
   line: '수인분당선',
   direction: '하행',
   destination: '인천',
-  arrive_seconds: 90,    // 1분 30초 → formatEta: '곧 도착'
+  arrive_seconds: 90,    // 1분 30초 → formatEta: '곧'
   status_code: null,
   status_msg: null,
   smart_status: null,
@@ -111,9 +111,9 @@ describe('RealtimeCompactCard — demoted 모드 "참고" 라벨', () => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('RealtimeSlot — formatEta 기반 ETA 텍스트', () => {
-  it('arrive_seconds=90 → "곧 도착" 렌더 (imminent)', () => {
+  it('arrive_seconds=90 → "곧" 렌더 (imminent)', () => {
     render(<RealtimeSlot train={DOWN_TRAIN} dir="하행" align="left" />)
-    expect(screen.getByText('곧 도착')).toBeTruthy()
+    expect(screen.getByText('곧')).toBeTruthy()
   })
 
   it('arrive_seconds=240 → "4분" 렌더', () => {

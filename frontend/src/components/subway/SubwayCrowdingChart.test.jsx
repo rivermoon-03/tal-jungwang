@@ -6,7 +6,7 @@
  *      — "실데이터 없는 동안 UI 미노출" 정책 (가짜 시드 금지).
  *   2. 데이터가 있으면 role="img" + aria-label 요약, 06~23시 18개 막대.
  *   3. 현재 시간대 막대만 bg-accent(불투명) + "N시" 라벨.
- *   4. 결론 한 줄: "{N}시대 붐빔 — {M}시 이후 여유 · 교통카드 통계 기준".
+ *   4. 결론 한 줄: "{N}시대 혼잡 — {M}시 이후 여유 · 교통카드 통계 기준".
  *   5. 12px 미만 폰트(text-[8~11px]) 미사용.
  */
 import { render } from '@testing-library/react'
@@ -129,7 +129,7 @@ describe('SubwayCrowdingChart — 데이터 있을 때', () => {
     const img = container.querySelector('[role="img"]')
     expect(img).toBeTruthy()
     expect(img.getAttribute('aria-label')).toMatch(/시간대 혼잡/)
-    expect(img.getAttribute('aria-label')).toMatch(/8시대 붐빔/)
+    expect(img.getAttribute('aria-label')).toMatch(/8시대 혼잡/)
   })
 
   it('06~23시 막대 18개가 그려진다', () => {
@@ -158,7 +158,7 @@ describe('SubwayCrowdingChart — 데이터 있을 때', () => {
     const { container } = render(<SubwayCrowdingChart {...BASE_PROPS} />)
     // 피크 8시(1.0), 현재 8시 이후 level<0.4 첫 시각 = 20시(0.35).
     // em-dash 는 UI 텍스트 금지(tokenRules c항)라 구분자는 "·" 다.
-    expect(container.textContent).toMatch(/8시대 붐빔 · 20시 이후 여유 · 교통카드 통계 기준/)
+    expect(container.textContent).toMatch(/8시대 혼잡 · 20시 이후 여유 · 교통카드 통계 기준/)
   })
 
   it('축 라벨은 06/10/14/18/22 만 노출된다', () => {

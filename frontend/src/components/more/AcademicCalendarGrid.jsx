@@ -18,7 +18,7 @@
  */
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import SegmentTabs from '../ui/SegmentTabs'
+import SegmentedControl from '../ui/SegmentedControl'
 import IconButton from '../ui/IconButton'
 import {
   todayKstDateString,
@@ -36,8 +36,8 @@ import { buildWeekLanes, categorizeEvent, formatDayRangeLabel } from '../../util
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 // 주간 스트립이 기본(우선순위 높음)이라 탭 순서도 주 → 월로 둔다.
 const VIEW_TABS = [
-  { id: 'week', label: '이번 주' },
-  { id: 'month', label: '월 전체보기' },
+  { value: 'week', label: '이번 주' },
+  { value: 'month', label: '월 전체보기' },
 ]
 
 // 카테고리 → 칩 팔레트 매핑(표시 헬퍼 상수). laneBg/laneText는 주간 레인 막대,
@@ -121,7 +121,13 @@ export default function AcademicCalendarGrid({ events = [], initialDate = null, 
   return (
     <div>
       <div className="flex items-center justify-center mb-3">
-        <SegmentTabs items={VIEW_TABS} active={viewMode} onChange={handleViewModeChange} size="sm" />
+        <SegmentedControl
+          options={VIEW_TABS}
+          value={viewMode}
+          onChange={handleViewModeChange}
+          size="sm"
+          ariaLabel="달력 보기 방식"
+        />
       </div>
 
       <div className="flex items-center justify-between mb-2">

@@ -28,7 +28,7 @@ import EmptyState from '../ui/EmptyState'
 import StatsSheet from './StatsSheet'
 import HolidayBanner from '../common/HolidayBanner'
 import { scaledPx } from '../../utils/fontScale'
-import { isImminentMinutes } from '../../utils/eta'
+import { isImminentMinutes, IMMINENT_LABEL } from '../../utils/eta'
 
 // PC · 시간표 2열 레이아웃(좌: 노선 리스트 / 우: 상세)에서 아직 아무 노선도
 // 선택하지 않았을 때 우측 컬럼에 보이는 빈 상태.
@@ -117,9 +117,6 @@ function GroupedByFavorite({ items, isFavItem, renderItem }) {
 }
 
 // ─── mode label config ───────────────────────────────────────────────────────
-// SegmentedControl(options: {value,label}[])이 정본 세그먼트 컨트롤이다 — 예전엔
-// 이 파일이 모드 탭엔 ui/SegmentTabs를, 그룹 탭엔 ui/SegmentedControl을 동시에 써서
-// 같은 화면 한 탭 간격으로 세그먼트 스타일이 두 벌 섞여 있었다.
 const MODES = [
   { value: 'bus',     label: '버스'   },
   { value: 'subway',  label: '지하철' },
@@ -200,7 +197,7 @@ function useBusSourceState(source, routeCode, category) {
       .sort((a, b) => (a.arrive_in_seconds ?? Infinity) - (b.arrive_in_seconds ?? Infinity))[0]
     if (next?.arrive_in_seconds != null) {
       const described = describeArrival(next.arrive_in_seconds)
-      value = described.imminent ? '곧 도착' : `${described.minutes}분 후`
+      value = described.imminent ? IMMINENT_LABEL : `${described.minutes}분`
       const arrivalAt = new Date(now.getTime() + next.arrive_in_seconds * 1000)
       snapshot = {
         sourceId: source.id,

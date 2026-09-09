@@ -1,5 +1,6 @@
 import { useCountdown } from '../../hooks/useCountdown'
 import useAppStore from '../../stores/useAppStore'
+import { IMMINENT_LABEL } from '../../utils/eta'
 
 export default function SubwayCountdown({ nextTrain, lineColor, lineDarkColor }) {
   const { mm, ss, isUrgent, isExpired } = useCountdown(nextTrain?.depart_at ?? null)
@@ -24,7 +25,7 @@ export default function SubwayCountdown({ nextTrain, lineColor, lineDarkColor })
           className="text-countdown font-bold tabular-nums leading-none"
           style={{ color: timerColor }}
         >
-          {isExpired ? '곧 출발' : `${mm}:${ss}`}
+          {isExpired ? IMMINENT_LABEL : `${mm}:${ss}`}
         </p>
       </div>
       <div className="text-right">

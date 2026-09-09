@@ -46,7 +46,7 @@ describe('RouteCrowdingSummary — 히트맵 범례', () => {
 
   it('펼치기 전에는 범례가 보이지 않는다', () => {
     render(<RouteCrowdingSummary routeNumber="시흥33" />)
-    expect(screen.queryByText('붐빔')).not.toBeInTheDocument()
+    expect(screen.queryByText('혼잡')).not.toBeInTheDocument()
   })
 
   it('시간대별 자세히 보기를 펼치면 범례 텍스트가 상시 렌더된다(title 툴팁이 아니라 화면 텍스트로)', () => {
@@ -56,8 +56,8 @@ describe('RouteCrowdingSummary — 히트맵 범례', () => {
 
     expect(screen.getByText('여유')).toBeInTheDocument()
     expect(screen.getByText('보통')).toBeInTheDocument()
-    expect(screen.getByText('붐빔')).toBeInTheDocument()
-    expect(screen.getByText('매우 붐빔')).toBeInTheDocument()
+    expect(screen.getByText('혼잡')).toBeInTheDocument()
+    expect(screen.getByText('매우 혼잡')).toBeInTheDocument()
     expect(screen.getByText('데이터 없음')).toBeInTheDocument()
   })
 })

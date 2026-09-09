@@ -69,7 +69,7 @@ describe('ScheduleSection — 시간열 규격', () => {
   it('imminent=true 이면 "곧"이 렌더되고 --tj-imminent 색을 쓴다', () => {
     render(<ScheduleSection {...BASE_PROPS} imminent minutesUntil={0} />)
     const soon = screen.getByText('곧')
-    expect(soon.style.color).toBe('var(--tj-imminent)')
+    expect(soon.className).toContain('text-imminent')
   })
 
   // 예전엔 60분 이상이면 "N시간 M분"을 직접 조립했다("1시간 30분") — 56px 고정
@@ -150,8 +150,8 @@ describe('ScheduleSection — 즐겨찾기 토글', () => {
 describe('ScheduleSection — 선택(desktop master-detail) 하이라이트', () => {
   it('selected=true 이면 accent 보더를 적용한다', () => {
     const { container } = render(<ScheduleSection {...BASE_PROPS} selected onClick={vi.fn()} />)
-    const row = container.firstChild
-    expect(row.style.border).toContain('var(--tj-accent)')
+    // 선택은 상태이지 강조가 아니다 — 채움 없이 링만 바꾼다.
+    expect(container.firstChild.className).toContain('ring-accent')
   })
 })
 

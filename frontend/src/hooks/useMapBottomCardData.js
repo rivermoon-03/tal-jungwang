@@ -22,6 +22,7 @@ import {
   getBusStationDisplay,
 } from '../components/dashboard/busStationConfig'
 import { groupArrivalsByRoute, buildBusArrivalRow } from '../utils/busArrivalRows'
+import { IMMINENT_LABEL } from '../utils/eta'
 
 export default function useMapBottomCardData() {
   const selectedBusStation = useAppStore((s) => s.selectedBusStation)
@@ -54,7 +55,7 @@ export default function useMapBottomCardData() {
         etaText:
           typeof row.minutes === 'number'
             ? row.imminent
-              ? '곧 도착'
+              ? IMMINENT_LABEL
               : `${row.minutes}분`
             : row.etaText,
         // row.etaTone이 'none'이면 시간표에도 다음 출발이 없다는 뜻(formatEta의
@@ -77,9 +78,9 @@ export default function useMapBottomCardData() {
         direction: first.direction,
         etaText:
           first.imminent
-            ? '곧 도착'
+            ? IMMINENT_LABEL
             : typeof first.minutes === 'number'
-              ? `${first.minutes}분 뒤 도착`
+              ? `${first.minutes}분`
               : first.etaText,
         nextText: first.minutes2 != null ? `다음 차 ${first.minutes2}분` : null,
         lastText: null,

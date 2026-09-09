@@ -29,18 +29,30 @@
  *             상세로 연결되므로 칩 하나에만 새 상호작용을 얹지 않는다.
  *   eta       {
  *               primary: {text, tone},  tone: 'default'|'imminent'|'muted'
- *               secondary?: {text}
+ *               secondary?: {text, extra?}
  *             }
  *     primary는 22px bold + tabular-nums. imminent tone은 색만 var(--tj-imminent)
  *     로 바꾸고 보더/배경은 절대 건드리지 않는다(DESIGN.md — 색만으로 강조,
  *     대면적 강조 금지). secondary가 없어도 자리(2번째 줄)는 항상 예약해
- *     리스트에서 카드 높이가 흔들리지 않게 한다.
+ *     리스트에서 카드 높이가 흔들리지 않게 한다. secondary.extra는 세 번째 줄로,
+ *     목록이 아니라 화면에 한 장만 놓이는 lg 카드에서만 쓴다(균일 목록에 섞으면
+ *     행 높이가 흔들린다).
  *   onClick?  () => void  있으면 카드 전체가 button(포커스링/press 모션 포함),
  *             없으면 순수 div.
  *   size?     'md'|'lg'  기본 'md'. 'lg'는 홈 화면의 "다음 차 카드"(이음매 아래
  *             첫 카드, 시안 스펙) 전용 — 같은 목록 안에서 딱 하나만 크게 보여
  *             "이게 다음 차다"를 한눈에 알려준다. 타일·제목·ETA 폰트를 키우고
  *             그림자를 shadow-sh-lift로 올린다(평범한 카드는 shadow-sh-card만).
+ *   statusDot? 'ok'|'warn'|'bad'  도보 시간 대비 여유/빠듯/서두르세요를 점으로.
+ *             글자가 아니라 점이므로 aria-label로 뜻을 남긴다.
+ *   rightAddon? node  제목 행 오른쪽 끝에 붙는 자체 조작 요소(즐겨찾기 편집
+ *             메뉴 등). 넘기면 카드 셸이 button 대신 div[role=button]이 된다 —
+ *             button 중첩은 유효하지 않은 HTML이다.
+ *   description? node  칩 행 아래 한 줄 보조 설명(경유 안내, 미운행 사유 등).
+ *   footer?   node  description 아래에 붙는 보조 그래픽(노선 경로 트랙 등).
+ *             본문 열 안에 들어가므로 폭이 좁아지면 함께 줄어든다.
+ *   selected? boolean  PC master-detail 에서 지금 우측 패널이 보고 있는 행.
+ *             선택은 상태이지 강조가 아니므로 보더 색만 바꾼다.
  *   muted?    boolean  미운행 등 — title을 mute 색으로.
  *   sleeping? {label?}  지금이 운행 시간대 밖(막차 이후·첫차 이전)일 때 제목 아래
  *             한 줄로 달 아이콘 + "Zzz"를 붙인다. 칩으로 넣지 않는 이유: 칩 행은
@@ -52,11 +64,16 @@
  * ETA 열을 밀어내는 오버플로를 막는다.
  */
 
-import { Moon, Bus, TrainFront, Route as RouteGlyph } from 'lucide-react'
+import { Moon } from 'lucide-react'
+import RouteBadge from './RouteBadge.jsx'
 
-// 노선 타일 크기(56px, w-14/h-14) — 대시보드·요약 패널·노선 상세 목록 전 화면
-// 공통. 노선 종류별 글리프로 색만으로 구분하지 않는다(접근성 원칙 — 색은 보조 신호).
-const MODE_GLYPH = { bus: Bus, subway: TrainFront, shuttle: RouteGlyph }
+// 상태 점 — 도보 시간 대비 여유/빠듯/서두르세요. 글자 없이 점만 쓰므로
+// aria-label 로 뜻을 남긴다(색만으로 상태를 말하지 않는다).
+const STATUS_DOT = {
+  ok:   { color: 'var(--state-ok)',   label: '여유 있음' },
+  warn: { color: 'var(--state-warn)', label: '빠듯함' },
+  bad:  { color: 'var(--state-bad)',  label: '서두르세요' },
+}
 
 const CHIP_TONE_CLASS = {
   realtime: 'bg-accent-bg text-accent-ink',
@@ -87,16 +104,12 @@ const SIZE_CONFIG = {
   md: {
     shadow: 'shadow-sh-card',
     padding: 'p-3',
-    tile: 'w-14 h-14 text-mini-ttl',
-    glyph: 14,
     title: 'text-list-nm',
     eta: 'text-eta-num',
   },
   lg: {
     shadow: 'shadow-sh-lift',
     padding: 'p-4',
-    tile: 'w-16 h-16 text-label',
-    glyph: 16,
     title: 'text-head',
     eta: 'text-eta font-extrabold tracking-tight',
   },
@@ -112,11 +125,20 @@ export default function TransitCard({
   muted = false,
   sleeping = null,
   size = 'md',
+  statusDot = null,
+  rightAddon = null,
+  description = null,
+  footer = null,
+  selected = false,
   className = '',
 }) {
-  const Tag = onClick ? 'button' : 'div'
+  // rightAddon 에는 즐겨찾기 편집 메뉴처럼 자체 button 이 들어온다. 카드 전체를
+  // button 으로 감싸면 button 안에 button 이 중첩돼 유효하지 않은 HTML 이 되고
+  // 키보드 포커스 순서도 어긋난다 — 그때만 div[role=button] + 키보드 핸들러다.
+  const nested = Boolean(rightAddon)
+  const Tag = onClick ? (nested ? 'div' : 'button') : 'div'
   const primaryTone = ETA_TONE_CLASS[eta?.primary?.tone] ?? ETA_TONE_CLASS.default
-  const Glyph = MODE_GLYPH[badge?.mode] ?? null
+  const dot = STATUS_DOT[statusDot] ?? null
   const sizeCfg = SIZE_CONFIG[size] ?? SIZE_CONFIG.md
 
   const overflowCount = Math.max(0, chips.length - VISIBLE_CHIP_MAX)
@@ -139,12 +161,21 @@ export default function TransitCard({
 
   return (
     <Tag
-      type={onClick ? 'button' : undefined}
+      type={onClick && !nested ? 'button' : undefined}
+      role={onClick && nested ? 'button' : undefined}
+      tabIndex={onClick && nested ? 0 : undefined}
+      onKeyDown={onClick && nested ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      } : undefined}
       onClick={onClick}
       data-size={size}
       className={[
         'grid grid-cols-[auto_1fr_auto] items-center gap-3',
         'bg-surface rounded-card text-left',
+        selected ? 'ring-2 ring-accent' : '',
         sizeCfg.shadow,
         sizeCfg.padding,
         onClick
@@ -153,22 +184,15 @@ export default function TransitCard({
         className,
       ].filter(Boolean).join(' ')}
     >
-      {/* 노선 타일 — whitespace-nowrap: "20-1" 같은 하이픈 노선번호가 좁은
-          폭에서 "20-"/"1" 두 줄로 꺾이던 문제(D3) 방지. 글리프는 badge.mode가
-          있을 때만 그린다 — 색만으로 노선 종류를 구분하지 않는다. */}
-      <span
-        className={[
-          'inline-flex flex-col flex-none items-center justify-center gap-0.5',
-          'rounded-tile select-none whitespace-nowrap',
-          'font-bold tabular-nums leading-none',
-          sizeCfg.tile,
-          badge?.bgVar ? '' : 'bg-chip-gray-bg text-chip-gray-fg',
-        ].filter(Boolean).join(' ')}
-        style={badge?.bgVar ? { backgroundColor: badge.bgVar, color: '#ffffff' } : undefined}
-      >
-        {Glyph && <Glyph size={sizeCfg.glyph} strokeWidth={2.4} aria-hidden="true" className="opacity-90" />}
-        {badge?.label}
-      </span>
+      {/* 노선 타일 — 정본은 RouteBadge variant="tile" 하나다. 색은 badge.bgVar
+          가 있으면 그것(DB ui_meta), 없으면 노선번호로 tjLineColor 가 정한다. */}
+      <RouteBadge
+        route={badge?.label}
+        variant="tile"
+        mode={badge?.mode}
+        size={size}
+        color={badge?.bgVar}
+      />
 
       {/* 본문: 제목 + 칩 행 */}
       <div className="min-w-0 flex flex-col gap-1">
@@ -182,11 +206,20 @@ export default function TransitCard({
           >
             {title}
           </h3>
+          {dot && (
+            <span
+              role="img"
+              aria-label={dot.label}
+              className="inline-block shrink-0 w-1.5 h-1.5 rounded-full"
+              style={{ background: dot.color }}
+            />
+          )}
           {subtitle && (
             // min-w-0 + truncate: 폭이 부족하면 말줄임한다. shrink-0이면 자기 그리드
             // 칸을 뚫고 ETA 열 밑으로 그대로 깔리는 겹침(D2)이 생겼다.
             <span className="min-w-0 truncate text-caption text-mute">{subtitle}</span>
           )}
+          {rightAddon && <span className="shrink-0">{rightAddon}</span>}
         </div>
 
         {sleeping && (
@@ -231,12 +264,18 @@ export default function TransitCard({
             })}
           </div>
         )}
+
+        {description}
+        {footer}
       </div>
 
       {/* ETA 열 — 항상 2줄 높이 고정(secondary 없어도 자리 예약).
           min-w-0을 두면 auto 트랙이 내용보다 줄고, items-end 정렬 때문에 넘친
           텍스트가 왼쪽(본문 위)으로 그려져 겹침(D2)이 생긴다 — 두지 말 것. */}
-      <div className="shrink-0 flex flex-col items-end justify-center gap-0.5 min-h-[44px]">
+      <div
+        data-testid="transit-card-eta"
+        className="shrink-0 flex flex-col items-end justify-center gap-0.5 min-h-[44px]"
+      >
         <span
           className={[
             eta?.primary?.tone === 'muted'
@@ -251,10 +290,15 @@ export default function TransitCard({
         >
           {eta?.primary?.text}
         </span>
-        {/* 절대시각/보조 정보 — 상대시간 아래 작게. tabular-nums로 자릿수 흔들림 방지. */}
+        {/* 절대시각/보조 정보. 상대시간 아래 작게. tabular-nums로 자릿수 흔들림 방지. */}
         <span className="text-caption text-mute tabular-nums leading-none">
           {eta?.secondary?.text ?? ' '}
         </span>
+        {eta?.secondary?.extra && (
+          <span className="text-caption text-mute tabular-nums leading-none">
+            {eta.secondary.extra}
+          </span>
+        )}
       </div>
     </Tag>
   )

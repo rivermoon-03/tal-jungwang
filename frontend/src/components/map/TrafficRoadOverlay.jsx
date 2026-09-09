@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useApi } from '../../hooks/useApi'
-import { CONGESTION_COLOR, CONGESTION_LABEL } from './trafficLevels'
+import { trafficLevelFromSpeed } from '../../utils/trafficLevel'
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
@@ -85,11 +85,14 @@ function directionRow(directionCode, road) {
         <span style="color:var(--tj-mute)">정보 없음</span>
       </div>`
   }
-  const color = CONGESTION_COLOR[road.congestion] ?? 'var(--tj-mute)'
+  // 백엔드의 congestion_label 을 쓰지 않는 이유: 임계값이 카드 쪽과 달라
+  // 같은 도로가 지도에서는 "지체", 카드에서는 "서행" 으로 보였다.
+  const level = trafficLevelFromSpeed(road.speed)
+  const color = level?.color ?? 'var(--tj-mute)'
   return `
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:12px;margin-top:3px">
       <span style="color:var(--tj-mute)">${esc(name)}</span>
-      <span style="font-weight:600;color:${esc(color)}">${esc(road.speed)}km/h · ${esc(road.congestion_label)}</span>
+      <span style="font-weight:600;color:${esc(color)}">${esc(road.speed)}km/h${level ? ` · ${esc(level.label)}` : ''}</span>
     </div>`
 }
 
@@ -197,14 +200,15 @@ export default function TrafficRoadOverlay({ map }) {
       const item = itemsRef.current[roadName]
       if (!item) return
 
-      // 양방향 중 최악 혼잡도로 원 색상 결정
-      const worst = Math.max(
-        entry.to_school?.congestion ?? 0,
-        entry.to_station?.congestion ?? 0,
+      // 양방향 중 느린 쪽으로 원 색상 결정
+      const speeds = [entry.to_school?.speed, entry.to_station?.speed].filter(
+        (v) => v != null && !Number.isNaN(v)
       )
-      const color = CONGESTION_COLOR[worst] ?? '#94a3b8'
+      const worst = speeds.length ? Math.min(...speeds) : null
+      const level = trafficLevelFromSpeed(worst)
+      const color = level?.color ?? 'var(--tj-mute)'
       item.circle.style.borderColor = color
-      const statusText = CONGESTION_LABEL[worst] ?? ''
+      const statusText = level?.label ?? ''
       item.circle.setAttribute('aria-label', statusText ? `${roadName} ${statusText}` : roadName)
       item.label.style.color = color
 

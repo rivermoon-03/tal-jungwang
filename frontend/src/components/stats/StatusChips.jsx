@@ -4,6 +4,7 @@ import { useWeather } from '../../hooks/useWeather'
 import { useTrafficLive } from '../../hooks/useTrafficLive'
 import { useCrowdingFlow } from '../../hooks/useCrowdingFlow'
 import { labelFromRatio } from '../../utils/crowdingLevel'
+import { trafficLevelFromSpeed } from '../../utils/trafficLevel'
 
 const WEATHER_ICONS = {
   sunny: Sun,
@@ -16,15 +17,6 @@ const WEATHER_ICONS = {
 function isWeekend() {
   const d = new Date().getDay()
   return d === 0 || d === 6
-}
-
-// TrafficFlowCard.speedStatus와 같은 3단계 규칙. 서행·정체가 같은 색이면 색만
-// 훑어서는 구분이 안 된다 — imminent(서행)·delayed(정체)로 나눈다.
-function trafficStatus(speed) {
-  if (speed == null) return null
-  if (speed >= 25) return { label: '원활', cls: 'text-ease' }
-  if (speed >= 15) return { label: '서행', cls: 'text-imminent' }
-  return { label: '정체', cls: 'text-delayed' }
 }
 
 function busStatusCls(label) {
@@ -50,7 +42,7 @@ export default function StatusChips() {
   }, [crowdData])
 
   const WeatherIcon = WEATHER_ICONS[weather?.icon ?? 'sunny'] ?? Sun
-  const traffic = trafficStatus(road?.speed)
+  const traffic = trafficLevelFromSpeed(road?.speed)
 
   return (
     <div className="flex items-center rounded-tile overflow-hidden mb-4 divide-x divide-line bg-surface-2 ring-1 ring-line">

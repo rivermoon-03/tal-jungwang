@@ -1,5 +1,5 @@
 // 노선별 24시간 혼잡도 곡선을 가져온다.
-// GBIS crowded1/crowded2 (1=여유 … 4=매우혼잡)를 30분 버킷으로 평균.
+// GBIS crowded1/crowded2 (1=여유 … 4=매우 혼잡)를 30분 버킷으로 평균.
 import { useApi } from './useApi'
 
 // 백엔드 캐시가 30분이라 클라이언트에서는 5분 TTL로 충분 —

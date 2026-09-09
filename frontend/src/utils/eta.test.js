@@ -8,8 +8,8 @@ describe('formatEta', () => {
   it('undefined이면 정보 없음/none', () => {
     expect(formatEta(undefined)).toEqual({ text: '운행 정보 없음', tone: 'none' })
   })
-  it('90초 이하는 곧 도착/imminent', () => {
-    expect(formatEta(60)).toEqual({ text: '곧 도착', tone: 'imminent' })
+  it('90초 이하는 곧/imminent', () => {
+    expect(formatEta(60)).toEqual({ text: '곧', tone: 'imminent' })
   })
   it('239초는 3분(floor)/normal', () => {
     expect(formatEta(239)).toEqual({ text: '3분', tone: 'normal' })
@@ -24,20 +24,20 @@ describe('formatEta', () => {
 
   // ── 경계값 ──────────────────────────────────────────────────────────
   describe('경계값', () => {
-    it('0초는 곧 도착/imminent', () => {
-      expect(formatEta(0)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('0초는 곧/imminent', () => {
+      expect(formatEta(0)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
-    it('음수는 곧 도착/imminent (formatEta 자체에는 "이미 도착" 개념이 없다)', () => {
-      expect(formatEta(-10)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('음수는 곧/imminent (formatEta 자체에는 "이미 도착" 개념이 없다)', () => {
+      expect(formatEta(-10)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
-    it('임계 직전(89초)은 곧 도착/imminent', () => {
-      expect(formatEta(89)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('임계 직전(89초)은 곧/imminent', () => {
+      expect(formatEta(89)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
-    it('정확히 임계(90초)는 곧 도착/imminent', () => {
-      expect(formatEta(IMMINENT_THRESHOLD_SEC)).toEqual({ text: '곧 도착', tone: 'imminent' })
+    it('정확히 임계(90초)는 곧/imminent', () => {
+      expect(formatEta(IMMINENT_THRESHOLD_SEC)).toEqual({ text: '곧', tone: 'imminent' })
     })
 
     it('임계 직후(91초)는 1분/normal', () => {
@@ -82,7 +82,7 @@ describe('isImminent', () => {
     expect(isImminent(180)).toBe(false)
   })
 
-  it('formatEta의 곧 도착 판정과 항상 같은 값을 낸다', () => {
+  it('formatEta의 곧 판정과 항상 같은 값을 낸다', () => {
     for (const sec of [-10, 0, 1, 89, 90, 91, 120, 179, 180, 181, 3600, 3601]) {
       expect(formatEta(sec).tone === 'imminent').toBe(isImminent(sec))
     }

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { smoothPath } from '../../utils/splinePath'
+import { TRAFFIC_LEVELS, trafficLabelFromSpeed } from '../../utils/trafficLevel'
 
 // viewBox 기준. preserveAspectRatio="none"으로 카드 너비에 맞춰 늘린다.
 const W = 320
@@ -29,21 +30,9 @@ function formatLabel(p) {
   return `${hh}:${mm}`
 }
 
-function classifySpeed(kmh) {
-  if (kmh >= 25) return '원활'
-  if (kmh >= 15) return '서행'
-  return '정체'
-}
-
-// 범례 — 예전엔 곡선이 지금 원활/서행/정체 중 어디쯤인지 탭해서 툴팁을 띄워야만
-// 알 수 있었다(모바일 터치에서는 사실상 못 봄). TrafficFlowCard.speedStatus /
-// StatusChips.trafficStatus와 같은 색 규칙(ease·imminent·delayed)을 그대로 써서
-// 화면 전체에서 같은 색이 같은 뜻이 되게 한다.
-const SPEED_LEGEND = [
-  { label: '원활', cls: 'text-ease' },
-  { label: '서행', cls: 'text-imminent' },
-  { label: '정체', cls: 'text-delayed' },
-]
+// 범례를 항상 띄운다 — 곡선이 지금 어디쯤인지 탭해서 툴팁을 열어야만 알 수
+// 있으면 모바일 터치에서는 사실상 못 본다.
+const SPEED_LEGEND = TRAFFIC_LEVELS
 
 export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = null, rangeH = 24, futureMode = false }) {
   const wrapRef = useRef(null)
@@ -292,7 +281,7 @@ export default function FlowChart({ points, stroke = '#ffffff', nowMinutes = nul
               <span className="text-caption font-medium ml-0.5 text-mute">km/h</span>
             </div>
             <div className="text-caption text-mute text-center">
-              {classifySpeed(active.point.speed)}
+              {trafficLabelFromSpeed(active.point.speed)}
             </div>
           </div>
         </>

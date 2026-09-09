@@ -34,7 +34,7 @@ export function mergeToHourly(points) {
 }
 
 // 혼잡 비율(0~1) → var(--tj-*) 토큰만으로 만든 배경색.
-// ease(여유) → imminent(붐빔) → delayed(매우 붐빔) 2구간 선형보간. 구간 경계는
+// ease(여유) → imminent(혼잡) → delayed(매우 혼잡) 2구간 선형보간. 구간 경계는
 // crowdingLevel의 라벨 임계와 맞춘다 — 색과 글자가 다른 말을 하면 안 된다.
 // 하드코딩 hex 없이 CSS 변수 color-mix로만 구성해 다크모드에서 토큰이 자동 전환된다.
 export function crowdedToneStyle(ratio) {

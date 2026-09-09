@@ -341,6 +341,8 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                       histData={hasRealtimeGroup ? histData : null}
                       histLoading={hasRealtimeGroup ? histLoading : false}
                       nextScheduled={nextScheduledToday}
+                      routeNumber={routeDisplayName}
+                      directionName={headLabel}
                     />
                   </section>
                 )}

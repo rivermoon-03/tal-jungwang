@@ -27,21 +27,21 @@ import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
 import { ALL_VENUES, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
 import { isOpenNow, getVenueBuilding, getBuildingColor, getCategoryStyle, getCategoryIcon } from '../../utils/venueOpen'
-import SegmentTabs from '../ui/SegmentTabs'
+import SegmentedControl from '../ui/SegmentedControl'
 import IconButton from '../ui/IconButton'
 import { staggerStyle } from '../../utils/motion'
 import './CafeteriaVenues.css'
 
 // ── 탭 정의 ────────────────────────────────────────────────
 const TABS = [
-  { id: 'now',      label: '지금' },
-  { id: 'schedule', label: '운영시간' },
+  { value: 'now',      label: '지금' },
+  { value: 'schedule', label: '운영시간' },
 ]
 
 // ── 정렬 스위치 정의 ────────────────────────────────────────
 const SORT_OPTIONS = [
-  { id: 'building',  label: '장소별' },
-  { id: 'category',  label: '카테고리별' },
+  { value: 'building',  label: '장소별' },
+  { value: 'category',  label: '카테고리별' },
 ]
 
 // ── KST 기준 현재 요일/시각 표시 헬퍼 ───────────────────────
@@ -451,32 +451,21 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
       {/* 탭 + 정렬 스위치 */}
       <div className="mb-3.5">
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* 주 탭(지금 영업중 / 운영시간)과 정렬 스위치(장소별 / 카테고리별)가
-              예전엔 서로 다른 구현이었다 — 주 탭은 ui/SegmentTabs, 정렬
-              스위치는 손으로 만든 버튼 그룹이라 높이도 활성 pill 대비색도 조금씩
-              어긋났다(다크모드에서는 정렬 스위치의 활성 pill이 배경과 거의
-              구분되지 않을 만큼 대비가 약했다). 같은 컴포넌트, 같은 flex-1
-              폭 규칙을 공유시켜 대비와 균형을 한 번에 맞춘다. */}
           <div className="flex-1 min-w-[180px] max-w-[420px]">
-            <SegmentTabs
-              items={TABS}
-              active={activeTab}
+            <SegmentedControl
+              options={TABS}
+              value={activeTab}
               onChange={setActiveTab}
+              ariaLabel="보기 방식"
             />
           </div>
 
-          {/* ui/SegmentTabs는 aria-label prop이 없다(role="tablist"만 그린다) —
-              구현을 손으로 만든 버튼 그룹에서 이 컴포넌트로 옮기며 놓쳤던
-              "정렬 방식" 컨텍스트를 바깥 group으로 되살린다. */}
-          <div
-            role="group"
-            aria-label="정렬 방식"
-            className="flex-1 min-w-[140px] max-w-[280px]"
-          >
-            <SegmentTabs
-              items={SORT_OPTIONS}
-              active={sortBy}
+          <div className="flex-1 min-w-[140px] max-w-[280px]">
+            <SegmentedControl
+              options={SORT_OPTIONS}
+              value={sortBy}
               onChange={setSortBy}
+              ariaLabel="정렬 방식"
             />
           </div>
         </div>

@@ -76,9 +76,7 @@ export default function NoticesTabPage() {
     <div className="flex flex-col h-full bg-bg dark:bg-bg animate-fade-in-up">
       <PageHeader title="공지" />
 
-      {/* 홈과 시간표가 쓰는 정본 SegmentedControl 을 쓴다. 예전엔 이 탭만
-          ui/SegmentTabs 라 활성 배경이 텍스트와 어긋나 잘려 보였다(사용자 리포트).
-          아래 여백은 두지 않는다 — 콘텐츠(카테고리 칩)가 탭 바로 아래 온다. */}
+      {/* 아래 여백은 두지 않는다 — 콘텐츠(카테고리 칩)가 탭 바로 아래 온다. */}
       <div className="px-4 pt-1 flex-shrink-0">
         <SegmentedControl options={TOP_TABS} value={tab} onChange={selectTab} ariaLabel="공지 종류 선택" />
       </div>

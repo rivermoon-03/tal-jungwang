@@ -16,7 +16,7 @@ import Skeleton from '../common/Skeleton'
 import SubwayCrowdingChart from './SubwayCrowdingChart'
 import { isRealtimeFresh } from './realtimeFreshness'
 import { useNow } from '../../hooks/useNow'
-import { isImminent } from '../../utils/eta'
+import { isImminent, IMMINENT_LABEL } from '../../utils/eta'
 
 // DESIGN.md §4 모션 이징 — PC 크로스페이드 전용(모바일은 Sheet가 담당).
 const EASE = 'var(--e-out)'
@@ -56,7 +56,7 @@ function getEtaLabel(rtTrain) {
   if (rtTrain.status_code === 1 || rtTrain.status_code === 2) return '이미 도착'
   if (rtTrain.status_code === 0) return '진입 중'
   if (typeof secs === 'number' && secs > 0) {
-    if (isImminent(secs)) return '곧 도착'
+    if (isImminent(secs)) return IMMINENT_LABEL
     return `${Math.ceil(secs / 60)}분`
   }
   if ([3, 4, 5].includes(rtTrain.status_code)) return '곧 도착'

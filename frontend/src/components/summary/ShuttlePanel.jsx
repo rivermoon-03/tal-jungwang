@@ -9,7 +9,7 @@ import MascotDot from '../ui/MascotDot'
 import TransitCard from '../ui/TransitCard.jsx'
 import { getNextShuttleBusInfo } from '../../utils/nextShuttleBus.js'
 import { PERIOD_VARIANTS, periodVariantKey } from '../shuttle/shuttlePeriods'
-import { isImminent } from '../../utils/eta'
+import { isImminent, IMMINENT_LABEL } from '../../utils/eta'
 
 // 결함 #4 — 버스/지하철 패널과 동일 규칙: ETA 5분 이하만 임박(색만) 처리.
 // (예전엔 3분 기준이었다 — toSlot()의 isUrgent 판정을 아래에서 5분 기준으로 맞춘다.)
@@ -382,7 +382,7 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
       nextMinutes,
       departAt: data.depart_at ? data.depart_at.slice(0, 5) : null,
       nextDepartAt: data.next_depart_at ? data.next_depart_at.slice(0, 5) : null,
-      imminentLabel: imminent ? '곧 출발' : null,
+      imminentLabel: imminent ? IMMINENT_LABEL : null,
       isUrgent: imminent || (minutes != null && minutes <= SOON_THRESHOLD_MIN),
     }
   }
@@ -412,7 +412,7 @@ function toSlot(data, direction, firstTomorrow = null, isInsideFreqWindow = fals
     nextMinutes,
     departAt: data.depart_at ? data.depart_at.slice(0, 5) : null,
     nextDepartAt: data.next_depart_at ? data.next_depart_at.slice(0, 5) : null,
-    imminentLabel: imminent ? '곧 출발' : null,
+    imminentLabel: imminent ? IMMINENT_LABEL : null,
     isUrgent: imminent || (minutes != null && minutes <= SOON_THRESHOLD_MIN),
     isLast: data.is_last === true,
   }

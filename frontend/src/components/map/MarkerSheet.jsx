@@ -27,6 +27,7 @@ import { DEFAULT_COLOR, ROUTE_COLOR_MAP } from './MarkerChip'
 import useAppStore from '../../stores/useAppStore'
 import Sheet from '../ui/Sheet'
 import IconButton from '../ui/IconButton'
+import SegmentedControl from '../ui/SegmentedControl'
 import RouteSpine from './RouteSpine'
 import { staggerStyle } from '../../utils/motion'
 import { isImminentMinutes } from '../../utils/eta'
@@ -208,39 +209,17 @@ export default function MarkerSheet({
             rightLabel={directionControl.rightLabel}
             activeSide={directionControl.activeSide}
           />
-          {/* 방향 토글 pill */}
-          <div
-            style={{
-              display: 'inline-flex',
-              background: 'var(--tj-line)',
-              borderRadius: 999,
-              padding: 3,
-              gap: 2,
-              marginTop: 8,
-            }}
-          >
-            {[
-              { key: 'outbound', label: directionControl.outboundLabel },
-              { key: 'inbound',  label: directionControl.inboundLabel },
-            ].map((seg) => {
-              const active = directionControl.direction === seg.key
-              return (
-                <button
-                  key={seg.key}
-                  type="button"
-                  onClick={() => directionControl.onChange(seg.key)}
-                  className={[
-                    'min-h-[36px] rounded-pill border-none cursor-pointer px-3.5',
-                    'text-body-sm tracking-[-0.01em] transition-colors duration-base ease-out',
-                    active
-                      ? 'font-extrabold text-ink dark:text-ink bg-surface dark:bg-surface shadow-sh-card'
-                      : 'font-bold text-mute dark:text-mute bg-transparent',
-                  ].join(' ')}
-                >
-                  {seg.label}
-                </button>
-              )
-            })}
+          <div className="mt-2">
+            <SegmentedControl
+              size="sm"
+              ariaLabel="방향"
+              options={[
+                { value: 'outbound', label: directionControl.outboundLabel },
+                { value: 'inbound', label: directionControl.inboundLabel },
+              ]}
+              value={directionControl.direction}
+              onChange={directionControl.onChange}
+            />
           </div>
         </div>
       )}

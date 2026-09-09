@@ -450,7 +450,7 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     render(<SchedulePage />)
 
     const card = screen.getByTestId('bus-context-시흥1')
-    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent('5분')
+    expect(within(card).getByTestId('transit-card-eta')).toHaveTextContent('5분')
     expect(card).toHaveTextContent('실시간')
     expect(card).not.toHaveTextContent('시간표')
     expect(card).not.toHaveTextContent('정보보기')
@@ -460,7 +460,7 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     render(<SchedulePage />)
 
     const card = screen.getByTestId('bus-context-3400')
-    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent(/(?:29|30)분/)
+    expect(within(card).getByTestId('transit-card-eta')).toHaveTextContent(/(?:29|30)분/)
     expect(card).not.toHaveTextContent('정보보기')
   })
 
@@ -468,7 +468,7 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     render(<SchedulePage />)
 
     const card = screen.getByTestId('bus-context-20-1')
-    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent('3분')
+    expect(within(card).getByTestId('transit-card-eta')).toHaveTextContent('3분')
     // 승차 지점이 하나면 출처 줄을 두 번 반복하지 않는다. 같은 "학교 승차" 를
     // 시간표·실시간 두 줄로 늘어놓아 봐야 방금 읽은 숫자를 다시 말할 뿐이다.
     expect(within(card).queryAllByText('학교 승차')).toHaveLength(0)
@@ -490,7 +490,7 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
     render(<SchedulePage />)
 
     const card = screen.getByTestId('bus-context-20-1')
-    expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent(/(?:29|30)분/)
+    expect(within(card).getByTestId('transit-card-eta')).toHaveTextContent(/(?:29|30)분/)
   })
 })
 

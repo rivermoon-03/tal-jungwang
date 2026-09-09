@@ -23,7 +23,7 @@ import { Info, X, Bus, TrainFront } from 'lucide-react'
 import { tjLineColor } from '../common/lineColor'
 import IconButton from '../ui/IconButton'
 import Sheet from '../ui/Sheet'
-import { CONGESTION_COLOR, CONGESTION_LABEL } from './trafficLevels'
+import { TRAFFIC_LEVELS } from '../../utils/trafficLevel'
 
 // 마커 색 범례 — "마커 색이 무엇을 뜻하는지" 앱 어디에도 답이 없던 것을 채운다.
 // 색은 절대 여기서 직접 정하지 않고 lineColor.js의 tjLineColor()만 거쳐 읽는다
@@ -37,12 +37,8 @@ const MARKER_LEGEND_ITEMS = [
   { key: 'seohae',    glyph: TrainFront, label: '서해선',     color: tjLineColor('서해선') },
 ]
 
-// 교통 링 색 — TrafficRoadOverlay 가 쓰는 네 단계를 그대로 읽는다.
-const ROAD_LEGEND_ITEMS = [1, 2, 3, 4].map((level) => ({
-  key: String(level),
-  label: CONGESTION_LABEL[level],
-  color: CONGESTION_COLOR[level],
-}))
+// 교통 링 색 — 화면 전체가 쓰는 세 단계를 그대로 읽는다.
+const ROAD_LEGEND_ITEMS = TRAFFIC_LEVELS.map(({ key, label, color }) => ({ key, label, color }))
 
 function LegendButton({ open, onToggle }) {
   return (
