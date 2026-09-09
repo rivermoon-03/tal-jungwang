@@ -79,8 +79,8 @@ _EDGE_WORD = {"last": "막차", "first": "첫차"}
 @dataclass(frozen=True)
 class ParsedFavCode:
     kind: str  # "bus" | "shuttle" | "subway"
-    route_number: str | None = None  # bus (레거시 favCode)
-    route_id: int | None = None  # bus (신규 favKey — id 가 숫자면 이쪽)
+    route_number: str | None = None  # bus (노선번호. 신규 favKey 는 항상 채운다)
+    route_id: int | None = None  # bus (favKey 의 id 가 숫자면 후보로 함께 채운다)
     category: str | None = None  # bus ("등교"/"하교", 없을 수 있음)
     direction: int | None = None  # shuttle (0~3)
     station_group: str | None = None  # subway (표시용, 예: "정왕")
@@ -121,15 +121,22 @@ def parse_fav_code(fav_code: str) -> ParsedFavCode | None:
         return ParsedFavCode(kind="shuttle", direction=direction)
 
     if fav_code.startswith("bus:"):
-        # 신규 "bus:{route_id}:{category}". id 는 route_id(숫자) 가 원칙이고,
-        # route_id 를 아직 모르는 화면은 route_number 를 넣는다(favKey.js 참고).
+        # 신규 "bus:{id}:{category}". id 는 route_id 가 원칙이지만 route_id 를 아직
+        # 모르는 화면은 route_number 를 넣는다(favKey.js 참고).
+        #
+        # 숫자라고 route_id 로 단정하면 안 된다. 3400·3401·5200·5602·6502 는
+        # 노선번호 자체가 숫자다. 문법만으로는 구분이 안 되므로 둘 다 후보로
+        # 채우고 실제 판정은 DB 조회(_resolve_bus_edges)에 맡긴다.
         parts = fav_code.split(":")
         if len(parts) != 3 or not parts[1]:
             return None
         _, ident, category = parts
-        if ident.isdigit():
-            return ParsedFavCode(kind="bus", route_id=int(ident), category=category or None)
-        return ParsedFavCode(kind="bus", route_number=ident, category=category or None)
+        return ParsedFavCode(
+            kind="bus",
+            route_number=ident,
+            route_id=int(ident) if ident.isdigit() else None,
+            category=category or None,
+        )
 
     if fav_code.startswith("subway:"):
         parts = fav_code.split(":")
@@ -179,17 +186,30 @@ def is_within_notify_window(seconds_remaining: int) -> bool:
 
 
 async def _resolve_bus_edges(db: AsyncSession, parsed: ParsedFavCode, d: date) -> dict | None:
+    """favCode 의 식별자를 실제 노선으로 푼다.
+
+    route_id 후보가 있으면 그쪽을 먼저 본다(favKey 생산자가 route_id 를 우선
+    쓰기 때문). 그 id 로 시간표가 없으면 같은 문자열을 노선번호로 다시 본다 —
+    "5602" 처럼 노선번호가 숫자인 경우가 여기서 걸린다.
+    """
+    data = None
+    matched_by_id = False
     if parsed.route_id is not None:
         data = await bus_service.get_timetable(db, parsed.route_id, d)
-    else:
+        matched_by_id = bool(data and data.get("times"))
+    if not matched_by_id and parsed.route_number:
         data = await bus_service.get_timetable_by_route_number(
             db, parsed.route_number, d, category=parsed.category
         )
     if not data or not data.get("times"):
         return None
     times = data["times"]
-    # route_id 로 찾은 경우 노선번호는 응답에서 받는다(라벨이 "3번" 이 되면 안 된다).
-    label = parsed.route_number or data.get("route_name") or str(parsed.route_id)
+    # route_id 로 찾았으면 노선번호는 응답에서 받는다(라벨이 "3번" 이 되면 안 된다).
+    label = (
+        (data.get("route_name") or str(parsed.route_id))
+        if matched_by_id
+        else (parsed.route_number or data.get("route_name"))
+    )
     return {
         "first": _hhmm_to_time(times[0]),
         "last": _hhmm_to_time(times[-1]),
