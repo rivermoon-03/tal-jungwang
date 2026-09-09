@@ -1,20 +1,21 @@
 # Railway 배포용 scrape 설정. 로컬 개발은 prometheus.yml 을 쓴다.
 #
-# 대상은 공개 도메인이 아니라 사설망이다. 공개 도메인으로 긁으면 scrape 가
-# Railway 프록시를 통과해 HTTP 요청과 egress 로 잡히고, 하루 5,760건이
-# 실사용자 요청(약 950건) 을 통계에서 덮어버린다.
-# 호스트 이름은 backend 서비스의 privateNetworkEndpoint 값이다.
+# 사설망(tal-jungwang.railway.internal)으로 긁는 것이 맞지만 지금은 못 쓴다.
+# 사설망은 IPv6 전용인데 백엔드를 "::" 로 묶으면 Railway 공개 프록시가 IPv4 로
+# 붙어 못 닿는다(전 사용자 502). 백엔드가 두 스택을 동시에 듣게 만들기 전까지는
+# 공개 도메인으로 둔다.
+#
+# 대신 주기를 60초로 둔다. 15초였을 때 하루 5,760건이 프록시를 거쳐 실사용자
+# 요청 통계를 덮고 있었다.
 global:
   scrape_interval: 60s
 
 scrape_configs:
   - job_name: fastapi
     metrics_path: /metrics
-    scheme: http
-    # 사설망 발신지는 main.py 의 _PRIVATE_NETS(fc00::/7) 에 걸려 토큰 없이도
-    # 통과하지만, 설정이 공개 경로로 되돌아가는 경우를 대비해 토큰을 남긴다.
+    scheme: https
     authorization:
       type: Bearer
       credentials_file: /etc/prometheus/metrics_token
     static_configs:
-      - targets: ["tal-jungwang.railway.internal:8000"]
+      - targets: ["tal-jungwang-production.up.railway.app"]
