@@ -57,9 +57,9 @@ describe('MealGridSection', () => {
   })
 
   // --- 지금 운영중 배지 위치 ---
-  it('isNowOpen이면 카드 상단에 걸치는 절대배치 "지금 운영중" 배지를 보여준다', () => {
+  it('운영 중이면 카드 상단에 걸치는 절대배치 "지금 운영중" 배지를 보여준다', () => {
     const meal = { type: '조식', time: '8:30~10:00', by_day: { '2': ['①코너 김치볶음밥&계란후라이'] } }
-    render(<MealGridSection meal={meal} dayKey="2" isNowOpen showLiveStatus />)
+    render(<MealGridSection meal={meal} dayKey="2" state="open" showLiveStatus />)
 
     const badge = screen.getByText('지금 운영중')
     const badgeWrap = badge.parentElement
@@ -67,33 +67,63 @@ describe('MealGridSection', () => {
     expect(badgeWrap.className).toContain('-top-3')
   })
 
-  it('isNowOpen이면 카드에 2px 액센트 링(box-shadow)을 두른다', () => {
+  it('운영 중이면 카드에 2px 액센트 링(box-shadow)을 두른다', () => {
     const meal = { type: '조식', time: '8:30~10:00', by_day: { '2': ['①코너 김치볶음밥&계란후라이'] } }
-    const { container } = render(<MealGridSection meal={meal} dayKey="2" isNowOpen showLiveStatus />)
+    const { container } = render(<MealGridSection meal={meal} dayKey="2" state="open" showLiveStatus />)
     const card = container.firstChild
     expect(card.style.boxShadow).toContain('2px')
     expect(card.style.boxShadow).toContain('var(--tj-accent)')
   })
 
-  it('isNowOpen이 아니면 "지금 운영중" 배지를 보여주지 않는다', () => {
+  // 08:17 에 8:30 시작인 아침밥이 "운영 종료" 로 뜨고 하단에 "내일 8:30 재개"
+  // 가 붙었다. 오늘 오지도 않은 끼니를 끝났다고 말한 것이다.
+  it('시작 전이면 종료가 아니라 남은 시간을 보여준다', () => {
+    const meal = { type: '천원의 아침밥', time: '8:30~10:00', by_day: { 2: ['카레덮밥'] } }
+    render(
+      <MealGridSection meal={meal} dayKey="2" state="before" startsInMin={13} showLiveStatus />
+    )
+    expect(screen.getByText('13분 후 시작')).toBeInTheDocument()
+    expect(screen.queryByText('운영 종료')).not.toBeInTheDocument()
+    expect(screen.getByText('오늘 8:30 시작')).toBeInTheDocument()
+    expect(screen.queryByText(/내일/)).not.toBeInTheDocument()
+  })
+
+  it('시작 전이지만 다음 차례가 아니면 남은 시간 없이 "운영 전"만 쓴다', () => {
+    const meal = { type: '중식', time: '11:00~14:00', by_day: { 2: ['제육덮밥'] } }
+    render(
+      <MealGridSection meal={meal} dayKey="2" state="before" startsInMin={null} showLiveStatus />
+    )
+    expect(screen.getByText('운영 전')).toBeInTheDocument()
+    expect(screen.getByText('오늘 11:00 시작')).toBeInTheDocument()
+  })
+
+  it('한 시간을 넘기면 시간과 분을 함께 쓴다', () => {
+    const meal = { type: '석식', time: '17:00~18:50', by_day: { 2: ['라면'] } }
+    render(
+      <MealGridSection meal={meal} dayKey="2" state="before" startsInMin={163} showLiveStatus />
+    )
+    expect(screen.getByText('2시간 43분 후 시작')).toBeInTheDocument()
+  })
+
+  it('운영 중이 아니면 "지금 운영중" 배지를 보여주지 않는다', () => {
     const meal = { type: '조식', time: '8:30~10:00', by_day: { '2': ['①코너 김치볶음밥&계란후라이'] } }
-    render(<MealGridSection meal={meal} dayKey="2" isNowOpen={false} showLiveStatus />)
+    render(<MealGridSection meal={meal} dayKey="2" state="closed" showLiveStatus />)
     expect(screen.queryByText('지금 운영중')).not.toBeInTheDocument()
   })
 
   // --- 실시간 상태 pill ---
   it('showLiveStatus가 true면 운영 상태 pill(영업 중/운영 종료)을 보여준다', () => {
     const meal = { type: '중식', time: '11:00~14:00', by_day: { '2': ['에비동/제육볶음면'] } }
-    const { rerender } = render(<MealGridSection meal={meal} dayKey="2" isNowOpen showLiveStatus />)
+    const { rerender } = render(<MealGridSection meal={meal} dayKey="2" state="open" showLiveStatus />)
     expect(screen.getByText('영업 중')).toBeInTheDocument()
 
-    rerender(<MealGridSection meal={meal} dayKey="2" isNowOpen={false} showLiveStatus />)
+    rerender(<MealGridSection meal={meal} dayKey="2" state="closed" showLiveStatus />)
     expect(screen.getByText('운영 종료')).toBeInTheDocument()
   })
 
   it('showLiveStatus가 false면 오늘이 아니므로 상태 pill을 보여주지 않는다', () => {
     const meal = { type: '중식', time: '11:00~14:00', by_day: { '2': ['비빔밥'] } }
-    render(<MealGridSection meal={meal} dayKey="2" isNowOpen showLiveStatus={false} />)
+    render(<MealGridSection meal={meal} dayKey="2" state="open" showLiveStatus={false} />)
     expect(screen.queryByText('영업 중')).not.toBeInTheDocument()
     expect(screen.queryByText('운영 종료')).not.toBeInTheDocument()
   })
@@ -149,7 +179,7 @@ describe('MealGridSection', () => {
       time: '8:30~10:00',
       by_day: { '2': ['①코너 김치볶음밥&계란후라이', '②코너 주먹밥/베이컨샐러드'] },
     }
-    render(<MealGridSection meal={meal} dayKey="2" isNowOpen={false} showLiveStatus />)
+    render(<MealGridSection meal={meal} dayKey="2" state="closed" showLiveStatus />)
     expect(screen.getByText('코너 2곳 운영')).toBeInTheDocument()
     // 지금 운영 중이 아니므로 우측은 "내일 8:30 재개"
     expect(screen.getByText('내일 8:30 재개')).toBeInTheDocument()
@@ -157,7 +187,7 @@ describe('MealGridSection', () => {
 
   it('지금 운영 중이면 우측에 "HH:MM 종료"를 보여준다', () => {
     const meal = { type: '중식', time: '11:00~14:00', by_day: { '2': ['비빔밥', '된장찌개'] } }
-    render(<MealGridSection meal={meal} dayKey="2" isNowOpen showLiveStatus />)
+    render(<MealGridSection meal={meal} dayKey="2" state="open" showLiveStatus />)
     expect(screen.getByText('14:00 종료')).toBeInTheDocument()
     // 코너 표기가 없으므로 좌측은 메뉴 가짓수
     expect(screen.getByText('메뉴 2가지')).toBeInTheDocument()
@@ -184,7 +214,7 @@ describe('MealGridSection', () => {
       time: '11:30~13:50',
       by_day: { '2': ['부대찌개', '잡곡밥', '치즈계란말이', '마파두부', '깍두기'] },
     }
-    render(<MealGridSection meal={meal} dayKey="2" compact isNowOpen showLiveStatus />)
+    render(<MealGridSection meal={meal} dayKey="2" compact state="open" showLiveStatus />)
 
     expect(screen.getByText('부대찌개')).toBeInTheDocument()
     expect(screen.getByText('치즈계란말이')).toBeInTheDocument()

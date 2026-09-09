@@ -8,9 +8,13 @@ import { ddayFrom } from './academicCalendar'
 import { normalizeMenuItems } from '../components/cafeteria/mealMenu'
 
 // ── 도서관 열람실 "지금 열려 있나" 요약 ────────────────────────────────
-// 원본 문자열은 "[방학] 평일 09:30 ~ 17:30" / "매일 06:30 ~ 23:00" / "미개방" 꼴.
+// 원본 문자열은 "[방학] 평일 09:30 ~ 17:30" / "매일 06:30 ~ 23:00" /
+// "24시간 개방" / "미개방" 꼴이다(library.tukorea.ac.kr 배너 API 실측).
 // 시험기간에만 보이던 개관시간을 홈에서 상시로 답해주기 위한 헬퍼.
 const HOURS_RE = /(\d{1,2}):(\d{2})\s*~\s*(\d{1,2}):(\d{2})/
+// 학기 중 제2일반열람실이 이 표기를 쓴다. 시각 범위가 없어 HOURS_RE 로는 안
+// 잡히고, 그래서 "오늘 없음 · 미개방" 으로 뜨고 있었다.
+const ALWAYS_RE = /24\s*시간/
 
 function scopeMatchesToday(hours, day) {
   // day: 0=일 … 6=토
@@ -27,13 +31,25 @@ function toMinutes(h, m) {
 
 /**
  * 열람실 한 곳의 오늘 상태.
- * @returns {{state: 'open'|'closed'|'off', startText?: string, endText?: string,
- *            start?: number, end?: number}}
+ * @returns {{state: 'open'|'closed'|'off', always?: boolean, startText?: string,
+ *            endText?: string, start?: number, end?: number}}
  *   off  = 오늘 운영 자체가 없음(미개방이거나 오늘 요일 대상이 아님)
  *   open = 지금 열려 있음 / closed = 오늘 운영하지만 지금은 닫힘
  */
 export function roomStateToday(room, now = new Date()) {
   if (!room?.hours || room.closed) return { state: 'off' }
+
+  if (ALWAYS_RE.test(room.hours) && scopeMatchesToday(room.hours, now.getDay())) {
+    return {
+      state: 'open',
+      always: true,
+      start: 0,
+      end: 24 * 60,
+      startText: '00:00',
+      endText: '24:00',
+    }
+  }
+
   const m = HOURS_RE.exec(room.hours)
   if (!m || !scopeMatchesToday(room.hours, now.getDay())) return { state: 'off' }
 
@@ -67,7 +83,16 @@ export function summarizeLibraryHours(rooms, now = new Date()) {
 
   const openNow = parsed.filter((p) => nowMin >= p.start && nowMin < p.end)
   if (openNow.length) {
-    // 가장 늦게까지 여는 곳이 "언제까지 있을 수 있나"의 답이다
+    // 가장 늦게까지 여는 곳이 "언제까지 있을 수 있나"의 답이다. 24시간 개방인
+    // 곳이 있으면 그게 답이고, 닫는 시각 대신 그 사실을 그대로 말한다.
+    const always = openNow.find((p) => p.always)
+    if (always) {
+      return {
+        open: true,
+        label: `지금 ${openNow.length}곳 열림`,
+        sub: `${always.room} 24시간`,
+      }
+    }
     const latest = openNow.reduce((a, b) => (b.end > a.end ? b : a))
     return {
       open: true,

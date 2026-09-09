@@ -157,15 +157,99 @@ export function isCafeteriaStatusOpen(status) {
 }
 
 export function isMealTypeOpenNow(cafeteriaName, mealType, nowDate = new Date()) {
+  return getMealTypeStatus(cafeteriaName, mealType, nowDate).state === 'open'
+}
+
+/**
+ * 끼니 하나의 세 갈래 상태.
+ *
+ * 예전에는 열림 여부(boolean) 하나만 돌려줬다. 그래서 시작 전과 종료 후가
+ * 같은 값이 되어, 오전 8시 17분에 8시 30분 시작인 아침밥이 "운영 종료" 로
+ * 뜨고 하단에 "내일 8:30 재개" 가 붙었다. 오늘 아직 오지도 않은 끼니를
+ * 끝났다고 말한 것이다.
+ *
+ * @param {string} cafeteriaName
+ * @param {string} mealType
+ * @param {Date} [nowDate]
+ * @returns {{
+ *   state: 'before' | 'open' | 'closed' | 'none',
+ *   start: string|null,
+ *   end: string|null,
+ *   startsInMin: number|null,  // state==='before' 일 때 시작까지 남은 분
+ * }}
+ */
+export function getMealTypeStatus(cafeteriaName, mealType, nowDate = new Date()) {
+  const none = { state: 'none', start: null, end: null, startsInMin: null }
   try {
     const venue = resolveVenueForCafeteria(cafeteriaName)
-    if (!venue || !mealType) return false
+    if (!venue || !mealType) return none
 
     const slot = resolveTodaySlots(venue, nowDate).find((s) => s.type === mealType)
-    if (!slot) return false
+    if (!slot) return none
 
-    return isOpenNow({ meals: [slot], closedDays: [] }, nowDate).open
+    // 판정은 venueOpen.isOpenNow 에 그대로 맡긴다 — KST 변환과 시각 비교를
+    // 여기서 다시 구현하지 않는다(이 파일 상단 규칙).
+    const result = isOpenNow({ meals: [slot], closedDays: [] }, nowDate)
+    const base = { start: slot.start ?? null, end: slot.end ?? null }
+
+    if (result.open) return { ...base, state: 'open', startsInMin: null }
+    if (result.status === 'before_open') {
+      return { ...base, state: 'before', startsInMin: minutesUntil(slot.start, nowDate) }
+    }
+    return { ...base, state: 'closed', startsInMin: null }
   } catch {
-    return false
+    return none
   }
+}
+
+/**
+ * "HH:MM" 까지 남은 분(KST 기준). 이미 지났으면 0.
+ * isOpenNow 가 before_open 으로 판정한 뒤에만 부른다.
+ */
+function minutesUntil(startHhmm, nowDate) {
+  if (typeof startHhmm !== 'string') return null
+  const [h, m] = startHhmm.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul', hour12: false, hour: '2-digit', minute: '2-digit',
+  }).formatToParts(nowDate)
+  const get = (t) => Number(parts.find((p) => p.type === t)?.value ?? NaN)
+  const nowMin = (get('hour') % 24) * 60 + get('minute')
+  return Math.max(0, h * 60 + m - nowMin)
+}
+
+/**
+ * 오늘 끼니들의 상태를 한 번에 계산하고, 아직 시작 전인 것 중 가장 이른 하나만
+ * 카운트다운 대상으로 표시한다. 셋이 모두 "N시간 후 시작" 을 달면 어느 것이
+ * 바로 다음 차례인지 오히려 안 보인다.
+ *
+ * @param {string|undefined} cafeteriaName
+ * @param {{type: string}[]|undefined} meals
+ * @param {boolean} showLiveStatus — 오늘을 보고 있을 때만 실시간 판정이 뜻이 있다
+ * @param {Date} [nowDate]
+ * @returns {{state: string, startsInMin: number|null}[]}
+ */
+export function buildMealStates(cafeteriaName, meals, showLiveStatus, nowDate = new Date()) {
+  if (!showLiveStatus) return (meals ?? []).map(() => ({ state: 'none', startsInMin: null }))
+  const states = (meals ?? []).map((m) => getMealTypeStatus(cafeteriaName, m.type, nowDate))
+  let nextIdx = -1
+  states.forEach((s, i) => {
+    if (s.state !== 'before' || s.startsInMin == null) return
+    if (nextIdx === -1 || s.startsInMin < states[nextIdx].startsInMin) nextIdx = i
+  })
+  return states.map((s, i) => ({
+    state: s.state,
+    startsInMin: i === nextIdx ? s.startsInMin : null,
+  }))
+}
+
+/** 남은 분 → "N시간 M분 후 시작". 1분 미만은 "곧 시작". */
+export function formatStartsIn(minutes) {
+  if (minutes == null || !Number.isFinite(minutes)) return null
+  if (minutes < 1) return '곧 시작'
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m}분 후 시작`
+  if (m === 0) return `${h}시간 후 시작`
+  return `${h}시간 ${m}분 후 시작`
 }

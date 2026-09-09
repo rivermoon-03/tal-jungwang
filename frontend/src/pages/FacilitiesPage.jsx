@@ -18,6 +18,7 @@ import ErrorState from '../components/ui/ErrorState'
 import CafeteriaVenues from '../components/cafeteria/CafeteriaVenues'
 import LibrarySection from '../components/facilities/LibrarySection'
 import MealGridSection from '../components/cafeteria/MealGridSection'
+import { buildMealStates } from '../utils/cafeteriaMenuVenue'
 import CafeteriaHero from '../components/cafeteria/CafeteriaHero'
 import CafeteriaPCLayout from '../components/cafeteria/CafeteriaPCLayout'
 import { useCafeteriaMenu } from '../hooks/useCafeteria'
@@ -33,7 +34,6 @@ import {
   isMenuWeekStale,
 } from '../utils/cafeteriaDays'
 import { formatUpdated } from '../utils/cafeteriaFormat'
-import { isMealTypeOpenNow } from '../utils/cafeteriaMenuVenue'
 import { useNow } from '../hooks/useNow'
 
 // 메인 탭 정의. id 는 기존 딥링크(/cafeteria?tab=diet|venues)와 PC 사이드바
@@ -97,6 +97,7 @@ export default function FacilitiesPage() {
     [data?.week_start, data?.year, dayKeys]
   )
 
+
   // 요일 라벨 맵 구성
   const dayLabelMap = useMemo(
     () => buildDayLabelMap(data?.week_start, data?.year, dayKeys),
@@ -116,6 +117,16 @@ export default function FacilitiesPage() {
   }, [selectedDay, dayKeys, todayKey, data?.week_start, data?.year, cafeteriaForDays])
 
   const cafeteria = data?.cafeterias?.[selectedCafeteriaIdx] ?? null
+  // 끼니 상태와 "다음 차례" 판정. 1분 tick 을 타므로 카운트다운이 흐른다.
+  const mealStates = useMemo(
+    () => buildMealStates(
+      cafeteria?.name,
+      cafeteria?.meals,
+      effectiveDay === todayKey,
+      nowDate,
+    ),
+    [cafeteria?.name, cafeteria?.meals, effectiveDay, todayKey, nowDate]
+  )
   const updatedLabel = formatUpdated(data?.fetched_at)
 
   // 식당 세그먼트 탭 items
@@ -281,22 +292,16 @@ export default function FacilitiesPage() {
                   className="flex flex-col gap-[14px] animate-fade-in"
                   key={`${selectedCafeteriaIdx}:${effectiveDay}`}
                 >
-                  {cafeteria.meals.map((meal, i) => {
-                    // "지금 운영 중" 판정은 오늘을 보고 있을 때만 뜻이 있다.
-                    // 다른 요일을 넘겨보는 중에 오늘 기준 배지가 붙으면 거짓말이 된다.
-                    const showLiveStatus = effectiveDay === todayKey
-                    const isNowOpen =
-                      showLiveStatus && isMealTypeOpenNow(cafeteria.name, meal.type, nowDate)
-                    return (
-                      <MealGridSection
-                        key={`${meal.type}-${i}`}
-                        meal={meal}
-                        dayKey={effectiveDay}
-                        isNowOpen={isNowOpen}
-                        showLiveStatus={showLiveStatus}
-                      />
-                    )
-                  })}
+                  {cafeteria.meals.map((meal, i) => (
+                    <MealGridSection
+                      key={`${meal.type}-${i}`}
+                      meal={meal}
+                      dayKey={effectiveDay}
+                      state={mealStates[i]?.state ?? 'none'}
+                      startsInMin={mealStates[i]?.startsInMin ?? null}
+                      showLiveStatus={effectiveDay === todayKey}
+                    />
+                  ))}
                 </div>
               )}
 

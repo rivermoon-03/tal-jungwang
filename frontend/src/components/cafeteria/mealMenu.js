@@ -70,15 +70,17 @@ export function parseMealTimeRange(time) {
  * 좌측: 실제 메뉴 항목에서 셀 수 있는 사실만 쓴다 — "무제한 리필"처럼
  * 백엔드가 내려주지 않는 문구는 지어내지 않는다. 코너 표기가 있으면 코너
  * 개수, 없으면 메뉴 가짓수를 보여준다.
- * 우측: 지금 운영 중이면 오늘 종료 시각, 아니면 내일 같은 시각 재개 안내.
+ * 우측: 상태에 따라 다르다. 운영 중이면 오늘 종료 시각, 아직 시작 전이면 오늘
+ * 시작 시각, 끝났으면 내일 재개 시각이다. 시작 전을 종료와 같이 다루면 오전
+ * 8시에 "내일 8:30 재개" 가 붙는다 — 오늘 8:30 이 아직 오지도 않았는데.
  * meal.time을 파싱하지 못하면 null(생략)한다.
  *
  * @param {{ time?: string }} meal
  * @param {string[]} menuItems
- * @param {boolean} isNowOpen
+ * @param {'before'|'open'|'closed'|'none'} state
  * @returns {{ left: string, right: string|null }}
  */
-export function getMealFooterInfo(meal, menuItems, isNowOpen) {
+export function getMealFooterInfo(meal, menuItems, state) {
   const cornerNumbers = new Set(
     (menuItems ?? [])
       .map((item) => item.match(CORNER_PREFIX_RE)?.[1])
@@ -90,11 +92,12 @@ export function getMealFooterInfo(meal, menuItems, isNowOpen) {
     : `메뉴 ${menuItems.length}가지`
 
   const range = parseMealTimeRange(meal.time)
-  const right = !range
-    ? null
-    : isNowOpen
-      ? `${range[1]} 종료`
-      : `내일 ${range[0]} 재개`
+  let right = null
+  if (range) {
+    if (state === 'open') right = `${range[1]} 종료`
+    else if (state === 'before') right = `오늘 ${range[0]} 시작`
+    else right = `내일 ${range[0]} 재개`
+  }
 
   return { left, right }
 }

@@ -1,4 +1,5 @@
 import { isEmptyMenu, MENU_TAG_LIMIT, hasMultipleMenuChoice, getMealFooterInfo, normalizeMenuItems } from './mealMenu'
+import { formatStartsIn } from '../../utils/cafeteriaMenuVenue'
 import NowBadge from './NowBadge'
 
 /**
@@ -14,19 +15,28 @@ import NowBadge from './NowBadge'
  * 보고 있을 때만) 계산한다. 다른 요일을 넘겨보는 중에 오늘 기준 실시간
  * 상태가 붙으면 거짓말이 된다(FacilitiesPage의 기존 규칙과 동일).
  *
+ * 상태는 세 갈래다. 운영 중, 아직 시작 전, 오늘 끝남. 시작 전과 끝남을 하나로
+ * 묶으면 오전 8시에 8시 30분 시작인 아침밥이 "운영 종료" 로 뜬다.
+ * 그리고 오늘 다음에 열릴 끼니 하나에만 남은 시간을 붙인다 — 세 끼니가 모두
+ * "N시간 후 시작" 을 달면 어느 것이 다음인지 오히려 안 보인다.
+ *
  * @param {object} meal
  * @param {string} dayKey
- * @param {boolean} [isNowOpen] — 지금(현재 시각) 이 끼니가 운영 중인지
+ * @param {'before'|'open'|'closed'|'none'} [state] — 이 끼니의 현재 상태
+ * @param {number|null} [startsInMin] — state==='before' 이고 다음 차례일 때만 채운다
  * @param {boolean} [showLiveStatus] — 오늘을 보고 있어 실시간 상태를 보여줘도 되는지
  * @param {boolean} [compact] — 다른 식당 미리보기용 축약 카드(태그 3개, 부가정보 없음)
  */
 export default function MealGridSection({
   meal,
   dayKey,
-  isNowOpen = false,
+  state = 'none',
+  startsInMin = null,
   showLiveStatus = false,
   compact = false,
 }) {
+  const isNowOpen = state === 'open'
+  const countdown = state === 'before' ? formatStartsIn(startsInMin) : null
   // 별표 메타 표기("*복수메뉴*" 등 학교 쪽 안내문)를 먼저 걷어낸 뒤 빈 메뉴를
   // 판정한다 — 메타 항목만 있고 실제 메뉴가 없는 날을 "메뉴 있음"으로 잘못
   // 보여주지 않기 위해서다.
@@ -40,7 +50,7 @@ export default function MealGridSection({
 
   const showMultiTag = !compact && !empty && hasMultipleMenuChoice(menuItems)
   const footer = !compact && !empty && showLiveStatus
-    ? getMealFooterInfo(meal, menuItems, isNowOpen)
+    ? getMealFooterInfo(meal, menuItems, state)
     : null
 
   return (
@@ -52,7 +62,9 @@ export default function MealGridSection({
       ].join(' ')}
       // 지금 운영중인 끼니만 액센트 링(2px)을 두른다 — 카드 자체의 은은한
       // shadow-sh-card를 대체한다(테두리+그림자를 동시에 쌓지 않는다).
-      style={!compact && isNowOpen ? { boxShadow: '0 0 0 2px var(--tj-accent)' } : undefined}
+      // 운영 중이거나 다음 차례인 끼니만 액센트 링(2px)을 두른다 — 카드 자체의
+      // 은은한 shadow-sh-card 를 대체한다(테두리와 그림자를 동시에 쌓지 않는다).
+      style={!compact && (isNowOpen || countdown) ? { boxShadow: '0 0 0 2px var(--tj-accent)' } : undefined}
     >
       {/* "지금 운영중" 배지 — 카드 상단 경계에 걸치도록 절대배치한다. */}
       {!compact && isNowOpen && (
@@ -81,12 +93,12 @@ export default function MealGridSection({
           <span
             className={[
               'ml-auto px-2 py-0.5 rounded-pill text-caption font-semibold whitespace-nowrap',
-              isNowOpen
+              isNowOpen || countdown
                 ? 'bg-chip-green-bg text-chip-green-fg'
                 : 'bg-chip-gray-bg text-chip-gray-fg',
             ].join(' ')}
           >
-            {isNowOpen ? '영업 중' : '운영 종료'}
+            {isNowOpen ? '영업 중' : countdown || (state === 'before' ? '운영 전' : '운영 종료')}
           </span>
         )}
       </div>

@@ -20,7 +20,7 @@ import useAppStore from '../../stores/useAppStore'
 import { useNow } from '../../hooks/useNow'
 import DayChips from './DayChips'
 import { formatUpdated } from '../../utils/cafeteriaFormat'
-import { isMealTypeOpenNow, getCafeteriaStatus, isCafeteriaStatusOpen } from '../../utils/cafeteriaMenuVenue'
+import { buildMealStates, getCafeteriaStatus, isCafeteriaStatusOpen } from '../../utils/cafeteriaMenuVenue'
 import {
   buildDayLabelMap,
   getTodayDayKey,
@@ -121,9 +121,15 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
 
   const cafeteria = data?.cafeterias?.[selectedVenueIdx] ?? null
 
+
   const todayKey = useMemo(
     () => getTodayDayKey(data?.week_start, data?.year, dayKeys),
     [data?.week_start, data?.year, dayKeys]
+  )
+  // 끼니 상태와 "다음 차례" 판정. FacilitiesPage(모바일)와 같은 함수를 쓴다.
+  const mealStates = useMemo(
+    () => buildMealStates(cafeteria?.name, cafeteria?.meals, effectiveDay === todayKey, nowDate),
+    [cafeteria?.name, cafeteria?.meals, effectiveDay, todayKey, nowDate]
   )
 
   const dayChipItems = useMemo(
@@ -250,20 +256,16 @@ export default function CafeteriaPCLayout({ data, loading, error, refetch }) {
                 key={`${selectedVenueIdx}:${effectiveDay}`}
                 className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[14px] items-start animate-fade-in"
               >
-                {cafeteria.meals.map((meal, i) => {
-                  const showLiveStatus = effectiveDay === todayKey
-                  const isNowOpen =
-                    showLiveStatus && isMealTypeOpenNow(cafeteria.name, meal.type, nowDate)
-                  return (
-                    <MealGridSection
-                      key={`${meal.type}-${i}`}
-                      meal={meal}
-                      dayKey={effectiveDay}
-                      isNowOpen={isNowOpen}
-                      showLiveStatus={showLiveStatus}
-                    />
-                  )
-                })}
+                {cafeteria.meals.map((meal, i) => (
+                  <MealGridSection
+                    key={`${meal.type}-${i}`}
+                    meal={meal}
+                    dayKey={effectiveDay}
+                    state={mealStates[i]?.state ?? 'none'}
+                    startsInMin={mealStates[i]?.startsInMin ?? null}
+                    showLiveStatus={effectiveDay === todayKey}
+                  />
+                ))}
               </div>
             )}
           </div>

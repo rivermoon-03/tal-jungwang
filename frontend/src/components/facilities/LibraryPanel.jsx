@@ -59,7 +59,11 @@ export default function LibraryPanel({ rooms = [], summary = null, exam = null }
             <p key={r.room} className="flex items-center gap-2 text-caption font-medium text-ink-2 dark:text-ink-2">
               <span className="truncate flex-1 min-w-0">{r.room}</span>
               <span className="font-semibold tabular-nums text-mute dark:text-mute whitespace-nowrap">
-                {s.state === 'off' ? (r.closed ? '미개방' : '오늘 없음') : `${s.startText} ~ ${s.endText}`}
+                {s.state === 'off'
+                  ? (r.closed ? '미개방' : '오늘 없음')
+                  : s.always
+                    ? '24시간 개방'
+                    : `${s.startText} ~ ${s.endText}`}
               </span>
               <span className={`text-micro font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${meta.cls}`}>
                 {meta.label}
