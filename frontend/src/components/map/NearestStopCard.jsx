@@ -188,7 +188,7 @@ export default function NearestStopCard({
               type="button"
               onClick={handleTap}
               className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-button min-h-[44px]
-                         active:bg-surface-2 dark:active:bg-surface-2-dark transition-colors"
+                         active:bg-surface-2 transition-colors"
               style={{ touchAction: 'manipulation' }}
             >
               <RouteBadge route={row.routeNo} />

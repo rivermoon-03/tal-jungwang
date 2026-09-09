@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeFavKey, parseFavKey, matchesLegacy } from './favKey'
+import { makeFavKey, parseFavKey, matchesLegacy, allFavoriteCodes } from './favKey'
 
 describe('makeFavKey', () => {
   it('mode:id:direction 형태로 조립한다', () => {
@@ -85,5 +85,30 @@ describe('matchesLegacy — 회귀 버그 재현: 별 저장 "20-1" vs 필터 �
 
   it('routeNumber/favKey 둘 다 없으면 false', () => {
     expect(matchesLegacy(['20-1'], {})).toBe(false)
+  })
+})
+
+// 저장 위치가 두 갈래(favorites.routes / favorites.keys)라 한쪽만 읽는 소비처가
+// 있었다. 푸시 구독과 독 팝오버와 PC 사이드바가 그랬고, 시간표에서 누른 별이
+// 세 곳 모두에서 조용히 빠졌다.
+describe('allFavoriteCodes', () => {
+  it('routes 와 keys 를 합친다', () => {
+    const result = allFavoriteCodes({ routes: ['하교:3400'], keys: ['bus:3:하교'] })
+    expect(result).toEqual(['하교:3400', 'bus:3:하교'])
+  })
+
+  it('중복을 없애고 저장 순서를 지킨다', () => {
+    const result = allFavoriteCodes({ routes: ['a', 'b'], keys: ['b', 'c'] })
+    expect(result).toEqual(['a', 'b', 'c'])
+  })
+
+  it('빈 값과 비문자열을 버린다', () => {
+    expect(allFavoriteCodes({ routes: ['', null, 3, 'a'], keys: undefined })).toEqual(['a'])
+  })
+
+  it('배열이 아니거나 없으면 빈 배열이다', () => {
+    expect(allFavoriteCodes(undefined)).toEqual([])
+    expect(allFavoriteCodes({})).toEqual([])
+    expect(allFavoriteCodes({ routes: 'nope', keys: null })).toEqual([])
   })
 })

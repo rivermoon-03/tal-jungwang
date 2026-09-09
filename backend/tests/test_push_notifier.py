@@ -37,6 +37,15 @@ from app.services.push_notifier import ParsedFavCode
             "subway:초지:choji_up",
             ParsedFavCode(kind="subway", station_group="초지", subway_key="choji_up"),
         ),
+        # 신규 스키마(frontend/src/utils/favKey.js) — 시간표·노선 상세가 쓰는 형식.
+        # 이걸 못 읽던 시절 그 화면들에서 누른 별은 알림 대상에서 통째로 빠졌다.
+        ("bus:3:하교", ParsedFavCode(kind="bus", route_id=3, category="하교")),
+        ("bus:20-1:하교", ParsedFavCode(kind="bus", route_number="20-1", category="하교")),
+        ("bus:5602:등교", ParsedFavCode(kind="bus", route_number="5602", category="등교")),
+        ("shuttle:main:등교", ParsedFavCode(kind="shuttle", direction=0)),
+        ("shuttle:main:하교", ParsedFavCode(kind="shuttle", direction=1)),
+        ("shuttle:second:등교", ParsedFavCode(kind="shuttle", direction=2)),
+        ("shuttle:second:하교", ParsedFavCode(kind="shuttle", direction=3)),
     ],
 )
 def test_parse_fav_code_valid(fav_code, expected):
@@ -53,6 +62,11 @@ def test_parse_fav_code_valid(fav_code, expected):
         "subway:정왕:unknown_key",
         "subway::up",  # station_group 빈 문자열
         "등교:",  # route_number 빈 문자열
+        "bus::하교",  # 신규 스키마 id 빈 문자열
+        "bus:3",  # 세그먼트 부족
+        "bus:3:하교:추가",  # 세그먼트 초과
+        "shuttle:없는캠퍼스:등교",
+        "shuttle:main:없는방향",
     ],
 )
 def test_parse_fav_code_invalid_returns_none(fav_code):

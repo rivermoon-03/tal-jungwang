@@ -871,7 +871,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
             <div key={ci} className="flex-1 min-w-0">
               {/* 헤더 */}
               <div className="text-center py-2 border-b border-line dark:border-line mb-0.5">
-                <span className="block text-caption font-bold text-ink-2 dark:text-ink-2-dark whitespace-nowrap">
+                <span className="block text-caption font-bold text-ink-2 whitespace-nowrap">
                   {col.label}
                 </span>
                 <span className="block text-caption text-mute dark:text-mute whitespace-nowrap">

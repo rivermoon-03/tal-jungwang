@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { X, Bookmark, ChevronRight } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import { parseFavCode } from '../../utils/favCode'
+import { useFavoriteItems } from '../../hooks/useFavoriteItems'
 
 // DockQuickAccess — dock 위 팝오버. 즐겨찾기 최대 4건.
 // FloatingDock 롱프레스 시 표시. onClose로 닫기.
@@ -10,15 +10,15 @@ import { parseFavCode } from '../../utils/favCode'
 // ESC / 바깥 탭으로 닫힘.
 
 export default function DockQuickAccess({ onClose }) {
-  const favorites = useAppStore((s) => s.favorites)
   const setDetailModal = useAppStore((s) => s.setDetailModal)
   const containerRef = useRef(null)
 
-  const routes = favorites?.routes ?? []
-  const displayItems = routes.slice(0, 4).map(parseFavCode).filter(Boolean)
+  // keys(신규 스키마) 와 routes(레거시) 를 함께 읽는다 — 예전엔 routes 만 봐서
+  // 시간표에서 누른 별이 이 팝오버에 뜨지 않았다.
+  const { items: displayItems, totalCount } = useFavoriteItems({ limit: 4 })
   // 팝오버는 4건까지만 보여준다. 나머지를 볼 방법이 없으면 즐겨찾기가 사실상
   // 4칸짜리 기능이 되므로, 전체 목록(/favorites)으로 나가는 길을 항상 열어 둔다.
-  const hiddenCount = Math.max(0, routes.length - displayItems.length)
+  const hiddenCount = Math.max(0, totalCount - displayItems.length)
 
   const goAll = () => {
     window.history.pushState({}, '', '/favorites')

@@ -68,6 +68,8 @@ export default function MarkerSheet({
   onNavigate,
   onDetail,
   onArrivalClick,
+  loading = false,
+  failed = false,
   directionControl = null,
   relatedMarkers = [],
   onRelatedMarker,
@@ -268,7 +270,24 @@ export default function MarkerSheet({
 
       {/* ── 도착 리스트 (시안2 카드 분리형) ── */}
       <div className="flex-1 overflow-y-auto px-[18px] py-3">
-        {arrivals.length === 0 ? (
+        {arrivals.length === 0 && loading ? (
+          /* 조회 중 — 빈 상태 문구를 먼저 띄우면 "정보 없음"으로 읽힌다. */
+          <ul aria-busy="true" aria-label="도착 정보를 불러오는 중" className="flex flex-col gap-2 py-1">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="flex items-center gap-3 px-1 py-2">
+                <span className="rounded-button bg-surface-2 animate-pulse" style={{ width: 44, height: 36, flexShrink: 0 }} />
+                <span className="h-4 flex-1 rounded-badge bg-surface-2 animate-pulse" />
+                <span className="h-5 rounded-badge bg-surface-2 animate-pulse" style={{ width: 42 }} />
+              </li>
+            ))}
+          </ul>
+        ) : arrivals.length === 0 && failed ? (
+          /* 통신 실패와 "지금 오는 차가 없다"는 사용자가 할 일이 다르다. */
+          <div className="text-center py-4">
+            <p className="text-label font-semibold text-ink dark:text-ink">도착 정보를 불러오지 못했어요</p>
+            <p className="text-caption text-mute dark:text-mute mt-1">잠시 뒤 시트를 다시 열어 주세요</p>
+          </div>
+        ) : arrivals.length === 0 ? (
           <p className="text-label font-semibold text-mute dark:text-mute text-center py-4">
             {directionControl?.placeholder ?? '지금은 도착 정보가 없어요'}
           </p>

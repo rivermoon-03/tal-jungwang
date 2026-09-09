@@ -258,7 +258,7 @@ export default function ShuttleTimetable({ times, direction = 0 }) {
               {isReturn ? (
                 <div className="min-w-0">
                   <p className="text-body text-mute">회차편</p>
-                  <p className={`text-body font-medium mt-0.5 leading-snug ${isNext ? 'text-accent-ink dark:text-accent-ink' : 'text-ink-2 dark:text-ink-2-dark'}`}>
+                  <p className={`text-body font-medium mt-0.5 leading-snug ${isNext ? 'text-accent-ink dark:text-accent-ink' : 'text-ink-2'}`}>
                     {schoolTime
                       ? `${schoolTime}에 출발 후 도착하는 버스가 회차하면 탑승하세요`
                       : '수시운행(17:00~18:00) 버스가 회차하면 탑승하세요'}

@@ -21,7 +21,7 @@ export const BUS_STATIONS = {
     defaultDirection: '하교',
     perRouteDisplay: {
       '11-A':   { origin: '한국공대', dest: '정왕역 경유' },
-      '20-1':   { origin: '한국공대', dest: '정왕역 경유' },
+      '20-1':   { origin: '한국공대', dest: '정왕역행' },
       '시흥33': { origin: '한국공대', dest: '정왕역 경유 시흥시청행' },
     },
   },
@@ -167,7 +167,9 @@ export function getRouteCategory(routeNo) {
 // 노선·방향별 경로 — 미니 트랙 시각화의 데이터 소스
 export const ROUTE_PATH = {
   '11-A':   { 하교: { origin: '한국공대', waypoints: [], terminus: '정왕역', label: '정왕역행' } },
-  '20-1':   { 하교: { origin: '한국공대', waypoints: ['정왕역'], terminus: '아이파크', label: '아이파크아파트행' } },
+  // 한국공학대(#137) 에서 정왕역 방향으로 타면 이마트(#138) · 시흥세무서(#139)
+  // 다음이 정왕역(#140) 종점이다. '아이파크아파트' 는 140개 정류장 목록에 없다.
+  '20-1':   { 하교: { origin: '한국공대', waypoints: [], terminus: '정왕역', label: '정왕역행' } },
   '시흥33': {
     하교: { origin: '한국공대',   waypoints: ['정왕역'], terminus: '시흥시청', label: '시흥시청행' },
     등교: { origin: '시흥시청역', waypoints: [],         terminus: '한국공대', label: '학교행' },
@@ -199,9 +201,9 @@ export function getRoutePath(routeNo, category) {
 
 /**
  * 결함 #3/#16 — TransitCard 제목(title)은 행선지 풀네임이어야 한다("시흥시청행",
- * "아이파크아파트행" 등, 절대 말줄임 금지). 기존 getRouteCardDisplay/perRouteDisplay는
+ * "석수행" 등, 절대 말줄임 금지). 기존 getRouteCardDisplay/perRouteDisplay는
  * origin+경유+행선지를 한 문장으로 합쳐 카드 부제로 쓰기엔 좋지만, 그대로 title에
- * 쓰면 "정왕역 경유 아이파크아파트행"처럼 경유 정보까지 제목에 섞여버린다.
+ * 쓰면 "시흥시청 경유 석수행"처럼 경유 정보까지 제목에 섞여버린다.
  *
  * 이 헬퍼는 title(순수 행선지)과 viaChip(경유 정보, 있으면)을 분리해 반환한다 —
  * 칩 순서 규칙(실시간→혼잡→경유)에 맞춰 경유는 칩으로, 제목은 행선지만.
@@ -240,6 +242,12 @@ export const ROUTE_WAYPOINTS = {
 }
 
 // 노선 번호로 실시간 도착정보를 조회해야 할 GBIS 정류장 ID를 반환.
+//
+// 이 표는 DB bus_realtime_targets 의 복제다. 2026-09-09 이전에는 3400·3401·5602
+// 세 노선에서 두 값이 어긋나 있었다 — 프런트는 학생이 타는 정류장을, DB 는 하류
+// 관측점을 가리켰고, 그래서 상세 시트의 과거 도착 기록이 영구히 0건이었다.
+// prod_migration_20260909_realtime_at_boarding_stops.sql 이 DB 를 승차점으로
+// 옮겨 지금은 두 값이 같다. 어느 한쪽만 바꾸지 않는다.
 // 값이 string이면 카테고리 무관 단일 정류장, object면 카테고리별 정류장.
 // 시흥33·3401·5602는 등교(시흥시청역)·하교(이마트/한국공대) 정류장이 서로 달라
 // 반드시 카테고리별로 나눠야 한다. 3400 등교(서울측 승차)는 추적 정류장이 없어

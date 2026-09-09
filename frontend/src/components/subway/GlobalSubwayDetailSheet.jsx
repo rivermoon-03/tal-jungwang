@@ -486,7 +486,7 @@ export default function GlobalSubwayDetailSheet() {
             {secondRealtimeTrain && (
               <div className="flex items-center gap-2 px-4 py-3 border-t border-line dark:border-line">
                 <div className="w-[5px] h-[5px] rounded-full bg-mute dark:bg-mute flex-shrink-0" />
-                <p className="text-label font-semibold text-ink-2 dark:text-ink-2-dark">
+                <p className="text-label font-semibold text-ink-2">
                   다음 열차{' '}
                   <span className="font-semibold text-ink dark:text-ink">
                     {getEtaLabel(secondRealtimeTrain)}

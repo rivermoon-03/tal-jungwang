@@ -384,3 +384,45 @@ describe('마커 오버레이 접근성 — 캔버스 안에 포커스 가능한
     expect(onClick).toHaveBeenCalledTimes(2)
   })
 })
+
+// 서울 허브 마커의 분은 전부 시간표에서 계산한 값인데, 예전엔 minutes 가 있으면
+// 무조건 펄스 점을 붙였다. 정지된 숫자에 실시간 표시가 달려 있던 자리다.
+describe('createMarkerChipElement 분 출처 표기', () => {
+  function chipOf(opts) {
+    return createMarkerChipElement({
+      routeCode: '3400', stationName: '사당역', showLive: true, onClick: () => {}, ...opts,
+    })
+  }
+
+  it('실시간 값에는 펄스 점을 붙인다', () => {
+    const el = chipOf({ liveMinutes: 12, minutesSource: 'realtime' })
+    expect(el.querySelector('.animate-dot-blink')).toBeTruthy()
+    expect(el.textContent).toContain('12분')
+  })
+
+  it('시간표 값에는 펄스 점을 붙이지 않는다', () => {
+    const el = chipOf({ liveMinutes: 12, minutesSource: 'timetable' })
+    expect(el.querySelector('.animate-dot-blink')).toBeNull()
+  })
+
+  it('시간표 값은 예정이라고 말한다 — 곧 도착으로 바꾸지 않는다', () => {
+    const el = chipOf({ liveMinutes: 2, minutesSource: 'timetable' })
+    expect(el.textContent).toContain('2분 뒤 예정')
+    expect(el.textContent).not.toContain('곧 도착')
+  })
+
+  it('실시간 임박은 곧 도착으로 바꾼다', () => {
+    const el = chipOf({ liveMinutes: 2, minutesSource: 'realtime' })
+    expect(el.textContent).toContain('곧 도착')
+  })
+
+  it('출처를 안 주면 실시간으로 본다 — 기존 호출부 호환', () => {
+    const el = chipOf({ liveMinutes: 12 })
+    expect(el.querySelector('.animate-dot-blink')).toBeTruthy()
+  })
+
+  it('값이 없으면 시간표 기준이라고 말한다 — 낱말 하나만 두지 않는다', () => {
+    const el = chipOf({ liveMinutes: null })
+    expect(el.textContent).toContain('시간표 기준')
+  })
+})

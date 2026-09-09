@@ -21,6 +21,7 @@ import { getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationC
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 import { describeArrival } from '../../utils/arrivalTime'
 import { selectRepresentativeBusSource } from '../../utils/busInformationSource'
+import { BUS_GROUP_IDS } from './busGroups'
 import { makeFavKey, matchesLegacy } from '../../utils/favKey'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
 import EmptyState from '../ui/EmptyState'
@@ -62,12 +63,6 @@ function navigateSchedule({ type = null, route = null, stop = null } = {}) {
 }
 
 // ─── static section definitions ────────────────────────────────────────────
-const BUS_GROUP_IDS = [
-  { id: '하교', label: '하교' },
-  { id: '등교', label: '등교' },
-  { id: '기타', label: '기타 노선' },
-]
-
 const SUBWAY_GROUPS = [
   { id: '정왕',     label: '정왕',     stationCode: 'K449' },
   { id: '초지',     label: '초지',     stationCode: 'K448' },

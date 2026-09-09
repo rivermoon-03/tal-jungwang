@@ -7,7 +7,7 @@ import { useWeather } from '../../hooks/useWeather'
 import { SKY_ICON, SKY_TEXT } from '../stats/skyDisplay'
 import { describeJeongwangWind } from '../../utils/jeongwangWind'
 import { PC_TABS, getActivePcTabId, navigateToPcTab } from '../common/pcNavTabs'
-import { parseFavCode } from '../../utils/favCode'
+import { useFavoriteItems } from '../../hooks/useFavoriteItems'
 import NoticesPopover from '../common/NoticesPopover'
 import IconButton from '../ui/IconButton'
 
@@ -88,9 +88,11 @@ export default function PCSidebar() {
 
   const darkMode = useAppStore((s) => s.darkMode)
   const toggleDarkMode = useAppStore((s) => s.toggleDarkMode)
-  const favorites = useAppStore((s) => s.favorites)
-  const favoriteRoutes = favorites?.routes ?? []
   const setDetailModal = useAppStore((s) => s.setDetailModal)
+  // keys(신규 스키마) 와 routes(레거시) 를 함께 읽고, 버스 route_id 는 노선번호로
+  // 되돌린다. 예전엔 routes 만 봐서 시간표에서 누른 별이 여기 안 떴고,
+  // 지하철은 저장 키를 그대로 잘라 "정왕 up" 이라는 내부 값이 화면에 찍혔다.
+  const { items: favoriteItems } = useFavoriteItems()
 
   const pcCafeteriaTab = useAppStore((s) => s.pcCafeteriaTab)
   const setPcCafeteriaTab = useAppStore((s) => s.setPcCafeteriaTab)
@@ -106,10 +108,8 @@ export default function PCSidebar() {
   // 즐겨찾기 항목을 누르면 그 노선의 상세 시트를 연다.
   // 예전에는 모든 행이 goSettings 에 묶여 있어서 무엇을 눌러도 /more 로 갔다 —
   // hover 상태는 정상이라 눌리는 것처럼 보이기만 했다.
-  // 모바일 팝오버(DockQuickAccess)와 같은 parseFavCode + setDetailModal 경로를 쓴다.
-  const openFavorite = (favCode) => () => {
-    const item = parseFavCode(favCode)
-    if (!item) return
+  // 모바일 팝오버(DockQuickAccess)와 같은 useFavoriteItems + setDetailModal 경로를 쓴다.
+  const openFavorite = (item) => () => {
     const { type, routeCode, title, ...rest } = item
     setDetailModal({ type, routeCode, title, ...rest })
   }
@@ -242,18 +242,18 @@ export default function PCSidebar() {
       </nav>
 
       {/* 즐겨찾기 */}
-      {favoriteRoutes.length > 0 && (
+      {favoriteItems.length > 0 && (
         <div className="mt-3">
           <p className="px-3 pb-1 text-dest font-bold uppercase tracking-[.07em] text-mute">즐겨찾기</p>
           <ul className="flex flex-col gap-0.5">
-            {favoriteRoutes.map((routeKey) => {
-              const isSubway = routeKey.startsWith('subway:')
-              const label = isSubway ? routeKey.replace('subway:', '').replace(':', ' ') : routeKey
+            {favoriteItems.map((item) => {
+              const isSubway = item.type === 'subway'
+              const label = item.title
               return (
-                <li key={routeKey}>
+                <li key={item.favCode}>
                   <button
                     type="button"
-                    onClick={openFavorite(routeKey)}
+                    onClick={openFavorite(item)}
                     // 22px는 4px 그리드 밖이라 20px(pl-5)로 스냅한다. 20과 24 둘 다
                     // 등거리라 상단 네비 아이콘 들여쓰기(px-3=12px)에 더 가까운 쪽을
                     // 골라 즐겨찾기 목록이 상위 네비의 연장처럼 보이게 한다.

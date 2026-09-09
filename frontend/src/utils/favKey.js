@@ -89,3 +89,26 @@ export function matchesLegacy(favList, { routeNumber, favKey } = {}) {
     return entry.slice(idx + 1) === target
   })
 }
+
+/**
+ * allFavoriteCodes — 즐겨찾기 전체를 한 배열로 모은다.
+ *
+ * 저장 위치가 두 갈래다. 시간표와 노선 상세는 신규 스키마를 favorites.keys 에,
+ * 나머지 화면은 레거시 favCode 를 favorites.routes 에 쓴다. 한쪽만 읽는 소비처가
+ * 있어 시간표에서 누른 별이 푸시 알림 대상과 독 팝오버에서 빠져 있었다.
+ *
+ * @param {{routes?: string[], keys?: string[]}} favorites
+ * @returns {string[]} 중복 없는 favCode 배열(저장 순서 유지, routes 먼저)
+ */
+export function allFavoriteCodes(favorites) {
+  const routes = Array.isArray(favorites?.routes) ? favorites.routes : []
+  const keys = Array.isArray(favorites?.keys) ? favorites.keys : []
+  const seen = new Set()
+  const out = []
+  for (const code of [...routes, ...keys]) {
+    if (typeof code !== 'string' || code === '' || seen.has(code)) continue
+    seen.add(code)
+    out.push(code)
+  }
+  return out
+}

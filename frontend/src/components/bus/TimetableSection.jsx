@@ -176,7 +176,7 @@ export default function TimetableSection({
                                 isNext
                                   ? 'bg-accent-bg text-accent-ink dark:text-accent'
                                   : isPast
-                                    ? 'text-ink-2 dark:text-ink-2-dark'
+                                    ? 'text-ink-2'
                                     : 'text-ink dark:text-ink',
                               ].join(' ')}
                             >
