@@ -18,7 +18,7 @@
  */
 import { useState, useEffect, useMemo } from 'react'
 import {
-  ArrowLeft, Palette, Type, LayoutGrid, List, Navigation, Home,
+  ArrowLeft, Palette, Type, LayoutGrid, List, Navigation,
   Bell, BellRing, Zap, Utensils, Moon, RefreshCw, MapPin, Globe, Trash2, Info,
   ChevronRight, Sparkles, CloudSun,
 } from 'lucide-react'
@@ -97,15 +97,6 @@ function PreparingBadge() {
   return (
     <span className="flex-shrink-0 px-2 py-0.5 rounded-pill text-caption font-semibold bg-surface-2 dark:bg-bg text-mute dark:text-mute">
       준비 중
-    </span>
-  )
-}
-
-function ValueChevron({ value, accent = false }) {
-  return (
-    <span className={`flex items-center gap-0.5 flex-shrink-0 text-body-sm font-semibold ${accent ? 'text-accent-ink dark:text-accent' : 'text-mute dark:text-mute'}`}>
-      {value}
-      <ChevronRight size={15} aria-hidden="true" />
     </span>
   )
 }
@@ -482,7 +473,6 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
             )}
           </div>
 
-          <Row icon={Home} title="시작 화면" desc="앱을 열었을 때 처음 보이는 화면" right={<ValueChevron value="홈" />} />
         </SettingsGroup>
         </Section>
 

@@ -2,7 +2,7 @@ import Card from '../ui/Card.jsx'
 import RouteBadge from '../ui/RouteBadge.jsx'
 import StatusChip from '../ui/StatusChip.jsx'
 import LastBusBanner from '../bus/LastBusBanner.jsx'
-import { formatEta, formatHHMM } from '../../utils/eta.js'
+import { formatEta, formatHHMM, isImminentMinutes } from '../../utils/eta.js'
 import { labelFromLevel } from '../../utils/crowdingLevel'
 import { useNow } from '../../hooks/useNow'
 
@@ -56,7 +56,7 @@ export default function ArrivalRow({
   const first = minsArr[0]
   const rest = minsArr.slice(1, 3)
   const hasFirst = first != null && Number.isFinite(first)
-  const urgent = isUrgent ?? (!!imminentLabel || (hasFirst && first <= 3))
+  const urgent = isUrgent ?? (!!imminentLabel || (hasFirst && isImminentMinutes(first)))
 
   const badgeRoute = route ?? routeNumber ?? ''
 

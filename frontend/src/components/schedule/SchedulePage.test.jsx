@@ -469,7 +469,20 @@ describe('SchedulePage — 통학 맥락과 정적 시간표', () => {
 
     const card = screen.getByTestId('bus-context-20-1')
     expect(within(card).getByTestId('schedule-time-column')).toHaveTextContent('3분')
-    expect(within(card).getAllByText('학교 승차')).toHaveLength(2)
+    // 승차 지점이 하나면 출처 줄을 두 번 반복하지 않는다. 같은 "학교 승차" 를
+    // 시간표·실시간 두 줄로 늘어놓아 봐야 방금 읽은 숫자를 다시 말할 뿐이다.
+    expect(within(card).queryAllByText('학교 승차')).toHaveLength(0)
+    // 그리고 지금 보여주는 값의 출처 하나만 칩으로 말한다.
+    expect(card).toHaveTextContent('실시간')
+    expect(card).not.toHaveTextContent('시간표')
+  })
+
+  it('승차 지점이 둘인 3400은 지점별 줄을 남긴다', () => {
+    render(<SchedulePage />)
+
+    const card = screen.getByTestId('bus-context-3400')
+    // 시화터미널과 이마트는 다른 정류장이라 큰 숫자 하나로 담을 수 없다.
+    expect(within(card).getAllByText(/승차$/).length).toBeGreaterThan(1)
   })
 
   it('같은 정류장의 실시간 값이 없으면 20-1 카드 왼쪽은 시간표로 폴백한다', () => {

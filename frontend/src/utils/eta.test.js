@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatEta, isImminent, IMMINENT_THRESHOLD_SEC } from './eta'
+import { formatEta, isImminent, IMMINENT_THRESHOLD_SEC, isImminentMinutes, IMMINENT_THRESHOLD_MIN } from './eta'
 
 describe('formatEta', () => {
   it('null이면 정보 없음/none', () => {
@@ -86,5 +86,29 @@ describe('isImminent', () => {
     for (const sec of [-10, 0, 1, 89, 90, 91, 120, 179, 180, 181, 3600, 3601]) {
       expect(formatEta(sec).tone === 'imminent').toBe(isImminent(sec))
     }
+  })
+})
+
+// 임박 판정이 화면마다 60초·90초·180초로 갈려, 같은 목록의 같은 시간 열에서
+// 버스는 90초에 지하철은 60초에 강조로 바뀌었다. 분 단위 화면도 이 규칙을 쓴다.
+describe('isImminentMinutes', () => {
+  it('초 단위 임계값과 같은 규칙이다', () => {
+    expect(IMMINENT_THRESHOLD_MIN).toBe(Math.floor(IMMINENT_THRESHOLD_SEC / 60))
+  })
+
+  it('임계 이하는 임박이다', () => {
+    expect(isImminentMinutes(0)).toBe(true)
+    expect(isImminentMinutes(IMMINENT_THRESHOLD_MIN)).toBe(true)
+  })
+
+  it('임계 초과는 임박이 아니다', () => {
+    expect(isImminentMinutes(IMMINENT_THRESHOLD_MIN + 1)).toBe(false)
+    expect(isImminentMinutes(3)).toBe(false)
+  })
+
+  it('숫자가 아니면 임박이 아니다', () => {
+    expect(isImminentMinutes(null)).toBe(false)
+    expect(isImminentMinutes(undefined)).toBe(false)
+    expect(isImminentMinutes('1')).toBe(false)
   })
 })

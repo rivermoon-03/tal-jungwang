@@ -16,6 +16,7 @@ import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
 import { formatEta, isImminent } from '../../utils/eta'
+import { describeEtaAccuracy, shouldShowAccuracy } from '../../utils/etaAccuracy'
 
 // arrive_in_seconds → 표시 문자열 + imminent 여부.
 //
@@ -68,10 +69,13 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
     const { text: primaryText, imminent } = formatEtaLocal(primary.arrive_in_seconds)
     const hasSecondary = secondary && secondary.arrive_in_seconds != null
     const secondaryText = hasSecondary ? formatEtaLocal(secondary.arrive_in_seconds).text : null
-    // A4 — ETA 자가 채점(bus_eta_accuracy). 표본 50 이상인 노선·정류장만 백엔드가
-    // 값을 실어 주므로, 없으면 아무 말도 하지 않는다(모르는 것을 아는 척하지 않는다).
+    // ETA 자가 채점(bus_eta_accuracy). 표본 50 이상인 조합만 백엔드가 값을
+    // 실어 주고, 그중에서도 말할 것이 있을 때만 한 줄을 띄운다.
+    // 판정 규칙과 근거는 utils/etaAccuracy.js 참고 — 적중률 퍼센트는 쓰지 않는다.
     const accuracy = realtimeEta.eta_accuracy ?? null
-    const accuracyGood = accuracy != null && accuracy.within60_ratio >= 0.8
+    const accuracyNote = shouldShowAccuracy(accuracy, primary.arrive_in_seconds)
+      ? describeEtaAccuracy(accuracy)
+      : null
 
     return (
       <div className="mb-4">
@@ -109,20 +113,17 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
               </div>
             </>
           )}
-          {accuracy && (
-            // 최근 4주 실측 자가 채점 한 줄. 잘 맞는 노선(±1분 내 80% 이상)은
-            // 신뢰를, 편차 큰 노선은 여유 이동을 말한다 — 색만으로 구분하지 않고
-            // 문구 자체가 다르다.
+          {accuracyNote && (
+            // 최근 4주 실측이 말하는 것은 "이 예보를 어느 쪽으로 보정해 읽어야
+            // 하는가" 다. 색은 보조 신호이고 문구 자체가 행동을 말한다.
             <p
               className={`mt-2 text-caption font-medium ${
-                accuracyGood
-                  ? 'text-ease dark:text-ease'
+                accuracyNote.tone === 'early'
+                  ? 'text-accent-ink dark:text-accent'
                   : 'text-imminent dark:text-imminent'
               }`}
             >
-              {accuracyGood
-                ? `최근 4주 실측: 예측 ±1분 내 도착 ${Math.round(accuracy.within60_ratio * 100)}%`
-                : '예측 편차가 큰 노선이에요 · 여유 있게 이동하세요'}
+              {accuracyNote.text}
             </p>
           )}
         </div>

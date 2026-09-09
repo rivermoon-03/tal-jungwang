@@ -579,6 +579,10 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
   // - taxi: 관리형 정류장 마커(학교방향 chip 포함) 전체 숨김
   // - bus : 전부 노출 (현상 유지)
   // - subway / shuttle : 마커는 노출하되 G (extraPillText) pill만 숨김
+  // 택시 모드는 지도에 그릴 마커가 없다. 예전엔 조용히 빈 지도만 남아
+  // 고장으로 보였다(모드 값은 앱 전역 공유라 다른 화면에서 택시를 고른 뒤
+  // 지도를 열면 그 상태로 들어온다). PC 도킹 패널만 문구를 띄우고 있었다.
+  const taxiModeEmpty = selectedMode === 'taxi'
   const visibleStations = useMemo(() => {
     if (selectedMode === 'taxi') return []
     if (selectedMode === 'bus') return managedStations
@@ -1342,6 +1346,19 @@ export default function MapView({ onMarkerClick, mapExpanded = false, onClose, s
               {/* 범례 안내 ⓘ — 바텀시트로 연다(§3) */}
               <MapLegendOnboarding embedded />
             </div>
+
+            {/* 택시 모드는 지도에 그릴 마커가 없다. 빈 지도만 남으면 고장으로 읽힌다. */}
+            {taxiModeEmpty && (
+              <div
+                className="absolute inset-x-3 top-1/2 z-[55] -translate-y-1/2 rounded-card bg-surface px-4 py-3.5 text-center shadow-sh-pop"
+                role="status"
+              >
+                <p className="text-label font-semibold text-ink dark:text-ink">택시는 지도에 표시하지 않아요</p>
+                <p className="text-caption text-mute dark:text-mute mt-1">
+                  요금과 소요시간은 홈의 택시 카드에서 볼 수 있어요
+                </p>
+              </div>
+            )}
 
             {/* 내 위치 FAB + 최근접 정류장 카드 — 우하단에 함께 쌓는다(§M-3). 이 열의
                 높이를 재서 카카오 캔버스의 bottom 을 그만큼 올린다(bottomInset) —

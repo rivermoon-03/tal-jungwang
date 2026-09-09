@@ -29,6 +29,7 @@ import Sheet from '../ui/Sheet'
 import IconButton from '../ui/IconButton'
 import RouteSpine from './RouteSpine'
 import { staggerStyle } from '../../utils/motion'
+import { isImminentMinutes } from '../../utils/eta'
 
 // boardingStatus: green(여유) / red(서두르세요) 두 단계
 // yellow(빠듯)은 의도적으로 제거
@@ -57,7 +58,7 @@ function groupArrivalsByRoute(arrivals) {
 /** ETA가 임박(≤3분)인지 — text-eta-num과 짝지어 쓰는 색 토큰 클래스를 고른다.
  *  (ArrivalRow.jsx/TransitCard.jsx와 같은 관례: text-eta-num + text-imminent|text-ink) */
 function etaColorClass(min) {
-  if (typeof min === 'number' && min <= 3) return 'text-imminent'
+  if (isImminentMinutes(min)) return 'text-imminent'
   return 'text-ink dark:text-ink'
 }
 

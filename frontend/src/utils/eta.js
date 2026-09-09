@@ -38,6 +38,15 @@ export function isImminent(seconds) {
   return seconds != null && seconds <= IMMINENT_THRESHOLD_SEC
 }
 
+// 분 단위 값만 가진 화면(지도 마커, 시간표 목록의 시간열)용 같은 판정.
+// 초를 안 가진 자리에서 각자 "3분 이하"·"1분 이하"로 다르게 재던 것을 여기로 모은다.
+// 같은 목록의 같은 열에서 버스는 90초에, 지하철은 60초에 강조로 바뀌던 원인이었다.
+export const IMMINENT_THRESHOLD_MIN = Math.floor(IMMINENT_THRESHOLD_SEC / 60)
+
+export function isImminentMinutes(minutes) {
+  return typeof minutes === 'number' && minutes <= IMMINENT_THRESHOLD_MIN
+}
+
 /**
  * 도착까지 남은 초를 사람이 읽을 수 있는 텍스트와 tone으로 변환한다.
  *

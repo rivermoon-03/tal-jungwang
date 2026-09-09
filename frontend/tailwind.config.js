@@ -90,7 +90,6 @@ export default {
         // ── 노선 색 (지도 마커용 진한 단색 — 그대로 유지) ──
         'line-201':    '#2563eb',
         'line-33':     '#0891b2',
-        'line-1':      '#f97316',
         'line-express':'#dc2626',
         'line-4':      '#1B5FAD',
         'line-suin':   '#F5A623',

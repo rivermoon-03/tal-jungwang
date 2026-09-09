@@ -42,11 +42,11 @@ describe('createMarkerChipElement — 다크 대응', () => {
     expect(html).not.toMatch(/font-size:11px/i)
   })
 
-  it('liveMinutes <= 3 이면 ETA 텍스트에 var(--tj-imminent) 색이 적용된다', () => {
+  it('임박(eta.js 기준 1분 이하) ETA 텍스트에 var(--tj-imminent) 색이 적용된다', () => {
     const el = createMarkerChipElement({
       routeCode: '20-1',
       stationName: '정왕역',
-      liveMinutes: 2,
+      liveMinutes: 1,
       showLive: true,
     })
     const html = outerHTML(el)
@@ -209,11 +209,11 @@ describe('시안1 — createMarkerChipElement 정보 밀도형 구조', () => {
     expect(html).toContain('08:10 출발')
   })
 
-  it('liveMinutes <= 3이면 live 영역이 imminent 색을 가진다', () => {
+  it('임박(eta.js 기준 1분 이하) live 영역이 imminent 색을 가진다', () => {
     const el = createMarkerChipElement({
       routeCode: '20-1',
       stationName: '정왕역',
-      liveMinutes: 2,
+      liveMinutes: 1,
       showLive: true,
     })
     const html = outerHTML(el)
@@ -321,8 +321,8 @@ describe('시안1 — createSeohaeSiheungChipElement 정보 밀도형 구조', (
     expect(html).toContain('data-role="tail"')
   })
 
-  it('upMinutes <= 3이면 imminent 색이 적용된다', () => {
-    const el = createSeohaeSiheungChipElement({ stationName: '시흥시청역', upMinutes: 2, dnMinutes: 8, earliestBus: null })
+  it('임박(eta.js 기준 1분 이하) upMinutes 에 imminent 색이 적용된다', () => {
+    const el = createSeohaeSiheungChipElement({ stationName: '시흥시청역', upMinutes: 1, dnMinutes: 8, earliestBus: null })
     const html = outerHTML(el)
     expect(html).toContain('var(--tj-imminent)')
   })
@@ -406,13 +406,13 @@ describe('createMarkerChipElement 분 출처 표기', () => {
   })
 
   it('시간표 값은 예정이라고 말한다 — 곧 도착으로 바꾸지 않는다', () => {
-    const el = chipOf({ liveMinutes: 2, minutesSource: 'timetable' })
-    expect(el.textContent).toContain('2분 뒤 예정')
+    const el = chipOf({ liveMinutes: 1, minutesSource: 'timetable' })
+    expect(el.textContent).toContain('1분 뒤 예정')
     expect(el.textContent).not.toContain('곧 도착')
   })
 
   it('실시간 임박은 곧 도착으로 바꾼다', () => {
-    const el = chipOf({ liveMinutes: 2, minutesSource: 'realtime' })
+    const el = chipOf({ liveMinutes: 1, minutesSource: 'realtime' })
     expect(el.textContent).toContain('곧 도착')
   })
 

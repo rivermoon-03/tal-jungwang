@@ -20,6 +20,7 @@ import { useShuttleNext } from '../../hooks/useShuttle'
 import { useSubwayNext } from '../../hooks/useSubway'
 import { useBusTimetableByRoute, useBusArrivals, useBusStations, useBusRoutesByCategory } from '../../hooks/useBus'
 import { makeFavKey, parseFavKey } from '../../utils/favKey'
+import { isImminent } from '../../utils/eta'
 
 // 스케줄 페이지가 생성하는 새 형식 버스 favKey: "등교:X" / "하교:X" / "기타:X"
 const BUS_CATEGORY_PREFIXES = ['등교:', '하교:', '기타:']
@@ -290,7 +291,7 @@ function useFavoriteItems(favorites) {
           sec = Math.max(0, Math.floor((d - new Date()) / 1000))
           min = Math.max(0, Math.round(sec / 60))
         }
-        const imminent = sec != null && sec < 60
+        const imminent = isImminent(sec)
         result.push({
           id: `route:${routeCode}`,
           type: 'subway',

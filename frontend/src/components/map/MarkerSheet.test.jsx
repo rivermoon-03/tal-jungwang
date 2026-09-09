@@ -188,9 +188,9 @@ describe('MarkerSheet — 빠듯 상태 미표시 (시안2 요구사항)', () =>
 })
 
 describe('MarkerSheet — ETA 색상 두 단계 (imminent/일반)', () => {
-  it('ETA 3분 이하는 imminent 클래스가 적용된다', () => {
+  it('임박(eta.js 기준 1분 이하) ETA 에 imminent 클래스가 적용된다', () => {
     const imminentArrivals = [
-      { routeCode: '수인분당', routeColor: null, direction: '인천 방면', minutes: 2 },
+      { routeCode: '수인분당', routeColor: null, direction: '인천 방면', minutes: 1 },
     ]
     render(
       <MarkerSheet

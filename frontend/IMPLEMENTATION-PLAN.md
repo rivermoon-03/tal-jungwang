@@ -23,9 +23,9 @@
 - 폰트 굵기 강등: `font-extrabold/black`(85+58회) → 600, hero 숫자만 700.
 - radius 임의값(`rounded-[Npx]`) → 5토큰. `App.css`(미사용) 삭제, `ease-dark`(무효) 제거, `fadeIn` keyframe 충돌 정리.
 
-## Phase C — 모션 시스템  ·  PR `redesign/motion` (+ vaul)
+## Phase C — 모션 시스템  ·  PR `redesign/motion`
 - `test/motion.css`의 이징(`--e-out/spring/inout`)·duration·keyframe을 앱에 이관. press/토글/세그 인디케이터/카드 진입/리스트 스태거/시트/숫자 롤/펄스/시머 적용.
-- **vaul** 도입 → `MarkerSheet`·`GlobalSubwayLineSheet`·`GlobalDetailModal` 바텀시트 스와이프화.
+- ~~vaul 도입~~ — 2026-09 에 `ui/Sheet` 로 대체하기로 결론 났다. 의존성도 제거했다.
 - `prefers-reduced-motion` 유지.
 
 ## Phase D — 화면 리디자인  ·  화면군별 PR
@@ -50,7 +50,7 @@
 ---
 
 ## 권장 순서
-1. **A → B → C** (디자인 기반 확립, vaul 포함)
+1. **A → B → C** (디자인 기반 확립)
 2. **D** 화면 점진 적용
 3. 기능: **F7(툴) · F3 · F4**(가벼운 개인화) → **F1**(자동매칭, KST 버그 포함) → **F2**(북마크) → **F6**(시각화) → **F5**(푸시, 최후)
 

@@ -12,6 +12,7 @@ import IconButton from '../ui/IconButton'
 import { useBusArrivals, useBusTimetable } from '../../hooks/useBus'
 import useUndoRemove from './useUndoRemove'
 import RemoveUndoToast from './RemoveUndoToast'
+import { isImminent } from '../../utils/eta'
 
 function resolveDirection(item) {
   const parts = []
@@ -92,7 +93,7 @@ function FavoriteRow({ item, menuOpen, onToggleMenu, onCloseMenu, onRemove, onOp
   // 새 형식 버스는 여기서 직접 tick된 실시간 초를 보고, 그 외(지하철·셔틀·레거시)는
   // 상위(FavoritesPage)에서 계산해 넘긴 imminentLabel을 사용한다.
   const imminentLabel = isNewFormatBus
-    ? (liveSeconds != null && liveSeconds < 60 ? '곧 도착' : null)
+    ? (isImminent(liveSeconds) ? '곧 도착' : null)
     : (item.imminentLabel ?? null)
   const direction = resolveDirection(item)
   const status = isNewFormatBus
