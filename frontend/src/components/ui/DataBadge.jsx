@@ -8,15 +8,16 @@
  * 사용처(막차/베타/혼잡도 등)는 그대로 두고 이 컴포넌트로 옮기지 않는다.
  *
  * state:
- *   live      → accent 배경 + pulse 점, 라벨 "실시간"
+ *   live      → accent 배경, 라벨 "실시간". 라벨이 있는 배지에는 점을 넣지 않는다 —
+ *               같은 말을 두 번 하면서 목록이 계속 깜빡인다.
  *   timetable → chip-gray 배경(뉴트럴), 라벨 "시간표"
  *   stale     → imminent 계열 배경, 라벨 staleAgeText(있으면) 또는 "지연 갱신"
  *
- * compact: 지도 마커 칩처럼 공간이 좁은 곳에서 라벨 없이 점만 보여준다.
- *          시각적 라벨은 생략하되 sr-only 텍스트로 접근성 라벨은 유지한다.
+ * compact: 지도 마커 칩처럼 공간이 좁은 곳에서 라벨 없이 점만 보여준다. 이때는
+ *          점이 유일한 신호라 pulse 를 남긴다.
  *
- * pulse 애니메이션은 StatusChip의 실시간 점과 동일한 `animate-dot-blink`
- * (tailwind.config.js)를 재사용한다. 인라인 style로 애니메이션을 걸지 않으므로
+ * compact 의 pulse 애니메이션은 지도 마커와 같은 `animate-dot-blink`
+ * (tailwind.config.js)를 쓴다. 인라인 style로 애니메이션을 걸지 않으므로
  * index.css의 전역 `prefers-reduced-motion` 규칙(모든 애니메이션 duration을
  * 0.01ms로 강제)이 그대로 적용된다.
  */
@@ -70,12 +71,6 @@ export default function DataBadge({ state = 'timetable', staleAgeText = null, co
         className,
       ].filter(Boolean).join(' ')}
     >
-      {meta.pulse && (
-        <span
-          aria-hidden="true"
-          className={['w-1.5 h-1.5 rounded-full flex-shrink-0 animate-dot-blink', meta.dotClass].join(' ')}
-        />
-      )}
       {label}
     </span>
   )

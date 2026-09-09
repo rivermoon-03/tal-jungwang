@@ -10,19 +10,67 @@
  * Props:
  *   walkIndex {level, label, reason, factors[], sourceLabel}
  */
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+
+// 팝오버 폭. 위치 계산과 클래스가 같은 값을 봐야 화면 밖으로 안 나간다.
+const PANEL_W = 188
+// 화면 가장자리에서 최소한 띄우는 여백.
+const EDGE_GAP = 12
 
 export default function WalkIndexChip({ walkIndex }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState(null)
   const wrapRef = useRef(null)
+  const btnRef = useRef(null)
+  const panelRef = useRef(null)
   const panelId = useId()
+
+  // 히어로 루트가 펼침 애니메이션 때문에 overflow:hidden 이라, 팝오버를 그 안에
+  // 두면 어느 방향으로 열어도 잘린다(위로 열면 상단이, 아래로 열면 하단이).
+  // body 로 포털해 겹침 컨텍스트 밖으로 꺼내고 위치는 버튼 사각형에서 잰다.
+  // 닫을 때 pos 를 비우지 않는 이유: useLayoutEffect 가 페인트 전에 다시 재므로
+  // 남은 값이 화면에 나올 일이 없다(NoticesPopover 와 같은 관례).
+  useLayoutEffect(() => {
+    if (!open) return
+
+    const place = () => {
+      const btn = btnRef.current
+      if (!btn) return
+      const r = btn.getBoundingClientRect()
+      const panelH = panelRef.current?.offsetHeight ?? 0
+      const below = window.innerHeight - r.bottom - EDGE_GAP
+      // 기본은 아래다. 아래가 모자라고 위가 더 넓을 때만 위로 뒤집는다.
+      const flipUp = panelH > 0 && below < panelH && r.top - EDGE_GAP > below
+      const left = Math.min(
+        Math.max(EDGE_GAP, r.left),
+        window.innerWidth - PANEL_W - EDGE_GAP,
+      )
+      setPos({
+        left,
+        top: flipUp ? undefined : r.bottom + 6,
+        bottom: flipUp ? window.innerHeight - r.top + 6 : undefined,
+        maxHeight: Math.max(120, (flipUp ? r.top : below) - 6),
+      })
+    }
+
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
 
   // 바깥 탭·Esc 로 닫는다. 지도/카드 위에 겹치는 히어로라, 열어둔 채로 다른 걸
   // 누르면 팝오버가 남아 화면을 가린다.
   useEffect(() => {
     if (!open) return
     const onPointerDown = (e) => {
-      if (!wrapRef.current?.contains(e.target)) setOpen(false)
+      if (wrapRef.current?.contains(e.target)) return
+      if (panelRef.current?.contains(e.target)) return
+      setOpen(false)
     }
     const onKeyDown = (e) => {
       if (e.key === 'Escape') setOpen(false)
@@ -43,6 +91,7 @@ export default function WalkIndexChip({ walkIndex }) {
   return (
     <span ref={wrapRef} className="relative inline-flex">
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -53,14 +102,21 @@ export default function WalkIndexChip({ walkIndex }) {
         {walkIndex.label}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
+          ref={panelRef}
           id={panelId}
           role="dialog"
           aria-label="이동 지수 근거"
-          // 위로 연다. 히어로 루트가 펼침 애니메이션 때문에 overflow:hidden 이라,
-          // 아래로 열면 팝오버가 히어로 경계에서 잘려 첫 줄만 보인다.
-          className="absolute left-0 bottom-full z-30 mb-1.5 w-[188px] rounded-card border border-line bg-surface p-3 shadow-sh-card"
+          style={{
+            left: pos?.left ?? 0,
+            top: pos?.top,
+            bottom: pos?.bottom,
+            maxHeight: pos?.maxHeight,
+            // 첫 프레임은 높이를 모르니 숨겨 그린다. 재는 즉시 제자리로 간다.
+            visibility: pos ? 'visible' : 'hidden',
+          }}
+          className="fixed z-popover w-[188px] overflow-y-auto rounded-card border border-line bg-surface p-3 shadow-sh-card"
         >
           <p className="text-caption font-bold text-ink">{walkIndex.reason}</p>
           <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
@@ -89,7 +145,8 @@ export default function WalkIndexChip({ walkIndex }) {
               {walkIndex.sourceLabel}
             </p>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </span>
   )

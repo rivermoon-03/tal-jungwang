@@ -252,12 +252,6 @@ export default function TransitCard({
                   title={hiddenText}
                   aria-label={hiddenText}
                 >
-                  {chip.tone === 'realtime' && (
-                    <span
-                      aria-hidden="true"
-                      className="w-1 h-1 rounded-full bg-accent-ink animate-dot-blink"
-                    />
-                  )}
                   {chip.label}
                 </span>
               )

@@ -3,10 +3,12 @@ import { describe, it, expect } from 'vitest'
 import DataBadge from './DataBadge'
 
 describe('DataBadge', () => {
-  it('live 상태: "실시간" 라벨과 펄스 점을 렌더한다', () => {
+  // 라벨이 이미 "실시간" 이라 깜빡이는 점은 같은 말을 두 번 하면서 목록을
+  // 계속 흔든다. 점은 라벨이 없는 compact(지도 마커)에만 남긴다.
+  it('live 상태: "실시간" 라벨만 렌더하고 펄스 점은 없다', () => {
     const { container } = render(<DataBadge state="live" />)
     expect(screen.getByText('실시간')).toBeTruthy()
-    expect(container.querySelector('.animate-dot-blink')).toBeTruthy()
+    expect(container.querySelector('.animate-dot-blink')).toBeFalsy()
   })
 
   it('timetable 상태: "시간표" 라벨을 렌더하고 펄스 점은 없다', () => {
@@ -27,7 +29,7 @@ describe('DataBadge', () => {
   })
 
   it('reduced-motion: 애니메이션이 인라인 style이 아니라 tailwind 클래스로 제어되어 전역 규칙을 따른다', () => {
-    const { container } = render(<DataBadge state="live" />)
+    const { container } = render(<DataBadge state="live" compact />)
     const dot = container.querySelector('.animate-dot-blink')
     expect(dot.getAttribute('style')).toBeNull()
   })

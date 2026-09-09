@@ -1,6 +1,7 @@
 /**
  * StatusChip
- * 이모지·색 점 없이 텍스트 + 의미색만 사용한다.
+ * 이모지·색 점 없이 텍스트 + 의미색만 사용한다. 실시간도 마찬가지다 — 라벨이
+ * 이미 "실시간" 이라 깜빡이는 점은 같은 말을 두 번 하면서 목록을 계속 흔든다.
  *
  * kind:
  *   realtime → accent 색 (text-accent, border-accent)
@@ -22,10 +23,6 @@ export default function StatusChip({ kind = 'last', className = '', children }) 
 
   return (
     <span className={[base, kindClass, className].filter(Boolean).join(' ')}>
-      {/* 실시간 펄스 — 점 하나로 "살아있는" 데이터임을 보조 신호(색만으로 구분하지 않음) */}
-      {kind === 'realtime' && (
-        <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-accent animate-dot-blink" />
-      )}
       {children}
     </span>
   )
