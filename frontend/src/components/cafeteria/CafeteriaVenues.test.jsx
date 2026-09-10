@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('../../hooks/useNow', () => ({
   useNow: vi.fn(() => new Date('2026-06-25T12:00:00+09:00').getTime()),
 }))
+import * as useNowModule from '../../hooks/useNow'
 
 // useAppStore 모킹 — 라이트모드 + F2 매점 즐겨찾기(venues) 상태를 셀렉터로 반영.
 // mockStoreState는 vi.hoisted로 선언해 factory와 테스트 바디 양쪽에서 공유한다.
@@ -324,5 +325,76 @@ describe('CafeteriaVenues — 카드 해부 통일', () => {
     expect(grid).toBeTruthy()
     expect(grid.className).toContain('md:grid-cols-2')
     expect(grid.className).toContain('lg:grid-cols-3')
+  })
+})
+
+
+// ── 곧 열어요 ─────────────────────────────────────────────────
+// 지금 닫혀 있다는 이유로 목록 밖으로 밀리면, 십 분만 기다리면 되는 곳을 두고
+// 문 연 데를 찾아 건물을 돌게 된다.
+describe('CafeteriaVenues — 곧 열어요', () => {
+  const setNow = (iso) => {
+    useNowModule.useNow.mockReturnValue(new Date(iso).getTime())
+  }
+
+  beforeEach(() => {
+    mockStoreState.favorites.venues.length = 0
+  })
+
+  it('30분 안에 여는 곳을 영업 중 목록 위에 세운다', () => {
+    setNow('2026-06-25T09:45:00+09:00')  // 목요일, 10:00 개점 15분 전
+    render(<CafeteriaVenues />)
+    const section = screen.getByTestId('opening-soon-section')
+    expect(within(section).getByText('곧 열어요')).toBeInTheDocument()
+    expect(within(section).getAllByText(/분 후$/).length).toBeGreaterThan(0)
+  })
+
+  it('30분 밖이면 섹션 자체가 뜨지 않는다', () => {
+    setNow('2026-06-25T05:00:00+09:00')  // 가장 이른 개점(08:00)까지 3시간
+    render(<CafeteriaVenues />)
+    expect(screen.queryByTestId('opening-soon-section')).not.toBeInTheDocument()
+  })
+
+  // 09:45 에는 10:00 개점이 네 곳이다(수호식당, 올리브그린, 버텍스, 카페토스피아).
+  // 셋만 보이고 나머지 한 곳은 더보기로 접힌다.
+  it('최대 3곳까지만 보여주고 나머지는 더보기로 접는다', () => {
+    setNow('2026-06-25T09:45:00+09:00')
+    render(<CafeteriaVenues />)
+    const section = screen.getByTestId('opening-soon-section')
+    expect(within(section).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(section).getByRole('button', { name: /1곳 더보기/ })).toBeInTheDocument()
+  })
+
+  it('더보기를 누르면 운영시간 탭으로 간다', () => {
+    setNow('2026-06-25T09:45:00+09:00')
+    render(<CafeteriaVenues />)
+    const section = screen.getByTestId('opening-soon-section')
+    fireEvent.click(within(section).getByRole('button', { name: /더보기/ }))
+    expect(screen.getByRole('tab', { name: '운영시간' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('빠른 순으로 정렬한다', () => {
+    setNow('2026-06-25T16:35:00+09:00')  // 학생식당 한 곳만 25분 뒤 개점
+    render(<CafeteriaVenues />)
+    const section = screen.getByTestId('opening-soon-section')
+    expect(within(section).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(section).getByText('25분 후')).toBeInTheDocument()
+  })
+
+  it('행을 누르면 해당 매장 상세로 간다', () => {
+    setNow('2026-06-25T09:45:00+09:00')
+    const onVenueClick = vi.fn()
+    render(<CafeteriaVenues onVenueClick={onVenueClick} />)
+    const section = screen.getByTestId('opening-soon-section')
+    fireEvent.click(within(section).getAllByRole('button')[0])
+    expect(onVenueClick).toHaveBeenCalled()
+  })
+
+  it('운영시간 탭에서는 뜨지 않는다 — 거긴 이미 하루 전체를 보여준다', () => {
+    setNow('2026-06-25T09:45:00+09:00')
+    render(<CafeteriaVenues />)
+    expect(screen.getByTestId('opening-soon-section')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: '운영시간' }))
+    expect(screen.queryByTestId('opening-soon-section')).not.toBeInTheDocument()
   })
 })
