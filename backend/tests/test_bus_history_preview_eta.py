@@ -180,8 +180,13 @@ def test_predicted_eta_returns_none_when_columns_empty():
 
 
 def test_predicted_eta_sunday_is_weekend():
-    """일요일도 day_label='주말'."""
-    columns = [_col(["21:30"]), _col(["21:40"])]
+    """일요일도 day_label='주말'.
+
+    컬럼마다 now 이전 기록을 하나씩 둔다 — 그날 이 시간대를 관측했다는 뜻이다.
+    관측 없는 날은 표를 주지 않는 규칙이 있어, 라벨만 보려는 이 테스트도
+    실제 관측일과 같은 모양의 입력을 써야 한다.
+    """
+    columns = [_col(["20:30", "21:30"]), _col(["20:40", "21:40"])]
     now_kst = datetime(2026, 5, 17, 21, 0, 0, tzinfo=KST)  # 일요일
     result = bus_api._compute_predicted_eta(columns, now_kst)
     assert result is not None
