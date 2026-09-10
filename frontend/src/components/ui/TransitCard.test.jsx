@@ -209,3 +209,45 @@ describe('TransitCard — 칩 상한(2개 + "+N")', () => {
     expect(screen.getByText('실시간')).not.toHaveAttribute('title')
   })
 })
+
+/**
+ * 좁은 폰에서 제목이 두 줄로 꺾일 때 오른쪽 요소와 겹쳐 보였다.
+ * items-baseline 이면 44px 버튼이 첫 줄 베이스라인에 맞춰 위로 솟는다.
+ */
+describe('TransitCard — 좁은 폭에서 제목과 우측 요소가 겹치지 않는다', () => {
+  const base = {
+    badge: { label: '5200' },
+    title: '시흥터미널·이마트 → 신도림역',
+    eta: { primary: { text: '도착 정보 없음', tone: 'muted' } },
+  }
+
+  it('제목 행은 baseline 이 아니라 상단 정렬이다', () => {
+    const { container } = render(<TransitCard {...base} />)
+    const row = container.querySelector('h3').parentElement
+    expect(row.className).toContain('items-start')
+    expect(row.className).not.toContain('items-baseline')
+  })
+
+  it('제목은 두 줄까지만 늘어나고 자기 칸을 벗어나지 않는다', () => {
+    const { container } = render(<TransitCard {...base} />)
+    const h3 = container.querySelector('h3')
+    expect(h3.className).toContain('line-clamp-2')
+    expect(h3.className).toContain('min-w-0')
+  })
+
+  it('muted ETA 는 폰에서 본문 열을 덜 먹도록 상한이 낮다', () => {
+    render(<TransitCard {...base} />)
+    const eta = screen.getByText('도착 정보 없음')
+    expect(eta.className).toContain('max-w-[104px]')
+    expect(eta.className).toContain('sm:max-w-[150px]')
+  })
+
+  it('우측 요소는 터치 영역을 줄이지 않고 시각 높이만 첫 줄에 맞춘다', () => {
+    const { container } = render(
+      <TransitCard {...base} rightAddon={<button type="button">별</button>} />
+    )
+    const addon = container.querySelector('.-my-1\\.5')
+    expect(addon).not.toBeNull()
+    expect(addon.className).toContain('shrink-0')
+  })
+})

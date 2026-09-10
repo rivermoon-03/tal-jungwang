@@ -20,7 +20,7 @@ import { useSubwayNext, useSubwayTimetable } from '../../hooks/useSubway'
 import { getRouteCategory, ROUTE_CATEGORY_ORDER } from '../dashboard/busStationConfig'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 import { describeArrival } from '../../utils/arrivalTime'
-import { selectRepresentativeBusSource } from '../../utils/busInformationSource'
+import { selectRepresentativeBusSource, selectSourcesPerStop } from '../../utils/busInformationSource'
 import { BUS_GROUP_IDS } from './busGroups'
 import { makeFavKey, matchesLegacy } from '../../utils/favKey'
 import { BarChart3, CalendarClock, Star } from 'lucide-react'
@@ -247,6 +247,10 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onArr
   const realtimeSource = commuteContext.sources?.find((source) => source.type === 'realtime') ?? null
   const sources = useMemo(() => commuteContext.sources ?? [], [commuteContext.sources])
   const representativeSource = useMemo(() => selectRepresentativeBusSource(sources), [sources])
+  // 출처 줄은 승차 지점 단위다. 지점 하나에 시간표와 실시간이 함께 있으면
+  // (3400 시흥터미널) 같은 이름이 두 줄로 나오고 두 줄이 같은 차를 각각 다른
+  // 시각으로 말했다.
+  const sourceRows = useMemo(() => selectSourcesPerStop(sources), [sources])
   const { snapshot: representativeSnapshot } = useBusSourceState(representativeSource, routeCode, busGroup)
   const fallbackTimetableSource = useMemo(() => {
     if (representativeSource?.type !== 'realtime') return null
@@ -307,7 +311,7 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onArr
   // 함께 있는 조합(2026-09 승차점 관측 이후 3401·5602·6502)은 출처가 둘이지만
   // 승차 지점은 하나라, 같은 정류장 이름이 두 줄 반복될 뿐이다. 3400·99-2·5200
   // 처럼 승차 지점이 실제로 둘일 때만 지점별 줄을 남긴다.
-  const showSourceRows = new Set(sources.map((source) => source.stop_id)).size > 1
+  const showSourceRows = sourceRows.length > 1
 
   return (
     <div data-testid={`bus-context-${routeCode}`}>
@@ -335,7 +339,7 @@ function BusRouteSection({ busGroup, commuteContext, favCode, onCardClick, onArr
         selected={selected}
         footer={showSourceRows && (
           <div className="divide-y divide-line dark:divide-line">
-            {sources.map((source) => (
+            {sourceRows.map((source) => (
               <BusSourceRow key={source.id} source={source} routeCode={routeCode} category={busGroup} />
             ))}
           </div>

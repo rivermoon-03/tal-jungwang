@@ -196,7 +196,11 @@ export default function TransitCard({
 
       {/* 본문: 제목 + 칩 행 */}
       <div className="min-w-0 flex flex-col gap-1">
-        <div className="flex items-baseline gap-1.5 min-w-0">
+        {/* items-start 인 이유: 제목은 두 줄까지 늘어나는데(line-clamp-2) 오른쪽
+            요소는 44px 버튼일 수 있다. items-baseline 이면 그 버튼이 첫 줄
+            베이스라인에 맞춰 위로 솟아 카드 위 경계를 넘고, 좁은 폰에서 제목
+            둘째 줄과 겹쳐 보였다. */}
+        <div className="flex items-start gap-1.5 min-w-0">
           <h3
             className={[
               'flex-1 min-w-0 leading-snug line-clamp-2',
@@ -210,16 +214,21 @@ export default function TransitCard({
             <span
               role="img"
               aria-label={dot.label}
-              className="inline-block shrink-0 w-1.5 h-1.5 rounded-full"
+              // items-start 라 그냥 두면 제목 첫 줄 위로 붙는다. 첫 줄 가운데에
+              // 오도록 내려 준다.
+              className="inline-block shrink-0 w-1.5 h-1.5 rounded-full mt-[7px]"
               style={{ background: dot.color }}
             />
           )}
           {subtitle && (
             // min-w-0 + truncate: 폭이 부족하면 말줄임한다. shrink-0이면 자기 그리드
             // 칸을 뚫고 ETA 열 밑으로 그대로 깔리는 겹침(D2)이 생겼다.
-            <span className="min-w-0 truncate text-caption text-mute">{subtitle}</span>
+            // leading-snug: items-start 로 바뀌어 제목 첫 줄과 높이를 맞춰야 한다.
+            <span className="min-w-0 truncate text-caption text-mute leading-snug">{subtitle}</span>
           )}
-          {rightAddon && <span className="shrink-0">{rightAddon}</span>}
+          {/* -my-1.5 는 44px 터치 영역을 유지하면서 시각적 높이만 제목 첫 줄에
+              맞춘다(터치 타깃을 줄이지 않는다). */}
+          {rightAddon && <span className="shrink-0 -my-1.5">{rightAddon}</span>}
         </div>
 
         {sleeping && (
@@ -275,7 +284,9 @@ export default function TransitCard({
             eta?.primary?.tone === 'muted'
               // muted는 "현재 도착 정보 없음" 같은 상태 문장 — 숫자 ETA처럼 크게
               // 키우지 않고 줄바꿈을 허용해 좁은 폭에서도 카드 밖으로 안 나가게 한다.
-              ? 'text-label font-semibold leading-tight break-keep text-right max-w-[150px]'
+              // 폰에서 이 열이 150px 까지 벌어지면 가운데 본문 열이 60px 대로
+              // 눌려 제목이 잘게 꺾인다. 좁은 화면에서는 상한을 낮춘다.
+              ? 'text-label font-semibold leading-tight break-keep text-right max-w-[104px] sm:max-w-[150px]'
               // 상대시간 — 기본은 text-eta-num(22px/800/tabular), size='lg'는 더 크게.
               : sizeCfg.eta,
             'tabular-nums',

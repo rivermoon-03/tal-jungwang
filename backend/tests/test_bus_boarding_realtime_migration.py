@@ -7,10 +7,17 @@ MIGRATION_PATH = (
 )
 SQL = MIGRATION_PATH.read_text(encoding="utf-8")
 
+# 위 마이그레이션이 3400 기점(시흥터미널)까지 실시간 출처로 등록한 것을 되돌린다.
+REMOVAL_PATH = (
+    REPO_ROOT / "scripts" / "prod_migration_20260910_remove_origin_realtime_source.sql"
+)
+REMOVAL_SQL = REMOVAL_PATH.read_text(encoding="utf-8")
+
 
 def test_migration_runs_as_one_transaction():
-    assert SQL.count("BEGIN;") == 1
-    assert SQL.count("COMMIT;") == 1
+    for sql in (SQL, REMOVAL_SQL):
+        assert sql.count("BEGIN;") == 1
+        assert sql.count("COMMIT;") == 1
 
 
 def test_migration_never_touches_raw_timetable_or_history():
@@ -25,12 +32,13 @@ def test_migration_never_touches_raw_timetable_or_history():
         "bus_crowding_logs",
         "bus_arrival_stats",
     ):
-        assert f"DELETE FROM {table}" not in SQL
-        assert f"UPDATE {table}" not in SQL
+        for sql in (SQL, REMOVAL_SQL):
+            assert f"DELETE FROM {table}" not in sql
+            assert f"UPDATE {table}" not in sql
 
 
 def test_realtime_targets_move_to_boarding_stops():
-    """3400 은 시화터미널, 3401·5602·6502 는 이마트에서 관측한다."""
+    """3400 은 기점 정류장, 3401·5602·6502 는 이마트에서 관측한다."""
     for row in (
         "('3400', '224000861', 'to-seoul')",
         "('3401', '224000513', 'to-seoul')",
@@ -86,3 +94,35 @@ def test_migration_is_rerunnable():
     """같은 파일을 두 번 돌려도 깨지지 않아야 한다."""
     assert SQL.count("ON CONFLICT") >= 2
     assert "NOT EXISTS" in SQL
+
+
+def test_origin_stop_has_no_realtime_source_after_removal():
+    """3400 기점에는 실시간 출처를 두지 않는다.
+
+    20260909 는 3400 기점(시흥터미널, GBIS 224000861)까지 실시간 출처로 넣었다.
+    GBIS 가 그 정류장의 3400 에 대해 내려주는 도착정보는 location_no 가 6, 17 인
+    차, 즉 아직 6정거장·17정거장 떨어져 들어오고 있는 차다. 기점에서 출발을
+    기다리며 서 있는 차가 아니라서 그 숫자는 출발 시각이 아니다. 기점의 답은
+    시간표다.
+    """
+    assert "DELETE FROM bus_information_sources" in REMOVAL_SQL
+    assert "source.source_type = 'realtime'" in REMOVAL_SQL
+    assert "stop.gbis_station_id = '224000861'" in REMOVAL_SQL
+    assert "route.route_number = '3400'" in REMOVAL_SQL
+    assert "route.category = '하교'" in REMOVAL_SQL
+
+
+def test_removal_leaves_realtime_targets_alone():
+    """그 정류장은 5200·99-2 때문에 어차피 폴링된다. 대상을 지워도 호출이 안 준다."""
+    assert "DELETE FROM bus_realtime_targets" not in REMOVAL_SQL
+    assert "UPDATE bus_realtime_targets" not in REMOVAL_SQL
+
+
+def test_removal_keeps_the_emart_boarding_source():
+    """이마트는 하류가 아니라 승차점이라 실시간이 여전히 맞는 답을 준다."""
+    assert "224000513" not in REMOVAL_SQL
+
+    statements = REMOVAL_SQL.split("BEGIN;")[1].split("COMMIT;")[0]
+    assert statements.count("DELETE") == 1
+    assert "INSERT" not in statements
+    assert "UPDATE" not in statements
