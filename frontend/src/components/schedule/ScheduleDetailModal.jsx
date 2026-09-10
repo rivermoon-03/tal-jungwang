@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { PC_SIDEBAR_WIDTH_PX } from '../layout/PCMainShell'
-import { X, Clock, Star, MapPin, LayoutGrid, List } from 'lucide-react'
+import { X, Clock, Star, MapPin, LayoutGrid, List, ChevronDown } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
 import { useBusTimetable, useBusTimetableByRoute, useBusHistoryPreview, useBusArrivalStats, useBusCommuteContexts } from '../../hooks/useBus'
 import { useShuttleSchedule, useShuttlePeriods } from '../../hooks/useShuttle'
@@ -51,6 +51,37 @@ import {
 import SegmentedControl from '../ui/SegmentedControl'
 import { BUS_COMMUTE_GROUPS } from '../../utils/busCommuteContext'
 import { IMMINENT_LABEL } from '../../utils/eta'
+
+/**
+ * DetailFold — 상세 시트의 근거 블록을 접어 두는 요소.
+ *
+ * 급한 답(지금 몇 분)은 늘 펼쳐 두고, 배차 통계와 과거 기록은 필요할 때만 연다.
+ * 예전에는 도착 시각 목록이 항상 펼쳐져 있어 시트가 화면 서너 개 높이였고,
+ * 정작 급한 답은 맨 위 한 줄이었다.
+ *
+ * details/summary 를 쓰는 이유: 열림 상태를 브라우저가 갖고 키보드와 스크린
+ * 리더 동작이 따라온다. 상태 훅을 하나 더 두지 않는다.
+ */
+function DetailFold({ summary, defaultOpen = false, children }) {
+  return (
+    <details open={defaultOpen} className="group border-t border-line dark:border-line">
+      <summary
+        className="flex items-center gap-2 py-3 min-h-[44px] cursor-pointer list-none select-none
+                   text-label font-semibold text-ink-2 dark:text-ink-2
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tj-focus-ring)]"
+      >
+        {summary}
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className="ml-auto shrink-0 text-mute transition-transform duration-base group-open:rotate-180"
+        />
+      </summary>
+      <div className="pb-3">{children}</div>
+    </details>
+  )
+}
+
 
 /**
  * 셔틀 알림(종 버튼 + 예약 시트) 노출 스위치.
@@ -871,10 +902,16 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
   return (
     <div>
       <BusEtaCard realtimeEta={data?.realtime_eta} predictedEta={data?.predicted_eta} />
-      <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
+
+      {stats && (
+        <DetailFold summary="버스 사이 간격">
+          <BusStatsHeader stats={stats} dayLabel={dayLabel} hourLabel={hourLabel} />
+        </DetailFold>
+      )}
+
+      <DetailFold summary="날짜별 도착 기록">
       <p className="text-caption text-mute dark:text-mute mb-3 leading-relaxed">
-        실시간 GBIS 기반{stopName ? ` · ${stopName}` : ''}
-        <br />과거 실제 도착 기록을 날짜별로 표시합니다
+        {stopName ? `${stopName} 기준 · ` : ''}실제로 버스가 지나간 시각이에요
       </p>
 
       {/* 독립 컬럼: 각 날짜가 자체 시간 순으로 쌓임. 행 정렬 없음. */}
@@ -915,7 +952,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
                       ref={isAnchor ? anchorRef : undefined}
                       className={`py-0.5 text-center tabular-nums text-sm rounded-mini
                         ${isNext
-                          ? 'font-semibold text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                          ? 'font-semibold text-accent-ink dark:text-accent bg-accent-bg'
                           : isPast
                             ? 'text-mute dark:text-mute'
                             : 'font-semibold text-ink dark:text-ink'
@@ -930,6 +967,7 @@ function BusHistoryContent({ routeNumber, category, trackedStopId: scopedTracked
           ))}
         </div>
       )}
+      </DetailFold>
     </div>
   )
 }
