@@ -1632,8 +1632,11 @@ INSERT INTO bus_commute_contexts (id, bus_route_id, group_key, origin_label, des
 -- Data for Name: bus_information_sources; Type: TABLE DATA; Schema: public; Owner: -
 --
 
+-- 3400 기점(시흥터미널)에는 실시간 출처가 없다. GBIS 가 그 정류장에서 내려주는
+-- 3400 도착정보는 location_no 가 6, 17 인 차, 즉 아직 들어오고 있는 차라
+-- "언제 출발하나" 에 답하지 못한다. 기점의 답은 시간표다.
+-- prod_migration_20260910_remove_origin_realtime_source.sql 로 지웠다.
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (1, 5, 'timetable', 'departure', 17, '시흥터미널 승차', 'to-seoul', 10);
-INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (33, 5, 'realtime', 'boarding_arrival', 17, '시흥터미널 승차', 'to-seoul', 20);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (2, 5, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 30);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (3, 7, 'timetable', 'departure', 2, '이마트 승차', 'to-seoul', 10);
 INSERT INTO bus_information_sources (id, context_id, source_type, source_role, bus_stop_id, display_label, travel_direction, sort_order) VALUES (34, 7, 'realtime', 'boarding_arrival', 2, '이마트 승차', 'to-seoul', 20);
