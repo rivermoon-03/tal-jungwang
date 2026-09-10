@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeTimetableSummary, groupTimesByHour, intervalLabel } from './timetableStats'
+import { computeTimetableSummary, intervalLabel } from './timetableStats'
 
 describe('computeTimetableSummary', () => {
   it('빈 배열이면 null', () => {
@@ -84,19 +84,6 @@ describe('computeTimetableSummary', () => {
   it('시각이 1개뿐이면 overnightGaps도 빈 배열이다', () => {
     const s = computeTimetableSummary(['07:10'])
     expect(s.overnightGaps).toEqual([])
-  })
-})
-
-describe('groupTimesByHour', () => {
-  it('시(hour) 단위로 그룹핑하고 오름차순 정렬한다', () => {
-    const groups = groupTimesByHour(['08:15', '07:10', '07:40', '22:50'])
-    expect(groups.map((g) => g.hour)).toEqual(['07', '08', '22'])
-    expect(groups[0].times).toEqual(['07:10', '07:40'])
-  })
-
-  it('빈 입력이면 빈 배열', () => {
-    expect(groupTimesByHour([])).toEqual([])
-    expect(groupTimesByHour(null)).toEqual([])
   })
 })
 

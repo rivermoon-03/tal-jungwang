@@ -2,10 +2,9 @@
  * timetableStats.js — 노선 상세 페이지 ② 시간표 섹션 전용 순수 계산 유틸.
  *
  * RouteDetailPage가 시간표 원시 데이터(출발 시각 문자열 배열)로부터
- * "첫차 / 막차 / 배차(간격 min~max)" 3타일 요약과, 전체 시간표 펼침 뷰에서
- * 시간대별로 묶어 보여줄 그룹을 계산한다. 표시 정책(단위 테스트로 고정해야
- * 회귀를 막을 수 있는 로직)이라 컴포넌트에 인라인하지 않고 이 모듈에 모은다
- * (mistakes.md §2 — 인라인 복붙이 회귀의 근원).
+ * "첫차 / 막차 / 배차(간격 min~max)" 3타일 요약을 계산한다. 표시 정책(단위
+ * 테스트로 고정해야 회귀를 막을 수 있는 로직)이라 컴포넌트에 인라인하지 않고
+ * 이 모듈에 모은다 (mistakes.md §2 — 인라인 복붙이 회귀의 근원).
  *
  * 배차 간격은 인접 출발 간 분 차이를 전부 모아 min~max로 보여주는데, 운행이
  * 끊기는 심야 공백(예: 00:30 다음 차가 07:00)도 그대로 섞이면 "15~390분"처럼
@@ -131,27 +130,6 @@ export function computeTimetableSummary(times) {
         : null,
     overnightGaps: gapEntries.map((e) => ({ from: e.from, to: e.to, minutes: e.minutes })),
   }
-}
-
-/**
- * groupTimesByHour(times) — 전체 시간표 펼침 뷰용 시간대별 그룹.
- * "05"~"23" 등 시(hour) 문자열 단위로 묶고, 시 오름차순으로 정렬해 반환한다.
- *
- * @param {string[]} times
- * @returns {Array<{ hour: string, times: string[] }>}
- */
-export function groupTimesByHour(times) {
-  if (!Array.isArray(times)) return []
-  const groups = new Map()
-  for (const t of times) {
-    if (toMinutes(t) == null) continue
-    const hour = t.split(':')[0]
-    if (!groups.has(hour)) groups.set(hour, [])
-    groups.get(hour).push(t)
-  }
-  return [...groups.entries()]
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([hour, list]) => ({ hour, times: list.sort() }))
 }
 
 /**
