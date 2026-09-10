@@ -317,10 +317,9 @@ describe('RouteDetailPage', () => {
     it('첫차/막차/배차 3타일이 렌더된다', () => {
       render(<RouteDetailPage routeNumber="33" />)
       const section = screen.getByRole('region', { name: '시간표' })
-      expect(within(section).getByText('첫차')).toBeInTheDocument()
-      expect(within(section).getByText('07:10')).toBeInTheDocument()
-      expect(within(section).getByText('막차')).toBeInTheDocument()
-      expect(within(section).getByText('22:50')).toBeInTheDocument()
+      // 같은 시각이 아래 시각 목록에도 나오므로 타일 안에서만 확인한다.
+      expect(within(section).getByText('첫차').parentElement.textContent).toContain('07:10')
+      expect(within(section).getByText('막차').parentElement.textContent).toContain('22:50')
       expect(within(section).getByText('배차')).toBeInTheDocument()
     })
 
@@ -342,11 +341,10 @@ describe('RouteDetailPage', () => {
       expect(summaryIdx).toBeLessThan(tileIdx)
     })
 
-    it('"전체 시간표 보기"를 누르면 개별 시각이 펼쳐진다', () => {
+    it('개별 출발 시각이 접힘 없이 바로 나온다(시간표 탭과 같은 규격)', () => {
       render(<RouteDetailPage routeNumber="33" />)
-      expect(screen.queryByText('08:15')).not.toBeInTheDocument()
-      fireEvent.click(screen.getByText('전체 시간표 보기'))
       expect(screen.getByText('08:15')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /전체 시간표/ })).not.toBeInTheDocument()
     })
 
     it('데이터가 있는 요일만 칩으로 노출된다(일요일 시간표 없음 → 칩 없음)', () => {
@@ -361,8 +359,7 @@ describe('RouteDetailPage', () => {
       fireEvent.click(screen.getByRole('tab', { name: '토요일' }))
       // 토요일 09:00 단일 운행 — 정오 기준 이미 지나 남은 0회.
       expect(screen.getByText('토요일 시간표 · 총 1회 · 남은 0회 · 한국공학대학교 승차')).toBeInTheDocument()
-      fireEvent.click(screen.getByText('전체 시간표 보기'))
-      // 토요일은 09:00 단일 운행 — 첫차/막차 타일 + 펼침 그리드 칩까지 여러 곳에 나타난다.
+      // 토요일은 09:00 단일 운행 — 첫차/막차 타일과 시각 칩까지 여러 곳에 나타난다.
       const section = screen.getByRole('region', { name: '시간표' })
       expect(within(section).getAllByText('09:00').length).toBeGreaterThan(0)
     })
@@ -385,9 +382,8 @@ describe('RouteDetailPage', () => {
       })
       render(<RouteDetailPage routeNumber="3400" />)
       const section = screen.getByRole('region', { name: '시간표' })
-      // 실시간 출처가 없는 방면은 전체 시간표가 처음부터 펼쳐진다. 그래서 첫차
-      // 타일과 펼친 목록에 같은 시각이 함께 나온다. 이 테스트가 확인하려는 건
-      // times 배열 응답을 시간표로 그려내는가이므로 개수는 따지지 않는다.
+      // 첫차/막차 타일과 시각 목록에 같은 시각이 함께 나온다. 이 테스트가
+      // 확인하려는 건 times 배열 응답을 시간표로 그려내는가이므로 개수는 따지지 않는다.
       expect(within(section).getAllByText('05:40').length).toBeGreaterThan(0)
       expect(within(section).getAllByText('23:20').length).toBeGreaterThan(0)
     })

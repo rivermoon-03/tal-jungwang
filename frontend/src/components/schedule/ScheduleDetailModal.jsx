@@ -36,6 +36,7 @@ import { BellButton, NarrowPhoneStrip } from '../shuttle/ShuttleTimetable'
 import { buildDisplayList, DIRECTION_LABELS, annotateShuttleEntries, buildShuttleGroups } from '../shuttle/shuttleSchedule'
 import ShuttleTimetableGroups from '../shuttle/ShuttleTimetableGroups'
 import HourGroupTimetable from './HourGroupTimetable'
+import TimeGridView from './TimeGridView'
 import TimetableStatTiles from './TimetableStatTiles'
 import { computeTimetableSummary } from '../bus/timetableStats'
 import {
@@ -129,38 +130,6 @@ function TimeGrid({ times }) {
           className="text-center py-2 px-1 rounded-mini bg-surface-2 dark:bg-bg text-sm font-bold text-ink-2 dark:text-ink-2 tabular-nums"
         >
           {t}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── 그리드 뷰 (Phase D — DESIGN.md 시안 "시간표 · A") ────────────────────
-// 리스트 뷰(HourGroupTimetable)와 같은 오늘 전체 시각을 4열 그리드로 보여준다.
-// 다음 차만 accent 채움, 지난 시각은 흐리게 — 인라인 반올림/포맷 로직 없이
-// 순수 표시 전용(날짜 계산은 각 Content 컴포넌트가 기존 헬퍼로 미리 끝낸다).
-export function TimeGridView({ items, gridRef }) {
-  if (!items.length) return null
-  return (
-    <div className="grid grid-cols-4 gap-1.5">
-      {items.map((it) => (
-        <div
-          key={it.key}
-          ref={it.isNext ? gridRef : undefined}
-          className={`relative text-center py-2.5 px-1 rounded-mini text-sm font-semibold tabular-nums tracking-tight transition-colors ${
-            it.isNext
-              ? 'bg-accent dark:bg-accent text-white font-bold'
-              : it.isPast
-                ? 'bg-transparent text-mute dark:text-mute'
-                : 'bg-surface-2 dark:bg-bg text-ink-2 dark:text-ink-2'
-          }`}
-        >
-          {it.time}
-          {it.isLast && !it.isNext && (
-            <span className="absolute -top-1.5 -right-1 text-micro font-bold px-1 rounded-full bg-ink dark:bg-line-strong text-white dark:text-ink leading-tight">
-              막차
-            </span>
-          )}
         </div>
       ))}
     </div>

@@ -347,21 +347,15 @@ export default function RouteDetailPage({ routeNumber, initialCategory, stop = n
                   </section>
                 )}
 
-                {/* ② 시간표(신설) — 시간표가 있는 방향에서만 렌더(내부에서도 재검증).
-                    key={resolvedCategory}: 등교/하교 전환은 리마운트 없는 같은
-                    컴포넌트 인스턴스라 defaultExpanded는 최초 마운트에만 반영된다.
-                    방향을 바꾸면 펼침 기본값도 그 방향 기준으로 다시 계산돼야
-                    하므로 key로 강제 리마운트한다. */}
+                {/* ② 시간표 — 시간표가 있는 방향에서만 렌더(내부에서도 재검증). */}
                 {hasTimetableCapability && (
                   <TimetableSection
-                    key={resolvedCategory}
                     timetable={ttData.timetable}
                     dayTab={dayTab}
                     onDayTabChange={setDayTab}
                     nowMin={nowMin}
                     originStopName={originStopName}
                     onJumpToHistory={hasRealtimeGroup ? scrollToHistory : null}
-                    defaultExpanded={!hasRealtimeGroup}
                   />
                 )}
 
