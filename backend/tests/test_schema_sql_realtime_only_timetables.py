@@ -1,4 +1,4 @@
-"""시흥33 은 시간표 없이 실시간만으로 답한다.
+"""실시간 전용 노선은 시간표 없이 실시간만으로 답한다 (시흥33, 20-1, 시흥1).
 
 발행 시간표가 없는 노선인데 bus_timetable_entries 에 하교 평일 60건이 정적으로
 들어 있었다. 2026-04-20 공지가 밝힌 대로 그 값의 출처는 이 앱 자신이다 —
@@ -16,9 +16,13 @@ SCHEMA_SQL = (REPO_ROOT / "scripts" / "schema.sql").read_text(encoding="utf-8")
 MIGRATION = (
     REPO_ROOT / "scripts" / "prod_migration_20260910_drop_siheung33_timetable.sql"
 ).read_text(encoding="utf-8")
+MIGRATION_REST = (
+    REPO_ROOT / "scripts" / "prod_migration_20260910_drop_realtime_only_timetables.sql"
+).read_text(encoding="utf-8")
 
-# schema.sql 시드에서 시흥33 의 route id.
+# schema.sql 시드의 route id. 셋 다 실시간 전용이다.
 SIHEUNG33_ROUTE_ID = 2
+REALTIME_ONLY_ROUTE_IDS = {2, 3, 4}  # 시흥33, 20-1, 시흥1
 
 _TIMETABLE_ROW = re.compile(
     r"^INSERT INTO bus_timetable_entries "
@@ -35,10 +39,10 @@ def test_시흥33_route_id_가_2_다():
     )
 
 
-def test_schema_sql_에_시흥33_시간표_행이_없다():
+def test_schema_sql_에_실시간_전용_노선의_시간표_행이_없다():
     route_ids = [int(m.group(2)) for m in _TIMETABLE_ROW.finditer(SCHEMA_SQL)]
     assert route_ids, "시간표 시드 자체가 사라졌다면 파싱이 깨진 것이다"
-    assert SIHEUNG33_ROUTE_ID not in route_ids
+    assert REALTIME_ONLY_ROUTE_IDS.isdisjoint(route_ids)
 
 
 def test_다른_노선_시간표는_남아_있다():
@@ -56,16 +60,23 @@ def test_시흥33_실시간_출처는_그대로다():
 
 
 def test_마이그레이션은_트랜잭션이고_시간표만_지운다():
-    body = _statements(MIGRATION)
-    assert "BEGIN;" in MIGRATION and "COMMIT;" in MIGRATION
-    assert "DELETE FROM bus_timetable_entries" in body
-    assert "'시흥33'" in body
-    # 다른 노선을 함께 지우지 않는다.
-    for other in ("'시흥1'", "'20-1'", "'11-A'", "'5200'", "'99-2'", "'3400'"):
-        assert other not in body, f"{other} 까지 지우고 있다"
-    # 삽입이나 갱신은 없다.
-    assert "INSERT" not in body.upper()
-    assert "UPDATE" not in body.upper()
+    for sql, targets in ((MIGRATION, {"'시흥33'"}), (MIGRATION_REST, {"'20-1'", "'시흥1'"})):
+        body = _statements(sql)
+        assert "BEGIN;" in sql and "COMMIT;" in sql
+        assert "DELETE FROM bus_timetable_entries" in body
+        for t in targets:
+            assert t in body
+        # 삽입이나 갱신은 없다.
+        assert "INSERT" not in body.upper()
+        assert "UPDATE" not in body.upper()
+
+
+def test_발행_시간표_노선은_건드리지_않는다():
+    """3400 처럼 실제 시간표가 있는 노선까지 지우면 안 된다."""
+    for sql in (MIGRATION, MIGRATION_REST):
+        body = _statements(sql)
+        for keep in ("'3400'", "'3401'", "'5602'", "'6502'"):
+            assert keep not in body, f"{keep} 까지 지우고 있다"
 
 
 def _statements(sql: str) -> str:
