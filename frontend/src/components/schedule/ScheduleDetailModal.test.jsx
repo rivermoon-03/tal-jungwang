@@ -190,8 +190,8 @@ describe('ScheduleDetailModal — 실시간 전용 버스 상세', () => {
 
     expect(screen.getByText('버스 실시간 정보')).toBeInTheDocument()
     expect(screen.queryByText('버스 시간표')).not.toBeInTheDocument()
-    expect(screen.getByText(/실시간 GBIS 기반 · 한국공학대학교 시흥터미널/)).toBeInTheDocument()
-    expect(screen.getByText(/실시간 GBIS 기반 · 이마트/)).toBeInTheDocument()
+    expect(screen.getByText(/한국공학대학교 시흥터미널 기준/)).toBeInTheDocument()
+    expect(screen.getByText(/이마트 기준/)).toBeInTheDocument()
     expect(screen.queryByText(/잘못 재사용된 첫 정류장/)).not.toBeInTheDocument()
   })
 })

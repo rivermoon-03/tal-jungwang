@@ -256,6 +256,11 @@ async def _compute_realtime_eta(
     return out
 
 
+# 예측이 지금으로부터 이보다 멀면 내놓지 않는다. 표본이 나쁘면 중앙값은 하루 중
+# 어느 시각이든 될 수 있는데, 화면은 그것을 "보통 …쯤 도착" 이라고 단정한다.
+PREDICTED_ETA_MAX_AHEAD_MIN = 120
+
+
 def _compute_predicted_eta(
     columns: list[dict],
     now_kst: datetime,
@@ -266,12 +271,24 @@ def _compute_predicted_eta(
     raw bus_arrival_history는 동일 차량의 중복 폴링·양방향 route_id가 섞여 있을 수 있어,
     dedupe된 표시 데이터가 사용자 신뢰와 가장 잘 맞는다.
 
-    매칭 ≥ 2건이면 dict, 미만이면 None.
+    지금 시각을 관측하지 못한 날은 표를 주지 않고, 결과가 너무 먼 미래면 통째로
+    버린다. 둘 다 통과하고 매칭이 2건 이상일 때만 dict, 아니면 None.
     """
     now_hhmm = now_kst.strftime("%H:%M")
     firsts_min: list[int] = []
     for col in columns:
-        for t in col.get("times") or []:
+        times = col.get("times") or []
+        # 그날 지금보다 앞선 기록이 하나도 없으면 그 시간대를 관측하지 못한
+        # 날이다. 그런 날의 "지금 이후 첫 기록" 은 다음 차가 아니라 그날 우연히
+        # 잡힌 유일한 기록일 수 있다.
+        #
+        # 이 검사가 없던 시절 5200 이 오전 9시에 "보통 11:11 쯤 도착" 이라고
+        # 말했다. 입력은 9/3(56회 관측, 09:00 이후 첫차 09:10)과 8/27(하루 종일
+        # 13:12 한 건) 두 날이었고, 8/27 의 13:12 를 그날의 다음 차로 세어
+        # 중앙값이 11:11 이 됐다. 어떤 버스도 오지 않는 시각이다.
+        if not any(t < now_hhmm for t in times):
+            continue
+        for t in times:
             if t > now_hhmm:
                 h, m = t.split(":")
                 firsts_min.append(int(h) * 60 + int(m))
@@ -286,6 +303,10 @@ def _compute_predicted_eta(
         median_min = firsts_min[mid]
     else:
         median_min = (firsts_min[mid - 1] + firsts_min[mid]) // 2
+
+    now_min = now_kst.hour * 60 + now_kst.minute
+    if median_min - now_min > PREDICTED_ETA_MAX_AHEAD_MIN:
+        return None
 
     hh, mm = divmod(median_min, 60)
     wd = now_kst.weekday()

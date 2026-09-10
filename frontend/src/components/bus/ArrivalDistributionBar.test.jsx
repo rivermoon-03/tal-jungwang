@@ -50,11 +50,11 @@ describe('ArrivalDistributionBar', () => {
     expect(screen.queryByText(/중앙값/)).toBeNull()
   })
 
-  it('full variant shows p10/중앙값/p90 labels', () => {
+  it('full variant 는 백분위 이름 대신 사람 말로 라벨을 쓴다', () => {
     render(<ArrivalDistributionBar p10Min={1} p50Min={4} p90Min={9} variant="full" />)
-    expect(screen.getByText(/p10 1분/)).toBeInTheDocument()
-    expect(screen.getByText(/중앙값 4분/)).toBeInTheDocument()
-    expect(screen.getByText(/p90 9분/)).toBeInTheDocument()
+    expect(screen.getByText(/빠르면 1분/)).toBeInTheDocument()
+    expect(screen.getByText(/보통 4분/)).toBeInTheDocument()
+    expect(screen.getByText(/늦으면 9분/)).toBeInTheDocument()
   })
 
   it('p10 == p90 still renders (no crash, dot visible)', () => {

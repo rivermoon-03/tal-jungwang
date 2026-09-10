@@ -2,7 +2,7 @@
 // 구성: 전체 트랙(bg-surface-3, 4px, rounded-full) + p10~p90 밴드(accent 반투명)
 //       + 양끝 캡(p10/p90 경계 표시) + 중앙값 도트(accent, surface 보더).
 // variant='mini'  — 카드 하단용, 라벨 없음, 도트가 조금 작다.
-// variant='full'  — p10/중앙값/p90 라벨 포함, 시트 헤더용.
+// variant='full'  — 빠르면/보통/늦으면 라벨 포함, 시트 헤더용.
 // maxMin 기본 20분, p90이 그보다 크면 자동 확장.
 //
 // 위치 계산(valueToPercent)은 utils/arrivalDistribution.js에 순수 함수로 분리했다
@@ -55,9 +55,11 @@ export default function ArrivalDistributionBar({
       </div>
       {isFull && (
         <div className="mt-1.5 flex justify-between text-caption text-mute dark:text-mute font-medium">
-          <span>p10 {p10Min}분</span>
-          <span>중앙값 {p50Min}분</span>
-          <span>p90 {p90Min}분</span>
+          {/* p10 / p90 은 개발 용어라 화면에 쓰지 않는다(DESIGN.md §8.5).
+              사용자에게 필요한 것은 백분위 이름이 아니라 "대개 이 사이" 다. */}
+          <span>빠르면 {p10Min}분</span>
+          <span>보통 {p50Min}분</span>
+          <span>늦으면 {p90Min}분</span>
         </div>
       )}
     </div>

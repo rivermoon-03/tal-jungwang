@@ -211,3 +211,55 @@ def test_history_rows_statement_scopes_history_to_requested_source_stop():
     )
 
     assert "bus_arrival_history.stop_id =" in str(stmt)
+
+
+# ── 관측 공백이 있는 날은 예측에 표를 주지 않는다 ──────────────────────────
+
+
+def test_predicted_eta_skips_day_without_coverage_before_now():
+    """그날 지금보다 앞선 기록이 없으면 그 컬럼은 세지 않는다.
+
+    2026-09-10 실측 재현. 5200 이 09:00 에 "보통 11:11 쯤 도착" 이라고 말했다.
+    9/3 은 하루 종일 관측돼 09:00 이후 첫차가 09:10 이었고, 8/27 은 하루 통틀어
+    13:12 한 건뿐이었다. 그 13:12 를 "그날의 다음 차" 로 세는 바람에 중앙값이
+    어떤 버스도 오지 않는 11:11 이 됐다.
+    """
+    columns = [
+        _col(["07:25", "07:43", "08:11", "08:44", "09:10", "09:33", "10:04"]),
+        _col(["13:12"]),
+    ]
+    now_kst = datetime(2026, 9, 10, 9, 0, 0, tzinfo=KST)
+
+    result = bus_api._compute_predicted_eta(columns, now_kst)
+
+    # 표를 준 컬럼이 하나뿐이라 2건 미만 → 예측 자체를 내지 않는다.
+    assert result is None
+
+
+def test_predicted_eta_counts_day_with_coverage():
+    """지금보다 앞선 기록이 있는 날은 정상적으로 표를 준다."""
+    columns = [
+        _col(["08:00", "08:30", "09:10"]),
+        _col(["08:05", "08:35", "09:20"]),
+    ]
+    now_kst = datetime(2026, 9, 10, 9, 0, 0, tzinfo=KST)
+
+    result = bus_api._compute_predicted_eta(columns, now_kst)
+    assert result is not None
+    assert result["hhmm"] == "09:15"
+    assert result["sample_size"] == 2
+
+
+def test_predicted_eta_rejects_far_future_median():
+    """중앙값이 지금으로부터 너무 멀면 내놓지 않는다.
+
+    표본이 나빠 결과가 몇 시간 뒤로 나와도 화면은 "보통 …쯤 도착" 이라고
+    단정한다. 그런 값은 아예 만들지 않는다.
+    """
+    columns = [
+        _col(["07:00", "14:30"]),
+        _col(["07:10", "15:00"]),
+    ]
+    now_kst = datetime(2026, 9, 10, 9, 0, 0, tzinfo=KST)
+
+    assert bus_api._compute_predicted_eta(columns, now_kst) is None
