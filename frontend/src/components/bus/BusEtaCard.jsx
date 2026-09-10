@@ -1,6 +1,10 @@
 /**
  * BusEtaCard — 실시간 노선 시트 상단 ETA 카드.
  *
+ * 예보 오차를 사용자에게 문장으로 옮기지 않는다. 평균 편차가 1분도 안 되는
+ * 값을 "여유 있게" 같은 지시로 바꾸면 조언이 아니라 잔소리가 된다. 오차 집계는
+ * 계속 쌓이지만(bus_eta_samples) 화면에서 말하지는 않는다.
+ *
  * 세 가지 상태 (props로 분기, 매 시점 정확히 하나만 렌더):
  *   1) realtimeEta 있음   → "실시간" chip + 큰 ETA + 다음 한 대 (선택)
  *   2) predictedEta 있음  → "예상치" chip + "보통 HH:MM쯤 도착" + prose
@@ -16,7 +20,6 @@ import { useNow } from '../../hooks/useNow'
 import StatusChip from '../ui/StatusChip'
 import DataBadge from '../ui/DataBadge'
 import { formatEta, isImminent } from '../../utils/eta'
-import { describeEtaAccuracy, shouldShowAccuracy } from '../../utils/etaAccuracy'
 
 // arrive_in_seconds → 표시 문자열 + imminent 여부.
 // 문구와 임계는 utils/eta.js 하나에서 온다. 접미사("N분 후")를 붙이지 않는
@@ -63,14 +66,6 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
     const { text: primaryText, imminent } = formatEtaLocal(primary.arrive_in_seconds)
     const hasSecondary = secondary && secondary.arrive_in_seconds != null
     const secondaryText = hasSecondary ? formatEtaLocal(secondary.arrive_in_seconds).text : null
-    // ETA 자가 채점(bus_eta_accuracy). 표본 50 이상인 조합만 백엔드가 값을
-    // 실어 주고, 그중에서도 말할 것이 있을 때만 한 줄을 띄운다.
-    // 판정 규칙과 근거는 utils/etaAccuracy.js 참고 — 적중률 퍼센트는 쓰지 않는다.
-    const accuracy = realtimeEta.eta_accuracy ?? null
-    const accuracyNote = shouldShowAccuracy(accuracy, primary.arrive_in_seconds)
-      ? describeEtaAccuracy(accuracy)
-      : null
-
     return (
       <div className="mb-4">
         <div className="flex items-center gap-2 pb-1.5">
@@ -106,19 +101,6 @@ function BusEtaCard({ realtimeEta = null, predictedEta = null }) {
                 </span>
               </div>
             </>
-          )}
-          {accuracyNote && (
-            // 최근 4주 실측이 말하는 것은 "이 예보를 어느 쪽으로 보정해 읽어야
-            // 하는가" 다. 색은 보조 신호이고 문구 자체가 행동을 말한다.
-            <p
-              className={`mt-2 text-caption font-medium ${
-                accuracyNote.tone === 'early'
-                  ? 'text-accent-ink dark:text-accent'
-                  : 'text-imminent dark:text-imminent'
-              }`}
-            >
-              {accuracyNote.text}
-            </p>
           )}
         </div>
       </div>

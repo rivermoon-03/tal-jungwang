@@ -137,72 +137,28 @@ describe('BusEtaCard', () => {
     })
   })
 
-  // A4 — ETA 자가 채점 문구 (realtimeEta.eta_accuracy, 있을 때만 표시)
-  describe('상태 1 — 실시간 정확도 한 줄', () => {
+  // 예보 오차를 문장으로 옮기지 않는다. 평균 편차가 1분도 안 되는 값을
+  // "여유 있게" 같은 지시로 바꾸면 조언이 아니라 잔소리가 된다. 오차 집계는
+  // 계속 쌓이지만 화면에서 말하지는 않는다.
+  describe('상태 1 — 예보 오차는 화면에 쓰지 않는다', () => {
     const baseEta = {
       primary: { arrive_in_seconds: 195, arrive_at_hhmm: '21:01' },
       secondary: null,
     }
 
-    // 2026-09-09 프로덕션 실측에서 ±1분 적중률은 14개 조합 중 최고가 76% 였다.
-    // 80% 를 "좋음" 기준으로 두었더니 정확도가 붙는 모든 노선이 "편차가 큰
-    // 노선이에요" 를 달고 있었다. 전부에게 같은 경고를 띄우는 지표는 정보가 아니다.
-    // 이제는 편향과 분산만 말하고, 잘 맞는 노선에는 아무 말도 하지 않는다.
-    it('꾸준히 늦는 노선은 여유를 두라고 말한다', () => {
-      render(
-        <BusEtaCard
-          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: 111, mae_sec: 134, within60_ratio: 0.33, sample_size: 9491 } }}
-          predictedEta={null}
-        />
-      )
-      expect(screen.getByText('예보보다 평균 1분 51초 늦게 와요 · 여유 있게')).toBeInTheDocument()
-    })
-
-    it('꾸준히 일찍 오는 노선은 일찍 나가라고 말한다', () => {
-      render(
-        <BusEtaCard
-          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: -78, mae_sec: 122, within60_ratio: 0.37, sample_size: 6048 } }}
-          predictedEta={null}
-        />
-      )
-      expect(screen.getByText('예보보다 평균 1분 18초 일찍 와요 · 조금 일찍 나가세요')).toBeInTheDocument()
-    })
-
-    it('잘 맞는 노선에는 아무 말도 하지 않는다', () => {
-      render(
-        <BusEtaCard
-          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: -9, mae_sec: 46, within60_ratio: 0.76, sample_size: 1032 } }}
-          predictedEta={null}
-        />
-      )
-      expect(screen.queryByText(/예보보다/)).not.toBeInTheDocument()
-      expect(screen.queryByText(/들쭉날쭉/)).not.toBeInTheDocument()
-    })
-
-    it('적중률 퍼센트를 화면에 쓰지 않는다', () => {
+    it('eta_accuracy 가 실려 와도 아무 문구도 그리지 않는다', () => {
       const { container } = render(
         <BusEtaCard
-          realtimeEta={{ ...baseEta, eta_accuracy: { bias_sec: 111, mae_sec: 134, within60_ratio: 0.33, sample_size: 9491 } }}
+          realtimeEta={{
+            ...baseEta,
+            eta_accuracy: { bias_sec: 111, mae_sec: 134, within60_ratio: 0.33, sample_size: 9491 },
+          }}
           predictedEta={null}
         />
       )
+      expect(container.textContent).not.toMatch(/예보보다|여유 있게|일찍 나가|들쭉날쭉/)
+      // 적중률 퍼센트도 마찬가지다.
       expect(container.textContent).not.toMatch(/33%|±1분/)
-    })
-
-    it('eta_accuracy가 없으면 아무 문구도 그리지 않는다', () => {
-      render(<BusEtaCard realtimeEta={baseEta} predictedEta={null} />)
-      expect(screen.queryByText(/±1분 내 도착/)).not.toBeInTheDocument()
-      expect(screen.queryByText(/예측 편차가 큰 노선이에요/)).not.toBeInTheDocument()
-    })
-
-    it('정확도 문구가 있어도 금지 클래스는 없다', () => {
-      const { container } = render(
-        <BusEtaCard
-          realtimeEta={{ ...baseEta, eta_accuracy: { within60_ratio: 0.5, sample_size: 60 } }}
-          predictedEta={null}
-        />
-      )
-      assertNoAiTi(container)
     })
   })
 
