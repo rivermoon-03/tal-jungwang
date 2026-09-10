@@ -518,7 +518,7 @@ INSERT INTO app_info (id, version, description, feedback_url, updated_at) VALUES
 
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (3, '20-1', '시흥20-1번', '정왕역 방면', '224000011', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (2, '시흥33', '시흥33번', '시흥시청방면', '224000062', '하교');
-INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (1, '3400', NULL, '시화터미널 출발 사당 경유 강남행', '224000050', '하교');
+INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (1, '3400', NULL, '서울행', '224000050', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (6, '6502', NULL, '사당행', '224000061', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (7, '3401', NULL, '시흥시청 경유 석수행', '224000071', '하교');
 INSERT INTO bus_routes (id, route_number, route_name, direction_name, gbis_route_id, category) VALUES (8, '3400', NULL, '학교행', '224000050', '등교');
@@ -546,9 +546,10 @@ INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (2,
 INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (1, '시화', NULL, 37.314800, 126.806000, NULL);
 INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (8, '구로디지털단지역', NULL, 37.485300, 126.901000, NULL);
 INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (13, '시흥시청역', '224000586', 37.381656, 126.805878, '서해선 환승');
--- 2026-09-03 prod_migration_20260903_stop_name_and_20_1_source.sql 로 이름을
--- "시화터미널"로 통일했다. 프론트의 busStationConfig.js id 17과 이름을 맞춘다.
-INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (17, '시화터미널', '224000861', 37.342467, 126.735117, NULL);
+-- 2026-09-10 prod_migration_20260910_sihung_terminal_name.sql 로 "시흥터미널"이
+-- 됐다. 공식 정류소명이 "한국공학대학교.시흥터미널"(경기버스정보 25854, 3400
+-- 기점)이라 시화터미널은 틀린 이름이었다.
+INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (17, '시흥터미널', '224000861', 37.342467, 126.735117, NULL);
 -- 2026-08-01 prod_migration_20260801_bus_information_sources.sql 로 추가됐다.
 -- 진행 방향이 다른 동명 정류장이라 별도 GBIS station ID로 보존한다.
 INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (18, '시흥시청역(서울방향)', '224000538', 37.381656, 126.805878, '서울 방향');
@@ -1599,7 +1600,7 @@ INSERT INTO bus_timetable_entries (id, route_id, stop_id, day_type, departure_ti
 -- 아래 값은 옛 마이그레이션을 그대로 옮긴 것이 아니라 2026-09-04 시점 prod DB를
 -- 직접 조회한 결과다. prod_migration_20260903_stop_name_and_20_1_source.sql이
 -- 적용된 뒤 상태라 20-1 하교 컨텍스트에는 timetable source가 없고(실시간만
--- 노출), bus_stops 17번 이름은 "시화터미널"이다.
+-- 노출), bus_stops 17번 이름은 "시흥터미널"이다(20260910 정정).
 -- prod_migration_20260904_dedupe_hagyo_bus_commute_contexts.sql이 적용된
 -- 뒤 상태라 시흥33/3401/5602의 하교 부분 여정 컨텍스트(정왕역/시흥시청 방면의
 -- 짧은 쪽)는 빠져 있다 — 하교 화면이 방면 탭 없이 노선당 한 줄만 보여준다.
@@ -1696,7 +1697,7 @@ INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, so
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (15, 'shuttle2_ggotjip', 'shuttle', '꽃집앞 (제2)', 37.350833, 126.742848, 35, '{"showLive": true, "direction": 2, "routeCode": "제2 등교", "routeColor": "#5b3aa8", "variant": "via_station"}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (3, 'jeongwang_station', 'subway', '정왕역', 37.352618, 126.742747, 30, '{"showLive": true, "routeCode": "수인분당", "routeColor": "#F5A623", "chipVariant": "subwayMulti"}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (4, 'tec_bus_stop', 'bus', '한국공대', 37.341633, 126.731252, 40, '{"showLive": true, "routeCode": "33번", "routeColor": "#0891B2", "liveInaccurate": true, "primaryStopGbisId": "224000639"}', true);
-INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (5, 'bus_hub_jw_sihwa', 'bus_seoul', '시화터미널', 37.342546, 126.735365, 50, '{}', true);
+INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (5, 'bus_hub_jw_sihwa', 'bus_seoul', '시흥터미널', 37.342546, 126.735365, 50, '{}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (6, 'bus_hub_jw_emart', 'bus_seoul', '이마트', 37.345999, 126.737995, 60, '{}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (7, 'bus_hub_sl_gangnam', 'bus_seoul', '강남역', 37.498427, 127.029829, 70, '{}', true);
 INSERT INTO map_markers (id, marker_key, marker_type, display_name, lat, lng, sort_order, ui_meta, is_active) VALUES (8, 'bus_hub_sl_sadang', 'bus_seoul', '사당역', 37.476654, 126.982610, 80, '{"extraPillText": "3400도 탑승 가능"}', true);

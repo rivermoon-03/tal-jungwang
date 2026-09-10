@@ -30,7 +30,7 @@ def test_schema_sql_seeds_bus_information_sources():
 
 
 def test_schema_sql_seeds_bus_realtime_targets():
-    # 20260909 로 승차점 관측 4건(3400 시화터미널, 3401·5602·6502 이마트) 추가.
+    # 20260909 로 승차점 관측 4건(3400 시흥터미널, 3401/5602/6502 이마트) 추가.
     assert "INSERT INTO bus_realtime_targets" in SCHEMA_SQL
     assert SCHEMA_SQL.count("INSERT INTO bus_realtime_targets (id,") == 18
 
@@ -55,11 +55,11 @@ def test_schema_sql_bus_stops_sequence_covers_prod_migration_20260801_stops():
 
 def test_schema_sql_reflects_20260903_stop_name_and_20_1_source_migration():
     # prod_migration_20260903_stop_name_and_20_1_source.sql이 정류장 17번 이름을
-    # "시화터미널"로 바꾸고 20-1 하교 컨텍스트(context_id=2)의 timetable source를
+    # "시흥터미널"로 바꾸고 20-1 하교 컨텍스트(context_id=2)의 timetable source를
     # 지웠다. schema.sql 시드는 옛 마이그레이션이 아니라 이 결과 상태를 담아야 한다.
     assert "'한국공학대학교 시흥터미널'" not in SCHEMA_SQL
     assert (
-        "INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (17, '시화터미널', '224000861'"
+        "INSERT INTO bus_stops (id, name, gbis_station_id, lat, lng, sub_name) VALUES (17, '시흥터미널', '224000861'"
         in SCHEMA_SQL
     )
     assert (
@@ -94,7 +94,7 @@ def _seeded(table: str, columns: str) -> list[str]:
 def test_schema_sql_reflects_20260909_realtime_at_boarding_stops_migration():
     """실시간 관측점은 학생이 타는 정류장이어야 한다.
 
-    2026-09-09 이전에는 3400 이 승차점(시화터미널)이 아니라 하류(이마트)에서,
+    2026-09-09 이전에는 3400 이 승차점(시흥터미널)이 아니라 하류(이마트)에서,
     3401·5602 는 승차점(이마트)이 아니라 하류(시흥시청 서울방향)에서 관측됐고
     6502 는 관측 자체가 없었다. 하류 관측은 "놓친 버스가 어디쯤 갔는지"를 알려
     줄 뿐 "내 정류장에 언제 오는지"에 답하지 못한다.
@@ -172,7 +172,7 @@ def test_schema_sql_reflects_20260910_remove_origin_realtime_source_migration():
 def test_schema_sql_marker_and_route_naming_is_consistent():
     """같은 노선은 어느 화면에서나 같은 색과 이름으로 그린다."""
     # 형제 마커가 전부 장소명인데 이것만 노선번호였다.
-    assert "'bus_hub_jw_sihwa', 'bus_seoul', '시화터미널'" in SCHEMA_SQL
+    assert "'bus_hub_jw_sihwa', 'bus_seoul', '시흥터미널'" in SCHEMA_SQL
 
     marker_routes = _seeded(
         "map_marker_routes",
