@@ -289,7 +289,7 @@ def build_notification_payload(kind: str, label: str, edge: str, depart_hhmm: st
     emoji = _EDGE_EMOJI.get(kind, "🚌")
     edge_word = _EDGE_WORD.get(edge, edge)
     return {
-        "title": "탈것:정왕",
+        "title": "탈:정왕",
         "body": f"{emoji} {label} {edge_word}가 30분 후 출발해요 ({depart_hhmm})",
         "url": "/schedule",
     }

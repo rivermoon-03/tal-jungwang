@@ -53,7 +53,7 @@ export function useShuttleNotification(timeObjs = []) {
       if (diff === NOTIFY_BEFORE_MIN) {
         new Notification('셔틀 출발 알림', {
           body: `${next.depart_at} 셔틀이 ${NOTIFY_BEFORE_MIN}분 후 출발합니다.`,
-          icon: '/favicon.ico',
+          icon: '/icons/icon-192.png',
         })
       }
     }
@@ -96,7 +96,7 @@ export function useShuttleAlarms() {
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(SHUTTLE_ALARM_TITLE, {
             body: formatShuttleAlarmMessage(alarm.time, alarm.lead),
-            icon: '/favicon.ico',
+            icon: '/icons/icon-192.png',
           })
         }
         setAlarms((prev) => {

@@ -1,4 +1,4 @@
-# 탈것:정왕 Design System
+# 탈:정왕 Design System
 
 ## Product context
 

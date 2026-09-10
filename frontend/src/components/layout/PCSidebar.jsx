@@ -167,7 +167,7 @@ export default function PCSidebar() {
           <Bus size={17} strokeWidth={2.2} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-caption font-extrabold tracking-[-0.02em] text-ink">탈것:정왕</p>
+          <p className="truncate text-caption font-extrabold tracking-[-0.02em] text-ink">탈:정왕</p>
           <p className="truncate text-dest font-semibold text-mute">정왕 교통 · 실시간</p>
         </div>
       </div>
