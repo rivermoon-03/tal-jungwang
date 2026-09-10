@@ -1,4 +1,4 @@
-# 탈것:정왕 디자인 시스템
+# 탈:정왕 디자인 시스템
 
 > 방향은 모던 미니멀 유틸리티, 정제된 teal accent, SUIT 폰트, 라이트 퍼스트에 다크 동급이다.
 > 모든 hex 는 Radix Colors 공식 소스(`src/light.ts`, `src/dark.ts`)에서 검증했다.

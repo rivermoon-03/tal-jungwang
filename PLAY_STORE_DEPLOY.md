@@ -1,4 +1,4 @@
-# 탈것:정왕 — Play Store(및 앱 마켓) 배포 가이드
+# 탈:정왕 — Play Store(및 앱 마켓) 배포 가이드
 
 PWA를 **TWA(Trusted Web Activity)** 로 패키징해 Google Play에 올리는 절차와 체크리스트.
 이 저장소에는 코드로 미리 해둘 수 있는 "사전 작업"이 적용돼 있다(아래 §완료됨 참고).

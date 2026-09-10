@@ -233,7 +233,7 @@ describe('MorePage — 항목 그룹핑', () => {
     render(<MorePageContent />)
     const rows = screen.getAllByRole('button', { name: /열기$/ })
     expect(rows).toHaveLength(4)
-    expect(screen.getByText(/탈것:정왕/)).toBeInTheDocument()
+    expect(screen.getByText(/탈:정왕/)).toBeInTheDocument()
   })
 })
 

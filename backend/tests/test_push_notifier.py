@@ -115,7 +115,7 @@ def test_is_within_notify_window(remaining, expected):
 
 def test_build_notification_payload_bus_last():
     payload = pn.build_notification_payload("bus", "5602번", "last", "21:40")
-    assert payload["title"] == "탈것:정왕"
+    assert payload["title"] == "탈:정왕"
     assert payload["body"] == "🚌 5602번 막차가 30분 후 출발해요 (21:40)"
     assert payload["url"] == "/schedule"
 

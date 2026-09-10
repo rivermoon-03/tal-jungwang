@@ -1,4 +1,4 @@
-# 탈것:정왕 리디자인 · 기능 + 구현 계획
+# 탈:정왕 리디자인 · 기능 + 구현 계획
 
 > 산출물: 디자인 토큰(`frontend/DESIGN.md`) · 시안(`frontend/test/#시안`,`#화면`, gitignore 로컬 전용) · 조사(`frontend/test/refs/libraries.md`·`auto-commute-feasibility.md`·`bookmarks-and-viz.md`).
 > 규칙: `.claude/mistakes.md` · `CLAUDE.md`. **1 기능 = 1 브랜치 = 1 PR**, 머지 후 브랜치 삭제.

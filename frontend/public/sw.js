@@ -133,7 +133,7 @@ self.addEventListener('push', (e) => {
     data = {}
   }
   e.waitUntil(
-    self.registration.showNotification(data.title ?? '탈것:정왕', {
+    self.registration.showNotification(data.title ?? '탈:정왕', {
       body: data.body ?? '',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',

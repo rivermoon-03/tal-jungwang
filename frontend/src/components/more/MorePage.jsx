@@ -156,7 +156,7 @@ export default function MorePage() {
           >
             <Bus size={16} strokeWidth={2.2} />
           </div>
-          <p className="text-caption font-semibold text-mute dark:text-mute">탈것:정왕 · v{APP_VERSION}</p>
+          <p className="text-caption font-semibold text-mute dark:text-mute">탈:정왕 · v{APP_VERSION}</p>
         </div>
       </div>
     </div>

@@ -80,7 +80,7 @@ export default function PWAInstallBanner() {
           <span>
             {isIOS
               ? '홈 화면에 추가해 빠르게 여세요'
-              : '탈것:정왕 앱으로 설치하기'}
+              : '탈:정왕 앱으로 설치하기'}
           </span>
         </button>
         <IconButton
@@ -132,7 +132,7 @@ export default function PWAInstallBanner() {
               홈 화면에 추가
             </h2>
             <p className="text-center text-sm text-mute mb-5">
-              탈것:정왕을 홈 화면에 추가하면 앱처럼 빠르게 사용할 수 있어요.
+              탈:정왕을 홈 화면에 추가하면 앱처럼 빠르게 사용할 수 있어요.
             </p>
 
             {/* Steps */}

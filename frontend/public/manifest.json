@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "탈것:정왕",
-  "short_name": "탈것:정왕",
+  "name": "탈:정왕",
+  "short_name": "탈:정왕",
   "description": "정왕동 한국공학대학교·경기과학기술대학교 통합 교통 정보",
   "start_url": "/",
   "scope": "/",
