@@ -74,6 +74,24 @@ async def _bus_report_job():
         logger.exception("Bus arrival report failed")
 
 
+async def _collector_stall_check_job():
+    """도착 감지가 이틀 넘게 멈췄으면 Discord 로 @everyone 경보.
+
+    2026-08 에 도착 감지가 3주간 멈췄는데 아무 지표도 이상을 말하지 않았다.
+    같은 폴링 사이클의 혼잡 로그는 정상이었고 서버도 살아 있었다. 원인 규명과
+    별개로, 멈추면 사람을 부르는 장치를 먼저 둔다.
+
+    정기 보고(3시간)와 붙이지 않고 따로 도는 이유: 보고가 실패해도 경보는 떠야
+    한다. 매시 정각에 돌지만 서비스 쪽 쿨다운이 하루 한 번으로 묶는다.
+    """
+    from app.services.bus_monitor import check_arrival_collection_stalled
+
+    try:
+        await check_arrival_collection_stalled()
+    except Exception:
+        logger.exception("Collector stall check failed")
+
+
 async def _bus_poll_job():
     """스케줄러에서 호출되는 버스 도착정보 폴링 작업.
 
@@ -475,6 +493,20 @@ def setup_scheduler():
         coalesce=True,
     )
     logger.info("Bus arrival Discord report configured (every 3h, 3h window)")
+
+    # ── 수집 정지 경보 (매시 정각) ──
+    # 도착 감지가 48시간 넘게 한 건도 없으면 Discord 로 @everyone 을 부른다.
+    # 매시 도는 이유는 장애를 늦게 알아채지 않기 위해서고, 같은 장애로 매시
+    # 울리지 않도록 서비스 쪽에서 하루 한 번으로 묶는다.
+    scheduler.add_job(
+        _collector_stall_check_job,
+        CronTrigger(minute=0, timezone="Asia/Seoul"),
+        id="collector_stall_check",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    logger.info("Collector stall check configured (hourly, 48h threshold)")
 
     # ── 지하철 실시간 폴링 (15초 간격, 내부에서 비피크 20초 / 심야 10분 스킵) ──
     # 피크: 15초 폴링, 비피크: 20초 폴링, 심야(00:00~03:49): 10분 폴링

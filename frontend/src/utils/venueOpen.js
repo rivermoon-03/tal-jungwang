@@ -274,6 +274,10 @@ export function isOpenNow(venue, now = new Date()) {
     return {
       open: false,
       status: 'before_open',
+      // 곧 여는 곳을 추려 보여주는 화면(CafeteriaVenues 의 "곧 열어요")이 남은
+      // 시간을 숫자로 알아야 한다. subLabel 문자열을 되파싱하지 않게 함께 준다.
+      minutesUntilOpen: diffMin,
+      nextOpenAt: futureSlot.start,
       primaryLabel: '영업 전',
       subLabel,
       currentPart: null,

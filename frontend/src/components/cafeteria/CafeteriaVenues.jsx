@@ -22,7 +22,7 @@
  *   - 다크모드 정상 지원
  */
 import { createElement, useMemo, useState } from 'react'
-import { Star } from 'lucide-react'
+import { Star, Clock, ChevronRight } from 'lucide-react'
 import { useNow } from '../../hooks/useNow'
 import useAppStore from '../../stores/useAppStore'
 import { ALL_VENUES, BUILDING_GROUPS, CATEGORY_GROUPS } from '../../data/cafeteriaVenues'
@@ -410,6 +410,81 @@ function FavoriteOpenSection({ nowDate, onVenueClick }) {
   )
 }
 
+
+// ── 곧 열어요 ─────────────────────────────────────────────────
+// 30분 안에 여는 곳을 영업 중 목록 위에 따로 세운다. 지금 닫혀 있다는 이유로
+// 목록 밖으로 밀리면, 십 분만 기다리면 되는 곳을 두고 문 연 데를 찾아 건물을
+// 돌게 된다.
+//
+// 카드 그리드가 아니라 리스트인 이유: 이건 "지금 갈 곳" 이 아니라 "조금 뒤에
+// 갈 곳" 이라 아래 본 목록보다 시각적 무게가 가벼워야 한다.
+const OPENING_SOON_WINDOW_MIN = 30
+const OPENING_SOON_VISIBLE = 3
+
+function OpeningSoonSection({ nowDate, onVenueClick, onSeeAll }) {
+  const soon = useMemo(() => {
+    return ALL_VENUES
+      .map((venue) => ({ venue, state: isOpenNow(venue, nowDate) }))
+      .filter(({ state }) =>
+        state.status === 'before_open' &&
+        state.minutesUntilOpen != null &&
+        state.minutesUntilOpen <= OPENING_SOON_WINDOW_MIN
+      )
+      .sort((a, b) => a.state.minutesUntilOpen - b.state.minutesUntilOpen)
+  }, [nowDate])
+
+  if (soon.length === 0) return null
+
+  const shown = soon.slice(0, OPENING_SOON_VISIBLE)
+  const hidden = soon.length - shown.length
+
+  return (
+    <div
+      data-testid="opening-soon-section"
+      className="mb-4 rounded-card bg-chip-yellow-bg/60 dark:bg-chip-yellow-bg/25 px-3.5 py-3"
+    >
+      <div className="flex items-center gap-1.5 mb-2 text-caption font-extrabold text-chip-yellow-fg">
+        <Clock size={13} strokeWidth={2.4} aria-hidden="true" />
+        <span>곧 열어요</span>
+      </div>
+
+      <ul className="flex flex-col divide-y divide-chip-yellow-fg/15">
+        {shown.map(({ venue, state }) => (
+          <li key={venue.id}>
+            <button
+              type="button"
+              onClick={() => onVenueClick(venue)}
+              className="pressable flex w-full items-center gap-2 min-h-[44px] text-left"
+            >
+              <span className="min-w-0 flex-1 truncate text-list-nm text-ink">{venue.name}</span>
+              {venue.location && (
+                <span className="shrink-0 text-caption text-mute truncate max-w-[88px]">
+                  {venue.location}
+                </span>
+              )}
+              <span className="shrink-0 text-label font-bold text-chip-yellow-fg tabular-nums">
+                {state.minutesUntilOpen}분 후
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={onSeeAll}
+          className="pressable mt-1 flex w-full items-center justify-center gap-1 min-h-[44px]
+                     text-caption font-bold text-chip-yellow-fg"
+        >
+          {hidden}곳 더보기
+          <ChevronRight size={14} strokeWidth={2.4} aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── 메인 컴포넌트 ────────────────────────────────────────────
 
 export default function CafeteriaVenues({ onVenueClick = () => {} }) {
@@ -447,6 +522,16 @@ export default function CafeteriaVenues({ onVenueClick = () => {} }) {
 
       {/* 즐겨찾기 · 지금 영업 중 (즐겨찾기가 없거나 전부 닫혀 있으면 자동 숨김) */}
       <FavoriteOpenSection nowDate={nowDate} onVenueClick={onVenueClick} />
+
+      {/* 곧 열어요 — 30분 안에 여는 곳. "지금" 탭에서만 뜻이 있다(운영시간 탭은
+          이미 하루 전체를 보여준다). 더보기는 그 운영시간 탭으로 보낸다. */}
+      {activeTab === 'now' && (
+        <OpeningSoonSection
+          nowDate={nowDate}
+          onVenueClick={onVenueClick}
+          onSeeAll={() => setActiveTab('schedule')}
+        />
+      )}
 
       {/* 탭 + 정렬 스위치 */}
       <div className="mb-3.5">
