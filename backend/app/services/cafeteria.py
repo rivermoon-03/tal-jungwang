@@ -4,8 +4,8 @@
   1) GET https://ibook.tukorea.ac.kr/viewer/menu02 → 페이지 HTML에서 bookcode 추출
   2) POST https://ibook.tukorea.ac.kr/web/RawFileList (key, bookcode, base64) → XML
      → <file file_url="…xlsx"/> 추출
-  3) GET file_url → xlsx 바이너리
-  4) openpyxl 파싱 → JSON
+  3) GET file_url → XLSX 또는 PDF 바이너리
+  4) 형식에 맞게 파싱 → JSON
 
 캐시 키 `cafeteria:menu` TTL 1시간. APScheduler가 매일 07~14시 매시 정각에 강제 갱신.
 TTL이 짧으므로 cron 1회 누락되어도 다음 요청이 cache-aside로 자가 회복한다.
@@ -17,6 +17,7 @@ from io import BytesIO
 from zoneinfo import ZoneInfo
 
 import openpyxl
+from pypdf import PdfReader
 
 from app.core.cache import get_cached_json, set_cached_json
 from app.core.http_client import get_http_client
@@ -32,13 +33,14 @@ RAWFILE_URL = "https://ibook.tukorea.ac.kr/web/RawFileList"
 WEB_KEY = "kpu"
 
 _BOOKCODE_RE = re.compile(r"bookcode\s*=\s*['\"]([A-Z0-9]+)['\"]")
-_FILE_URL_RE = re.compile(r'file_url="([^"]+\.xlsx?[^"]*)"')
+_FILE_URL_RE = re.compile(r'file_url="([^"]+\.(?:xlsx?|pdf)(?:\?[^"]*)?)"', re.I)
 _FILE_NAME_RE = re.compile(r'<file\s+name="([^"]+)"')
 
 # 날짜 헤더는 보통 "31일"이지만, 주가 달을 넘기면 그 첫 칸만 "9/1일"처럼
 # 월을 앞에 붙여 온다(2026-08-31 주차 실측). 월 표기를 옵션으로 받지 않으면
 # 그 칸이 통째로 누락돼 해당 요일 식단이 사라진다.
 _DATE_HEADER_RE = re.compile(r"^(?:(\d{1,2})\s*[/.]\s*)?(\d{1,2})\s*일")
+_PDF_DATE_HEADER_RE = re.compile(r"^(?:(?:\d{1,2}\s*월\s*)|(?:\d{1,2}\s*[/.]\s*))?(\d{1,2})\s*일")
 _MEAL_HEADER_RE = re.compile(r"^(천원의\s*아침밥|중식|석식|조식|간식)")
 _TIME_RE = re.compile(r"(\d{1,2}:\d{2})\s*[\n~\-]+\s*(\d{1,2}:\d{2})")
 _TITLE_TIP_RE = re.compile(r"TIP\s*학생식당")
@@ -83,9 +85,9 @@ async def _fetch_file_url(bookcode: str) -> tuple[str, str]:
     return m_name.group(1), m_url.group(1)
 
 
-async def _download_xlsx(url: str) -> bytes:
+async def _download_file(url: str) -> bytes:
     client = await get_http_client()
-    resp = await client.get(url)
+    resp = await client.get(url, follow_redirects=True)
     resp.raise_for_status()
     return resp.content
 
@@ -212,6 +214,133 @@ def _parse_xlsx(content: bytes) -> dict:
     return {"week_start": week_start, "cafeterias": cafeterias}
 
 
+def _parse_pdf(content: bytes) -> dict:
+    """좌표가 살아 있는 학교 식단 PDF를 식당/요일/끼니 구조로 변환한다."""
+    reader = PdfReader(BytesIO(content))
+    cafeterias = []
+    week_start = ""
+
+    for page in reader.pages:
+        spans: list[tuple[str, float, float]] = []
+
+        def collect(text, _cm, tm, _font_dict, _font_size):
+            text = text.strip()
+            if text:
+                spans.append((text, float(tm[4]), float(tm[5])))
+
+        page.extract_text(visitor_text=collect)
+        if not spans:
+            continue
+
+        page_text = " ".join(text for text, _, _ in spans)
+        if _TITLE_TIP_RE.search(page_text):
+            name = "TIP 학생식당"
+        elif _TITLE_E_RE.search(page_text):
+            name = "E동 레스토랑"
+        else:
+            continue
+
+        date_spans = []
+        month = None
+        for text, x, y in spans:
+            month_match = re.match(r"^(\d{1,2})\s*월$", text)
+            date_match = _PDF_DATE_HEADER_RE.match(text)
+            if month_match and x < 110:
+                month = int(month_match.group(1))
+            elif date_match and x >= 100:
+                date_spans.append((x, int(date_match.group(1)), y))
+        if not date_spans:
+            logger.warning("학식 PDF에서 날짜 열을 찾지 못함: %s", name)
+            continue
+        date_spans.sort(key=lambda item: item[0])
+        header_y = max(y for _, _, y in date_spans)
+        days = [(x, str(day)) for x, day, _ in date_spans]
+        if not week_start and month:
+            week_start = f"{month}.{date_spans[0][1]}"
+
+        meal_headers: list[tuple[float, str]] = []
+        breakfast_y = None
+        for text, x, y in spans:
+            if x >= 105:
+                continue
+            if text == "천원의":
+                breakfast_y = y
+            elif text == "아침밥" and breakfast_y is not None and abs(y - breakfast_y) <= 25:
+                meal_headers.append((max(y, breakfast_y), "천원의 아침밥"))
+                breakfast_y = None
+            elif re.match(r"^(중식|석식|조식|간식)$", text):
+                meal_headers.append((y, text))
+        meal_headers.sort(key=lambda item: item[0], reverse=True)
+        if not meal_headers:
+            logger.warning("학식 PDF에서 끼니 구역을 찾지 못함: %s", name)
+            continue
+
+        # 원산지 표는 메뉴가 아니므로 마지막 식사 구역에서 제외한다.
+        footer_y = max(
+            (
+                y for text, x, y in spans
+                if x < 110 and (text.startswith("쌀,") or text.startswith("수산물"))
+            ),
+            default=0.0,
+        )
+        meals = []
+        for index, (label_y, meal_type) in enumerate(meal_headers):
+            high = header_y + 1 if index == 0 else (meal_headers[index - 1][0] + label_y) / 2
+            low = (
+                (label_y + meal_headers[index + 1][0]) / 2 - 20
+                if index + 1 < len(meal_headers)
+                else footer_y
+            )
+            if index > 0:
+                high -= 20
+            lane_text = " ".join(
+                text for text, x, y in sorted(spans, key=lambda item: -item[2])
+                if x < 105 and low < y <= high
+                and text not in {"천원의", "아침밥", "중식", "석식", "조식", "간식"}
+            )
+            time_match = re.search(r"(\d{1,2}:\d{2})\s*~?\s*(\d{1,2}:\d{2})", lane_text)
+            meal_time = f"{time_match.group(1)}~{time_match.group(2)}" if time_match else None
+
+            by_day = {day: [] for _, day in days}
+            menu_spans = sorted(
+                (
+                    (y, min(days, key=lambda item: abs(item[0] - x))[1], text)
+                    for text, x, y in spans
+                    if x >= 100 and low < y <= min(high, header_y)
+                    and not _PDF_DATE_HEADER_RE.match(text)
+                    and not text.startswith(("◆", "★", "**"))
+                ),
+                key=lambda item: -item[0],
+            )
+            for _, day, text in menu_spans:
+                by_day[day].append(text)
+
+            for day, items in by_day.items():
+                merged = []
+                corner = None
+                for item in items:
+                    if _CORNER_LABEL_RE.match(item):
+                        corner = item
+                        continue
+                    merged.append(f"{corner} {item}" if corner else item)
+                    corner = None
+                if corner:
+                    merged.append(corner)
+                by_day[day] = merged
+            meals.append({"type": meal_type, "time": meal_time, "by_day": by_day})
+        cafeterias.append({"name": name, "meals": meals})
+
+    return {"week_start": week_start, "cafeterias": cafeterias}
+
+
+def _parse_menu_file(file_name: str, content: bytes) -> dict:
+    if file_name.lower().endswith(".pdf"):
+        return _parse_pdf(content)
+    if file_name.lower().endswith((".xls", ".xlsx")):
+        return _parse_xlsx(content)
+    raise RuntimeError(f"지원하지 않는 학식 파일 형식: {file_name}")
+
+
 def _resolve_week_year(week_start: str, now: datetime) -> int:
     """시트명(M.D)과 현재 KST 시각으로 그 주차의 연도를 정한다.
 
@@ -242,8 +371,10 @@ async def get_menu(force_refresh: bool = False) -> dict | None:
     try:
         bookcode = await _fetch_bookcode()
         file_name, file_url = await _fetch_file_url(bookcode)
-        content = await _download_xlsx(file_url)
-        parsed = _parse_xlsx(content)
+        content = await _download_file(file_url)
+        parsed = _parse_menu_file(file_name, content)
+        if not parsed.get("cafeterias") or not any(c.get("meals") for c in parsed["cafeterias"]):
+            raise RuntimeError("학식 원본 파일에서 메뉴를 찾지 못함")
     except Exception:
         logger.exception("학식 식단표 갱신 실패")
         # 실패 시에도 stale 캐시는 살려둠 (만약 있다면) — 아래 None은 cold start만

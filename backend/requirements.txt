@@ -12,6 +12,7 @@ bcrypt>=4.0.0
 slowapi>=0.1.9
 apscheduler>=3.10.0
 openpyxl>=3.1.0
+pypdf>=5.0.0
 prometheus-fastapi-instrumentator>=7.0.0
 holidays>=0.50
 pywebpush>=2.0.0

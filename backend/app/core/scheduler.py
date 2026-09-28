@@ -129,9 +129,12 @@ async def _cafeteria_refresh_job():
     from app.services.cafeteria import refresh_menu
 
     try:
-        await refresh_menu()
-        logger.info("학식 메뉴 캐시 갱신 완료")
-        await mark_fresh("cafeteria")
+        menu = await refresh_menu()
+        if menu and menu.get("cafeterias"):
+            logger.info("학식 메뉴 캐시 갱신 완료")
+            await mark_fresh("cafeteria")
+        else:
+            logger.warning("학식 메뉴 캐시 갱신 결과가 비어 있어 신선도 시각을 갱신하지 않음")
     except Exception:
         logger.exception("학식 메뉴 캐시 갱신 실패")
 
