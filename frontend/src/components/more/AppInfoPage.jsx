@@ -1,6 +1,6 @@
 /**
  * AppInfoPage — 앱 정보 sub-page.
- * 'Made by moonlandingplan' 크레딧 + 빌드 시점에 주입된 앱 버전을 표시한다.
+ * 앱 이름과 빌드 시점에 주입된 앱 버전을 표시한다.
  * Props:
  *   onBack  () => void
  */
@@ -42,13 +42,6 @@ export default function AppInfoPage({ onBack, embedded = false }) {
 
         {/* 정보 행 */}
         <section className="bg-surface dark:bg-surface rounded-card shadow-card overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-line dark:border-line">
-            <Heart size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
-            <div>
-              <p className="text-meta font-bold text-mute dark:text-mute">Made by</p>
-              <p className="text-label font-semibold text-ink dark:text-ink tracking-tight mt-0.5">moonlandingplan</p>
-            </div>
-          </div>
           <div className="flex items-center gap-3 px-4 py-3.5">
             <School size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
             <div>

@@ -16,7 +16,6 @@ import { ChevronLeft, ExternalLink } from 'lucide-react'
 import IconButton from '../ui/IconButton'
 
 const EFFECTIVE_DATE = '2026-07-27'
-const OPERATOR = 'moonlandingplan (탈:정왕 운영자)'
 
 // 서비스가 실제로 사용하는 외부 사업자와 각자의 방침 원문 링크.
 // 사업자를 추가·교체할 때는 이 배열만 갱신한다.
@@ -136,21 +135,6 @@ export default function PrivacyPolicyPage({ onBack }) {
 
           <Section title="5. 아동의 개인정보">
             <p>서비스는 만 14세 미만 아동의 개인정보를 의도적으로 수집하지 않습니다.</p>
-          </Section>
-
-          <Section title="6. 문의처">
-            <p>운영: {OPERATOR}</p>
-            <p>
-              문의:{' '}
-              <a
-                className="text-accent dark:text-accent underline"
-                href="https://github.com/rivermoon-03/tal-jungwang/issues"
-                target="_blank"
-                rel="noreferrer"
-              >
-                GitHub 이슈
-              </a>
-            </p>
           </Section>
 
           <p className="text-label text-mute dark:text-mute px-1 pt-1">
