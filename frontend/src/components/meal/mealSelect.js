@@ -30,7 +30,8 @@ export function venueIdOf(sectionName) {
 export function pickMeal(section, kind, dayKey) {
   const meal = section?.meals?.find((m) => mealKindOf(m.type) === kind)
   if (!meal) return null
-  const items = normalizeMenuItems(meal.by_day?.[dayKey])
+  // PDF 식단은 "①코너 셀프라면" 처럼 코너 표기가 메뉴 앞에 붙어 온다. 화면에는 메뉴만 남긴다.
+  const items = normalizeMenuItems(meal.by_day?.[dayKey]).map((s) => s.replace(/^[①-⑨]\s*코너\s*/, '')).filter(Boolean)
   return { time: meal.time ?? null, items: isEmptyMenu(items) ? [] : items, closed: items.length === 1 && items[0] === '미운영' }
 }
 

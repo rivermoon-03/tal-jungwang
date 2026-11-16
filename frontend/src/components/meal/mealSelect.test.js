@@ -43,3 +43,8 @@ describe('mealStatus', () => {
     expect(mealStatus('11:00~14:00', 12 * 60, false).text).toBe('11:00 ~ 14:00')
   })
 })
+
+it('메뉴 앞의 코너 표기를 뗀다', () => {
+  const section = { meals: [{ type: '천원의 아침밥', time: '08:30~10:00', by_day: { 16: ['①코너 셀프라면/밥/김치'] } }] }
+  expect(pickMeal(section, '조식', '16').items).toEqual(['셀프라면/밥/김치'])
+})

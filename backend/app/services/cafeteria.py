@@ -2,7 +2,7 @@
 
 흐름:
   1) GET https://ibook.tukorea.ac.kr/viewer/menu02 → 페이지 HTML에서 bookcode 추출
-  2) POST https://ibook.tukorea.ac.kr/web/RawFileList (key, bookcode, base64) → XML
+  2) POST https://ibook.tukorea.ac.kr/Viewer/rawFileList (bookcode, base64) → XML
      → <file file_url="…xlsx"/> 추출
   3) GET file_url → XLSX 또는 PDF 바이너리
   4) 형식에 맞게 파싱 → JSON
@@ -29,8 +29,8 @@ CACHE_KEY = "cafeteria:menu"
 CACHE_TTL = 3600
 
 VIEWER_URL = "https://ibook.tukorea.ac.kr/viewer/menu02"
-RAWFILE_URL = "https://ibook.tukorea.ac.kr/web/RawFileList"
-WEB_KEY = "kpu"
+# 2026-11 학교 뷰어가 /web/RawFileList(이제 403)에서 이 경로로 옮겼다. 뷰어 ext-01.js 의 $.post 와 같은 요청이다.
+RAWFILE_URL = "https://ibook.tukorea.ac.kr/Viewer/rawFileList"
 
 _BOOKCODE_RE = re.compile(r"bookcode\s*=\s*['\"]([A-Z0-9]+)['\"]")
 _FILE_URL_RE = re.compile(r'file_url="([^"]+\.(?:xlsx?|pdf)(?:\?[^"]*)?)"', re.I)
@@ -74,7 +74,7 @@ async def _fetch_file_url(bookcode: str) -> tuple[str, str]:
             "Referer": VIEWER_URL,
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         },
-        data={"key": WEB_KEY, "bookcode": bookcode, "base64": "N"},
+        data={"bookcode": bookcode, "base64": "N"},
     )
     resp.raise_for_status()
     xml = resp.text
