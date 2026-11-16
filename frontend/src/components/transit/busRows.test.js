@@ -36,3 +36,25 @@ describe('destKey', () => {
     expect(destKeysOf({ a: { dest: '정왕역행' }, b: { dest: '정왕역 경유' }, c: { dest: '정왕역 경유 시흥시청행' } })).toEqual(['정왕역행', '시흥시청행'])
   })
 })
+
+describe('실시간 정보가 없는 노선', () => {
+  it('남은 시간이 없으면 곧 도착이 아니라 도착 정보 없음이고 맨 뒤로 간다', async () => {
+    const { buildBusRows, seatsLabel } = await import('./busRows')
+    const rows = buildBusRows(
+      [{ route_no: '5200', arrival_type: 'realtime', arrive_in_seconds: null, location_no: 0, remain_seat: -1 }, rt('3400', 1440, 14)],
+      {},
+      600,
+    )
+    expect(rows.map((r) => r.route)).toEqual(['3400', '5200'])
+    expect(rows[1]).toMatchObject({ main: '도착 정보 없음', position: null, noInfo: true, soon: false })
+    expect(seatsLabel(13)).toBe('13석 남음')
+    expect(seatsLabel(0)).toBe('만석')
+    expect(seatsLabel(-1)).toBe(null)
+  })
+
+  it('정거장 수가 없어도 90초 넘게 남았으면 곧 도착이라 쓰지 않는다', async () => {
+    const { buildBusRows } = await import('./busRows')
+    const [row] = buildBusRows([rt('99-2', 600, 0)], {}, 600)
+    expect(row.position).toBe(null)
+  })
+})

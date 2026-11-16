@@ -1,4 +1,5 @@
 import { clockToMinutes, minutesLabel, stopsLabel, isSoon, ARRIVING_LABEL } from './format'
+import { IMMINENT_THRESHOLD_SEC } from '../../utils/eta'
 
 /**
  * 도착 응답 → 전광판 행. 노선마다 이번 차와 다음 차를 묶고 도착순으로 정렬한다.
@@ -24,9 +25,10 @@ export function buildBusRows(arrivals, routeDisplay, nowMin) {
       sec: cur.sec,
       main: mainLabel(cur),
       position: positionLabel(cur),
+      noInfo: cur.sec == null && !cur.off_service,
       soon: cur.arrival_type === 'realtime' && isSoon(cur.sec),
       nextLabel: next?.sec != null ? `다음 ${minutesLabel(next.sec)}` : null,
-      seats: cur.remain_seat >= 0 ? `좌석 ${cur.remain_seat}` : null,
+      seats: seatsLabel(cur.remain_seat),
     }
   })
   return rows.sort((a, b) => Number(a.offService) - Number(b.offService) || (a.sec ?? Infinity) - (b.sec ?? Infinity))
@@ -43,14 +45,22 @@ function secondsOf(a, nowMin) {
 
 function mainLabel(a) {
   if (a.off_service) return '운행 종료'
-  if (a.arrival_type === 'realtime') return minutesLabel(a.arrive_in_seconds)
+  if (a.arrival_type === 'realtime') return minutesLabel(a.arrive_in_seconds) ?? '도착 정보 없음'
   return a.depart_at ?? '정보 없음'
+}
+
+/** 잔여 좌석. -1 은 정보 없음, 0 은 만석 */
+export function seatsLabel(n) {
+  if (n == null || n < 0) return null
+  return n === 0 ? '만석' : `${n}석 남음`
 }
 
 function positionLabel(a) {
   if (a.off_service) return a.next_first_at ? `첫차 ${a.next_first_at}` : null
   if (a.arrival_type !== 'realtime') return '시간표 기준'
-  return stopsLabel(a.location_no) ?? ARRIVING_LABEL
+  // 남은 시간이 없는 실시간 노선은 지금 오는 차가 없다는 뜻이다. 임박 문구는 실제로 90초 안일 때만 쓴다.
+  if (a.arrive_in_seconds == null) return null
+  return stopsLabel(a.location_no) ?? (a.arrive_in_seconds <= IMMINENT_THRESHOLD_SEC ? ARRIVING_LABEL : null)
 }
 
 /** 행선지 문구 → 짧은 행선지("사당 경유 강남행" → "강남행", "정왕역 경유" → "정왕역행") */

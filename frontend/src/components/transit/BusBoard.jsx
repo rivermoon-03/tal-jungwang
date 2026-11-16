@@ -97,7 +97,7 @@ export default function BusBoard() {
                   </div>
                   <div className="text-right">
                     <p
-                      className={`text-f24 font-extrabold tabular-nums ${r.soon ? 'tj-blink text-imminent' : r.realtime && !r.offService ? '' : 'text-[#adb5b2]'}`}
+                      className={`font-extrabold tabular-nums ${r.noInfo ? 'text-f16 text-[#868e8b]' : 'text-f24'} ${r.soon ? 'tj-blink text-imminent' : r.realtime && !r.offService && !r.noInfo ? '' : 'text-[#adb5b2]'}`}
                     >
                       {r.main}
                     </p>

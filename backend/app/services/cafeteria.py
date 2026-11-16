@@ -7,8 +7,8 @@
   3) GET file_url → XLSX 또는 PDF 바이너리
   4) 형식에 맞게 파싱 → JSON
 
-캐시 키 `cafeteria:menu` TTL 1시간. APScheduler가 매일 07~14시 매시 정각에 강제 갱신.
-TTL이 짧으므로 cron 1회 누락되어도 다음 요청이 cache-aside로 자가 회복한다.
+캐시 키 `cafeteria:menu` TTL 8시간. APScheduler가 매일 07~14시 매시 정각에 강제 갱신한다.
+갱신이 실패해도 TTL 이 끝나면 다음 요청이 cache-aside 로 다시 받아 온다.
 """
 import logging
 import re
@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
 CACHE_KEY = "cafeteria:menu"
-CACHE_TTL = 3600
+# 식단은 한 주 내내 그대로라 8시간 보관한다. 새 주차는 07~14시 매시 강제 갱신이 가져온다.
+CACHE_TTL = 8 * 3600
 
 VIEWER_URL = "https://ibook.tukorea.ac.kr/viewer/menu02"
 # 2026-11 학교 뷰어가 /web/RawFileList(이제 403)에서 이 경로로 옮겼다. 뷰어 ext-01.js 의 $.post 와 같은 요청이다.

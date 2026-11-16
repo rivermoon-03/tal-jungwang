@@ -7,13 +7,14 @@ import PageHeader from '../kit/PageHeader'
 import LineBadge from '../kit/LineBadge'
 import Segmented from '../kit/Segmented'
 import HourRows from '../kit/HourRows'
-import { Banner, Card, Skeleton } from '../kit/bits'
-import { buildBusRows } from './busRows'
+import { Banner, Card, SectionLabel, Skeleton } from '../kit/bits'
+import { buildBusRows, seatsLabel } from './busRows'
 import { clockToMinutes, delayVerdict, historyDelta, minutesLabel, nowMinutes, stopsLabel, ARRIVING_LABEL } from './format'
+import { IMMINENT_THRESHOLD_SEC } from '../../utils/eta'
 
 export default function BusRoutePage({ route, stop, view }) {
   if (view === 'timetable') return <BusTimetable route={route} stop={stop} />
-  if (view === 'history') return <BusHistory route={route} stop={stop} />
+  if (view === 'history') return <BusHistoryPage route={route} stop={stop} />
   return <BusRouteDetail route={route} stop={stop} />
 }
 
@@ -26,14 +27,20 @@ function useRouteArrivals(route, stop) {
   return { mine, realtime, loading, fetchedAt, stationName: data?.station_name }
 }
 
+function positionOf(a) {
+  return stopsLabel(a.location_no) ?? (a.arrive_in_seconds <= IMMINENT_THRESHOLD_SEC ? ARRIVING_LABEL : null)
+}
+
+/**
+ * 노선 상세. 실시간 노선은 시간표가 없으므로 시간표 버튼 대신 도착 기록을 바로 펼친다.
+ * 시간표 기반 노선만 시간표로 가는 버튼을 둔다.
+ */
 function BusRouteDetail({ route, stop }) {
   const { mine, realtime, loading, stationName } = useRouteArrivals(route, stop)
   const conf = Object.values(BUS_STATIONS).find((s) => s.gbisStationId === stop)
   const [row] = buildBusRows(mine, conf?.perRouteDisplay, nowMinutes())
   const [cur, nxt] = realtime
-  const history = useBusHistoryPreview(route, stop)
-  const verdict = delayVerdict(historyDelta(history.data?.columns, cur?.arrive_in_seconds, nowMinutes()))
-  const qs = `stop=${stop}`
+  const isRealtimeRoute = mine.some((a) => a.arrival_type === 'realtime')
 
   return (
     <div className="mx-auto w-full max-w-[560px] pb-8">
@@ -46,43 +53,38 @@ function BusRouteDetail({ route, stop }) {
             <div className="rounded-[20px] bg-[var(--tj-dock-bg)] p-4 text-[#eceeed]">
               <p className="text-f13 text-[#adb5b2]">이번 차</p>
               <p className={`mt-1 text-f32 font-extrabold ${cur.arrive_in_seconds <= 180 ? 'tj-blink text-imminent' : ''}`}>{minutesLabel(cur.arrive_in_seconds)}</p>
-              <p className="mt-1 text-f18 font-extrabold">{stopsLabel(cur.location_no) ?? ARRIVING_LABEL}</p>
+              {positionOf(cur) && <p className="mt-1 text-f18 font-extrabold">{positionOf(cur)}</p>}
+              {seatsLabel(cur.remain_seat) && <p className="mt-0.5 text-f13 text-[#adb5b2]">{seatsLabel(cur.remain_seat)}</p>}
             </div>
             <Card className="p-4">
               <p className="text-f13 text-mute">다음 차</p>
               <p className="mt-1 text-f32 font-extrabold tabular-nums text-ink">{nxt ? minutesLabel(nxt.arrive_in_seconds) : '없음'}</p>
-              {nxt && <p className="mt-1 text-f18 font-extrabold text-ink">{stopsLabel(nxt.location_no) ?? ARRIVING_LABEL}</p>}
+              {nxt && positionOf(nxt) && <p className="mt-1 text-f18 font-extrabold text-ink">{positionOf(nxt)}</p>}
             </Card>
           </div>
         ) : (
           <div className="mt-4">
-            <Banner title={row?.offService ? '오늘 운행이 끝났어요' : '지금 오는 차가 없어요'}>{row?.position}</Banner>
+            <Banner title={row?.offService ? '오늘 운행이 끝났어요' : '지금 오는 차가 없어요'}>{row?.offService ? row?.position : null}</Banner>
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?${qs}&view=timetable`)}
-            className="flex min-h-16 flex-col justify-center rounded-2xl border border-line bg-surface px-4 text-left"
-          >
-            <span className="flex items-center gap-1.5 text-f16 font-extrabold text-ink">
-              <CalendarClock size={17} aria-hidden="true" />
-              시간표
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?${qs}&view=history`)}
-            className="flex min-h-16 flex-col justify-center rounded-2xl border border-line bg-surface px-4 text-left"
-          >
-            <span className="flex items-center gap-1.5 text-f16 font-extrabold text-ink">
-              <History size={17} aria-hidden="true" />
-              도착 기록
-            </span>
-            {verdict && <span className="text-f13 font-bold text-amber-800 dark:text-amber-300">{verdict}</span>}
-          </button>
-        </div>
+        {isRealtimeRoute ? (
+          <>
+            <SectionLabel Icon={History}>도착 기록</SectionLabel>
+            <HistoryList route={route} stop={stop} etaSec={cur?.arrive_in_seconds} />
+          </>
+        ) : (
+          !loading && (
+            <button
+              type="button"
+              onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?stop=${stop}&view=timetable`)}
+              className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-surface text-f16 font-extrabold text-ink"
+            >
+              <CalendarClock size={18} aria-hidden="true" />
+              시간표 보기
+            </button>
+          )
+        )}
       </div>
     </div>
   )
@@ -122,45 +124,56 @@ function BusTimetable({ route, stop }) {
   )
 }
 
-function BusHistory({ route, stop }) {
-  const { realtime, stationName } = useRouteArrivals(route, stop)
+/** 지난 같은 요일들의 이 시간대(앞뒤 1시간) 실제 도착 시각. 결론 한 줄을 맨 위에 둔다. */
+function HistoryList({ route, stop, etaSec }) {
   const { data, loading, error } = useBusHistoryPreview(route, stop)
   const nowMin = nowMinutes()
-  const delta = historyDelta(data?.columns, realtime[0]?.arrive_in_seconds, nowMin)
-  const verdict = delayVerdict(delta)
+  const verdict = delayVerdict(historyDelta(data?.columns, etaSec, nowMin))
   const near = (times) => (times ?? []).filter((t) => Math.abs((clockToMinutes(t) ?? 0) - nowMin) <= 60)
 
+  if (loading && !data) return <Skeleton className="h-40 rounded-[20px]" />
+  if (error) return <Banner kind="error" title="기록을 불러오지 못했어요" />
   return (
-    <div className="mx-auto w-full max-w-[560px] pb-8">
-      <PageHeader leading={<LineBadge route={route} />} title="도착 기록" sub={stationName ?? data?.stop_name} fallback="/transit" />
-      <div className="px-4">
-        {verdict && (
-          <div className="mt-4 rounded-[20px] bg-imminent-bg px-5 py-4">
-            <p className="text-f26 font-extrabold text-amber-900 dark:text-amber-200">{verdict}</p>
-            <p className="text-f14 text-amber-900 dark:text-amber-200">지난 같은 요일, 이 시간대와 비교</p>
-          </div>
-        )}
-        {loading && !data && <Skeleton className="mt-4 h-48" />}
-        {error && <div className="mt-4"><Banner kind="error" title="기록을 불러오지 못했어요" /></div>}
+    <div>
+      {verdict && (
+        <div className="mb-2 rounded-[20px] bg-imminent-bg px-5 py-4">
+          <p className="text-f22 font-extrabold text-amber-900 dark:text-amber-200">{verdict}</p>
+          <p className="text-f14 text-amber-900 dark:text-amber-200">지난 같은 요일, 이 시간대와 비교</p>
+        </div>
+      )}
+      <Card as="ul" className="divide-y divide-line-soft">
         {(data?.columns ?? []).map((col) => {
           const times = near(col.times)
           return (
-            <div key={col.date} className="mt-5">
-              <p className="px-1 pb-2 text-f15 font-extrabold text-ink">
-                {col.label} <span className="font-bold text-mute">{col.day_label}</span>
-              </p>
+            <li key={col.date} className="flex gap-4 px-4 py-3.5">
+              <div className="w-16 flex-none">
+                <p className="text-f15 font-extrabold text-ink">{col.label}</p>
+                <p className="text-f13 text-mute">{col.day_label}</p>
+              </div>
               {times.length ? (
-                <div className="flex flex-wrap gap-2 px-1 text-f18 font-extrabold tabular-nums text-ink">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-f17 font-extrabold tabular-nums text-ink">
                   {times.map((t) => (
-                    <span key={t} className="rounded-xl bg-surface-2 px-2.5 py-1">{t}</span>
+                    <span key={t}>{t}</span>
                   ))}
                 </div>
               ) : (
-                <p className="px-1 text-f15 text-mute">이 시간대 기록이 없어요</p>
+                <p className="self-center text-f15 text-mute">이 시간대 기록이 없어요</p>
               )}
-            </div>
+            </li>
           )
         })}
+      </Card>
+    </div>
+  )
+}
+
+function BusHistoryPage({ route, stop }) {
+  const { realtime, stationName } = useRouteArrivals(route, stop)
+  return (
+    <div className="mx-auto w-full max-w-[560px] pb-8">
+      <PageHeader leading={<LineBadge route={route} />} title="도착 기록" sub={stationName} fallback="/transit" />
+      <div className="px-4 pt-4">
+        <HistoryList route={route} stop={stop} etaSec={realtime[0]?.arrive_in_seconds} />
       </div>
     </div>
   )

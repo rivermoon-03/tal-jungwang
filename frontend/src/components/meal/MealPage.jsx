@@ -124,7 +124,7 @@ function VenueCard({ section, kind, day, isToday, nowMin }) {
       {meal?.items.length > 0 && (
         <>
           <p className="mt-1.5 text-f18 font-extrabold text-ink">{meal.items[0]}</p>
-          {meal.items.length > 1 && <p className="mt-0.5 text-f15 leading-relaxed text-ink-2">{meal.items.slice(1).join(', ')}</p>}
+          {meal.items.length > 1 && <p className="mt-1 text-f17 font-normal leading-relaxed text-ink-2">{meal.items.slice(1).join(', ')}</p>}
         </>
       )}
       {meal && meal.items.length === 0 && !meal.closed && (
