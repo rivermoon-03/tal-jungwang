@@ -317,30 +317,7 @@ export const FOOD_COURT = [
     hours: [{ start: '10:30', end: '21:00' }],
     closedNote: '연중무휴',
   },
-  {
-    id: 'vertex',
-    name: '버텍스(VERTEX)',
-    building: 'TIP',
-    floor: '1F',
-    location: loc('TIP', '1F'),
-    category: '패스트푸드',
-    catLabel: '패스트푸드',
-    closedDays: ['saturday', 'sunday', 'holiday'],
-    schedule: {
-      semester: {
-        weekday: [{ type: '운영', start: '10:00', end: '22:00' }],
-        saturday: [],
-        sunday: [],
-      },
-      vacation: {
-        weekday: [{ type: '운영', start: '10:00', end: '22:00' }],
-        saturday: [],
-        sunday: [],
-      },
-    },
-    hours: [{ start: '10:00', end: '22:00' }],
-    closedNote: '주말·공휴일 휴무',
-  },
+
 ]
 
 // ── 카페 ─────────────────────────────────────────────────────

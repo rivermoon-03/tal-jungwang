@@ -417,43 +417,6 @@
       }
     },
     {
-      "id": "vertex",
-      "name": "버텍스(VERTEX)",
-      "building": "TIP",
-      "floor": "1F",
-      "category": "패스트푸드",
-      "is24h": false,
-      "closedDays": [
-        "saturday",
-        "sunday",
-        "holiday"
-      ],
-      "schedule": {
-        "semester": {
-          "weekday": [
-            {
-              "type": "운영",
-              "start": "10:00",
-              "end": "22:00"
-            }
-          ],
-          "saturday": [],
-          "sunday": []
-        },
-        "vacation": {
-          "weekday": [
-            {
-              "type": "운영",
-              "start": "10:00",
-              "end": "22:00"
-            }
-          ],
-          "saturday": [],
-          "sunday": []
-        }
-      }
-    },
-    {
       "id": "cafe-ing",
       "name": "카페아이엔지",
       "building": "TIP",
