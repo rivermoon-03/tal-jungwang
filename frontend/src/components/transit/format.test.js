@@ -46,3 +46,10 @@ describe('historyDelta', () => {
     expect(historyDelta(cols, null, 18 * 60)).toBe(null)
   })
 })
+
+it('nearestTime 은 지금과 가장 가까운 시각을 고른다', async () => {
+  const { nearestTime } = await import('./format')
+  expect(nearestTime(['07:38', '07:47', '08:32', '08:57'], 8 * 60 + 33)).toBe('08:32')
+  expect(nearestTime(['08:20', '08:50'], 8 * 60 + 35)).toBe('08:20')
+  expect(nearestTime([], 500)).toBe(null)
+})

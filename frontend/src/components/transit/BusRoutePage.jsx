@@ -9,7 +9,7 @@ import Segmented from '../kit/Segmented'
 import HourRows from '../kit/HourRows'
 import { Banner, Card, SectionLabel, Skeleton } from '../kit/bits'
 import { buildBusRows, seatsLabel } from './busRows'
-import { clockToMinutes, delayVerdict, historyDelta, minutesLabel, nowMinutes, stopsLabel, ARRIVING_LABEL } from './format'
+import { clockToMinutes, delayVerdict, historyDelta, minutesLabel, nearestTime, nowMinutes, stopsLabel, ARRIVING_LABEL } from './format'
 import { IMMINENT_THRESHOLD_SEC } from '../../utils/eta'
 
 export default function BusRoutePage({ route, stop, view }) {
@@ -32,8 +32,8 @@ function positionOf(a) {
 }
 
 /**
- * 노선 상세. 실시간 노선은 시간표가 없으므로 시간표 버튼 대신 도착 기록을 바로 펼친다.
- * 시간표 기반 노선만 시간표로 가는 버튼을 둔다.
+ * 노선 상세. 시간표 버튼은 그 정류장 시간표가 실제로 있을 때만 둔다(3400, 5602, 6502 는 실시간과 시간표가 함께 있고,
+ * 20-1, 시흥1, 시흥33 은 실시간뿐이다). 실시간 노선이면 도착 기록을 바로 펼친다.
  */
 function BusRouteDetail({ route, stop }) {
   const { mine, realtime, loading, stationName } = useRouteArrivals(route, stop)
@@ -41,6 +41,9 @@ function BusRouteDetail({ route, stop }) {
   const [row] = buildBusRows(mine, conf?.perRouteDisplay, nowMinutes())
   const [cur, nxt] = realtime
   const isRealtimeRoute = mine.some((a) => a.arrival_type === 'realtime')
+  const timetable = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: todayType() })
+  const times = timetable.data?.times ?? []
+  const lastTime = times[times.length - 1]
 
   return (
     <div className="mx-auto w-full max-w-[560px] pb-8">
@@ -68,22 +71,24 @@ function BusRouteDetail({ route, stop }) {
           </div>
         )}
 
-        {isRealtimeRoute ? (
+        {times.length > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?stop=${stop}&view=timetable`)}
+            className="mt-5 flex min-h-14 w-full items-center justify-between rounded-2xl border border-line bg-surface px-4 text-f16 font-extrabold text-ink"
+          >
+            <span className="flex items-center gap-2">
+              <CalendarClock size={18} aria-hidden="true" />
+              시간표 보기
+            </span>
+            {lastTime && <span className="text-f14 font-bold text-ink-2">오늘 막차 {lastTime}</span>}
+          </button>
+        )}
+        {isRealtimeRoute && (
           <>
             <SectionLabel Icon={History}>도착 기록</SectionLabel>
             <HistoryList route={route} stop={stop} etaSec={cur?.arrive_in_seconds} />
           </>
-        ) : (
-          !loading && (
-            <button
-              type="button"
-              onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?stop=${stop}&view=timetable`)}
-              className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-surface text-f16 font-extrabold text-ink"
-            >
-              <CalendarClock size={18} aria-hidden="true" />
-              시간표 보기
-            </button>
-          )
         )}
       </div>
     </div>
@@ -124,7 +129,7 @@ function BusTimetable({ route, stop }) {
   )
 }
 
-/** 지난 같은 요일들의 이 시간대(앞뒤 1시간) 실제 도착 시각. 결론 한 줄을 맨 위에 둔다. */
+/** 지난 같은 요일들의 이 시간대(앞뒤 1시간) 실제 도착 시각. 날마다 지금과 가장 가까운 시각을 강조한다. */
 function HistoryList({ route, stop, etaSec }) {
   const { data, loading, error } = useBusHistoryPreview(route, stop)
   const nowMin = nowMinutes()
@@ -144,6 +149,7 @@ function HistoryList({ route, stop, etaSec }) {
       <Card as="ul" className="divide-y divide-line-soft">
         {(data?.columns ?? []).map((col) => {
           const times = near(col.times)
+          const closest = nearestTime(times, nowMin)
           return (
             <li key={col.date} className="flex gap-4 px-4 py-3.5">
               <div className="w-16 flex-none">
@@ -151,9 +157,15 @@ function HistoryList({ route, stop, etaSec }) {
                 <p className="text-f13 text-mute">{col.day_label}</p>
               </div>
               {times.length ? (
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-f17 font-extrabold tabular-nums text-ink">
+                <div className="flex flex-wrap gap-x-1.5 gap-y-1 text-f17 font-extrabold tabular-nums text-ink">
                   {times.map((t) => (
-                    <span key={t}>{t}</span>
+                    <span
+                      key={t}
+                      aria-current={t === closest ? 'time' : undefined}
+                      className={`rounded-lg px-1.5 py-0.5 ${t === closest ? 'bg-accent-bg text-accent-ink ring-1 ring-accent' : ''}`}
+                    >
+                      {t}
+                    </span>
                   ))}
                 </div>
               ) : (

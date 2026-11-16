@@ -76,3 +76,19 @@ export function historyDelta(columns, etaSec, nowMin) {
   const mid = Math.floor(s.length / 2)
   return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2)
 }
+
+/** times 중 nowMin 과 가장 가까운 시각. 같으면 앞선 시각 */
+export function nearestTime(times, nowMin) {
+  let best = null
+  let bestGap = Infinity
+  for (const t of times ?? []) {
+    const m = clockToMinutes(t)
+    if (m == null) continue
+    const gap = Math.abs(m - nowMin)
+    if (gap < bestGap) {
+      best = t
+      bestGap = gap
+    }
+  }
+  return best
+}
