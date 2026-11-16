@@ -45,7 +45,7 @@ describe('App 라우팅', () => {
 
   it('버스 노선 상세에 노선, 정류장, 보기를 넘긴다', async () => {
     open(`/transit/bus/${encodeURIComponent('시흥33')}?stop=224000639&view=history`)
-    expect(await props('bus-route')).toEqual({ route: '시흥33', stop: '224000639', view: 'history' })
+    expect(await props('bus-route')).toEqual({ route: '시흥33', stop: '224000639', view: 'history', category: null })
   })
 
   it('시간표 화면에 방면 키와 방향을 넘긴다', async () => {

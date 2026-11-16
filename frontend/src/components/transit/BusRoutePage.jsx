@@ -12,8 +12,8 @@ import { buildBusRows, seatsLabel } from './busRows'
 import { clockToMinutes, delayVerdict, historyDelta, minutesLabel, nearestTime, nowMinutes, stopsLabel, ARRIVING_LABEL } from './format'
 import { IMMINENT_LABEL, IMMINENT_THRESHOLD_SEC } from '../../utils/eta'
 
-export default function BusRoutePage({ route, stop, view }) {
-  if (view === 'timetable') return <BusTimetable route={route} stop={stop} />
+export default function BusRoutePage({ route, stop, view, category }) {
+  if (view === 'timetable') return <BusTimetable route={route} stop={stop} category={category} />
   if (view === 'history') return <BusHistoryPage route={route} stop={stop} />
   return <BusRouteDetail route={route} stop={stop} />
 }
@@ -134,9 +134,9 @@ function todayType() {
   return d === 0 ? 'sunday' : d === 6 ? 'saturday' : 'weekday'
 }
 
-function TimetableBody({ route, stop }) {
+function TimetableBody({ route, stop, category }) {
   const [type, setType] = useState(todayType)
-  const { data, loading, error } = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: type })
+  const { data, loading, error } = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: type, category: category ?? undefined })
   const times = data?.times ?? []
   return (
     <>
@@ -154,13 +154,13 @@ function TimetableBody({ route, stop }) {
   )
 }
 
-function BusTimetable({ route, stop }) {
-  const { data } = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: todayType() })
+function BusTimetable({ route, stop, category }) {
+  const { data } = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: todayType(), category: category ?? undefined })
   return (
     <div className="mx-auto w-full max-w-[560px] pb-8">
-      <PageHeader leading={<LineBadge route={route} />} title="시간표" sub={data?.stop_name} fallback="/transit" />
+      <PageHeader leading={<LineBadge route={route} />} title="시간표" sub={data?.stop_name ?? (data?.origin_stop_name ? `${data.origin_stop_name} 출발` : undefined)} fallback="/transit" />
       <div className="px-4">
-        <TimetableBody route={route} stop={stop} />
+        <TimetableBody route={route} stop={stop} category={category} />
       </div>
     </div>
   )

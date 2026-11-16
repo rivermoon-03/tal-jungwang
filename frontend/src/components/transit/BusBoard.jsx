@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { ChevronDown, Star } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import { useBusArrivals } from '../../hooks/useBus'
+import { useBusArrivals, useBusTimetableByRoute } from '../../hooks/useBus'
 import { BUS_STATIONS, getBusStationDisplay } from './busStationConfig'
 import { navigate } from '../../lib/nav'
 import LineBadge from '../kit/LineBadge'
 import Freshness from '../kit/Freshness'
-import { Banner, Skeleton } from '../kit/bits'
+import { Skeleton } from '../kit/bits'
 import StopSheet from './StopSheet'
 import { buildBusRows, destKey, destKeysOf } from './busRows'
-import { nowMinutes } from './format'
+import { clockToMinutes, nowMinutes } from './format'
 
 export default function BusBoard() {
   const station = useAppStore((s) => s.selectedBusStation)
@@ -126,29 +126,55 @@ function BoardSkeleton() {
   )
 }
 
-/** 실시간이 없는 정류장(서울 출발)은 노선 목록과 시간표 이동만 준다. */
+/** 실시간이 없는 정류장(서울 출발). 노선마다 기점 시간표의 다음 출발을 N분 뒤와 출발 시각으로 보여준다. */
 function ScheduleOnly({ conf }) {
   const routes = conf.routes?.[conf.defaultDirection] ?? Object.keys(conf.perRouteDisplay)
   return (
-    <div className="mt-2 space-y-3">
-      <Banner title="실시간 정보가 없는 정류장이에요">노선을 누르면 시간표를 볼 수 있어요.</Banner>
+    <div className="mt-2">
       <ul className="rounded-[20px] border border-line bg-surface">
-        {routes.map((route) => {
-          const d = conf.perRouteDisplay[route]
-          return (
-            <li key={route} className="border-b border-line-soft last:border-0">
-              <button
-                type="button"
-                onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?view=timetable`)}
-                className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
-              >
-                <LineBadge route={route} className="w-14" />
-                <span className="flex-1 text-f16 font-bold text-ink">{d?.origin} 출발, {d?.dest}</span>
-              </button>
-            </li>
-          )
-        })}
+        {routes.map((route) => (
+          <ScheduleRow key={route} route={route} display={conf.perRouteDisplay[route]} category={conf.defaultDirection} />
+        ))}
       </ul>
+      <p className="pt-3 text-center text-f13 text-mute">시간표 기준</p>
     </div>
+  )
+}
+
+function todayScheduleType() {
+  const d = new Date().getDay()
+  return d === 0 ? 'sunday' : d === 6 ? 'saturday' : 'weekday'
+}
+
+function ScheduleRow({ route, display, category }) {
+  const { data, loading } = useBusTimetableByRoute(route, { category, scheduleType: todayScheduleType() })
+  const nowMin = nowMinutes()
+  const next = (data?.times ?? []).find((x) => (clockToMinutes(x) ?? -1) >= nowMin)
+  const wait = next ? clockToMinutes(next) - nowMin : null
+  return (
+    <li className="border-b border-line-soft last:border-0">
+      <button
+        type="button"
+        onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?view=timetable&cat=${encodeURIComponent(category)}`)}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
+      >
+        <LineBadge route={route} className="w-14" />
+        <span className="min-w-0 flex-1 text-f16 font-bold text-ink">
+          {display?.origin} 출발, {display?.dest}
+        </span>
+        <span className="flex flex-none flex-col items-end">
+          {loading && !data ? (
+            <Skeleton className="h-6 w-14" />
+          ) : next ? (
+            <>
+              <span className="text-f20 font-extrabold tabular-nums text-ink">{wait < 1 ? '지금' : `${wait}분 뒤`}</span>
+              <span className="text-f13 tabular-nums text-ink-2">{next} 출발</span>
+            </>
+          ) : (
+            <span className="text-f14 font-bold text-mute">오늘 운행 끝</span>
+          )}
+        </span>
+      </button>
+    </li>
   )
 }

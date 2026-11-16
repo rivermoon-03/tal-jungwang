@@ -47,7 +47,7 @@ export function Page({ pathname, query }) {
   if (pathname === '/') return <HomePage />
   if (pathname === '/transit') return <TransitPage />
   if (pathname.startsWith('/transit/bus/')) {
-    return <BusRoutePage route={decode(pathname.slice('/transit/bus/'.length))} stop={query.get('stop')} view={query.get('view')} />
+    return <BusRoutePage route={decode(pathname.slice('/transit/bus/'.length))} stop={query.get('stop')} view={query.get('view')} category={query.get('cat')} />
   }
   if (pathname === '/transit/subway/timetable') return <SubwayTimetablePage dirKey={query.get('key')} />
   if (pathname === '/transit/shuttle/timetable') return <ShuttleTimetablePage dir={Number(query.get('dir') ?? 1)} />
