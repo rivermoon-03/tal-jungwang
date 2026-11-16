@@ -111,6 +111,10 @@ const useAppStore = create(
       directionOverride: null,     // '등교' | '하교' | null
       setDirectionOverride: (dir) => set({ directionOverride: dir }),
 
+      // 셔틀 화면에서 고른 방향(0 등교, 1 하교). null 이면 등하교 자동 판정을 따른다. persist 하지 않는다.
+      shuttleDirection: null,
+      setShuttleDirection: (dir) => set({ shuttleDirection: dir }),
+
       // 지도 뷰 상태 (탭 전환 시 유지, persist 제외 — 새로고침 시 초기화)
       mapView: null,               // { center: [lat, lng], level: number } | null
       setMapView: (v) => set({ mapView: v }),

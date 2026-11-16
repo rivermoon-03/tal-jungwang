@@ -1,244 +1,71 @@
-import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+
+const { stub } = vi.hoisted(() => ({
+  stub: (id) => ({ default: (props) => <div data-testid={id} data-props={JSON.stringify(props)} /> }),
+}))
+vi.mock('./components/home/HomePage', () => stub('home'))
+vi.mock('./components/transit/TransitPage', () => stub('transit'))
+vi.mock('./components/transit/BusRoutePage', () => stub('bus-route'))
+vi.mock('./components/transit/TimetablePages', () => ({
+  SubwayTimetablePage: (p) => <div data-testid="subway-tt" data-props={JSON.stringify(p)} />,
+  ShuttleTimetablePage: (p) => <div data-testid="shuttle-tt" data-props={JSON.stringify(p)} />,
+}))
+vi.mock('./components/meal/SchoolFoodPage', () => stub('meal'))
+vi.mock('./components/meal/MealVenuePage', () => stub('venue'))
+vi.mock('./pages/MorePage', () => stub('more'))
+vi.mock('./pages/NoticesTabPage', () => stub('notices'))
+vi.mock('./pages/PrivacyPage', () => stub('privacy'))
+vi.mock('./components/layout/PWAInstallBanner', () => ({ default: () => null }))
+vi.mock('./components/shell/AppShell', () => ({ default: ({ children }) => <div>{children}</div> }))
+
 import App from './App'
 
-// 새 셸 구조에 맞춘 mock (PCMainShell·PCSidebar·Dashboard·FloatingDock).
-// 데스크톱 리디자인 이후 PCDock/PCMapDashboard는 App.jsx에서 더 이상 마운트하지 않는다.
-vi.mock('./components/layout/MainShell',       () => ({ default: () => <div>MainShell</div> }))
-vi.mock('./components/layout/PCMainShell',     () => ({ default: ({ children }) => <div data-testid="pc-main-shell">{children}</div> }))
-vi.mock('./components/layout/PCSidebar',       () => ({ default: () => <nav>PCSidebar</nav> }))
-vi.mock('./components/dashboard/Dashboard',    () => ({ default: () => <div>Dashboard</div> }))
-vi.mock('./components/common/FloatingDock',    () => ({ default: () => <nav>FloatingDock</nav> }))
-vi.mock('./components/layout/PWAInstallBanner', () => ({ default: () => null }))
-vi.mock('./components/search/SearchOverlay',   () => ({ default: () => null }))
-vi.mock('./pages/SchedulePage',  () => ({ default: () => <div>SchedulePage</div> }))
-vi.mock('./pages/FacilitiesPage', () => ({ default: () => <div>FacilitiesPage</div> }))
-vi.mock('./pages/NoticesTabPage', () => ({ default: () => <div>NoticesTabPage</div> }))
-vi.mock('./pages/MorePage',      () => ({ default: () => <div>MorePage</div> }))
-vi.mock('./components/schedule/GlobalDetailModal',          () => ({ default: () => null }))
-vi.mock('./components/subway/GlobalSubwayLineSheet',        () => ({ default: () => null }))
-vi.mock('./components/subway/GlobalSubwayDetailSheet',      () => ({ default: () => null }))
-vi.mock('./hooks/useTheme', () => ({ useTheme: () => {} }))
-vi.mock('./hooks/useMore',  () => ({ useNotices: () => ({ data: [] }) }))
-vi.mock('./pages/RouteDetailPage', () => ({ default: ({ routeNumber }) => <div data-testid="route-detail-page">RouteDetailPage-{routeNumber}</div> }))
-vi.mock('./pages/CafeteriaVenueDetailPage', () => ({ default: ({ venueId }) => <div data-testid="cafeteria-venue-detail-page">CafeteriaVenueDetailPage-{venueId}</div> }))
-vi.mock('./pages/FavoritesPage', () => ({ default: () => <div data-testid="favorites-page">FavoritesPage</div> }))
-vi.mock('./hooks/useMediaQuery', () => ({
-  default: () => false,
-  useIsDesktop: () => isDesktopMock,
-}))
-
-let isDesktopMock = false
-
-// App 은 훅 구독 외에 getState()도 쓴다(/schedule → 홈 시간표 보기 전환처럼
-// 렌더 전에 store 를 건드려야 하는 경로). 두 접근을 같은 객체로 돌려준다.
-const storeState = {
-  activeTab: 'main',
-  setActiveTab: vi.fn(),
-  setTabBadges: vi.fn(),
-  setHomeView: vi.fn(),
-  setSelectedMode: vi.fn(),
+function open(path) {
+  window.history.replaceState({}, '', path)
+  render(<App />)
 }
-vi.mock('./stores/useAppStore', () => {
-  const hook = vi.fn((selector) => selector(storeState))
-  hook.getState = () => storeState
-  return { default: hook }
-})
+const props = (id) => JSON.parse(screen.getByTestId(id).dataset.props)
 
-function setPath(pathname) {
-  window.history.replaceState({}, '', pathname)
-}
+describe('App 라우팅', () => {
+  beforeEach(() => window.history.replaceState({}, '', '/'))
 
-describe('App', () => {
-  beforeEach(() => {
-    setPath('/')
-    isDesktopMock = false
+  it.each([
+    ['/', 'home'],
+    ['/transit', 'transit'],
+    ['/cafeteria', 'meal'],
+    ['/more', 'more'],
+    ['/more/settings', 'more'],
+    ['/notices', 'notices'],
+    ['/privacy', 'privacy'],
+  ])('%s → %s', (path, id) => {
+    open(path)
+    expect(screen.getByTestId(id)).toBeInTheDocument()
   })
 
-  it('지도(기본) 페이지 · 모바일: MainShell만 마운트', () => {
-    isDesktopMock = false
-    render(<App />)
-    expect(screen.getByText('MainShell')).toBeInTheDocument()
-    expect(screen.queryByTestId('pc-main-shell')).not.toBeInTheDocument()
+  it('버스 노선 상세에 노선, 정류장, 보기를 넘긴다', () => {
+    open(`/transit/bus/${encodeURIComponent('시흥33')}?stop=224000639&view=history`)
+    expect(props('bus-route')).toEqual({ route: '시흥33', stop: '224000639', view: 'history' })
   })
 
-  it('지도(기본) 페이지 · PC: PCMainShell이 children=null로 마운트(풀사이즈 지도+플로팅)', () => {
-    isDesktopMock = true
-    render(<App />)
-    expect(screen.queryByText('MainShell')).not.toBeInTheDocument()
-    const pcShell = screen.getByTestId('pc-main-shell')
-    expect(pcShell).toBeInTheDocument()
-    expect(pcShell).toHaveTextContent('')
+  it('시간표 화면에 방면 키와 방향을 넘긴다', () => {
+    open('/transit/subway/timetable?key=line4_up')
+    expect(props('subway-tt')).toEqual({ dirKey: 'line4_up' })
   })
 
-  it('모바일: FloatingDock만 마운트, PCSidebar 없음', () => {
-    isDesktopMock = false
-    render(<App />)
-    expect(screen.getByText('FloatingDock')).toBeInTheDocument()
-    expect(screen.queryByText('PCSidebar')).not.toBeInTheDocument()
+  it('식당 상세에 디코딩한 id 를 넘긴다', () => {
+    open('/cafeteria/student-cafeteria')
+    expect(props('venue')).toEqual({ venueId: 'student-cafeteria' })
   })
 
-  it('PC: PCSidebar만 마운트, FloatingDock 없음', () => {
-    isDesktopMock = true
-    render(<App />)
-    expect(screen.getByText('PCSidebar')).toBeInTheDocument()
-    expect(screen.queryByText('FloatingDock')).not.toBeInTheDocument()
-  })
-
-  // 페이지들은 lazy 로드라 Suspense fallback 이후 비동기로 나타난다 → findAllByText로 대기.
-  // /schedule 은 홈의 "시간표" 보기가 됐다. PC는 좌(목록)/우(상세) 2단이 나아
-  // 페이지를 유지하고, 모바일은 홈으로 되돌린 뒤 보기만 시간표로 맞춘다.
-  it('/schedule: 모바일은 홈으로 되돌리고 보기만 시간표로 맞춘다', async () => {
-    window.matchMedia = vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })
-    setPath('/schedule')
-    render(<App />)
-    expect(await screen.findByText('MainShell')).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/')
-    expect(storeState.setHomeView).toHaveBeenCalledWith('timetable')
-  })
-
-  it('/schedule: PC는 좌우 2단 SchedulePage 페이지를 유지한다', async () => {
-    window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
-    isDesktopMock = true
-    setPath('/schedule')
-    render(<App />)
-    const all = await screen.findAllByText(/SchedulePage/)
-    expect(all.length).toBeGreaterThanOrEqual(1)
-    expect(window.location.pathname).toBe('/schedule')
-  })
-
-  it('/facilities: FacilitiesPage 렌더링', async () => {
-    setPath('/facilities')
-    render(<App />)
-    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
-  })
-
-  // 새 하단 독의 학식/매장 탭이 여는 정확한 딥링크 — 쿼리가 있어도 같은
-  // /facilities 경로이므로 FacilitiesPage로 열려야 한다(탭 선택 자체는
-  // FacilitiesPage 내부 소관이라 여기서는 라우팅만 검증한다).
-  it('/facilities?tab=diet: FacilitiesPage 렌더링(학식 딥링크)', async () => {
-    setPath('/facilities?tab=diet')
-    render(<App />)
-    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('/facilities?tab=venues: FacilitiesPage 렌더링(매장 딥링크)', async () => {
-    setPath('/facilities?tab=venues')
-    render(<App />)
-    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('/notices: NoticesTabPage 렌더링', async () => {
-    setPath('/notices')
-    render(<App />)
-    expect((await screen.findAllByText(/NoticesTabPage/)).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('/cafeteria: 옛 주소도 학교시설로 연다(북마크·위젯 딥링크 보존)', async () => {
-    setPath('/cafeteria')
-    render(<App />)
-    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('/more: MorePage 렌더링', async () => {
-    setPath('/more')
-    render(<App />)
-    expect((await screen.findAllByText(/MorePage/)).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('/route/bus:33: RouteDetailPage 렌더링 + routeNumber=33 전달', async () => {
-    setPath('/route/bus:33')
-    render(<App />)
-    const el = await screen.findByTestId('route-detail-page')
-    expect(el).toBeInTheDocument()
-    expect(el).toHaveTextContent('RouteDetailPage-33')
-  })
-
-  it('/route/33: prefix 없이 routeNumber=33 전달', async () => {
-    setPath('/route/33')
-    render(<App />)
-    const el = await screen.findByTestId('route-detail-page')
-    expect(el).toBeInTheDocument()
-    expect(el).toHaveTextContent('RouteDetailPage-33')
-  })
-
-  it('/cafeteria/student-cafeteria: CafeteriaVenueDetailPage 렌더링 + venueId 전달', async () => {
-    setPath('/cafeteria/student-cafeteria')
-    render(<App />)
-    const el = await screen.findByTestId('cafeteria-venue-detail-page')
-    expect(el).toBeInTheDocument()
-    expect(el).toHaveTextContent('CafeteriaVenueDetailPage-student-cafeteria')
-  })
-
-  it('/cafeteria (슬래시 없음): 매장 상세가 아니라 학교시설 탭이다', async () => {
-    setPath('/cafeteria')
-    render(<App />)
-    expect((await screen.findAllByText(/FacilitiesPage/)).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('/cafeteria/gs25: venueId=gs25 전달 (URL 인코딩된 id)', async () => {
-    setPath('/cafeteria/gs25')
-    render(<App />)
-    const el = await screen.findByTestId('cafeteria-venue-detail-page')
-    expect(el).toHaveTextContent('CafeteriaVenueDetailPage-gs25')
-  })
-
-  // main을 감싸는 flex-col wrapper에 min-h-0이 없으면, flex item의 기본
-  // min-height:auto 때문에 콘텐츠가 길어질 때 이 div가 뷰포트 높이를 넘어
-  // 늘어나 버린다. html/body/#root는 overflow:hidden(index.css)이라 이 늘어난
-  // 콘텐츠는 어디서도 스크롤할 수 없게 된다 — 모바일 세로 스크롤 불가 회귀.
-  it('main 래퍼 div: min-h-0 있어야 함 (없으면 긴 콘텐츠에서 스크롤 불가)', () => {
-    isDesktopMock = false
-    const { container } = render(<App />)
-    const wrapper = container.querySelector('main').parentElement
-    expect(wrapper.className).toContain('min-h-0')
-  })
-
-  it('/favorites: 즐겨찾기 페이지가 마운트된다', async () => {
-    setPath('/favorites')
-    render(<App />)
-    expect(await screen.findByTestId('favorites-page')).toBeInTheDocument()
-  })
-
-  // PCMainShell 을 감싸는 래퍼에 key={currentPage} 가 있으면 탭을 옮길 때마다
-  // 셸이 remount 되고 그 안의 MapView(kakao.maps.Map · GPS watch · 타일 캐시)가
-  // 같이 죽는다. 같은 DOM 노드가 유지되는지로 검증한다.
-  it('PC: 탭을 옮겨도 PCMainShell 이 remount 되지 않는다', async () => {
-    isDesktopMock = true
-    setPath('/')
-    const { rerender } = render(<App />)
-    const before = screen.getByTestId('pc-main-shell')
-
-    setPath('/facilities')
-    window.dispatchEvent(new PopStateEvent('popstate'))
-    rerender(<App />)
-    await screen.findByText('FacilitiesPage')
-
-    expect(screen.getByTestId('pc-main-shell')).toBe(before)
-  })
-
-  // 페이지 전환 페이드는 지도 위 오버레이에만 걸린다 — 셸 자체에 걸면 위 회귀가 난다.
-  it('PC: 페이지 오버레이에만 tj-tab-fade 가 붙는다', async () => {
-    isDesktopMock = true
-    setPath('/facilities')
-    const { container } = render(<App />)
-    await screen.findByText('FacilitiesPage')
-    const faded = container.querySelectorAll('.tj-tab-fade')
-    expect(faded).toHaveLength(1)
-    expect(faded[0]).toHaveTextContent('FacilitiesPage')
-  })
-
-  // 더보기 진입점은 예전엔 App.jsx가 position:fixed 오버레이로 직접 그렸다 —
-  // 모바일 모든 화면 위에 떠서 히어로 스트립의 뷰 토글 아이콘을 가리는 버그가
-  // 났다(사용자 실측). 오버레이 자체를 없애고 문서 흐름 안(HomeWeatherHero의
-  // "히어로 옵션" 아이콘 그룹)으로 옮겼다 — 그 진입점의 동작 테스트는
-  // HomeWeatherHero.test.jsx가 담당한다(이 파일은 MainShell을 통째로 mock해
-  // 실제 히어로를 그리지 않는다). 여기서는 App.jsx 자신이 더 이상 고정
-  // 오버레이를 그리지 않는지만 회귀 가드로 남긴다.
-  it('App 자신은 더 이상 고정(position:fixed) 더보기 오버레이를 그리지 않는다', () => {
-    isDesktopMock = false
-    setPath('/')
-    render(<App />)
-    expect(screen.queryByLabelText('더보기')).toBeNull()
+  it.each([
+    ['/schedule', 'transit', '/transit'],
+    ['/route/bus:33', 'transit', '/transit'],
+    ['/facilities?tab=diet', 'meal', '/cafeteria'],
+    ['/favorites', 'home', '/'],
+  ])('옛 주소 %s 는 새 화면으로 바꾼다', (path, id, to) => {
+    open(path)
+    expect(screen.getByTestId(id)).toBeInTheDocument()
+    expect(window.location.pathname).toBe(to)
   })
 })

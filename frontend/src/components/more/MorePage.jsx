@@ -15,7 +15,7 @@
  */
 /* global __APP_VERSION__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
 import { useState } from 'react'
-import { Bus, ChevronRight, Info, Settings as SettingsIcon, HelpCircle, ShieldCheck } from 'lucide-react'
+import { Bus, ChevronRight, Info, Megaphone, Settings as SettingsIcon, HelpCircle, ShieldCheck } from 'lucide-react'
 import PageHeader from '../layout/PageHeader'
 import AppInfoPage from './AppInfoPage'
 import SettingsPage from './SettingsPage'
@@ -43,6 +43,7 @@ const GROUPS = [
   {
     label: '정보',
     entries: [
+      { id: 'notices', Icon: Megaphone, title: '공지', desc: '학사 공지, 앱 공지' },
       { id: 'help', Icon: HelpCircle, title: '도움말', desc: '홈 화면 위젯 · 자주 묻는 질문' },
       { id: 'app-info', Icon: Info, title: '앱 정보', desc: '버전 · 만든 사람' },
     ],
@@ -86,9 +87,9 @@ export default function MorePage() {
   // 개인정보처리방침은 이 컴포넌트의 서브페이지가 아니라 /privacy 라우트(안정
   // URL, 마켓 등록용)로 이동한다 — 나머지 항목은 openSubPage로 처리.
   const openEntry = (id) => {
-    if (id === 'privacy') {
+    if (id === 'privacy' || id === 'notices') {
       if (typeof window !== 'undefined') {
-        window.history.pushState({}, '', '/privacy')
+        window.history.pushState({}, '', `/${id}`)
         window.dispatchEvent(new PopStateEvent('popstate'))
       }
       return

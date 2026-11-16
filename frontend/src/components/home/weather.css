@@ -1,0 +1,32 @@
+/* 날씨 홈 배경. transform, opacity 만 움직인다. */
+.tjw-photo { animation: tjw-drift 18s ease-in-out infinite alternate; }
+@keyframes tjw-drift { from { transform: scale(1.06) } to { transform: scale(1.06) translate3d(-10px, -6px, 0) } }
+
+.tjw-p { position: absolute; top: 0; will-change: transform; animation-timing-function: linear; animation-iteration-count: infinite; }
+.tjw-p.rain { width: 1px; background: linear-gradient(180deg, rgba(236,238,237,0), rgba(236,238,237,.55)); animation-name: tjw-fall; }
+.tjw-p.snow { border-radius: 50%; background: #fff; opacity: .9; animation-name: tjw-snow; }
+.tjw-p.snow.far { opacity: .5; }
+.tjw-p.petal { border-radius: 70% 0 70% 0; background: #f6c9d6; animation-name: tjw-petal; }
+.tjw-p.leaf { border-radius: 0 85% 0 85%; opacity: .9; animation-name: tjw-leaf; animation-timing-function: ease-in-out; }
+.tjw-p.leaf.c0 { background: #c2410c } .tjw-p.leaf.c1 { background: #b45309 }
+.tjw-p.leaf.c2 { background: #9a3412 } .tjw-p.leaf.c3 { background: #a16207 }
+
+@keyframes tjw-fall { from { transform: translate3d(0, -80px, 0) } to { transform: translate3d(-14px, 480px, 0) } }
+@keyframes tjw-snow { from { transform: translate3d(0, -20px, 0) } to { transform: translate3d(36px, 480px, 0) } }
+@keyframes tjw-petal { from { transform: translate3d(0, -20px, 0) rotate(0) } to { transform: translate3d(-70px, 480px, 0) rotate(320deg) } }
+@keyframes tjw-leaf {
+  0% { transform: translate3d(0, -30px, 0) rotate(0) }
+  25% { transform: translate3d(28px, 100px, 0) rotate(80deg) }
+  50% { transform: translate3d(-6px, 220px, 0) rotate(160deg) }
+  75% { transform: translate3d(30px, 340px, 0) rotate(250deg) }
+  100% { transform: translate3d(-10px, 480px, 0) rotate(340deg) }
+}
+
+/* 탭이 숨겨지거나 화면 밖이면 data-paused 가 붙어 전부 멈춘다. */
+.tjw-root[data-paused] .tjw-photo,
+.tjw-root[data-paused] .tjw-p { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tjw-photo { animation: none; }
+  .tjw-p { display: none; }
+}

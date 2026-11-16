@@ -423,3 +423,14 @@ body {
 }
 *::-webkit-scrollbar-button { display: none; }
 *::-webkit-scrollbar-corner { background: transparent; }
+
+/* v2 공용 모션. transform, opacity 만 쓰고 모션 최소화 설정에서는 끈다. */
+@keyframes tj-blink { 0%, 60% { opacity: 1 } 61%, 100% { opacity: .3 } }
+.tj-blink { animation: tj-blink 1s steps(1) infinite; }
+@keyframes tj-sheet-up { from { transform: translateY(40px); opacity: 0 } to { transform: none; opacity: 1 } }
+.tj-sheet-up { animation: tj-sheet-up .32s cubic-bezier(.2, .8, .2, 1) backwards; }
+/* 긴 시간표는 화면 밖 줄의 레이아웃, 페인트를 미룬다. */
+.tj-cv-auto > * { content-visibility: auto; contain-intrinsic-size: auto 48px; }
+@media (prefers-reduced-motion: reduce) {
+  .tj-blink, .tj-sheet-up { animation: none; }
+}
