@@ -58,3 +58,9 @@ describe('실시간 정보가 없는 노선', () => {
     expect(row.position).toBe(null)
   })
 })
+
+it('실시간이 안 잡힌 기점 노선은 시간표 다음 출발을 보여준다', async () => {
+  const { buildBusRows } = await import('./busRows')
+  const [row] = buildBusRows([{ route_no: '3400', arrival_type: 'realtime', arrive_in_seconds: null, depart_at: '10:30', remain_seat: -1 }], {}, 600)
+  expect(row).toMatchObject({ main: '10:30', position: '시간표 기준', realtime: false, noInfo: false, sec: 1800 })
+})

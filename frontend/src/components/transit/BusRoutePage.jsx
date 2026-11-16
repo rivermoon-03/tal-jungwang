@@ -40,7 +40,8 @@ function BusRouteDetail({ route, stop }) {
   const conf = Object.values(BUS_STATIONS).find((s) => s.gbisStationId === stop)
   const [row] = buildBusRows(mine, conf?.perRouteDisplay, nowMinutes())
   const [cur, nxt] = realtime
-  const isRealtimeRoute = mine.some((a) => a.arrival_type === 'realtime')
+  // 시간표 출발(depart_at)로 대신 채운 항목은 실시간 노선으로 치지 않는다(기점 정류장의 3400 등).
+  const isRealtimeRoute = mine.some((a) => a.arrival_type === 'realtime' && (a.arrive_in_seconds != null || !a.depart_at))
   const timetable = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: todayType() })
   const times = timetable.data?.times ?? []
   const lastTime = times[times.length - 1]

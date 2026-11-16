@@ -43,12 +43,22 @@ async def fetch_arrivals(station_id: str) -> list[dict]:
     resp.raise_for_status()
     await check_quota(resp.headers, "arrival")
 
-    body = _parse_body(resp.json())
+    return parse_arrivals(_parse_body(resp.json()), station_id)
+
+
+def parse_arrivals(body: dict, station_id: str) -> list[dict]:
+    """도착정보 본문 → 노선별 항목.
+
+    기점이자 종점인 정류장(예: 시화터미널의 3400)에서는 같은 노선이 두 번 온다. 여기서 출발하는 편과,
+    한 바퀴 돌고 와서 여기서 운행을 마치는 편이다. 후자는 행선지(routeDestId)가 이 정류장이라 승객이 탈 수 없으니 뺀다.
+    """
     if not body:
         return []
 
     results = []
     for item in _as_list(body, "busArrivalList"):
+        if str(item.get("routeDestId", "")) == str(station_id):
+            continue
         results.append({
             "route_id": str(item.get("routeId", "")),
             "predict_time1": int(item.get("predictTime1", 0) or 0),

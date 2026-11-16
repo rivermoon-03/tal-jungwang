@@ -12,7 +12,7 @@ export function buildBusRows(arrivals, routeDisplay, nowMin) {
     byRoute.set(a.route_no, [...list, a])
   }
   const rows = [...byRoute.entries()].map(([route, list]) => {
-    const withSec = list.map((a) => ({ ...a, sec: secondsOf(a, nowMin) }))
+    const withSec = list.map(asTimetableIfNoRealtime).map((a) => ({ ...a, sec: secondsOf(a, nowMin) }))
     const sorted = [...withSec].sort((x, y) => (x.sec ?? Infinity) - (y.sec ?? Infinity))
     const [cur, next] = sorted
     const disp = routeDisplay?.[route]
@@ -32,6 +32,15 @@ export function buildBusRows(arrivals, routeDisplay, nowMin) {
     }
   })
   return rows.sort((a, b) => Number(a.offService) - Number(b.offService) || (a.sec ?? Infinity) - (b.sec ?? Infinity))
+}
+
+/**
+ * 실시간 대상인데 아직 차가 안 잡힌 노선은 서버가 시간표 다음 출발(depart_at)을 담아 보낸다.
+ * 기점 정류장(예: 시화터미널의 3400)이 늘 이 경우다. 그때는 시간표 행처럼 보여준다.
+ */
+function asTimetableIfNoRealtime(a) {
+  if (a.arrival_type === 'realtime' && a.arrive_in_seconds == null && a.depart_at) return { ...a, arrival_type: 'timetable' }
+  return a
 }
 
 function secondsOf(a, nowMin) {
