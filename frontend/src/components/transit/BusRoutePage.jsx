@@ -10,7 +10,7 @@ import HourRows from '../kit/HourRows'
 import { Banner, Card, SectionLabel, Skeleton } from '../kit/bits'
 import { buildBusRows, seatsLabel } from './busRows'
 import { clockToMinutes, delayVerdict, historyDelta, minutesLabel, nearestTime, nowMinutes, stopsLabel, ARRIVING_LABEL } from './format'
-import { IMMINENT_THRESHOLD_SEC } from '../../utils/eta'
+import { IMMINENT_LABEL, IMMINENT_THRESHOLD_SEC } from '../../utils/eta'
 
 export default function BusRoutePage({ route, stop, view }) {
   if (view === 'timetable') return <BusTimetable route={route} stop={stop} />
@@ -45,6 +45,8 @@ function BusRouteDetail({ route, stop }) {
   const timetable = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: todayType() })
   const times = timetable.data?.times ?? []
   const lastTime = times[times.length - 1]
+  // 실시간이 없고 시간표만 있는 노선(기점의 3400 등)은 버튼 없이 시간표를 바로 펼친다.
+  const timetableOnly = !isRealtimeRoute && times.length > 0
 
   return (
     <div className="mx-auto w-full max-w-[560px] pb-8">
@@ -66,13 +68,17 @@ function BusRouteDetail({ route, stop }) {
               {nxt && positionOf(nxt) && <p className="mt-1 text-f18 font-extrabold text-ink">{positionOf(nxt)}</p>}
             </Card>
           </div>
+        ) : timetableOnly ? (
+          <NextDeparture times={times} />
         ) : (
           <div className="mt-4">
             <Banner title={row?.offService ? '오늘 운행이 끝났어요' : '지금 오는 차가 없어요'}>{row?.offService ? row?.position : null}</Banner>
           </div>
         )}
 
-        {times.length > 0 && (
+        {timetableOnly && <TimetableBody route={route} stop={stop} />}
+
+        {times.length > 0 && !timetableOnly && (
           <button
             type="button"
             onClick={() => navigate(`/transit/bus/${encodeURIComponent(route)}?stop=${stop}&view=timetable`)}
@@ -96,6 +102,27 @@ function BusRouteDetail({ route, stop }) {
   )
 }
 
+/** 오늘 시간표에서 지금 이후 첫 출발 */
+function NextDeparture({ times }) {
+  const nowMin = nowMinutes()
+  const next = times.find((x) => (clockToMinutes(x) ?? -1) >= nowMin)
+  const wait = next ? clockToMinutes(next) - nowMin : null
+  return (
+    <Card className="mt-4 p-5">
+      <p className="text-f15 font-extrabold text-ink-2">다음 출발</p>
+      {next ? (
+        <div className="mt-1 flex items-baseline gap-3">
+          <span className="text-f44 font-extrabold leading-none tracking-tight tabular-nums text-ink">{next}</span>
+          <span className="text-f18 font-extrabold text-amber-700 dark:text-amber-400">{wait < 1 ? `${IMMINENT_LABEL} 출발` : `${wait}분 뒤`}</span>
+        </div>
+      ) : (
+        <p className="mt-1 text-f18 font-extrabold text-ink-2">오늘 운행이 끝났어요</p>
+      )}
+      <p className="mt-1.5 text-f14 text-ink-2">시간표 기준</p>
+    </Card>
+  )
+}
+
 const DAY_TYPES = [
   { value: 'weekday', label: '평일' },
   { value: 'saturday', label: '토요일' },
@@ -107,24 +134,33 @@ function todayType() {
   return d === 0 ? 'sunday' : d === 6 ? 'saturday' : 'weekday'
 }
 
-function BusTimetable({ route, stop }) {
+function TimetableBody({ route, stop }) {
   const [type, setType] = useState(todayType)
   const { data, loading, error } = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: type })
   const times = data?.times ?? []
   return (
+    <>
+      <Segmented className="mt-3" label="요일" options={DAY_TYPES} value={type} onChange={setType} />
+      <div className="mt-2">
+        {loading && !data ? (
+          <Skeleton className="mt-3 h-64" />
+        ) : error ? (
+          <Banner kind="error" title="시간표를 불러오지 못했어요" />
+        ) : (
+          <HourRows times={times} nowMin={type === todayType() ? nowMinutes() : -1} lastRaw={times[times.length - 1]} />
+        )}
+      </div>
+    </>
+  )
+}
+
+function BusTimetable({ route, stop }) {
+  const { data } = useBusTimetableByRoute(route, { stopId: stop ?? undefined, scheduleType: todayType() })
+  return (
     <div className="mx-auto w-full max-w-[560px] pb-8">
       <PageHeader leading={<LineBadge route={route} />} title="시간표" sub={data?.stop_name} fallback="/transit" />
       <div className="px-4">
-        <Segmented className="mt-3" label="요일" options={DAY_TYPES} value={type} onChange={setType} />
-        <div className="mt-2">
-          {loading && !data ? (
-            <Skeleton className="mt-3 h-64" />
-          ) : error ? (
-            <Banner kind="error" title="시간표를 불러오지 못했어요" />
-          ) : (
-            <HourRows times={times} nowMin={type === todayType() ? nowMinutes() : -1} lastRaw={times[times.length - 1]} />
-          )}
-        </div>
+        <TimetableBody route={route} stop={stop} />
       </div>
     </div>
   )
