@@ -1,14 +1,14 @@
 /**
  * AppInfoPage — 앱 정보 sub-page.
- * 앱 이름과 빌드 시점에 주입된 앱 버전을 표시한다.
+ * 앱 이름과 빌드 날짜(vite define 으로 주입)를 보여준다.
  * Props:
  *   onBack  () => void
  */
-/* global __APP_VERSION__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
-import { ChevronLeft, Heart, School } from 'lucide-react'
+/* global __BUILD_DATE__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
+import { ChevronLeft, Heart } from 'lucide-react'
 import IconButton from '../ui/IconButton'
 
-const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
+const BUILD_DATE = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '개발'
 
 export default function AppInfoPage({ onBack, embedded = false }) {
   return (
@@ -36,20 +36,13 @@ export default function AppInfoPage({ onBack, embedded = false }) {
               프로젝트명이라 사용자에게는 다른 앱처럼 보였다. */}
           <p className="text-panel-ttl text-ink dark:text-ink">탈:정왕</p>
           <span className="text-meta font-semibold text-chip-blue-fg dark:text-chip-blue-fg bg-chip-blue-bg dark:bg-chip-blue-bg px-2.5 py-1 rounded-full mt-2 tracking-wider">
-            v{APP_VERSION} · BETA
+            {BUILD_DATE} 빌드
           </span>
         </section>
 
-        {/* 정보 행 */}
-        <section className="bg-surface dark:bg-surface rounded-card shadow-card overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3.5">
-            <School size={16} className="text-mute dark:text-mute flex-shrink-0" aria-hidden="true" />
-            <div>
-              <p className="text-meta font-bold text-mute dark:text-mute">기관</p>
-              <p className="text-label font-semibold text-ink dark:text-ink tracking-tight mt-0.5">한국공학대학교</p>
-            </div>
-          </div>
-        </section>
+        <p className="mx-auto mt-auto rounded-full bg-surface-2 px-3.5 py-1.5 text-f13 font-bold text-ink-2">
+          made with ❤️ by ce22
+        </p>
       </div>
     </div>
   )

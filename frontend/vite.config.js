@@ -46,6 +46,12 @@ export default defineConfig({
   ].filter(Boolean),
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    // 앱 정보에 보이는 빌드 날짜(KST, yy.mm.dd)
+    __BUILD_DATE__: JSON.stringify(
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: '2-digit', month: '2-digit', day: '2-digit' })
+        .format(new Date())
+        .replaceAll('-', '.'),
+    ),
   },
   build: {
     target: 'es2020',

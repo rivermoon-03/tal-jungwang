@@ -13,7 +13,7 @@
  *
  * Sub-pages: settings, help, app-info. (/more/settings, /more/help, /more/app-info)
  */
-/* global __APP_VERSION__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
+/* global __BUILD_DATE__ -- vite.config.js의 define으로 빌드 시점에 주입된다 */
 import { useState } from 'react'
 import { Bus, ChevronRight, Info, Megaphone, Settings as SettingsIcon, HelpCircle, ShieldCheck } from 'lucide-react'
 import PageHeader from '../layout/PageHeader'
@@ -23,7 +23,7 @@ import HelpPage from './HelpPage'
 import MorePCLayout from './MorePCLayout'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
 
-const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
+const BUILD_DATE = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '개발'
 
 const SUB_PAGE_TO_NAV = { settings: 'settings', 'app-info': 'app-info', help: 'help' }
 const SUB_PAGE_PATHS = {
@@ -45,7 +45,7 @@ const GROUPS = [
     entries: [
       { id: 'notices', Icon: Megaphone, title: '공지', desc: '학사 공지, 앱 공지' },
       { id: 'help', Icon: HelpCircle, title: '도움말', desc: '홈 화면 위젯 · 자주 묻는 질문' },
-      { id: 'app-info', Icon: Info, title: '앱 정보', desc: '버전 · 만든 사람' },
+      { id: 'app-info', Icon: Info, title: '앱 정보', desc: '빌드 날짜, 만든 사람' },
     ],
   },
   {
@@ -157,7 +157,7 @@ export default function MorePage() {
           >
             <Bus size={16} strokeWidth={2.2} />
           </div>
-          <p className="text-caption font-semibold text-mute dark:text-mute">탈:정왕 · v{APP_VERSION}</p>
+          <p className="text-caption font-semibold text-mute dark:text-mute">탈:정왕  {BUILD_DATE} 빌드</p>
         </div>
       </div>
     </div>
