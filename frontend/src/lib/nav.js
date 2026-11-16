@@ -6,7 +6,6 @@ export function navigate(href, { replace = false } = {}) {
   if (here === href) return
   window.history[replace ? 'replaceState' : 'pushState']({}, '', href)
   window.dispatchEvent(new PopStateEvent('popstate'))
-  window.scrollTo(0, 0)
 }
 
 export function goBack(fallback = '/') {

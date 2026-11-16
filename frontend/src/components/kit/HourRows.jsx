@@ -10,8 +10,13 @@ export default function HourRows({ times, nowMin, tagOf, lastRaw }) {
   const nextTotal = rows.flatMap((r) => r.mins).map((m) => m.total).filter((t) => t >= nowMin).sort((a, b) => a - b)[0]
   const nowRef = useRef(null)
 
+  // scrollIntoView 는 overflow: hidden 인 바깥 요소까지 밀어 헤더를 화면 밖에 가둔다. 스크롤 영역(main)만 움직인다.
   useEffect(() => {
-    nowRef.current?.scrollIntoView({ block: 'center' })
+    const row = nowRef.current
+    const scroller = row?.closest('main')
+    if (!row || !scroller) return
+    const offset = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+    scroller.scrollTop += offset - scroller.clientHeight / 2
   }, [])
 
   if (!rows.length) return <p className="px-1 py-6 text-f15 text-ink-2">이 날은 운행하지 않아요</p>

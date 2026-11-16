@@ -1,10 +1,10 @@
 import { ChevronLeft } from 'lucide-react'
 import { goBack } from '../../lib/nav'
 
-/** 상세 화면 머리. 뒤로 가기 + 제목 + 보조 줄 */
+/** 상세 화면 머리. 스크롤해도 위에 붙어 있어 뒤로 가기가 늘 보인다. */
 export default function PageHeader({ title, sub, leading, trailing, fallback = '/' }) {
   return (
-    <header className="px-4 pt-3">
+    <header className="sticky top-0 z-20 border-b border-line-soft bg-bg/95 px-4 pb-2 pt-3 backdrop-blur-sm">
       <div className="flex items-center gap-2">
         <button
           type="button"
