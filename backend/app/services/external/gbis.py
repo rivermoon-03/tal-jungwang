@@ -2,6 +2,7 @@
 
 from app.core.config import settings
 from app.core.http_client import get_http_client
+from app.services.gbis_quota import check_quota
 
 ARRIVAL_URL = "https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2"
 LOCATION_URL = "https://apis.data.go.kr/6410000/buslocationservice/v2/getBusLocationListv2"
@@ -40,6 +41,7 @@ async def fetch_arrivals(station_id: str) -> list[dict]:
     client = await get_http_client()
     resp = await client.get(ARRIVAL_URL, params=params)
     resp.raise_for_status()
+    await check_quota(resp.headers, "arrival")
 
     body = _parse_body(resp.json())
     if not body:
@@ -75,6 +77,7 @@ async def fetch_bus_locations(route_id: str) -> list[dict]:
     client = await get_http_client()
     resp = await client.get(LOCATION_URL, params=params)
     resp.raise_for_status()
+    await check_quota(resp.headers, "location")
 
     body = _parse_body(resp.json())
     if not body:
