@@ -231,7 +231,7 @@ export default {
         micro:   ['calc(12px * var(--tj-font-scale,1))', { lineHeight: '1.3',  fontWeight: '600' }],
       },
       fontFamily: {
-        sans: ['"SUIT Variable"', 'SUIT', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+        sans: ['"TJ Sans"', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
         mono: ['"Courier New"', 'monospace'],
       },
       // z-index 명명 스케일. 예전에는 20부터 200까지 임의값 8종 이상이 흩어져 있었고

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { readPersisted, writePersisted } from './apiPersist'
 
 const BASE = '/api/v1'
 
@@ -65,7 +66,9 @@ function fetchDedup(path) {
   if (existing) return existing
   const p = apiFetch(path)
     .then((data) => {
-      cache.set(path, { data, fetchedAt: Date.now() })
+      const fetchedAt = Date.now()
+      cache.set(path, { data, fetchedAt })
+      writePersisted(path, data, fetchedAt)
       return data
     })
     .finally(() => {
@@ -177,7 +180,8 @@ function subscribeScheduler(path, interval, onResult, onError) {
 }
 
 export function useApi(path, { interval = null, enabled = true, ttl = 0 } = {}) {
-  const initial = enabled ? readFreshCache(path, ttl) : null
+  // 메모리 캐시가 없으면 마지막 응답(보관 한도 안)을 먼저 그리고, 아래 effect 가 새로 받아 온다.
+  const initial = enabled ? (readFreshCache(path, ttl) ?? readPersisted(path)) : null
   const [data, setData] = useState(initial?.data ?? null)
   const [loading, setLoading] = useState(enabled && !initial)
   const [error, setError] = useState(null)
@@ -211,7 +215,7 @@ export function useApi(path, { interval = null, enabled = true, ttl = 0 } = {}) 
   const [seenResetKey, setSeenResetKey] = useState(null)
   if (resetKey !== null && resetKey !== seenResetKey) {
     setSeenResetKey(resetKey)
-    const c = readFreshCache(path, ttl)
+    const c = readFreshCache(path, ttl) ?? readPersisted(path)
     if (c) {
       setData(c.data)
       setFetchedAt(c.fetchedAt)

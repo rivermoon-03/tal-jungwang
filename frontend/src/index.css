@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 직접 호스팅하는 본문 글꼴(SUIT 파생, public/fonts/README.md). 두 굵기만 두고 나머지 굵기는 가까운 쪽으로 맞춘다. */
+@font-face { font-family: 'TJ Sans'; font-weight: 100 599; font-display: swap; src: url('/fonts/tj-sans-400.woff2') format('woff2'); }
+@font-face { font-family: 'TJ Sans'; font-weight: 600 900; font-display: swap; src: url('/fonts/tj-sans-800.woff2') format('woff2'); }
+
 /* ── 이징 / 지속시간 토큰 ──────────────────────────────
    Phase A (2026-04-19): --ease-spring 제거. iOS ease 단일화.
    Phase A (2026-07): 모션 규율(DESIGN.md §4) e/dur-motion 토큰 추가. */
@@ -300,7 +304,7 @@
 
 /* ── 시간/숫자 모던 폰트 ────────────────────── */
 .time-num {
-  font-family: 'SUIT Variable', SUIT, -apple-system, sans-serif;
+  font-family: 'TJ Sans', -apple-system, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
   -webkit-font-smoothing: antialiased;
@@ -323,7 +327,7 @@ html {
 
 body {
   margin: 0;
-  font-family: 'SUIT Variable', SUIT, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;
+  font-family: 'TJ Sans', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', sans-serif;
   background-color: var(--tj-bg);
   color: var(--tj-ink);
   letter-spacing: -0.01em;

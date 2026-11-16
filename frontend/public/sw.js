@@ -1,14 +1,13 @@
-const CACHE = 'transit-hub-v7'
-const PRECACHE = ['/', '/index.html']
+// 빌드 때 vite.config.js 의 swPrecache 플러그인이 두 자리표시자를 채운다. 개발 중엔 SW 를 등록하지 않는다.
+const BUILD_ID = '__BUILD_ID__'
+const BUILD_ASSETS = ['__PRECACHE_LIST__']
+const CACHE = `tj-shell-${BUILD_ID}`
+const RUNTIME = 'tj-runtime-v1'
+const SHELL = ['/', '/index.html', '/fonts/tj-sans-400.woff2', '/fonts/tj-sans-800.woff2']
+const PRECACHE = [...SHELL, ...BUILD_ASSETS.filter((a) => a && !a.startsWith('__'))]
 
-// 해시되지 않은 루트 정적 파일 — 배포할 때마다 내용이 바뀔 수 있으므로
-// 캐시 우선이면 옛 매니페스트/아이콘이 고착됨. 네트워크 우선으로 처리한다.
-const NETWORK_FIRST_PATHS = new Set([
-  '/manifest.json',
-  '/favicon.svg',
-  '/icons.svg',
-  '/sw.js',
-])
+// 해시가 없지만 배포마다 바뀔 수 있는 파일. 네트워크 우선이다.
+const NETWORK_FIRST_PATHS = new Set(['/manifest.json', '/favicon.svg', '/icons.svg', '/sw.js'])
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)))
@@ -18,108 +17,60 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys()
-    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    await Promise.all(keys.filter((k) => k !== CACHE && k !== RUNTIME).map((k) => caches.delete(k)))
     await self.clients.claim()
     const clients = await self.clients.matchAll({ type: 'window' })
     for (const c of clients) c.postMessage({ type: 'SW_UPDATED' })
   })())
 })
 
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName)
+  try {
+    const res = await fetch(request)
+    if (res.ok) cache.put(request, res.clone())
+    return res
+  } catch {
+    return (await cache.match(request)) ?? Response.error()
+  }
+}
+
+async function cacheFirst(request, cacheName) {
+  const hit = await caches.match(request)
+  if (hit) return hit
+  const res = await fetch(request)
+  const type = res.headers.get('Content-Type') || ''
+  // 배포 뒤 사라진 청크 요청에 index.html 이 돌아오면 캐시하지 않는다(MIME 오류 고착 방지).
+  if (res.ok && !type.includes('text/html')) {
+    const cache = await caches.open(cacheName)
+    cache.put(request, res.clone())
+  }
+  return res
+}
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url)
-
-  // 타 출처(카카오맵 SDK, Pretendard CDN 등)는 SW에서 건드리지 않음
   if (url.origin !== self.location.origin) return
-
-  // GET 이외 메서드(POST 등 API 호출)는 그대로 통과
   if (e.request.method !== 'GET') return
 
-  // /api/v1/map/markers — NetworkFirst(+offline fallback).
-  // 과거 StaleWhileRevalidate였지만 마커 변경 시 stale 응답이 오래 고착됨(노선 추가 반영 지연).
-  // 네트워크 우선으로 바꾸되 오프라인일 때만 캐시로 폴백한다.
-  if (url.pathname === '/api/v1/map/markers') {
-    e.respondWith(
-      caches.open(CACHE).then(async (cache) => {
-        try {
-          const res = await fetch(e.request)
-          if (res.status === 200) cache.put(e.request, res.clone())
-          return res
-        } catch {
-          const cached = await cache.match(e.request)
-          return cached ?? new Response(JSON.stringify({ success: false }), {
-            status: 503, headers: { 'Content-Type': 'application/json' },
-          })
-        }
-      })
-    )
-    return
-  }
+  // API 는 화면 쪽(useApi)이 마지막 응답을 따로 보관한다. SW 는 손대지 않는다.
+  if (url.pathname.startsWith('/api/')) return
 
-  // /api/* — 네트워크 우선, 실패 시 503
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(
-      fetch(e.request).catch(() => new Response(JSON.stringify({ success: false }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' },
-      }))
-    )
-    return
-  }
-
-  // HTML 네비게이션 — 네트워크 우선, 실패 시 캐시 폴백
-  // (Vite 배포마다 해시가 바뀌므로 항상 최신 index.html을 받아야 함)
+  // 앱 셸은 캐시에서 바로 띄운다. 새 배포는 SW 교체(SW_UPDATED)로 반영된다.
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          if (res.status === 200) {
-            const clone = res.clone()
-            caches.open(CACHE).then((c) => c.put(e.request, clone))
-          }
-          return res
-        })
-        .catch(() => caches.match('/index.html'))
+      caches.match('/index.html', { cacheName: CACHE }).then((hit) => hit ?? networkFirst(e.request, RUNTIME)),
     )
     return
   }
 
-  // manifest/favicon/icons 등 해시 없는 정적 파일 — 네트워크 우선
-  // (배포마다 내용이 바뀔 수 있어 캐시-우선이면 옛 버전이 고착됨)
-  const isUnhashedStatic =
-    NETWORK_FIRST_PATHS.has(url.pathname) || url.pathname.startsWith('/icons/')
-  if (isUnhashedStatic) {
-    e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          if (res.status === 200) {
-            const clone = res.clone()
-            caches.open(CACHE).then((c) => c.put(e.request, clone))
-          }
-          return res
-        })
-        .catch(() => caches.match(e.request))
-    )
+  if (NETWORK_FIRST_PATHS.has(url.pathname) || url.pathname.startsWith('/icons/')) {
+    e.respondWith(networkFirst(e.request, RUNTIME))
     return
   }
 
-  // 해시된 정적 에셋(/assets/*) — 캐시 우선, 없으면 네트워크 후 캐시 저장.
-  // 배포 후 사라진 청크는 rewrite가 index.html(HTML)을 돌려줄 수 있으므로,
-  // 실패 응답이거나 Content-Type이 text/html이면 캐싱하지 않고 그대로 반환한다
-  // (HTML을 JS로 캐싱해 고착시키면 "disallowed MIME type" 에러가 반복됨).
-  e.respondWith(
-    caches.match(e.request).then((cached) => {
-      if (cached) return cached
-
-      return fetch(e.request).then((res) => {
-        const contentType = res.headers.get('Content-Type') || ''
-        if (res.ok && !contentType.includes('text/html')) {
-          const clone = res.clone()
-          caches.open(CACHE).then((c) => c.put(e.request, clone))
-        }
-        return res
-      })
-    })
-  )
+  // 해시된 빌드 산출물, 글꼴, 날씨 사진은 내용이 바뀌면 이름이 바뀐다.
+  e.respondWith(cacheFirst(e.request, url.pathname.startsWith('/assets/') ? CACHE : RUNTIME))
 })
 
 // ── F5: 노선 알림(막차/첫차 시각 푸시) ────────────────────────────────────
