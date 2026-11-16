@@ -1,8 +1,8 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import useAppStore from './stores/useAppStore'
 import { useTheme } from './hooks/useTheme'
 import { useFontScale } from './hooks/useFontScale'
-import { navigate, useLocation } from './lib/nav'
+import { navigate, transitionKind, useLocation } from './lib/nav'
 import AppShell from './components/shell/AppShell'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import HomePage from './components/home/HomePage'
@@ -65,6 +65,10 @@ export default function App() {
   useFontScale()
 
   const legacy = legacyTarget(pathname)
+  const shown = legacy ?? pathname
+  // 경로가 바뀌는 렌더에서 바로 전환 종류를 정한다(effect 로 미루면 한 프레임 늦게 붙는다).
+  const [trans, setTrans] = useState({ path: shown, kind: null })
+  if (trans.path !== shown) setTrans({ path: shown, kind: transitionKind(trans.path, shown) })
   useEffect(() => {
     if (legacy) navigate(legacy, { replace: true })
   }, [legacy])
@@ -84,7 +88,9 @@ export default function App() {
     <AppShell>
       <PWAInstallBanner />
       <Suspense fallback={null}>
-        <Page pathname={legacy ?? pathname} query={query} />
+        <div key={shown} className={`flex flex-1 flex-col ${trans.kind ? `tj-page-${trans.kind}` : ''}`}>
+          <Page pathname={shown} query={query} />
+        </div>
       </Suspense>
     </AppShell>
   )

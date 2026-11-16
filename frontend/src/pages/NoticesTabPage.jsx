@@ -6,11 +6,11 @@
  * 늦게 본다. 탭 하나를 통째로 준다 — 시간표가 홈으로 들어가며 비운 자리다.
  *
  * PC는 사이드바가 서브내비(학사공지/앱 공지)를 그리므로 여기서는 세그먼트를
- * 생략하고 store(pcNoticesTab)를 따른다. 모바일은 SegmentedControl 세그먼트.
+ * 생략하고 store(pcNoticesTab)를 따른다. 모바일은 kit/Segmented 세그먼트.
  */
 import { useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
-import SegmentedControl from '../components/ui/SegmentedControl'
+import Segmented from '../components/kit/Segmented'
 import AcademicNoticesTab from '../components/more/AcademicNoticesTab'
 import AcademicNoticesPCContent from '../components/more/AcademicNoticesPCContent'
 import AppNoticesTab from '../components/notices/AppNoticesTab'
@@ -78,7 +78,7 @@ export default function NoticesTabPage() {
 
       {/* 아래 여백은 두지 않는다 — 콘텐츠(카테고리 칩)가 탭 바로 아래 온다. */}
       <div className="px-4 pt-1 flex-shrink-0">
-        <SegmentedControl options={TOP_TABS} value={tab} onChange={selectTab} ariaLabel="공지 종류 선택" />
+        <Segmented options={TOP_TABS} value={tab} onChange={selectTab} label="공지 종류 선택" />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-28 md:pb-6">

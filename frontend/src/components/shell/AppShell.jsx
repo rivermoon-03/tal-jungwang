@@ -19,6 +19,7 @@ export default function AppShell({ children }) {
   const { pathname } = useLocation()
   const mainRef = useRef(null)
   const dark = pathname === '/' && !isDesktop
+  const activeIndex = TABS.findIndex((tab) => tab.match(pathname))
 
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
@@ -63,22 +64,24 @@ export default function AppShell({ children }) {
           dark ? 'border-[#272a29] bg-[#1a211e]' : 'border-line bg-surface'
         }`}
       >
+        {/* 선택 표시는 아이콘 사이를 미끄러져 옮겨 간다. 버튼 폭 56px, 간격 4px */}
+        {activeIndex >= 0 && (
+          <span
+            aria-hidden="true"
+            className={`tj-slide-thumb absolute left-1.5 top-1.5 h-12 w-14 rounded-full ${dark ? 'bg-[#0d2d2a]' : 'bg-accent-bg'}`}
+            style={{ transform: `translateX(${activeIndex * 60}px)` }}
+          />
+        )}
         {TABS.map(({ href, label, Icon, match }) => {
           const on = match(pathname)
-          const tone = on
-            ? dark
-              ? 'bg-[#0d2d2a] text-[#12a594]'
-              : 'bg-accent-bg text-accent-ink'
-            : dark
-              ? 'text-[#868e8b]'
-              : 'text-mute'
+          const tone = on ? (dark ? 'text-[#12a594]' : 'text-accent-ink') : dark ? 'text-[#868e8b]' : 'text-mute'
           return (
             <a
               key={href}
               {...linkProps(href)}
               aria-label={label}
               aria-current={on ? 'page' : undefined}
-              className={`flex h-12 w-14 items-center justify-center rounded-full transition-colors duration-150 ${tone}`}
+              className={`relative flex h-12 w-14 items-center justify-center rounded-full transition-colors duration-150 ${tone}`}
             >
               <Icon size={23} strokeWidth={on ? 2.4 : 2} aria-hidden="true" />
             </a>

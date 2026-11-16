@@ -18,7 +18,7 @@
  */
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import SegmentedControl from '../ui/SegmentedControl'
+import Segmented from '../kit/Segmented'
 import IconButton from '../ui/IconButton'
 import {
   todayKstDateString,
@@ -121,13 +121,7 @@ export default function AcademicCalendarGrid({ events = [], initialDate = null, 
   return (
     <div>
       <div className="flex items-center justify-center mb-3">
-        <SegmentedControl
-          options={VIEW_TABS}
-          value={viewMode}
-          onChange={handleViewModeChange}
-          size="sm"
-          ariaLabel="달력 보기 방식"
-        />
+        <Segmented options={VIEW_TABS} value={viewMode} onChange={handleViewModeChange} label="달력 보기 방식" />
       </div>
 
       <div className="flex items-center justify-between mb-2">

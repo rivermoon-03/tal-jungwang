@@ -432,9 +432,21 @@ body {
 @keyframes tj-blink { 0%, 60% { opacity: 1 } 61%, 100% { opacity: .3 } }
 .tj-blink { animation: tj-blink 1s steps(1) infinite; }
 @keyframes tj-sheet-up { from { transform: translateY(40px); opacity: 0 } to { transform: none; opacity: 1 } }
-.tj-sheet-up { animation: tj-sheet-up .32s cubic-bezier(.2, .8, .2, 1) backwards; }
+.tj-sheet-up { animation: tj-sheet-up .28s var(--tj-ease-ios) backwards; }
+
+/* Apple 식 전환. iOS 의 감속 곡선을 쓰되 시간은 iOS 보다 짧다. fill-mode 는 backwards 로 둬
+   끝난 뒤 stacking context 를 남기지 않는다(시트가 독 아래 깔리던 예전 결함). */
+:root { --tj-ease-ios: cubic-bezier(.32, .72, 0, 1); }
+@keyframes tj-page-push { from { transform: translate3d(28%, 0, 0); opacity: .4 } to { transform: none; opacity: 1 } }
+@keyframes tj-page-pop { from { transform: translate3d(-22%, 0, 0); opacity: .4 } to { transform: none; opacity: 1 } }
+@keyframes tj-page-tab { from { transform: translate3d(0, 6px, 0); opacity: 0 } to { transform: none; opacity: 1 } }
+.tj-page-push { animation: tj-page-push .24s var(--tj-ease-ios) backwards; }
+.tj-page-pop { animation: tj-page-pop .24s var(--tj-ease-ios) backwards; }
+.tj-page-tab { animation: tj-page-tab .16s var(--tj-ease-ios) backwards; }
+.tj-slide-thumb { transition: transform .2s var(--tj-ease-ios); }
 /* 긴 시간표는 화면 밖 줄의 레이아웃, 페인트를 미룬다. */
 .tj-cv-auto > * { content-visibility: auto; contain-intrinsic-size: auto 48px; }
 @media (prefers-reduced-motion: reduce) {
-  .tj-blink, .tj-sheet-up { animation: none; }
+  .tj-blink, .tj-sheet-up, .tj-page-push, .tj-page-pop, .tj-page-tab { animation: none; }
+  .tj-slide-thumb { transition: none; }
 }

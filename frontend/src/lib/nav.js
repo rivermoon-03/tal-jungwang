@@ -37,3 +37,16 @@ export function linkProps(href) {
     },
   }
 }
+
+const depthOf = (pathname) => pathname.split('/').filter(Boolean).length
+
+/** 이전, 다음 경로로 전환 종류를 정한다. 깊어지면 push, 얕아지면 pop, 같은 층은 tab */
+export function transitionKind(prev, next) {
+  if (prev == null || prev === next) return null
+  const a = depthOf(prev)
+  const b = depthOf(next)
+  if (a <= 1 && b <= 1) return 'tab'
+  if (b > a) return 'push'
+  if (b < a) return 'pop'
+  return 'tab'
+}
