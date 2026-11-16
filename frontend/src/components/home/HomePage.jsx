@@ -33,12 +33,13 @@ function HomeMobile() {
   const motionRef = useWeatherMotion()
 
   return (
-    <div ref={motionRef} className="tjw-root relative min-h-full bg-[#101211] pb-6">
+    <div ref={motionRef} className="tjw-root relative flex flex-1 flex-col bg-[#101211] pb-2">
       <WeatherBackdrop scene={scene} height={520} still={LOW_END} />
       <div className="relative px-[22px] pt-6">
         <WeatherNow weather={weather} scene={scene} timeLabel={timeLabel(now)} />
       </div>
-      <section aria-label="지금 기준 교통과 학식" className="relative mt-24 flex flex-col gap-2.5 px-3.5">
+      {/* 화면이 높으면 카드가 독 바로 위로 내려가고, 낮으면 날씨 바로 아래에 붙는다. */}
+      <section aria-label="지금 기준 교통과 학식" className="relative mt-auto flex flex-col gap-2.5 px-3.5 pt-6">
         <div className="flex items-baseline justify-between px-2">
           <span className="text-f14 font-bold text-[#adb5b2]">
             {hhmm} {direction}

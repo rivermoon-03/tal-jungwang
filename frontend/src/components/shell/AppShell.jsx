@@ -53,7 +53,8 @@ export default function AppShell({ children }) {
 
   return (
     <div className={`relative h-dvh ${dark ? 'bg-[#101211]' : 'bg-bg'}`}>
-      <main ref={mainRef} className="h-full overflow-y-auto overscroll-contain pb-[calc(96px+env(safe-area-inset-bottom))]">
+      {/* 세로 flex 라 홈이 flex-1 로 배너를 뺀 남은 높이를 채운다. 홈 카드가 독 바로 위에 붙는 기준이다. */}
+      <main ref={mainRef} className="flex h-full flex-col overflow-y-auto overscroll-contain pb-[calc(96px+env(safe-area-inset-bottom))]">
         {children}
       </main>
       <nav

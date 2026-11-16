@@ -25,3 +25,14 @@ describe('buildBusRows', () => {
     expect(row).toMatchObject({ main: '10:22', position: '시간표 기준', sec: 1320 })
   })
 })
+
+describe('destKey', () => {
+  it('마지막 행선지만 남긴다', async () => {
+    const { destKey, destKeysOf } = await import('./busRows')
+    expect(destKey('사당 경유 강남행')).toBe('강남행')
+    expect(destKey('정왕역 경유')).toBe('정왕역행')
+    expect(destKey('월곶역 방면')).toBe('월곶역행')
+    expect(destKey('학교행')).toBe('학교행')
+    expect(destKeysOf({ a: { dest: '정왕역행' }, b: { dest: '정왕역 경유' }, c: { dest: '정왕역 경유 시흥시청행' } })).toEqual(['정왕역행', '시흥시청행'])
+  })
+})

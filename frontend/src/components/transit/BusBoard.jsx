@@ -8,7 +8,7 @@ import LineBadge from '../kit/LineBadge'
 import Freshness from '../kit/Freshness'
 import { Banner, Skeleton } from '../kit/bits'
 import StopSheet from './StopSheet'
-import { buildBusRows } from './busRows'
+import { buildBusRows, destKey, destKeysOf } from './busRows'
 import { nowMinutes } from './format'
 
 export default function BusBoard() {
@@ -20,29 +20,53 @@ export default function BusBoard() {
   const conf = BUS_STATIONS[station] ?? BUS_STATIONS['한국공학대']
   const gbis = conf.gbisStationId
   const { data, loading, error, fetchedAt } = useBusArrivals(gbis)
-  const rows = buildBusRows(data?.arrivals, conf.perRouteDisplay, nowMinutes())
+  const [pick, setPick] = useState({ station, dest: null })
+  const dests = destKeysOf(conf.perRouteDisplay)
+  // 정류장을 바꾸면 행선지 선택은 전체로 돌아간다. 행선지가 하나뿐이면 그것이 늘 선택돼 있다.
+  const dest = dests.length === 1 ? dests[0] : pick.station === station ? pick.dest : null
+  const allRows = buildBusRows(data?.arrivals, conf.perRouteDisplay, nowMinutes())
+  const rows = dest && dests.length > 1 ? allRows.filter((r) => destKey(conf.perRouteDisplay[r.route]?.dest) === dest) : allRows
   const isFav = favorites.includes(station)
-  const direction = conf.defaultDirection
+  const destOptions = dests.length > 1 ? [null, ...dests] : dests
 
   return (
     <section aria-label="버스 도착">
-      <div className="flex items-center justify-between px-1 pt-3">
+      <div className="flex items-center gap-2 px-1 pt-3">
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
-          className="flex h-11 items-baseline gap-2 rounded-lg text-left"
+          className="flex h-11 flex-none items-center gap-1 rounded-lg text-left"
           aria-haspopup="dialog"
+          aria-label={`정류장 ${getBusStationDisplay(station)}, 바꾸기`}
         >
           <span className="text-f22 font-extrabold text-ink">{getBusStationDisplay(station)}</span>
-          <span className="text-f15 font-bold text-accent-ink">{direction}</span>
-          <ChevronDown size={16} className="self-center text-mute" aria-hidden="true" />
+          <ChevronDown size={18} className="text-mute" aria-hidden="true" />
         </button>
+        <div role="tablist" aria-label="행선지" className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-1 [scrollbar-width:none]">
+          {destOptions.map((d) => {
+            const on = d === dest
+            return (
+              <button
+                key={d ?? 'all'}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setPick({ station, dest: d })}
+                className={`h-9 flex-none whitespace-nowrap rounded-full px-3.5 text-f14 font-bold transition-colors duration-150 ${
+                  on ? 'bg-ink text-bg' : 'border border-line bg-surface text-ink-2'
+                }`}
+              >
+                {d ?? '전체'}
+              </button>
+            )
+          })}
+        </div>
         <button
           type="button"
           aria-label={isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           aria-pressed={isFav}
           onClick={() => toggleFavoriteStation(station)}
-          className="flex h-11 w-11 items-center justify-center rounded-full"
+          className="flex h-11 w-11 flex-none items-center justify-center rounded-full"
         >
           <Star size={22} className={isFav ? 'fill-imminent text-imminent' : 'text-mute'} aria-hidden="true" />
         </button>

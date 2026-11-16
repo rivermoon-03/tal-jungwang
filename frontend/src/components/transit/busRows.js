@@ -52,3 +52,17 @@ function positionLabel(a) {
   if (a.arrival_type !== 'realtime') return '시간표 기준'
   return stopsLabel(a.location_no) ?? ARRIVING_LABEL
 }
+
+/** 행선지 문구 → 짧은 행선지("사당 경유 강남행" → "강남행", "정왕역 경유" → "정왕역행") */
+export function destKey(dest) {
+  if (!dest) return null
+  const words = dest.replace(/\s*방면$/, '').trim().split(/\s+/)
+  const last = words[words.length - 1] === '경유' ? words[words.length - 2] : words[words.length - 1]
+  if (!last) return null
+  return last.endsWith('행') ? last : `${last}행`
+}
+
+/** 정류장의 행선지 목록(설정 순서 유지, 중복 제거) */
+export function destKeysOf(routeDisplay) {
+  return [...new Set(Object.values(routeDisplay ?? {}).map((d) => destKey(d.dest)).filter(Boolean))]
+}
