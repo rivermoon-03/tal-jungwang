@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import { BUS_STATIONS, BUS_STATION_LABELS, getBusStationDisplay } from '../dashboard/busStationConfig'
+import { BUS_STATIONS, BUS_STATION_LABELS, getBusStationDisplay } from './busStationConfig'
 import BottomSheet from '../kit/BottomSheet'
 
 /** 정류장 고르기. 정류장마다 방면이 하나라 고르면 바로 닫는다. */

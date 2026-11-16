@@ -21,49 +21,10 @@ const useAppStore = create(
       // ── 기존 필드 (유지) ─────────────────────────────────────────────
       activeTab: 'main',
       setActiveTab: (tab) => set({ activeTab: tab }),
-      selectedStationId: null,
-      setSelectedStationId: (id) => set({ selectedStationId: id }),
       userLocation: null,
       setUserLocation: (loc) => set({ userLocation: loc }),
       sheetOpen: false,
       setSheetOpen: (open) => set({ sheetOpen: open }),
-      driveRouteCoords: null,
-      setDriveRouteCoords: (coords) => set({ driveRouteCoords: coords }),
-      // 도보 경로: { coords: [[lng,lat],...], destName, durationSec, distanceM } | null
-      walkRoute: null,
-      setWalkRoute: (route) => set({ walkRoute: route }),
-      clearWalkRoute: () => set({ walkRoute: null }),
-      tabBadges: { transit: false, subway: false, notices: false },
-      setTabBadges: (badges) => set((s) => ({ tabBadges: { ...s.tabBadges, ...badges } })),
-      mapPanTarget: null,
-      setMapPanTarget: (target) => set({ mapPanTarget: target }),
-      openInfoTab: null,
-      setOpenInfoTab: (tab) => set({ openInfoTab: tab }),
-      // 마커 시트의 "상세 보기" 버튼이 /schedule 진입 시 초기 모드·그룹을 지정
-      scheduleHint: null, // { mode, group?, routeCode? } | null
-      setScheduleHint: (hint) => set({ scheduleHint: hint }),
-      // 페이지 이동 없이 어디서든 열 수 있는 ScheduleDetailModal 전역 상태.
-      // 대시보드 버스 행 탭 등에서 쓰인다. detail 객체는 SchedulePage의 detail과 동일 shape.
-      detailModal: null,
-      setDetailModal: (detail) => set({ detailModal: detail }),
-      closeDetailModal: () => set({ detailModal: null }),
-      taxiOpen: false,
-      setTaxiOpen: (v) => set({ taxiOpen: v }),
-      toggleTaxiOpen: () => set((s) => ({ taxiOpen: !s.taxiOpen })),
-
-      // 대시보드 스크롤 위치 보존 (탭 전환 시 유지)
-      dashboardScrollTop: 0,
-      setDashboardScrollTop: (v) => set({ dashboardScrollTop: v }),
-
-      // 지하철 노선도 전역 시트 (SubwayPanel·SchedulePage → App 레벨 렌더링)
-      subwayLineSheet: null, // { line, direction, currentStation, destination, color } | null
-      setSubwayLineSheet: (item) => set({ subwayLineSheet: item }),
-      closeSubwayLineSheet: () => set({ subwayLineSheet: null }),
-
-      // 지하철 시간표+실시간 상세 시트 (지도 탭 패널 → App 레벨 렌더링)
-      subwayDetailSheet: null, // { station, lineName, timetableKey, direction, color, darkColor, lightColor, symbol } | null
-      setSubwayDetailSheet: (item) => set({ subwayDetailSheet: item }),
-      closeSubwayDetailSheet: () => set({ subwayDetailSheet: null }),
 
       // ── 신규 테마 / UX 상태 (persist 대상) ───────────────────────────
       themeMode: 'system',          // 'light' | 'dark' | 'system'
@@ -76,12 +37,6 @@ const useAppStore = create(
       selectedMode: 'bus',          // 'bus' | 'subway' | 'shuttle' | 'taxi'
       setSelectedMode: (mode) => set({ selectedMode: mode }),
 
-      // 홈 보기 — 'now'(실시간 도착) | 'timetable'(하루 전체 시간표).
-      // 시간표가 별도 탭이던 시절엔 모드·정류장을 두 화면에서 각각 고르고 있었다.
-      // 이제 모드는 홈에서 한 번만 고르고 이 값이 같은 모드의 두 관점을 오간다.
-      // persist 하지 않는다 — 앱을 새로 열면 궁금한 건 언제나 "지금"이다.
-      homeView: 'now',
-      setHomeView: (view) => set({ homeView: view }),
 
       selectedSubwayStation: '정왕', // '정왕' | '초지' | '시흥시청'
       setSubwayStation: (station) => set({ selectedSubwayStation: station }),
@@ -93,8 +48,6 @@ const useAppStore = create(
       setBusStation: (station) => set({ selectedBusStation: station }),
       selectedBusDirection: '하교',
       setBusDirection: (direction) => set({ selectedBusDirection: direction }),
-      hasAutoSelectedStation: false,
-      setHasAutoSelectedStation: (v) => set({ hasAutoSelectedStation: v }),
 
       // PC 대시보드 정류장 GPS auto 모드. true면 useUserLocation 좌표 기준으로
       // 가장 가까운 정류장을 자동 선택. 사용자가 수동 chip 클릭 시 false로 전환.
@@ -115,17 +68,6 @@ const useAppStore = create(
       shuttleDirection: null,
       setShuttleDirection: (dir) => set({ shuttleDirection: dir }),
 
-      // 지도 뷰 상태 (탭 전환 시 유지, persist 제외 — 새로고침 시 초기화)
-      mapView: null,               // { center: [lat, lng], level: number } | null
-      setMapView: (v) => set({ mapView: v }),
-
-      // PC 좌측 패널 영역 접기/펴기 (지도 풀스크린 토글). persist 안 함.
-      mapFullscreen: false,
-      toggleMapFullscreen: () => set((s) => ({ mapFullscreen: !s.mapFullscreen })),
-
-      // 선택된 마커 ID (탭 전환 시 유지, persist 제외)
-      selectedMarkerId: null,      // string | null
-      setSelectedMarkerId: (id) => set({ selectedMarkerId: id }),
 
       // ── PC 사이드바 컨텍스트 서브내비 (persist 제외, 새로고침 시 초기화) ──
       // PCSidebar와 학식/더보기 PC 레이아웃이 서로 다른 컴포넌트 트리에 있어
@@ -133,21 +75,14 @@ const useAppStore = create(
       // 학식은 diet/venues에 대응하는 안정 URL이 없어 store가 유일한 출처다.
       // 초기값은 주소의 ?tab= / ?nav= 를 우선한다. 사이드바가 서브탭을 주소에
       // 남기므로, 그 주소로 새로 들어왔을 때 같은 화면이 열려야 한다.
-      pcCafeteriaTab: readInitialSubTab('tab', ['diet', 'venues'], 'diet'),
-      setPcCafeteriaTab: (tab) => set({ pcCafeteriaTab: tab }),
 
       // 공지 탭의 PC 서브내비(학사공지/앱 공지). 사이드바와 콘텐츠가 App.jsx 상
-      // 형제라 URL 없이 뷰를 맞출 지점이 store 뿐이다(pcCafeteriaTab 과 같은 이유).
+      // 형제라 URL 없이 뷰를 맞출 지점이 store 뿐이다.
       pcNoticesTab: 'academic',
       setPcNoticesTab: (tab) => set({ pcNoticesTab: tab }),
       pcMoreNav: readInitialSubTab('nav', ['academic', 'notices', 'settings', 'app-info'], 'academic'),
       setPcMoreNav: (nav) => set({ pcMoreNav: nav }),
 
-      // ── 지도 전체화면 토글 (시안2: 컴팩트 띠 ↔ 전체 지도) ──────────────
-      // 구 snapMode는 backward compat용으로 남겨둔다 (persist migrate에서 정리됨).
-      mapExpanded: false,
-      toggleMapExpanded: () => set((s) => ({ mapExpanded: !s.mapExpanded })),
-      setMapExpanded: (v) => set({ mapExpanded: v }),
 
       // ── 즐겨찾기 ─────────────────────────────────────────────────────
       // venues: F2 매점/식당(cafeteriaVenues) 즐겨찾기 id 배열.

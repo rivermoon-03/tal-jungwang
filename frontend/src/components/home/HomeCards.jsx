@@ -4,7 +4,7 @@ import { useSubwayNext, useSubwayRealtime, normalizeRealtimeStation } from '../.
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useCafeteriaMenu } from '../../hooks/useCafeteria'
 import { getTodayDayKey } from '../../utils/cafeteriaDays'
-import { BUS_STATIONS, getBusStationDisplay } from '../dashboard/busStationConfig'
+import { BUS_STATIONS, getBusStationDisplay } from '../transit/busStationConfig'
 import { linkProps } from '../../lib/nav'
 import LineBadge from '../kit/LineBadge'
 import { buildBusRows } from '../transit/busRows'
