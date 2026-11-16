@@ -51,8 +51,7 @@ function inferDirectionFromLocation(userLocation) {
  *
  * 우선순위:
  *   1. `directionOverride` (Zustand in-memory, 세션 전용 퀵토글) — 있으면 항상 최우선.
- *   2. `commuteAutoMode === false` (설정 화면에서 수동 지정, persist) — `commuteManualDirection` 고정 반환.
- *   3. 자동 판정 = KST 시간 기반 기본값을, 위치가 애매하지 않을 때만 위치 기반 판정으로 덮어씀.
+ *   2. 자동 판정 = KST 시간 기반 기본값을, 위치가 애매하지 않을 때만 위치 기반 판정으로 덮어씀.
  *      - KST 14시를 경계로 자동 전환 (자정~13시 → '등교', 14시~23시 → '하교').
  *        `new Date().getHours()`(브라우저 로컬 시각) 대신 `getKstHour()`로 KST를 명시한다
  *        (CLAUDE.md 철칙: 시각은 항상 timezone-aware하게 비교).
@@ -62,7 +61,7 @@ function inferDirectionFromLocation(userLocation) {
  * 반환 shape:
  *   { direction: '등교' | '하교', isOverride: boolean, reason: 'manual'|'time'|'location' }
  *   isOverride는 "자동 알고리즘이 아니라 사용자가 명시적으로 정한 값"일 때 true
- *   (directionOverride 또는 수동 모드 고정값). 시간/위치 자동 판정일 때는 false.
+ *   (directionOverride). 시간/위치 자동 판정일 때는 false.
  *
  *   reason은 자동 판정의 근거다. 이걸 반환하지 않던 시절 Dashboard가 결과값만 보고
  *   근거 문구를 역추론해서, 오후에 위치 보정으로 '등교'가 되면 "오전이라 등교"라는
@@ -72,15 +71,9 @@ function inferDirectionFromLocation(userLocation) {
  */
 export default function useEffectiveDirection(now = new Date()) {
   const override = useAppStore((s) => s.directionOverride)
-  const commuteAutoMode = useAppStore((s) => s.commuteAutoMode)
-  const commuteManualDirection = useAppStore((s) => s.commuteManualDirection)
   const userLocation = useAppStore((s) => s.userLocation)
 
   if (override) return { direction: override, isOverride: true, reason: 'manual' }
-
-  if (!commuteAutoMode) {
-    return { direction: commuteManualDirection ?? '등교', isOverride: true, reason: 'manual' }
-  }
 
   const timeDirection = getKstHour(now) < 14 ? '등교' : '하교'
   const locationDirection = inferDirectionFromLocation(userLocation)

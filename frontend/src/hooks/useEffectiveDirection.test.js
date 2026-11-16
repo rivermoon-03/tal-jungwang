@@ -12,8 +12,6 @@ function utc(dateStr) {
 beforeEach(() => {
   useAppStore.setState({
     directionOverride: null,
-    commuteAutoMode: true,
-    commuteManualDirection: '등교',
     userLocation: null,
   })
 })
@@ -52,15 +50,6 @@ describe('useEffectiveDirection — 우선순위', () => {
     expect(result.current).toMatchObject({ direction: '하교', isOverride: true })
   })
 
-  it('commuteAutoMode=false면 commuteManualDirection 고정값을 반환한다', () => {
-    useAppStore.setState({ commuteAutoMode: false, commuteManualDirection: '하교' })
-    // 시간상으로는 등교(오전)여야 하지만 수동 모드가 이긴다.
-    const { result } = renderHook(() => useEffectiveDirection(utc('2026-07-17T00:00:00Z')))
-    expect(result.current).toMatchObject({ direction: '하교', isOverride: true })
-  })
-})
-
-describe('useEffectiveDirection — 위치 기반 보강', () => {
   it('본캠 근처에 있으면(등교 시간대라도) 하교로 보강한다', () => {
     useAppStore.setState({ userLocation: { lat: DEFAULT_CENTER.lat, lng: DEFAULT_CENTER.lng } })
     // KST 09:00 == UTC 00:00 → 시간만으로는 등교
@@ -105,8 +94,6 @@ describe('useEffectiveDirection — 판정 근거(reason)', () => {
   beforeEach(() => {
     useAppStore.setState({
       directionOverride: null,
-      commuteAutoMode: true,
-      commuteManualDirection: null,
       userLocation: null,
     })
   })

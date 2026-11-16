@@ -281,49 +281,6 @@ async def _purge_logs_job():
         logger.exception("로그 보존정책 정리 실패")
 
 
-async def _push_notification_job():
-    """막차/첫차 30분 전 Web Push 알림 (5분 주기).
-
-    구독 수만큼 시간표를 반복 조회하지 않도록 push_notifier.run_push_notification_cycle
-    내부에서 전체 구독의 favorite_codes를 모아 고유 favCode 집합에 대해서만
-    오늘의 막차/첫차를 계산한다.
-    """
-    from app.core.database import AsyncSessionLocal
-    from app.services.push_notifier import run_push_notification_cycle
-
-    try:
-        async with AsyncSessionLocal() as session:
-            summary = await run_push_notification_cycle(session)
-            if summary.get("sent") or summary.get("removed"):
-                logger.info("푸시 알림 사이클 완료: %s", summary)
-    except Exception:
-        logger.exception("푸시 알림 사이클 실패")
-
-
-async def _last_train_push_job():
-    """정왕역 지하철 막차 알림 (매분, B1).
-
-    "막차시각 − lead_min == 현재 분" 정밀 매칭이라 매분 크론이 필요하다.
-    02:00~03:59 KST는 막차 이후·첫차 이전 운행 공백이라 DB 세션도 열지 않고
-    즉시 반환한다(버스 폴링과 같은 휴식 구간). 중복 방지는 서비스 내부의
-    Redis 키(구독id+서비스일, TTL 26h)가 맡는다.
-    """
-    hour = datetime.now(_KST).hour
-    if 2 <= hour < 4:
-        return  # 02~03시 운행 공백
-
-    from app.core.database import AsyncSessionLocal
-    from app.services.push_notifier import run_last_train_push_cycle
-
-    try:
-        async with AsyncSessionLocal() as session:
-            summary = await run_last_train_push_cycle(session)
-            if summary.get("sent") or summary.get("removed"):
-                logger.info("막차 알림 사이클 완료: %s", summary)
-    except Exception:
-        logger.exception("막차 알림 사이클 실패")
-
-
 async def _school_board_notices_refresh_job():
     """전교 게시판 공지 갱신 (60분 주기) — 학사/장학/취업/비교과/생활관(DS1).
 
@@ -602,35 +559,7 @@ def setup_scheduler():
     )
     logger.info("Bus ETA accuracy refresh scheduler configured (daily 03:47 KST)")
 
-    # ── 막차/첫차 Web Push 알림 (5분 간격) ──
-    # 알림 판정 윈도우가 30분이라 5분 간격이면 놓쳐도 다음 사이클(최대 5분 후)에
-    # 자가회복 가능. misfire_grace_time=120으로 짧은 지연은 발화 보장.
-    scheduler.add_job(
-        _push_notification_job,
-        IntervalTrigger(minutes=5),
-        id="push_notification_cycle",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-        misfire_grace_time=120,
-    )
-    logger.info("Push notification scheduler configured (every 5min)")
-
-    # ── 정왕역 막차 알림 (매분, 02~04시 제외는 잡 내부에서 즉시 반환) ──
-    # "막차 − lead_min == 현재 분" 정밀 매칭이라 CronTrigger(minute="*")로 분 경계에
-    # 정렬한다. misfire_grace_time=30: 30초 넘게 밀린 발화는 그 분을 이미 놓친 것이라
-    # 버린다(coalesce로 중복 발화도 1회로 합침). 놓친 분은 다음 방향 막차 매칭 때
-    # 재시도 기회가 있다(dedup이 하루 1건은 보장).
-    scheduler.add_job(
-        _last_train_push_job,
-        CronTrigger(minute="*", timezone="Asia/Seoul"),
-        id="last_train_push",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-        misfire_grace_time=30,
-    )
-    logger.info("Last train push scheduler configured (every 1min, skip 02:00-03:59 KST)")
+    # 막차/첫차, 정왕역 막차 Web Push 발송은 끈다. 앱에서 알림 설정을 뺐다(2026-11).
 
     # ── 전교 게시판 공지 갱신 (60분 간격, DS1) ──
     # TTL=120분(cron 주기의 2배)이라 cron 1회 누락도 다음 회차에서 자가회복.

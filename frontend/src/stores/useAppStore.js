@@ -129,15 +129,6 @@ const useAppStore = create(
       pwaBannerDismissedAt: null,
       dismissPwaBanner: () => set({ pwaBannerDismissedAt: Date.now() }),
 
-      notifPrefs: { enabled: false, leadMin: 10 },
-
-      // ── B1: 정왕역 막차 알림 (persist 대상) ───────────────────────────
-      // enabled는 "서버 preferences.last_train.enabled와 동기화된 로컬 뷰"다.
-      // 구독(endpoint)이 사라지면 SettingsPage mount 시 false로 되돌린다.
-      // leadMin은 리드타임 칩(15|30|60분 전, 기본 30) 선택값.
-      lastTrainAlert: { enabled: false, leadMin: 30 },
-      setLastTrainAlert: (patch) =>
-        set((s) => ({ lastTrainAlert: { ...s.lastTrainAlert, ...patch } })),
 
       // ── 다크모드 토글 ─────────────────────────────────────────────────
       // darkMode는 useTheme이 themeMode + 시스템 설정을 종합해 실제 화면 상태로 동기화.
@@ -148,32 +139,6 @@ const useAppStore = create(
         set((s) => ({
           themeMode: s.darkMode ? 'light' : 'dark',
         })),
-
-      // ── F1: 등하교 자동/수동 판정 (persist 대상) ─────────────────────
-      // commuteAutoMode=true면 useEffectiveDirection이 KST 시간대(+위치 보강)로
-      // 자동 판정한다. false면 아래 commuteManualDirection 고정값을 그대로 쓴다.
-      // (참고: directionOverride는 별개의 in-memory 세션 전용 퀵토글이며 항상 최우선.)
-      commuteAutoMode: true,
-      setCommuteAutoMode: (v) => set({ commuteAutoMode: v }),
-      commuteManualDirection: '등교', // '등교' | '하교' — 수동 모드일 때만 사용
-      setCommuteManualDirection: (dir) => set({ commuteManualDirection: dir }),
-
-      // ── F3: 시간표 기본 보기(그리드/리스트) persist ───────────────────
-      // ScheduleDetailModal의 viewMode 초기값 + SettingsPage "시간표 기본 보기" +
-      // GlobalSubwayDetailSheet가 이 필드를 공유한다.
-      //
-      // 기본값은 list다. 시안의 시간표 화면이 시(hour) 그룹 + "지금" 앵커 리스트라
-      // 기본으로 그게 보여야 한다. 4열 그리드는 하루치를 한 화면에 눌러 담는 대신
-      // 시간대 감각과 "지금 어디쯤"이 사라져서, 고르는 사람에게만 준다.
-      // 이미 값을 고른 사용자는 persist된 선택이 그대로 남는다.
-      scheduleViewMode: 'list', // 'grid' | 'list'
-      setScheduleViewMode: (mode) => set({ scheduleViewMode: mode }),
-
-      // ── 홈 히어로 스타일 persist ───────────────────────────────────
-      // 'greeting'(감성 인사) | 'classic'(날씨 위주). HomeWeatherHero가 읽고,
-      // SettingsPage "홈 상단" 세그먼트가 이 필드를 그대로 쓴다.
-      heroStyle: 'greeting',
-      setHeroStyle: (style) => set({ heroStyle: style }),
 
       // ── M-2: 노선·정류장 검색 오버레이 ───────────────────────────────
       // searchOpen은 세션 전용(persist 제외) — 새로고침 시 항상 닫힌 상태로 시작.
@@ -279,10 +244,6 @@ const useAppStore = create(
         if (persistedState && typeof persistedState === 'object' && persistedState.favorites) {
           merged.favorites = { ...currentState.favorites, ...persistedState.favorites }
         }
-        // lastTrainAlert도 중첩 객체라 같은 이유(새 필드 추가 시 통째 덮어쓰기 방지)로 병합
-        if (persistedState && typeof persistedState === 'object' && persistedState.lastTrainAlert) {
-          merged.lastTrainAlert = { ...currentState.lastTrainAlert, ...persistedState.lastTrainAlert }
-        }
         return merged
       },
       partialize: (state) => ({
@@ -295,14 +256,7 @@ const useAppStore = create(
         selectedBusDirection: state.selectedBusDirection,
         selectedShuttleCampus: state.selectedShuttleCampus,
         pwaBannerDismissedAt: state.pwaBannerDismissedAt,
-        notifPrefs: state.notifPrefs,
-        lastTrainAlert: state.lastTrainAlert,
         busStationAutoMode: state.busStationAutoMode,
-        // F1/F3 신규 persist 필드
-        commuteAutoMode: state.commuteAutoMode,
-        commuteManualDirection: state.commuteManualDirection,
-        scheduleViewMode: state.scheduleViewMode,
-        heroStyle: state.heroStyle,
         recentSearches: state.recentSearches,
       }),
     }

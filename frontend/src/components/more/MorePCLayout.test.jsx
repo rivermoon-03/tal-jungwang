@@ -16,25 +16,9 @@ vi.mock('../../hooks/useMore', () => ({
   useAcademicCalendar: vi.fn(),
 }))
 
-// SettingsPage가 쓰는 zustand 스토어 — fontScale/scheduleViewMode/commute*/favorites
-// 전부 SettingsPage 렌더에 필요한 selector 값이라 전체를 모킹한다.
+// SettingsPage 가 쓰는 zustand 스토어 값만 모킹한다.
 vi.mock('../../stores/useAppStore', () => ({
-  default: vi.fn((selector) =>
-    selector({
-      fontScale: 1,
-      setFontScale: vi.fn(),
-      scheduleViewMode: 'grid',
-      setScheduleViewMode: vi.fn(),
-      commuteAutoMode: true,
-      setCommuteAutoMode: vi.fn(),
-      commuteManualDirection: '등교',
-      setCommuteManualDirection: vi.fn(),
-      favorites: { routes: [] },
-      // B1 막차 알림 — SettingsPage가 lastTrainAlert.enabled를 읽으므로 필수
-      lastTrainAlert: { enabled: false, leadMin: 30 },
-      setLastTrainAlert: vi.fn(),
-    })
-  ),
+  default: vi.fn((selector) => selector({ fontScale: 1, setFontScale: vi.fn() })),
 }))
 
 // DarkModeSegment는 useAppStore(themeMode 등)를 직접 쓰므로 별도 스텁으로 대체
