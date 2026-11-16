@@ -593,6 +593,8 @@ async def get_arrivals(
     # gbis_route_id가 있어도 이마트 실시간 관측 대상이 아니다. 수집기와 같은
     # 기준(`bus_realtime_targets`)을 써야 여기서 실시간/시간표가 갈린다.
     realtime_routes: list[BusRoute] = await _realtime_routes_at_stop(db, stop.id)
+    # 수집기가 GBIS 에서 받아 캐시에 쓴 시각. 응답 시각(updated_at)과 달리 데이터가 얼마나 오래됐는지를 뜻한다.
+    data_at: str | None = None
 
     if realtime_routes and stop.gbis_station_id:
         try:
@@ -609,6 +611,7 @@ async def get_arrivals(
                     cached_arrivals = payload.get("arrivals", [])
                     try:
                         cached_at = datetime.fromisoformat(payload["cached_at"])
+                        data_at = payload["cached_at"]
                         # cached_at은 KST aware datetime — 현재 시각과 비교
                         now_kst = datetime.now(_KST)
                         if cached_at.tzinfo is None:
@@ -871,6 +874,7 @@ async def get_arrivals(
         "station_id": station_id,
         "station_name": stop.name,
         "updated_at": datetime.now(timezone.utc).isoformat(),
+        "data_at": data_at,
         "arrivals": arrivals,
         # 이 정류장이 취급해야 할 노선 전체. 응답에 없는 노선을 홈이 "오늘 미운행"으로
         # 표시할 때, 그 기준 목록을 프런트 상수가 아니라 DB에서 받는다.

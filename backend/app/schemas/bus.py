@@ -122,6 +122,8 @@ class BusArrivalsResponse(BaseModel):
     station_id: int
     station_name: str
     updated_at: str
+    # 실시간 데이터를 GBIS 에서 받아 온 시각(KST ISO). 실시간 캐시가 없으면 None
+    data_at: str | None = None
     arrivals: list[BusArrival]
     expected_routes: list[BusExpectedRoute] = []
 

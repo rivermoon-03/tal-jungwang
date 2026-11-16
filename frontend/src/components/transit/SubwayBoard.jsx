@@ -1,20 +1,16 @@
-import { WifiOff } from 'lucide-react'
 import useAppStore from '../../stores/useAppStore'
-import { useSubwayNext, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
+import { useSubwayNext } from '../../hooks/useSubway'
 import { navigate } from '../../lib/nav'
 import LineBadge from '../kit/LineBadge'
-import Freshness from '../kit/Freshness'
 import { Banner, Skeleton } from '../kit/bits'
-import { SUBWAY_STATIONS, SUBWAY_LINES, realtimePosition } from './subwayConfig'
+import { SUBWAY_STATIONS, SUBWAY_LINES } from './subwayConfig'
 import { minutesLabel, isSoon } from './format'
 
+/** 지하철은 시간표 기준으로만 보여준다. 실시간 API 가 시간표와 자주 어긋나 걷어냈다. */
 export default function SubwayBoard() {
   const station = useAppStore((s) => s.selectedSubwayStation) ?? '정왕'
   const setStation = useAppStore((s) => s.setSubwayStation)
-  const { data: next, loading, error, fetchedAt } = useSubwayNext()
-  const { data: rtAll } = useSubwayRealtime()
-  const rt = normalizeRealtimeStation(rtAll?.[station])
-  const rtLive = rt.items.length > 0 && !rt.stale
+  const { data: next, loading, error } = useSubwayNext()
 
   return (
     <section aria-label="지하철 도착">
@@ -40,38 +36,34 @@ export default function SubwayBoard() {
           <Banner kind="error" title="지하철 정보를 불러오지 못했어요">잠시 뒤 다시 시도할게요.</Banner>
         </div>
       )}
-      {!rtLive && next && (
-        <div className="mt-4">
-          <Banner Icon={WifiOff} title="실시간 연결이 끊겼어요">시간표로 보여드려요.</Banner>
-        </div>
-      )}
 
       {SUBWAY_LINES[station].map(({ line, dirs }) => (
         <div key={line}>
-          <div className="flex items-center justify-between px-1 pb-2 pt-5">
+          <div className="px-1 pb-2 pt-5">
             <LineBadge route={line} />
-            {rtLive && <Freshness fetchedAt={fetchedAt} label="" />}
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {dirs.map((d) =>
               loading && !next ? (
-                <Skeleton key={d.key} className="h-40 rounded-[20px]" />
+                <Skeleton key={d.key} className="h-36 rounded-[20px]" />
               ) : (
-                <DirCard key={d.key} dir={d} line={line} train={next?.[d.key]} position={rtLive ? realtimePosition(rt.items, line, d.rt) : null} />
+                <DirCard key={d.key} dir={d} line={line} train={next?.[d.key]} />
               ),
             )}
           </div>
         </div>
       ))}
+
+      <p className="pt-4 text-center text-f13 text-mute">시간표 기준</p>
     </section>
   )
 }
 
-function DirCard({ dir, line, train, position }) {
+function DirCard({ dir, line, train }) {
   const go = () => navigate(`/transit/subway/timetable?key=${dir.key}`)
   if (!train) {
     return (
-      <button type="button" onClick={go} className="flex min-h-40 flex-col gap-1 rounded-[20px] border border-line bg-surface-2 p-4 text-left">
+      <button type="button" onClick={go} className="flex min-h-36 flex-col gap-1 rounded-[20px] border border-line bg-surface-2 p-4 text-left">
         <span className="text-f14 font-extrabold text-ink-2">{dir.label}</span>
         <span className="text-f17 font-extrabold text-ink-2">오늘 운행이 끝났어요</span>
       </button>
@@ -83,7 +75,7 @@ function DirCard({ dir, line, train, position }) {
       type="button"
       onClick={go}
       aria-label={`${line} ${dir.label} 시간표`}
-      className="flex min-h-40 flex-col gap-1 rounded-[20px] border border-line bg-surface p-4 text-left active:scale-[0.98] transition-transform duration-100"
+      className="flex min-h-36 flex-col gap-1 rounded-[20px] border border-line bg-surface p-4 text-left transition-transform duration-100 active:scale-[0.98]"
     >
       <span className="text-f14 font-extrabold text-ink-2">{dir.label}</span>
       <span className="flex items-center gap-1.5 text-f16 font-extrabold text-ink">
@@ -93,10 +85,8 @@ function DirCard({ dir, line, train, position }) {
       <span className={`text-f40 font-extrabold leading-none tracking-tight tabular-nums ${soon ? 'text-amber-700 dark:text-amber-400' : 'text-ink'}`}>
         {minutesLabel(train.arrive_in_seconds)}
       </span>
-      <span className={`text-f15 font-extrabold ${position ? 'text-ink' : 'text-mute'}`}>{position ?? '시간표 기준'}</span>
-      {train.next_arrive_in_seconds != null && (
-        <span className="text-f13 text-ink-2">다음 {minutesLabel(train.next_arrive_in_seconds)}</span>
-      )}
+      <span className="text-f14 font-bold text-ink">{train.depart_at} 출발</span>
+      {train.next_arrive_in_seconds != null && <span className="text-f13 text-ink-2">다음 {minutesLabel(train.next_arrive_in_seconds)}</span>}
     </button>
   )
 }

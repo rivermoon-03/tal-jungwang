@@ -516,20 +516,7 @@ def setup_scheduler():
     )
     logger.info("Collector stall check configured (hourly, 48h threshold)")
 
-    # ── 지하철 실시간 폴링 (15초 간격, 내부에서 비피크 20초 / 심야 10분 스킵) ──
-    # 피크: 15초 폴링, 비피크: 20초 폴링, 심야(00:00~03:49): 10분 폴링
-    scheduler.add_job(
-        _subway_realtime_poll_job,
-        IntervalTrigger(seconds=15),
-        id="subway_realtime_poll",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-        misfire_grace_time=10,
-    )
-    logger.info(
-        "Subway realtime polling scheduler configured (00:00~03:49 10m / peak 15s / off-peak 20s)"
-    )
+    # 지하철 실시간 폴링은 끈다. 시간표와 어긋나 화면에서 걷어냈고(2026-11), 서울 지하철 API 호출만 남았다.
 
     # ── 학식 메뉴 갱신 (매일 07~14시 매시 정각) ──
     # 학교가 월요일 오전 늦게(예: 09:21) 새 주차 식단을 업로드하는 케이스가 있어

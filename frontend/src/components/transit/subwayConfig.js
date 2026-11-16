@@ -47,12 +47,3 @@ export function findDir(key) {
   }
   return null
 }
-
-/** 실시간 목록에서 이 노선, 방향의 가장 가까운 열차 위치 문구 */
-export function realtimePosition(items, line, rtDirection) {
-  const short = line.replace('선', '')
-  const hits = (items ?? []).filter((it) => it.direction === rtDirection && String(it.line).includes(short))
-  if (!hits.length) return null
-  const first = [...hits].sort((a, b) => (a.arrive_seconds ?? Infinity) - (b.arrive_seconds ?? Infinity))[0]
-  return first.smart_status || first.status_msg || null
-}

@@ -1,6 +1,6 @@
 import useAppStore from '../../stores/useAppStore'
 import { useBusArrivals } from '../../hooks/useBus'
-import { useSubwayNext, useSubwayRealtime, normalizeRealtimeStation } from '../../hooks/useSubway'
+import { useSubwayNext } from '../../hooks/useSubway'
 import { useShuttleNext } from '../../hooks/useShuttle'
 import { useCafeteriaMenu } from '../../hooks/useCafeteria'
 import { getTodayDayKey } from '../../utils/cafeteriaDays'
@@ -9,7 +9,7 @@ import { linkProps } from '../../lib/nav'
 import LineBadge from '../kit/LineBadge'
 import { buildBusRows } from '../transit/busRows'
 import { minutesLabel, nowMinutes } from '../transit/format'
-import { SUBWAY_LINES, realtimePosition } from '../transit/subwayConfig'
+import { SUBWAY_LINES } from '../transit/subwayConfig'
 import { currentMealKind, mealStatus, pickMeal, venueIdOf } from '../meal/mealSelect'
 
 const CARD = 'block rounded-[22px] border border-[#272a29] bg-[rgba(23,25,24,.92)] text-[#eceeed] active:opacity-80'
@@ -51,15 +51,12 @@ export function BusCard() {
 
 export function SubwayCard({ direction }) {
   const { data } = useSubwayNext({ tickMs: 30_000 })
-  const { data: rt } = useSubwayRealtime()
   const keys = direction === '하교' ? ['line4_up', 'up'] : ['line4_down', 'down']
   const dirs = SUBWAY_LINES['정왕'].flatMap((l) => l.dirs.map((d) => ({ ...d, line: l.line })))
   const pick = keys
     .map((k) => ({ dir: dirs.find((d) => d.key === k), train: data?.[k] }))
     .filter((x) => x.train)
     .sort((a, b) => a.train.arrive_in_seconds - b.train.arrive_in_seconds)[0]
-  const items = normalizeRealtimeStation(rt?.['정왕']).items
-  const position = pick ? realtimePosition(items, pick.dir.line, pick.dir.rt) : null
   return (
     <a {...goTransit('subway')} className={`${CARD} flex flex-col gap-1.5 px-4 py-3.5`}>
       {pick ? (
@@ -69,7 +66,7 @@ export function SubwayCard({ direction }) {
             <span className="truncate text-f14 font-bold">{pick.train.destination}행</span>
           </div>
           <span className="text-f28 font-bold tabular-nums">{minutesLabel(pick.train.arrive_in_seconds)}</span>
-          <span className="text-f14 font-extrabold">{position ?? '시간표 기준'}</span>
+          <span className="text-f14 font-extrabold">{pick.train.depart_at} 출발</span>
           <span className={SUB}>정왕역 {pick.dir.label}</span>
         </>
       ) : (

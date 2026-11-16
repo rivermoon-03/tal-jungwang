@@ -19,7 +19,7 @@ export default function BusBoard() {
 
   const conf = BUS_STATIONS[station] ?? BUS_STATIONS['한국공학대']
   const gbis = conf.gbisStationId
-  const { data, loading, error, fetchedAt } = useBusArrivals(gbis)
+  const { data, loading, error } = useBusArrivals(gbis)
   const [pick, setPick] = useState({ station, dest: null })
   const dests = destKeysOf(conf.perRouteDisplay)
   // 정류장을 바꾸면 행선지 선택은 전체로 돌아간다. 행선지가 하나뿐이면 그것이 늘 선택돼 있다.
@@ -77,7 +77,8 @@ export default function BusBoard() {
       ) : (
         <div className="mt-2 rounded-3xl bg-[var(--tj-dock-bg)] px-3.5 pb-2 pt-3.5 text-[#eceeed]">
           <div className="flex justify-end border-b border-[#373b39] px-1 pb-2.5">
-            <Freshness fetchedAt={fetchedAt} tone="dark" />
+            {/* 앱이 물어본 시각이 아니라 서버가 GBIS 에서 받아 온 시각(data_at)으로 잰다. */}
+            <Freshness fetchedAt={data?.data_at ? Date.parse(data.data_at) : null} tone="dark" />
           </div>
           {loading && !data && <BoardSkeleton />}
           {error && !data && <p className="px-1 py-6 text-f15 text-[#adb5b2]">도착 정보를 불러오지 못했어요. 잠시 뒤 다시 시도할게요.</p>}
