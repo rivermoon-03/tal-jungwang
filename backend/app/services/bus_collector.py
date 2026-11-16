@@ -11,6 +11,8 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import httpx
+
 from app.core.cache import get_redis
 from app.core.database import AsyncSessionLocal
 from app.models.bus import (
@@ -204,6 +206,10 @@ async def poll_and_collect():
                 items = await asyncio.wait_for(fetch_arrivals(station_id), timeout=12)
             except asyncio.TimeoutError:
                 logger.warning("GBIS 폴링 타임아웃 (정류장 %s, %s)", target["stop_name"], station_id)
+                continue
+            except httpx.TransportError as exc:
+                # 해외 서버에서는 연결 단계가 막히는 일이 잦아 traceback 대신 한 줄로 남긴다.
+                logger.warning("GBIS 연결 실패 (정류장 %s): %s", target["stop_name"], type(exc).__name__)
                 continue
             except Exception:
                 logger.warning("GBIS 폴링 실패 (정류장 %s)", target["stop_name"], exc_info=True)
