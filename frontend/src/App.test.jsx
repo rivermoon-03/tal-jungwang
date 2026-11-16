@@ -25,7 +25,7 @@ function open(path) {
   window.history.replaceState({}, '', path)
   render(<App />)
 }
-const props = (id) => JSON.parse(screen.getByTestId(id).dataset.props)
+const props = async (id) => JSON.parse((await screen.findByTestId(id)).dataset.props)
 
 describe('App 라우팅', () => {
   beforeEach(() => window.history.replaceState({}, '', '/'))
@@ -38,24 +38,24 @@ describe('App 라우팅', () => {
     ['/more/settings', 'more'],
     ['/notices', 'notices'],
     ['/privacy', 'privacy'],
-  ])('%s → %s', (path, id) => {
+  ])('%s → %s', async (path, id) => {
     open(path)
-    expect(screen.getByTestId(id)).toBeInTheDocument()
+    expect(await screen.findByTestId(id)).toBeInTheDocument()
   })
 
-  it('버스 노선 상세에 노선, 정류장, 보기를 넘긴다', () => {
+  it('버스 노선 상세에 노선, 정류장, 보기를 넘긴다', async () => {
     open(`/transit/bus/${encodeURIComponent('시흥33')}?stop=224000639&view=history`)
-    expect(props('bus-route')).toEqual({ route: '시흥33', stop: '224000639', view: 'history' })
+    expect(await props('bus-route')).toEqual({ route: '시흥33', stop: '224000639', view: 'history' })
   })
 
-  it('시간표 화면에 방면 키와 방향을 넘긴다', () => {
+  it('시간표 화면에 방면 키와 방향을 넘긴다', async () => {
     open('/transit/subway/timetable?key=line4_up')
-    expect(props('subway-tt')).toEqual({ dirKey: 'line4_up' })
+    expect(await props('subway-tt')).toEqual({ dirKey: 'line4_up' })
   })
 
-  it('식당 상세에 디코딩한 id 를 넘긴다', () => {
+  it('식당 상세에 디코딩한 id 를 넘긴다', async () => {
     open('/cafeteria/student-cafeteria')
-    expect(props('venue')).toEqual({ venueId: 'student-cafeteria' })
+    expect(await props('venue')).toEqual({ venueId: 'student-cafeteria' })
   })
 
   it.each([
@@ -63,9 +63,9 @@ describe('App 라우팅', () => {
     ['/route/bus:33', 'transit', '/transit'],
     ['/facilities?tab=diet', 'meal', '/cafeteria'],
     ['/favorites', 'home', '/'],
-  ])('옛 주소 %s 는 새 화면으로 바꾼다', (path, id, to) => {
+  ])('옛 주소 %s 는 새 화면으로 바꾼다', async (path, id, to) => {
     open(path)
-    expect(screen.getByTestId(id)).toBeInTheDocument()
+    expect(await screen.findByTestId(id)).toBeInTheDocument()
     expect(window.location.pathname).toBe(to)
   })
 })

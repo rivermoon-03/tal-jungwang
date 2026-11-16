@@ -4,12 +4,14 @@ import { useNow } from '../../hooks/useNow'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { linkProps } from '../../lib/nav'
 import { sceneOf } from './weatherScene'
+import { isLowEnd, useWeatherMotion } from './useWeatherMotion'
 import { WeatherBackdrop, WeatherNow } from './WeatherHero'
 import { BusCard, MealCard, ShuttleCard, SubwayCard } from './HomeCards'
 import BusBoard from '../transit/BusBoard'
 import SubwayBoard from '../transit/SubwayBoard'
 import ShuttleBoard from '../transit/ShuttleBoard'
 
+const LOW_END = isLowEnd()
 const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토']
 
 function timeLabel(now) {
@@ -28,10 +30,11 @@ function HomeMobile() {
   const now = useNow(30_000)
   const scene = sceneOf(weather?.icon, new Date(now))
   const hhmm = timeLabel(now).split(' ')[1]
+  const motionRef = useWeatherMotion()
 
   return (
-    <div className="tjw-root relative min-h-full bg-[#101211] pb-6">
-      <WeatherBackdrop scene={scene} height={520} />
+    <div ref={motionRef} className="tjw-root relative min-h-full bg-[#101211] pb-6">
+      <WeatherBackdrop scene={scene} height={520} still={LOW_END} />
       <div className="relative px-[22px] pt-6">
         <WeatherNow weather={weather} scene={scene} timeLabel={timeLabel(now)} />
       </div>
@@ -59,10 +62,11 @@ function HomeDesktop() {
   const { weather } = useWeather()
   const now = useNow(30_000)
   const scene = sceneOf(weather?.icon, new Date(now))
+  const motionRef = useWeatherMotion()
   return (
     <div className="pb-10">
-      <div className="tjw-root relative h-[240px] overflow-hidden bg-[#101211]">
-        <WeatherBackdrop scene={scene} height={240} />
+      <div ref={motionRef} className="tjw-root relative h-[240px] overflow-hidden bg-[#101211]">
+        <WeatherBackdrop scene={scene} height={240} still={LOW_END} />
         <div className="relative mx-auto max-w-[1200px] px-8 pt-5">
           <WeatherNow weather={weather} scene={scene} timeLabel={timeLabel(now)} compact />
         </div>

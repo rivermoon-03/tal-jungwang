@@ -20,3 +20,11 @@ it('모든 장면에 대체 텍스트가 있고, 겨울과 여름 외에는 입�
   expect(particlesOf('rain').length).toBeGreaterThan(0)
   expect(particlesOf('autumn')[0].kind).toMatch(/^leaf/)
 })
+
+it('저사양 기기 판정', async () => {
+  const { isLowEnd } = await import('./useWeatherMotion')
+  expect(isLowEnd({ hardwareConcurrency: 4, deviceMemory: 8 })).toBe(true)
+  expect(isLowEnd({ hardwareConcurrency: 8, deviceMemory: 2 })).toBe(true)
+  expect(isLowEnd({ hardwareConcurrency: 8, deviceMemory: 8 })).toBe(false)
+  expect(isLowEnd({})).toBe(false)
+})

@@ -193,6 +193,36 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 9,
+      "title": "Web Vitals p75 (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.75, sum by (le, page, name) (rate(tj_web_vitals_ms_bucket[30m])))", "legendFormat": "{{name}} {{page}}" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "fillOpacity": 15, "lineWidth": 2 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "CLS p75",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.75, sum by (le, page) (rate(tj_web_vitals_cls_bucket[30m])))", "legendFormat": "{{page}}" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": { "fillOpacity": 15, "lineWidth": 2 }
+        },
+        "overrides": []
+      }
     }
   ],
   "schemaVersion": 39

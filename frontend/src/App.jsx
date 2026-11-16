@@ -6,14 +6,22 @@ import { navigate, useLocation } from './lib/nav'
 import AppShell from './components/shell/AppShell'
 import PWAInstallBanner from './components/layout/PWAInstallBanner'
 import HomePage from './components/home/HomePage'
-import TransitPage from './components/transit/TransitPage'
-import BusRoutePage from './components/transit/BusRoutePage'
-import { SubwayTimetablePage, ShuttleTimetablePage } from './components/transit/TimetablePages'
-import SchoolFoodPage from './components/meal/SchoolFoodPage'
-import MealVenuePage from './components/meal/MealVenuePage'
-import MorePage from './pages/MorePage'
-import NoticesTabPage from './pages/NoticesTabPage'
-import PrivacyPage from './pages/PrivacyPage'
+import { lazyWithReload } from './utils/lazyWithReload'
+
+// 첫 화면(홈)만 바로 싣고 나머지 탭은 들어갈 때 받는다.
+const TransitPage = lazyWithReload(() => import('./components/transit/TransitPage'))
+const BusRoutePage = lazyWithReload(() => import('./components/transit/BusRoutePage'))
+const SubwayTimetablePage = lazyWithReload(() =>
+  import('./components/transit/TimetablePages').then((m) => ({ default: m.SubwayTimetablePage })),
+)
+const ShuttleTimetablePage = lazyWithReload(() =>
+  import('./components/transit/TimetablePages').then((m) => ({ default: m.ShuttleTimetablePage })),
+)
+const SchoolFoodPage = lazyWithReload(() => import('./components/meal/SchoolFoodPage'))
+const MealVenuePage = lazyWithReload(() => import('./components/meal/MealVenuePage'))
+const MorePage = lazyWithReload(() => import('./pages/MorePage'))
+const NoticesTabPage = lazyWithReload(() => import('./pages/NoticesTabPage'))
+const PrivacyPage = lazyWithReload(() => import('./pages/PrivacyPage'))
 
 // 옛 주소. 북마크, 위젯 딥링크가 아직 쓴다.
 const LEGACY = [
