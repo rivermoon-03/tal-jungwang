@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # apis.data.go.kr 은 해외 네트워크 일부에서 TCP 연결을 받지 않는다(출발 네트워크마다 다르다).
     # 연결이 계속 실패하면 한국 안의 HTTP 프록시 주소(예: http://user:pass@1.2.3.4:3128)를 넣는다. 이 호스트로 가는 요청만 그 프록시를 거친다.
     DATA_GO_KR_PROXY: str = ""
+    # 이 구간(KST, HH:MM)에는 사용자가 요청한 정류장만 GBIS 를 폴링한다. 끝은 모든 실시간 노선의 막차가 끝나는 시각이다.
+    BUS_ON_DEMAND_START: str = "21:00"
+    BUS_ON_DEMAND_END: str = "02:00"
     SEOUL_SUBWAY_KEY: str = ""
     # ITS(국가교통정보센터)는 data.go.kr 과 키 체계가 다르다 — its.go.kr/opendata 에서
     # 따로 발급받은 키가 필요하다(2026-08-03 실측: data.go.kr 키로 호출 시 resultCode

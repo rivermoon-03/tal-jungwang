@@ -28,6 +28,7 @@ from app.services.bus import (
     resolve_stop_id,
 )
 from app.services.bus_context import get_commute_contexts
+from app.services.bus_demand import mark_demand
 from app.services.bus_stats import get_eta_accuracy
 from app.services.crowding_flow import compute_crowding_flow
 from app.services.external.gbis import fetch_bus_locations
@@ -135,6 +136,7 @@ async def bus_arrivals(
 ):
     # KST(UTC+9) 기준으로 현재 시각을 결정 — DB 시간표가 KST 기준으로 저장됨
     now = datetime.now(ZoneInfo("Asia/Seoul"))
+    await mark_demand(station_id)
     result = await get_arrivals(db, station_id, now.date(), now.time())
     if not result:
         return ApiResponse.fail("BUS_STATION_NOT_FOUND", "해당 정류장 ID가 존재하지 않습니다.")

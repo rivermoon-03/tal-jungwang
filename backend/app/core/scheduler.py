@@ -107,11 +107,16 @@ async def _bus_poll_job():
     if 2 <= hour < 4:
         return  # 02~03시 운행 없음
 
+    from app.core.config import settings
     from app.core.freshness import mark_fresh
     from app.services.bus_collector import poll_and_collect
+    from app.services.bus_demand import in_on_demand_window
+
+    # 밤 구간에는 사용자가 보고 있는 정류장만 묻는다. 막차가 다 끝난 뒤의 GBIS 호출을 아낀다.
+    on_demand = in_on_demand_window(datetime.now(_KST), settings.BUS_ON_DEMAND_START, settings.BUS_ON_DEMAND_END)
 
     try:
-        await asyncio.wait_for(poll_and_collect(), timeout=40)
+        await asyncio.wait_for(poll_and_collect(on_demand=on_demand), timeout=40)
         await mark_fresh("bus")
     except asyncio.TimeoutError:
         logger.warning("Bus arrival polling timed out (>40s) — skipping cycle")

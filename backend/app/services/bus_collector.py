@@ -1,6 +1,6 @@
 """버스 도착정보 백그라운드 수집기.
 
-45초 간격으로 GBIS API를 폴링하여(02:00~03:59 제외):
+45초 간격으로 GBIS API를 폴링하여(02:00~03:59 제외, 밤 구간은 요청 있는 정류장만):
 1. Redis에 도착정보 캐시 (프론트 응답용, TTL 100초 — 1회 미싱 버퍼)
 2. 이전 상태와 비교하여 도착 판정 → DB 기록
 """
@@ -22,6 +22,7 @@ from app.models.bus import (
     BusRealtimeTarget,
     BusRoute,
 )
+from app.services.bus_demand import demanded_ids
 from app.services.external.gbis import fetch_arrivals
 
 from sqlalchemy import select
@@ -189,13 +190,21 @@ async def _load_realtime_stations(db) -> list[dict]:
     return list(grouped.values())
 
 
-async def poll_and_collect():
-    """1회 폴링 사이클: GBIS 호출 → 캐시 저장 → 도착 판정 → DB 기록."""
+async def poll_and_collect(on_demand: bool = False):
+    """1회 폴링 사이클: GBIS 호출 → 캐시 저장 → 도착 판정 → DB 기록.
+
+    on_demand 면 최근 2분 안에 사용자가 도착 정보를 요청한 정류장만 묻는다(밤 구간 호출량 절약).
+    """
     redis = await get_redis()
     now = datetime.now(_KST)
 
     async with AsyncSessionLocal() as db:
         targets = await _load_realtime_stations(db)
+        if on_demand:
+            wanted = await demanded_ids([str(t["gbis_station_id"]) for t in targets] + [str(t["stop_id"]) for t in targets])
+            targets = [t for t in targets if str(t["gbis_station_id"]) in wanted or str(t["stop_id"]) in wanted]
+            if not targets:
+                return
 
         for i, target in enumerate(targets):
             if i > 0:
