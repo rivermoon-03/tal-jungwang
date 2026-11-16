@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     KAKAO_MOBILITY_REST_KEY: str = ""
     TMAP_APP_KEY: str = ""
     DATA_GO_KR_SERVICE_KEY: str = ""
-    # apis.data.go.kr 은 해외 IP 에서 TCP 연결이 대부분 막힌다(Railway 의 미국, 아시아 리전 모두 해당).
-    # 한국 안의 HTTP 프록시 주소(예: http://user:pass@1.2.3.4:3128)를 넣으면 이 호스트로 가는 요청만 그 프록시를 거친다.
+    # apis.data.go.kr 은 해외 네트워크 일부에서 TCP 연결을 받지 않는다(출발 네트워크마다 다르다).
+    # 연결이 계속 실패하면 한국 안의 HTTP 프록시 주소(예: http://user:pass@1.2.3.4:3128)를 넣는다. 이 호스트로 가는 요청만 그 프록시를 거친다.
     DATA_GO_KR_PROXY: str = ""
     SEOUL_SUBWAY_KEY: str = ""
     # ITS(국가교통정보센터)는 data.go.kr 과 키 체계가 다르다 — its.go.kr/opendata 에서
