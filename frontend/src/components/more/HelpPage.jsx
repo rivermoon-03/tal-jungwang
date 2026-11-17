@@ -107,7 +107,7 @@ function QaList({ items }) {
 
 export default function HelpPage({ onBack, embedded = false }) {
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
+    <div className="flex flex-1 flex-col bg-bg dark:bg-bg animate-slide-in-right">
       {!embedded && (
         <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
           <IconButton label="뒤로" onClick={onBack}>
@@ -117,7 +117,7 @@ export default function HelpPage({ onBack, embedded = false }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 pb-28 md:pb-6 flex flex-col gap-6">
+      <div className="flex-1 px-4 py-3 md:pb-6 flex flex-col gap-6">
         <section>
           <SectionTitle icon={LayoutGrid}>홈 화면 위젯</SectionTitle>
           <p className="text-caption text-mute dark:text-mute leading-relaxed px-1 mb-3">

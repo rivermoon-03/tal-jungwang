@@ -46,7 +46,7 @@ export default function NoticesPage({ onBack, embedded = false }) {
   }, [data, loading, error])
 
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
+    <div className="flex flex-1 flex-col bg-bg dark:bg-bg animate-slide-in-right">
       {!embedded && (
         <div className="flex items-center gap-2 px-3 pt-4 pb-3 bg-surface dark:bg-surface border-b border-line dark:border-line flex-shrink-0">
           <IconButton label="뒤로" onClick={onBack}>
@@ -57,7 +57,7 @@ export default function NoticesPage({ onBack, embedded = false }) {
       )}
 
       {/* 내용 — 로딩/에러/빈/정상 넷을 서로 다른 모양으로 구분한다. */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 md:pb-4">
+      <div className="flex-1 px-4 py-4 md:pb-4">
         {loading && <NoticesListSkeleton />}
 
         {!loading && error && (

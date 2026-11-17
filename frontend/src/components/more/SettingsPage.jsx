@@ -101,7 +101,7 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
   const fontLabel = ['작게', '보통', '크게'][fontScale] ?? '보통'
 
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
+    <div className="flex flex-1 flex-col bg-bg dark:bg-bg animate-slide-in-right">
       {!embedded && (
         <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
           <IconButton label="뒤로" onClick={onBack}>
@@ -116,7 +116,7 @@ export default function SettingsPage({ onBack, onOpenAppInfo, embedded = false }
         (flex-col gap-5), md 브레이크포인트에서만 grid-cols-2로 reflow — 컴포넌트를
         숨기는 게 아니라 같은 마크업을 재배치하는 것뿐이라 CSS 반응형으로 충분하다.
       */}
-      <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-10 md:px-8">
+      <div className="flex-1 px-4 md:pb-10 md:px-8">
         <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:gap-6 md:max-w-[1040px] md:items-start">
         {/* ── 개인화 ── */}
         <Section label="개인화">

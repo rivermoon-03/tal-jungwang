@@ -55,7 +55,7 @@ function Section({ title, children }) {
 
 export default function PrivacyPolicyPage({ onBack }) {
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
+    <div className="flex flex-1 flex-col bg-bg dark:bg-bg animate-slide-in-right">
       <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
         <IconButton label="뒤로" onClick={onBack}>
           <ChevronLeft size={22} className="text-ink dark:text-ink" />
@@ -65,7 +65,7 @@ export default function PrivacyPolicyPage({ onBack }) {
 
       {/* 산문 본문은 tj-prose-w로 한 줄 길이를 제한한다. PC에서 폭을 그대로 두면
           한 줄이 100자를 넘어 눈이 줄을 놓친다. */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 pb-28 md:pb-6">
+      <div className="flex-1 px-4 py-3 md:pb-6">
         <div className="tj-prose-w flex flex-col gap-3">
           <p className="text-meta text-mute dark:text-mute px-1">
             탈:정왕(이하 “서비스”)은 회원가입 없이 이용되며, 이용자를 식별할 수 있는

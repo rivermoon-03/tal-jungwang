@@ -37,7 +37,7 @@ const GROUPS = [
   {
     label: '설정',
     entries: [
-      { id: 'settings', Icon: SettingsIcon, title: '설정', desc: '개인화 · 알림 · 데이터' },
+      { id: 'settings', Icon: SettingsIcon, title: '설정', desc: '테마, 글자 크기' },
     ],
   },
   {
@@ -107,10 +107,10 @@ export default function MorePage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-fade-in-up">
+    <div className="flex flex-1 flex-col bg-bg dark:bg-bg animate-fade-in-up">
       <PageHeader title="더보기" />
 
-      <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-6 flex flex-col gap-5">
+      <div className="flex-1 px-4 md:pb-6 flex flex-col gap-5">
         {GROUPS.map(({ label, entries }) => (
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>

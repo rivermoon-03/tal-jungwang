@@ -12,7 +12,7 @@ const BUILD_DATE = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '개
 
 export default function AppInfoPage({ onBack, embedded = false }) {
   return (
-    <div className="flex flex-col h-full bg-bg dark:bg-bg animate-slide-in-right">
+    <div className="flex flex-1 flex-col bg-bg dark:bg-bg animate-slide-in-right">
       {!embedded && (
         <div className="flex items-center gap-2 px-3 pt-4 pb-3 flex-shrink-0">
           <IconButton label="뒤로" onClick={onBack}>
@@ -22,7 +22,7 @@ export default function AppInfoPage({ onBack, embedded = false }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 pb-28 md:pb-6 flex flex-col gap-4">
+      <div className="flex-1 px-4 py-3 md:pb-6 flex flex-col gap-4">
         {/* 히어로 */}
         <section className="bg-surface dark:bg-surface rounded-card shadow-card px-5 py-6 flex flex-col items-center text-center">
           <div
